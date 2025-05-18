@@ -313,6 +313,26 @@ export function extractNoteInfo(content: string, path: string, file?: TFile): {t
 		createdDate = format(new Date(file.stat.ctime), "yyyy-MM-dd'T'HH:mm:ss");
 	}
 	
+	// Normalize date format for consistent comparison
+	if (createdDate) {
+		// If it's just a date without time (YYYY-MM-DD), keep it as is
+		if (createdDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+			// Already in the right format
+		} 
+		// If it's a full ISO timestamp or similar, extract just the date part
+		else {
+			try {
+				const date = new Date(createdDate);
+				if (!isNaN(date.getTime())) {
+					// Format to YYYY-MM-DD to ensure consistency
+					createdDate = format(date, "yyyy-MM-dd");
+				}
+			} catch (e) {
+				console.error(`Error parsing date ${createdDate}:`, e);
+			}
+		}
+	}
+	
 	return { title, tags, path, createdDate, lastModified };
 }
 

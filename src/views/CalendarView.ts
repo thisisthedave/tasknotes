@@ -92,6 +92,9 @@ export class CalendarView extends View {
         
         // Refresh the view once the cache is built
         await this.refresh();
+        
+        // Register keyboard event handlers
+        this.registerKeyboardNavigation();
     }
 
     renderView(container: HTMLElement) {
@@ -175,6 +178,123 @@ export class CalendarView extends View {
         
         // Clean up when the view is closed
         this.containerEl.empty();
+    }
+    
+    /**
+     * Registers keyboard navigation for the calendar
+     */
+    registerKeyboardNavigation() {
+        // Add keyboard event handling for this view
+        const handler = this.app.scope.register([], 'ArrowLeft', (e) => {
+            if (this.isThisViewActive()) {
+                e.preventDefault();
+                this.navigateDate(-1, 0);
+            }
+        });
+        this.registerDomEvent(document, 'keydown', (e: KeyboardEvent) => {
+            // Only handle events when this view is active
+            if (!this.isThisViewActive()) {
+                return;
+            }
+            
+            // Get the currently selected date
+            const currentDate = new Date(this.plugin.selectedDate);
+            let newDate: Date | undefined = undefined;
+            
+            switch (e.key) {
+                // Left arrow or h - previous day
+                case 'ArrowLeft':
+                case 'h':
+                    newDate = new Date(currentDate);
+                    newDate.setDate(currentDate.getDate() - 1);
+                    break;
+                    
+                // Right arrow or l - next day
+                case 'ArrowRight':
+                case 'l':
+                    newDate = new Date(currentDate);
+                    newDate.setDate(currentDate.getDate() + 1);
+                    break;
+                    
+                // Up arrow or k - previous week (same day)
+                case 'ArrowUp':
+                case 'k':
+                    newDate = new Date(currentDate);
+                    newDate.setDate(currentDate.getDate() - 7);
+                    break;
+                    
+                // Down arrow or j - next week (same day)
+                case 'ArrowDown':
+                case 'j':
+                    newDate = new Date(currentDate);
+                    newDate.setDate(currentDate.getDate() + 7);
+                    break;
+                
+                // Enter key - open daily note for selected date
+                case 'Enter':
+                    e.preventDefault();
+                    this.plugin.navigateToDailyNote(currentDate);
+                    return;
+                    
+                default:
+                    // Not a navigation key
+                    return;
+            }
+            
+            // If we have a new date, update it and prevent default
+            if (newDate) {
+                e.preventDefault();
+                this.plugin.setSelectedDate(newDate);
+                
+                // Check if new date is in current month, if not navigate to that month
+                const currentMonth = this.plugin.selectedDate.getMonth();
+                const newMonth = newDate.getMonth();
+                
+                if (currentMonth !== newMonth) {
+                    const newMonthKey = `${newDate.getFullYear()}-${newMonth}`;
+                    this.buildCalendarCaches(newMonthKey).then(() => {
+                        this.refresh();
+                    });
+                } else {
+                    this.refresh();
+                }
+            }
+        });
+    }
+    
+    /**
+     * Helper to check if this view is currently the active one
+     */
+    private isThisViewActive(): boolean {
+        const activeLeaf = this.app.workspace.activeLeaf;
+        return activeLeaf !== null && activeLeaf.view === this;
+    }
+    
+    /**
+     * Helper to navigate by days and weeks
+     */
+    private navigateDate(dayOffset: number, weekOffset: number) {
+        const currentDate = new Date(this.plugin.selectedDate);
+        const newDate = new Date(currentDate);
+        
+        // Apply week offset (7 days per week)
+        newDate.setDate(currentDate.getDate() + (weekOffset * 7) + dayOffset);
+        
+        // Update the date
+        this.plugin.setSelectedDate(newDate);
+        
+        // Check if we need to change months
+        const currentMonth = this.plugin.selectedDate.getMonth();
+        const newMonth = newDate.getMonth();
+        
+        if (currentMonth !== newMonth) {
+            const newMonthKey = `${newDate.getFullYear()}-${newMonth}`;
+            this.buildCalendarCaches(newMonthKey).then(() => {
+                this.refresh();
+            });
+        } else {
+            this.refresh();
+        }
     }
     
     // Helper method to refresh the view
@@ -381,6 +501,8 @@ export class CalendarView extends View {
         prevButton.addEventListener('click', () => {
             this.navigateToPreviousPeriod();
         });
+        prevButton.setAttribute('aria-label', 'Previous month (←)');
+        prevButton.setAttribute('title', 'Previous month (←)');
         
         const currentMonth = monthNavigationGroup.createEl('span', { 
             text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
@@ -391,12 +513,16 @@ export class CalendarView extends View {
         nextButton.addEventListener('click', () => {
             this.navigateToNextPeriod();
         });
+        nextButton.setAttribute('aria-label', 'Next month (→)');
+        nextButton.setAttribute('title', 'Next month (→)');
         
         // Today button on the right side
         const todayButton = navContainer.createEl('button', { text: 'Today', cls: 'today-button' });
         todayButton.addEventListener('click', () => {
             this.navigateToToday();
         });
+        
+        // Keyboard navigation is available but not explicitly shown in UI
     }
   
     createCalendarGrid(container: HTMLElement) {

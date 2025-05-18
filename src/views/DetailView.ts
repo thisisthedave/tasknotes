@@ -69,9 +69,15 @@ export class DetailView extends View {
         this.listeners.forEach(unsubscribe => unsubscribe());
         this.listeners = [];
         
-        // Listen for date selection changes
+        // Listen for date selection changes - force a full refresh when date changes
         const dateListener = this.plugin.emitter.on(EVENT_DATE_SELECTED, () => {
-            this.refresh();
+            // Clear both caches when date changes
+            this.cachedNotes = null;
+            this.lastNotesRefresh = 0;
+            this.cachedTasks = null;
+            this.lastTasksRefresh = 0;
+            
+            this.refresh(true); // Force refresh on date change
         });
         this.listeners.push(dateListener);
         
@@ -92,9 +98,14 @@ export class DetailView extends View {
         this.containerEl.empty();
     }
     
-    async refresh() {
-        // Don't clear the cache immediately, this prevents task disappearing 
-        // during modifications
+    async refresh(forceFullRefresh: boolean = false) {
+        // If forcing a full refresh, clear the caches
+        if (forceFullRefresh) {
+            this.cachedTasks = null;
+            this.lastTasksRefresh = 0;
+            this.cachedNotes = null;
+            this.lastNotesRefresh = 0;
+        }
         
         // Clear and prepare the content element
         this.containerEl.empty();
@@ -192,19 +203,25 @@ export class DetailView extends View {
         // Set up tab switching
         tasksTab.addEventListener('click', () => {
             this.plugin.setActiveTab('tasks');
-            this.refresh();
+            // Clear cache when switching to tasks tab to ensure fresh data
+            this.cachedTasks = null;
+            this.lastTasksRefresh = 0;
+            this.refresh(true); // Force refresh when switching tabs
             this.plugin.notifyDataChanged(); // Notify calendar that tab has changed
         });
         
         notesTab.addEventListener('click', () => {
             this.plugin.setActiveTab('notes');
-            this.refresh();
+            // Clear cache when switching to notes tab to ensure fresh data
+            this.cachedNotes = null;
+            this.lastNotesRefresh = 0;
+            this.refresh(true); // Force refresh when switching tabs
             this.plugin.notifyDataChanged(); // Notify calendar that tab has changed
         });
         
         timeblockTab.addEventListener('click', () => {
             this.plugin.setActiveTab('timeblock');
-            this.refresh();
+            this.refresh(true); // Force refresh when switching tabs
             this.plugin.notifyDataChanged(); // Notify calendar that tab has changed
         });
     }
@@ -240,9 +257,8 @@ export class DetailView extends View {
         });
         
         refreshButton.addEventListener('click', async () => {
-            // Force refresh the cache
-            this.cachedTasks = null;
-            await this.refresh();
+            // Force refresh the cache and update UI
+            await this.refresh(true); // Pass true to force a full refresh
         });
         
         // Task list container
@@ -270,7 +286,7 @@ export class DetailView extends View {
         // Add change event listener to the status filter
         statusSelect.addEventListener('change', async () => {
             const selectedStatus = statusSelect.value;
-            const allTasks = await this.getTasksForView(false); // Use cache
+            const allTasks = await this.getTasksForView(true); // Force refresh to get latest data
 
             // Apply filtering logic based on status and archived flag
             let filteredTasks: TaskInfo[] = [];
@@ -317,6 +333,9 @@ export class DetailView extends View {
     
     // Helper method to render task items
     renderTaskItems(container: HTMLElement, tasks: TaskInfo[], selectedDateStr: string | null = null) {
+        // Create a map to track unique tasks by path to prevent duplicates
+        const processedTaskPaths = new Set<string>();
+        
         // Clear the container
         container.empty();
         
@@ -324,18 +343,27 @@ export class DetailView extends View {
             // Placeholder for empty task list
             container.createEl('p', { text: 'No tasks found for the selected filters.' });
         } else {
+            // First, deduplicate the tasks array based on path
+            const uniqueTasks = tasks.filter(task => {
+                if (processedTaskPaths.has(task.path)) {
+                    return false; // Skip this task, it's a duplicate
+                }
+                processedTaskPaths.add(task.path);
+                return true;
+            });
+            
             // Check if we have tasks due on the selected date (non-recurring tasks)
             const tasksForSelectedDate = selectedDateStr 
-                ? tasks.filter(task => task.due === selectedDateStr && !task.recurrence)
+                ? uniqueTasks.filter(task => task.due === selectedDateStr && !task.recurrence)
                 : [];
             
             // Check for recurring tasks due on the selected date
-            const recurringTasks = tasks.filter(task => 
+            const recurringTasks = uniqueTasks.filter(task => 
                 task.recurrence && isRecurringTaskDueOn(task, this.plugin.selectedDate)
             );
             
             // Calculate other tasks - not due today and not recurring for today
-            const otherTasks = tasks.filter(task => {
+            const otherTasks = uniqueTasks.filter(task => {
                 const isNotDueToday = !selectedDateStr || task.due !== selectedDateStr;
                 const isNotRecurringToday = !task.recurrence || 
                     (task.recurrence && !isRecurringTaskDueOn(task, this.plugin.selectedDate));
@@ -391,7 +419,7 @@ export class DetailView extends View {
             
             // If no sections were rendered, show all tasks
             if (!hasRenderedAnySection) {
-                this.renderTaskGroup(container, tasks, selectedDateStr);
+                this.renderTaskGroup(container, uniqueTasks, selectedDateStr);
             }
         }
     }
@@ -501,7 +529,42 @@ export class DetailView extends View {
                 // Add event listener for toggle
                 toggleButton.addEventListener('click', async (e) => {
                     e.stopPropagation(); // Prevent task opening
-                    await this.plugin.toggleRecurringTaskStatus(task, this.plugin.selectedDate);
+                    
+                    // First update the UI element for immediate feedback
+                    toggleButton.disabled = true; // Prevent multiple clicks
+                    toggleButton.classList.add('processing');
+                    
+                    try {
+                        // Then update in the backend
+                        await this.plugin.toggleRecurringTaskStatus(task, this.plugin.selectedDate);
+                        
+                        // Force a manual refresh of the task list to get updated status
+                        // This ensures we see the updated state
+                        const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
+                        
+                        // Toggle the button state manually since we know what it should be
+                        const currentState = toggleButton.classList.contains('mark-incomplete');
+                        const newState = !currentState;
+                        
+                        // Update button text and classes based on the new state
+                        toggleButton.textContent = newState ? 'Mark Incomplete' : 'Mark Complete';
+                        toggleButton.classList.remove(newState ? 'mark-complete' : 'mark-incomplete');
+                        toggleButton.classList.add(newState ? 'mark-incomplete' : 'mark-complete');
+                        
+                        // Force a refresh of the task list
+                        this.cachedTasks = null;
+                        this.getTasksForView(true);
+                        
+                        // Wait a bit before allowing more changes
+                        setTimeout(() => {
+                            toggleButton.disabled = false;
+                            toggleButton.classList.remove('processing');
+                        }, 500);
+                    } catch(err) {
+                        // Re-enable on error
+                        toggleButton.disabled = false;
+                        toggleButton.classList.remove('processing');
+                    }
                 });
             } else {
                 // Task status dropdown (direct child of controls grid)
@@ -520,7 +583,22 @@ export class DetailView extends View {
                 statusSelect.addEventListener('change', async (e) => {
                     e.stopPropagation(); // Prevent task opening
                     const newStatus = (e.target as HTMLSelectElement).value;
-                    await this.plugin.updateTaskProperty(task, 'status', newStatus);
+                    
+                    // First update the UI element for immediate feedback
+                    statusSelect.disabled = true; // Prevent multiple changes
+                    
+                    try {
+                        // Then update in the backend
+                        await this.plugin.updateTaskProperty(task, 'status', newStatus);
+                        
+                        // Wait a bit before allowing more changes
+                        setTimeout(() => {
+                            statusSelect.disabled = false;
+                        }, 500);
+                    } catch(err) {
+                        // Re-enable on error
+                        statusSelect.disabled = false;
+                    }
                 });
             }
             
@@ -540,7 +618,22 @@ export class DetailView extends View {
             prioritySelect.addEventListener('change', async (e) => {
                 e.stopPropagation(); // Prevent task opening
                 const newPriority = (e.target as HTMLSelectElement).value;
-                await this.plugin.updateTaskProperty(task, 'priority', newPriority);
+                
+                // First update the UI element for immediate feedback
+                prioritySelect.disabled = true; // Prevent multiple changes
+                
+                try {
+                    // Then update in the backend
+                    await this.plugin.updateTaskProperty(task, 'priority', newPriority);
+                    
+                    // Wait a bit before allowing more changes
+                    setTimeout(() => {
+                        prioritySelect.disabled = false;
+                    }, 500);
+                } catch(err) {
+                    // Re-enable on error
+                    prioritySelect.disabled = false;
+                }
             });
             
             // Due date input (direct child of controls grid)
@@ -559,7 +652,22 @@ export class DetailView extends View {
             dueDateInput.addEventListener('change', async (e) => {
                 e.stopPropagation(); // Prevent task opening
                 const newDueDate = (e.target as HTMLInputElement).value;
-                await this.plugin.updateTaskProperty(task, 'due', newDueDate);
+                
+                // First update the UI element for immediate feedback
+                dueDateInput.disabled = true; // Prevent multiple changes
+                
+                try {
+                    // Then update in the backend
+                    await this.plugin.updateTaskProperty(task, 'due', newDueDate);
+                    
+                    // Wait a bit before allowing more changes
+                    setTimeout(() => {
+                        dueDateInput.disabled = false;
+                    }, 500);
+                } catch(err) {
+                    // Re-enable on error
+                    dueDateInput.disabled = false;
+                }
             });
             
             // Add click handler to open task (only on the task info part)
@@ -586,7 +694,26 @@ export class DetailView extends View {
         // Get the selected date as a string for display
         const dateText = `Notes for ${format(this.plugin.selectedDate, 'MMM d, yyyy')}`;
         
-        container.createEl('h3', { text: dateText });
+        // Create header with refresh option
+        const headerContainer = container.createDiv({ cls: 'notes-header' });
+        headerContainer.createEl('h3', { text: dateText, cls: 'notes-title' });
+        
+        // Add refresh button to header
+        const refreshButton = headerContainer.createEl('button', { 
+            text: 'Refresh', 
+            cls: 'refresh-notes-button',
+            attr: {
+                'aria-label': 'Refresh notes list',
+                'title': 'Refresh notes list'
+            }
+        });
+        
+        refreshButton.addEventListener('click', async () => {
+            // Force refresh the notes cache
+            this.cachedNotes = null;
+            this.lastNotesRefresh = 0;
+            await this.refresh(true);
+        });
         
         // Notes list
         const notesList = container.createDiv({ cls: 'notes-list' });
@@ -616,32 +743,57 @@ export class DetailView extends View {
             // Placeholder for empty notes list
             notesList.createEl('p', { text: 'No notes found for the selected date.' });
         } else {
+            // Create a div to hold all note items for quicker rendering
+            const notesContainer = notesList.createDiv({ cls: 'notes-container' });
+            
+            // Use document fragment for faster DOM operations
+            const fragment = document.createDocumentFragment();
+            
             // Create note items
             notes.forEach(note => {
-                const noteItem = notesList.createDiv({ cls: 'note-item' });
+                const noteItem = document.createElement('div');
+                noteItem.className = 'note-item';
                 
-                noteItem.createDiv({ cls: 'note-item-title', text: note.title });
+                const titleEl = document.createElement('div');
+                titleEl.className = 'note-item-title';
+                titleEl.textContent = note.title;
+                noteItem.appendChild(titleEl);
                 
                 // Add created date if available
                 if (note.createdDate) {
                     const dateStr = note.createdDate.indexOf('T') > 0 
                         ? format(new Date(note.createdDate), 'MMM d, yyyy h:mm a') 
                         : note.createdDate;
-                    noteItem.createDiv({ cls: 'note-item-date', text: `Created: ${dateStr}` });
+                    const dateEl = document.createElement('div');
+                    dateEl.className = 'note-item-date';
+                    dateEl.textContent = `Created: ${dateStr}`;
+                    noteItem.appendChild(dateEl);
                 }
                 
                 if (note.tags && note.tags.length > 0) {
-                    const tagContainer = noteItem.createDiv({ cls: 'note-item-tags' });
+                    const tagContainer = document.createElement('div');
+                    tagContainer.className = 'note-item-tags';
+                    
                     note.tags.forEach(tag => {
-                        tagContainer.createSpan({ cls: 'note-tag', text: tag });
+                        const tagEl = document.createElement('span');
+                        tagEl.className = 'note-tag';
+                        tagEl.textContent = tag;
+                        tagContainer.appendChild(tagEl);
                     });
+                    
+                    noteItem.appendChild(tagContainer);
                 }
                 
                 // Add click handler to open note
                 noteItem.addEventListener('click', () => {
                     this.openNote(note.path);
                 });
+                
+                fragment.appendChild(noteItem);
             });
+            
+            // Append all notes at once
+            notesContainer.appendChild(fragment);
         }
     }
     
@@ -760,19 +912,25 @@ export class DetailView extends View {
             this.isTasksLoading = true;
             this.updateLoadingState();
             
-            // Use cached tasks if available and not forcing refresh
+            // Use cached tasks if available and not forcing refresh - important for UI stability
             const now = Date.now();
             if (!forceRefresh && 
                 this.cachedTasks && 
                 now - this.lastTasksRefresh < this.TASKS_CACHE_TTL) {
+                // Wait a little bit before returning to allow temp UI changes to be visible
+                await new Promise(resolve => setTimeout(resolve, 100));
                 return [...this.cachedTasks]; // Return a copy to prevent modification of cache
             }
             
+            // Get fresh tasks if cache expired or forcing refresh
             // Use the FileIndexer to get task information much more efficiently
             const tasks = await this.plugin.fileIndexer.getTaskInfoForDate(this.plugin.selectedDate, forceRefresh);
             
+            // Deduplicate by path - this prevents duplicates if they somehow got into the indexer
+            const uniqueTasks = this.deduplicateTasksByPath(tasks);
+            
             // Sort tasks by due date, then priority
-            const sortedResult = tasks.sort((a, b) => {
+            const sortedResult = uniqueTasks.sort((a, b) => {
                 // Sort by due date
                 if (a.due && b.due) {
                     return new Date(a.due).getTime() - new Date(b.due).getTime();
@@ -786,7 +944,7 @@ export class DetailView extends View {
                 return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
             });
             
-            // Update cache and timestamp
+            // Update cache and timestamp - we need a fresh cache 
             this.cachedTasks = [...sortedResult];
             this.lastTasksRefresh = now;
             
@@ -798,27 +956,28 @@ export class DetailView extends View {
         }
     }
     
+    // Helper method to deduplicate tasks by path
+    private deduplicateTasksByPath(tasks: TaskInfo[]): TaskInfo[] {
+        const seen = new Map<string, TaskInfo>();
+        
+        // Keep only the most recent version of each task by path
+        for (const task of tasks) {
+            seen.set(task.path, task);
+        }
+        
+        return Array.from(seen.values());
+    }
+    
     async getNotesForView(forceRefresh: boolean = false): Promise<NoteInfo[]> {
         try {
             // Set loading state
             this.isNotesLoading = true;
             this.updateLoadingState();
             
-            // Use cached notes if available and not forcing refresh
-            const now = Date.now();
-            if (!forceRefresh &&
-                this.cachedNotes && 
-                now - this.lastNotesRefresh < this.NOTES_CACHE_TTL) {
-                
-                // Filter cached notes based on the selected date
-                const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
-                
-                return this.cachedNotes.filter(note => 
-                    note.createdDate && note.createdDate.startsWith(selectedDateStr)
-                );
-            }
+            // We should always force a fresh fetch when the date changes
+            // A single TTL is not enough - we need date-based invalidation
             
-            // Use the FileIndexer to get notes information much more efficiently
+            // Use the FileIndexer to get notes information for the specific date
             const notes = await this.plugin.fileIndexer.getNotesForDate(this.plugin.selectedDate, forceRefresh);
             
             // Filter out home note and daily notes
@@ -830,9 +989,9 @@ export class DetailView extends View {
             // Sort notes by title
             const sortedResult = filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
             
-            // Update cache and timestamp - store all notes without date filtering
+            // Update cache and timestamp
             this.cachedNotes = [...sortedResult];
-            this.lastNotesRefresh = now;
+            this.lastNotesRefresh = Date.now();
             
             return sortedResult;
         } finally {

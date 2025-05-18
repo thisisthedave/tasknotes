@@ -47,8 +47,7 @@
 /* Calendar Month View */
 .calendar-controls {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
     margin-bottom: 1rem;
     padding: 0.5rem;
     border-bottom: 1px solid var(--background-modifier-border);
@@ -59,6 +58,16 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
+}
+
+.keyboard-nav-hint {
+    margin-top: 0.5rem;
+    padding: 0.25rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    background-color: var(--background-secondary-alt);
+    border-radius: 4px;
 }
 
 .month-navigation-group {
@@ -690,6 +699,14 @@
     background: var(--background-modifier-hover);
 }
 
+.task-toggle-button.processing, 
+.task-status-select:disabled, 
+.task-priority-select:disabled, 
+.task-due-date-input:disabled {
+    opacity: 0.7;
+    cursor: progress;
+}
+
 /* Style for the refresh button */
 .refresh-tasks-button {
     background-color: var(--background-secondary);
@@ -797,25 +814,72 @@
 }
 
 /* Notes List */
+.notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.notes-title {
+    margin: 0;
+}
+
+.refresh-notes-button {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+}
+
+.refresh-notes-button:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
 .notes-list {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    will-change: transform; /* Hardware acceleration hint */
+    contain: content; /* Better performance for large lists */
+}
+
+.notes-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 0.75rem;
+    padding: 0.25rem;
+    contain: layout style;
 }
 
 .note-item {
-    padding: 0.5rem;
+    padding: 0.75rem;
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
     cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: var(--background-primary-alt);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transform: translateZ(0); /* Hardware acceleration */
+    height: 100%;
 }
 
 .note-item:hover {
     background-color: var(--background-modifier-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .note-item-title {
     font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.5rem;
 }
 
 .note-item-date {
@@ -826,8 +890,9 @@
 
 .note-item-tags {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.25rem;
-    margin-top: 0.25rem;
+    margin-top: 0.5rem;
 }
 
 .note-tag {

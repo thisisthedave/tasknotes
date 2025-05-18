@@ -108,20 +108,37 @@ export default class ChronoSyncPlugin extends Plugin {
 	/**
 	 * Notify views that data has changed and views should refresh
 	 * @param filePath Optional path of the file that changed (for targeted cache invalidation)
+	 * @param force Whether to force a full cache rebuild
+	 * @param triggerRefresh Whether to trigger a full UI refresh (default true)
 	 */
-	notifyDataChanged(filePath?: string): void {
+	notifyDataChanged(filePath?: string, force: boolean = false, triggerRefresh: boolean = true): void {
 		// If we know which file changed, clear its cached info specifically
 		if (filePath) {
 			// Clear file index cache
 			if (this.fileIndexer) {
+				// Clear specific file's cache
 				this.fileIndexer.clearCachedInfo(filePath);
+				
+				// If force is true, rebuild the entire cache
+				if (force) {
+					this.fileIndexer.rebuildIndex();
+				}
 			}
 			
 			// Clear YAML parsing cache
 			YAMLCache.clearCacheEntry(filePath);
+		} else if (force && this.fileIndexer) {
+			// If force is true and no specific file, rebuild the entire cache
+			this.fileIndexer.rebuildIndex();
 		}
 		
-		this.emitter.emit(EVENT_DATA_CHANGED);
+		// Only emit refresh event if triggerRefresh is true
+		if (triggerRefresh) {
+			// Use a short delay before notifying to allow UI changes to be visible
+			setTimeout(() => {
+				this.emitter.emit(EVENT_DATA_CHANGED);
+			}, 100);
+		}
 	}
 
 	onunload() {
@@ -460,10 +477,17 @@ export default class ChronoSyncPlugin extends Plugin {
 				
 				// Find and update this file in the index
 				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo);
+				
+				// Clear the YAML cache for this file
+				YAMLCache.clearCacheEntry(task.path);
 			}
 			
 			// Notify views that data has changed with the specific file path
-			this.notifyDataChanged(task.path);
+			// But DO NOT trigger a full UI refresh since we've directly updated the cache
+			this.notifyDataChanged(task.path, false, false);
+			
+			// Instead of a full refresh, we could implement a more targeted update
+			// mechanism in the future that updates just the affected DOM elements
 		} catch (error) {
 			console.error('Error updating task property:', error);
 			new Notice('Failed to update task property');
@@ -481,7 +505,7 @@ export default class ChronoSyncPlugin extends Plugin {
 				await this.updateTaskProperty(task, 'status', newStatus);
 				return;
 			}
-			
+
 			const file = this.app.vault.getAbstractFileByPath(task.path);
 			if (!(file instanceof TFile)) {
 				new Notice(`Cannot find task file: ${task.path}`);
@@ -527,20 +551,26 @@ export default class ChronoSyncPlugin extends Plugin {
 				}
 				
 				frontmatter.complete_instances = completeDates;
+				
+				// Update the local task object with the new complete_instances values
+				// This ensures getEffectiveTaskStatus will have the right data immediately
+				updatedTask.complete_instances = [...completeDates];
 			});
 			
 			// Add the updated task to the file indexer's cache
 			if (this.fileIndexer) {
-				// Read the file to get the most up-to-date content
-				const content = await this.app.vault.cachedRead(file);
-				const taskInfo = extractTaskInfo(content, task.path);
+				// First update with our already-updated task object in the cache
+				await this.fileIndexer.updateTaskInfoInCache(task.path, updatedTask);
 				
-				// Find and update this file in the index
-				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo);
+				// Then rebuild the file index to ensure all data is fresh
+				await this.fileIndexer.rebuildIndex();
+				
+				// Clear the YAML cache for this file
+				YAMLCache.clearCacheEntry(task.path);
 			}
 			
-			// Notify views that data has changed with the specific file path
-			this.notifyDataChanged(task.path);
+			// Notify views that data has changed and force a full refresh of all views
+			this.notifyDataChanged(task.path, true, true);
 		} catch (error) {
 			console.error('Error toggling recurring task status:', error);
 			new Notice('Failed to update recurring task status');
@@ -596,10 +626,14 @@ export default class ChronoSyncPlugin extends Plugin {
 				
 				// Find and update this file in the index
 				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo);
+				
+				// Clear the YAML cache for this file
+				YAMLCache.clearCacheEntry(task.path);
 			}
 			
-			// Notify views that data has changed with the specific file path
-			this.notifyDataChanged(task.path);
+			// For archived status changes, we do want a full UI refresh as the task
+			// might need to be moved between sections or hidden completely
+			this.notifyDataChanged(task.path, true, true);
 		} catch (error) {
 			console.error('Error toggling task archive status:', error);
 			new Notice('Failed to update task archive status');

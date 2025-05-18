@@ -179,6 +179,7 @@ export class FileIndexer {
     public async getTaskInfoForDate(date: Date, forceRefresh = false): Promise<TaskInfo[]> {
         const index = await this.getIndex(forceRefresh);
         const result: TaskInfo[] = [];
+        const processedPaths = new Set<string>(); // Track which paths we've processed to prevent duplicates
         
         // Process files in batches
         const batchSize = 20;
@@ -187,8 +188,15 @@ export class FileIndexer {
             
             const batchResults = await Promise.all(
                 batch.map(async (indexedFile) => {
-                    // Use cached info if available and file hasn't changed
+                    // Skip if we've already processed this path
+                    if (processedPaths.has(indexedFile.path)) {
+                        return null;
+                    }
+                    processedPaths.add(indexedFile.path);
+                    
+                    // Use cached info if available and not forcing refresh
                     if (
+                        !forceRefresh &&
                         indexedFile.cachedInfo && 
                         'status' in indexedFile.cachedInfo
                     ) {
@@ -227,75 +235,139 @@ export class FileIndexer {
     
     public async getNotesForDate(date: Date, forceRefresh = false): Promise<NoteInfo[]> {
         const index = await this.getIndex(forceRefresh);
+        
+        // Get selected date string for filtering - use '10' for hours to ensure timezone issues don't affect dates
+        const targetDate = new Date(date);
+        targetDate.setHours(10, 0, 0, 0); // Normalize to mid-day to avoid timezone issues
+        const selectedDateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        // Check if we have a cached result for this date that's still valid
+        if (!forceRefresh && this.lastNotesQueryDate === selectedDateStr && this.lastNotesQueryResult) {
+            return this.lastNotesQueryResult;
+        }
+        
+        // Create a map to track processed files (faster lookup than Set for large collections)
+        const processedPaths = new Map<string, NoteInfo>();
         const result: NoteInfo[] = [];
         
-        // Get selected date string for filtering
-        const selectedDateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        // First, collect all valid note information from the index
+        const validNoteFiles = index.noteFiles.filter(file => 
+            !processedPaths.has(file.path) && 
+            !file.tags?.includes(this.taskTag)
+        );
         
-        // Process files in batches
-        const batchSize = 20;
-        for (let i = 0; i < index.noteFiles.length; i += batchSize) {
-            const batch = index.noteFiles.slice(i, i + batchSize);
+        // Use a larger batch size for better throughput
+        const batchSize = 50;
+        
+        // Process files in batches, prioritizing files with cached info
+        // This should significantly speed up repeated queries
+        
+        // Step 1: Quickly process all files that have cached info first
+        const filesWithCache = validNoteFiles.filter(file => 
+            file.cachedInfo && !('status' in file.cachedInfo)
+        );
+        
+        for (const file of filesWithCache) {
+            if (processedPaths.has(file.path)) continue;
             
-            const batchResults = await Promise.all(
+            const noteInfo = file.cachedInfo as NoteInfo;
+            processedPaths.set(file.path, noteInfo);
+            
+            // Check if this note matches our date filter
+            if (noteInfo.createdDate) {
+                const noteDate = noteInfo.createdDate.split('T')[0];
+                if (noteDate === selectedDateStr) {
+                    result.push(noteInfo);
+                }
+            }
+        }
+        
+        // Step 2: Process all remaining files that don't have cached info
+        const filesWithoutCache = validNoteFiles.filter(file => 
+            !file.cachedInfo || ('status' in file.cachedInfo)
+        );
+        
+        for (let i = 0; i < filesWithoutCache.length; i += batchSize) {
+            const batch = filesWithoutCache.slice(i, i + batchSize);
+            
+            await Promise.all(
                 batch.map(async (indexedFile) => {
-                    // Use cached info if available and file hasn't changed
-                    if (
-                        indexedFile.cachedInfo && 
-                        !('status' in indexedFile.cachedInfo) && 
-                        indexedFile.cachedInfo.createdDate?.startsWith(selectedDateStr)
-                    ) {
-                        return indexedFile.cachedInfo as NoteInfo;
-                    }
+                    if (processedPaths.has(indexedFile.path)) return;
                     
                     try {
                         const file = this.vault.getAbstractFileByPath(indexedFile.path);
-                        if (!(file instanceof TFile)) return null;
+                        if (!(file instanceof TFile)) return;
                         
                         // Use cachedRead for better performance
                         const content = await this.vault.cachedRead(file);
                         const noteInfo = extractNoteInfo(content, indexedFile.path, file);
                         
-                        if (
-                            noteInfo && 
-                            noteInfo.createdDate?.startsWith(selectedDateStr) && 
-                            !(noteInfo.tags || []).includes(this.taskTag)
-                        ) {
-                            // Cache the result in the index
+                        if (noteInfo && !(noteInfo.tags || []).includes(this.taskTag)) {
+                            // Store the note info in our processed map
+                            processedPaths.set(indexedFile.path, noteInfo);
+                            
+                            // Cache the result in the index for future use
                             indexedFile.cachedInfo = noteInfo;
-                            return noteInfo;
+                            
+                            // Check if this note matches our date filter
+                            if (noteInfo.createdDate) {
+                                const noteDate = noteInfo.createdDate.split('T')[0];
+                                if (noteDate === selectedDateStr) {
+                                    result.push(noteInfo);
+                                }
+                            }
                         }
                     } catch (e) {
                         console.error(`Error processing note file ${indexedFile.path}:`, e);
                     }
-                    
-                    return null;
                 })
             );
-            
-            // Add valid results to the final array
-            batchResults.forEach(note => {
-                if (note) result.push(note);
-            });
         }
+        
+        // Cache the result for this date query
+        this.lastNotesQueryDate = selectedDateStr;
+        this.lastNotesQueryResult = result;
         
         return result;
     }
+    
+    // Store the last notes query result to avoid unnecessary reprocessing
+    private lastNotesQueryDate: string | null = null;
+    private lastNotesQueryResult: NoteInfo[] | null = null;
     
     // For clearing specific cached info when a file is updated
     public clearCachedInfo(path: string) {
         if (!this.fileIndex) return;
         
-        const taskFile = this.fileIndex.taskFiles.find(f => f.path === path);
-        if (taskFile) {
-            taskFile.cachedInfo = undefined;
-            return;
+        // First, clear any duplicates of this path in both arrays
+        this.fileIndex.taskFiles = this.fileIndex.taskFiles.filter(f => f.path !== path);
+        this.fileIndex.noteFiles = this.fileIndex.noteFiles.filter(f => f.path !== path);
+        
+        // Now, re-add the file to the appropriate list based on its current state
+        const file = this.vault.getAbstractFileByPath(path);
+        if (file instanceof TFile && file.extension === 'md') {
+            // Add it back asynchronously
+            this.addToIndex(file).catch(e => {
+                console.error(`Error re-indexing file ${path}:`, e);
+            });
+        }
+    }
+    
+    // Force a complete rebuild of the index
+    public async rebuildIndex() {
+        // Set lastIndexed to 0 to force a rebuild
+        if (this.fileIndex) {
+            this.fileIndex.lastIndexed = 0;
         }
         
-        const noteFile = this.fileIndex.noteFiles.find(f => f.path === path);
-        if (noteFile) {
-            noteFile.cachedInfo = undefined;
+        // Clear all cached info
+        if (this.fileIndex) {
+            this.fileIndex.taskFiles.forEach(f => f.cachedInfo = undefined);
+            this.fileIndex.noteFiles.forEach(f => f.cachedInfo = undefined);
         }
+        
+        // Get a fresh index
+        await this.getIndex(true);
     }
     
     // Update a task's info in the cache without reloading all tasks
