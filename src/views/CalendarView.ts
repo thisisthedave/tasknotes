@@ -1107,11 +1107,14 @@ export class CalendarView extends View {
 		const selectedDate = this.getSingleSelectedDate();
 		const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
 		
-		// Sort tasks to prioritize those due on the selected date
-		this.prioritizeTasksByDate(tasks, selectedDateStr);
+		// Apply initial filtering based on the default "all" status (exclude archived tasks)
+		const nonArchivedTasks = tasks.filter(task => !task.archived);
 		
-		// Initial task rendering 
-		this.renderTaskItems(taskList, tasks, selectedDateStr);
+		// Sort tasks to prioritize those due on the selected date
+		this.prioritizeTasksByDate(nonArchivedTasks, selectedDateStr);
+		
+		// Initial task rendering with filtered tasks (non-archived)
+		this.renderTaskItems(taskList, nonArchivedTasks, selectedDateStr);
 		
 		// Store reference to the task list container for future updates
 		this.taskListContainer = taskList;
@@ -1290,6 +1293,26 @@ export class CalendarView extends View {
 				text: task.status
 			});
 			
+			// Create archive button in the metadata section (top right)
+			const archiveButton = taskMeta.createEl('button', { 
+				cls: `archive-button-icon ${task.archived ? 'archived' : ''}`,
+				attr: { 
+					title: task.archived ? 'Unarchive this task' : 'Archive this task',
+					'aria-label': task.archived ? 'Unarchive' : 'Archive'
+				}
+			});
+			
+			// Add icon based on archive status
+			archiveButton.innerHTML = task.archived 
+				? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>'
+				: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>';
+			
+			// Add event listener for archive toggle
+			archiveButton.addEventListener('click', async (e) => {
+				e.stopPropagation(); // Prevent task opening
+				await this.toggleTaskArchive(task);
+			});
+			
 			// Archived badge if applicable
 			if (task.archived) {
 				taskMeta.createDiv({
@@ -1358,31 +1381,11 @@ export class CalendarView extends View {
 					await this.updateTaskProperty(task, 'due', newDueDate);
 				});
 				
-				// Archive button as icon (direct child of controls grid)
-				const archiveButton = taskControls.createEl('button', { 
-					cls: `archive-button-icon ${task.archived ? 'archived' : ''}`,
-					attr: { 
-						title: task.archived ? 'Unarchive this task' : 'Archive this task',
-						'aria-label': task.archived ? 'Unarchive' : 'Archive'
-					}
-				});
-				
-				// Add icon based on archive status
-				archiveButton.innerHTML = task.archived 
-					? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>'
-					: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>';
-				
-				// Add event listener for archive toggle
-				archiveButton.addEventListener('click', async (e) => {
-					e.stopPropagation(); // Prevent task opening
-					await this.toggleTaskArchive(task);
-				});
-				
 				// Add click handler to open task (only on the task info part)
 				taskInfo.addEventListener('click', () => {
-					this.openTask(task.path);			});
-		});
-	}
+					this.openTask(task.path);
+				});
+			});	}
 	
 	// Update a task property in the frontmatter
 	async updateTaskProperty(task: TaskInfo, property: string, value: any): Promise<void> {

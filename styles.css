@@ -410,7 +410,7 @@
 /* Controls row */
 .task-controls {
     display: grid;
-    grid-template-columns: repeat(4, minmax(7rem, 1fr));
+    grid-template-columns: repeat(3, minmax(7rem, 1fr));
     gap: 0.5rem;
     align-items: center;
     width: 100%;
@@ -421,7 +421,7 @@
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: center;
     justify-content: flex-end;
     min-width: 8rem;
 }
@@ -474,17 +474,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     border-radius: 4px;
     background-color: var(--background-secondary-alt);
     color: var(--text-normal);
     padding: 0;
     text-align: center;
+    margin-left: 0.25rem;
+    border: none;
 }
 
 .archive-button-icon:hover {
     background-color: var(--background-modifier-hover);
+    cursor: pointer;
 }
 
 .archive-button-icon.archived {
