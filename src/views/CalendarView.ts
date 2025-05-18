@@ -16,6 +16,11 @@ export class CalendarView extends View {
 	currentDate: Date;
 	viewType: 'month' | 'week' = 'month';
 	activeTab: 'tasks' | 'notes' | 'timeblock' = 'tasks';
+	
+	// Caches for heatmap data
+	private monthNotesCache: Map<string, Map<string, number>> = new Map(); // year-month -> date -> count
+	private monthTasksCache: Map<string, Map<string, {count: number, hasDue: boolean, hasCompleted: boolean}>> = new Map();
+	private monthDailyNotesCache: Map<string, Set<string>> = new Map(); // year-month -> Set of dates
   
 	constructor(leaf: WorkspaceLeaf, plugin: ChronoSyncPlugin) {
 		super(leaf);
@@ -113,6 +118,18 @@ export class CalendarView extends View {
 		// Store the current active tab
 		const activeTabBefore = this.activeTab;
 		
+		// Get the current month-year key for caching
+		const currentMonthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+		
+		// If the month has changed, clear the caches
+		if (!this.monthNotesCache.has(currentMonthKey) || 
+			!this.monthTasksCache.has(currentMonthKey) || 
+			!this.monthDailyNotesCache.has(currentMonthKey)) {
+			
+			// Force cache refresh for the current month
+			this.buildCalendarCaches(currentMonthKey);
+		}
+		
 		const container = this.containerEl.querySelector('.chronosync-container') as HTMLElement;
 		if (container) {
 			this.renderView(container);
@@ -124,6 +141,91 @@ export class CalendarView extends View {
 				const tabButton = container.querySelector(tabSelector);
 				if (tabButton) {
 					(tabButton as HTMLElement).click();
+				}
+			}
+		}
+	}
+	
+	// Method to build all caches for a given month
+	async buildCalendarCaches(monthKey: string) {
+		const [year, month] = monthKey.split('-').map(Number);
+		
+		// Create month caches if they don't exist
+		if (!this.monthNotesCache.has(monthKey)) {
+			this.monthNotesCache.set(monthKey, new Map());
+		}
+		
+		if (!this.monthTasksCache.has(monthKey)) {
+			this.monthTasksCache.set(monthKey, new Map());
+		}
+		
+		if (!this.monthDailyNotesCache.has(monthKey)) {
+			this.monthDailyNotesCache.set(monthKey, new Set());
+		}
+		
+		// Get the cache references - we know these exist since we just created them
+		const notesCache = this.monthNotesCache.get(monthKey)!;
+		const tasksCache = this.monthTasksCache.get(monthKey)!;
+		const dailyNotesCache = this.monthDailyNotesCache.get(monthKey)!;
+		
+		// Get all notes in vault
+		const notes = await this.getNotesForView(false); // false to get all notes, not just for selected date
+		
+		// Get all tasks in vault
+		const tasks = await this.getTasksForView();
+		
+		// Calculate start and end dates for the month
+		const startOfMonth = new Date(year, month, 1);
+		const endOfMonth = new Date(year, month + 1, 0);
+		
+		// Process notes for the cache
+		for (const note of notes) {
+			if (note.createdDate) {
+				const noteDate = new Date(note.createdDate);
+				// Check if the note is within the current month
+				if (noteDate >= startOfMonth && noteDate <= endOfMonth) {
+					const dateKey = format(noteDate, 'yyyy-MM-dd');
+					// Increment count for the date
+					notesCache.set(dateKey, (notesCache.get(dateKey) || 0) + 1);
+				}
+			}
+		}
+		
+		// Process tasks for the cache
+		for (const task of tasks) {
+			if (task.due) {
+				const dueDate = new Date(task.due);
+				// Check if the task is due within the current month
+				if (dueDate >= startOfMonth && dueDate <= endOfMonth) {
+					const dateKey = format(dueDate, 'yyyy-MM-dd');
+					// Get or create the task info for this date
+					const taskInfo = tasksCache.get(dateKey) || { count: 0, hasDue: false, hasCompleted: false };
+					
+					// Update task info
+					taskInfo.count++;
+					taskInfo.hasDue = true;
+					taskInfo.hasCompleted = taskInfo.hasCompleted || task.status.toLowerCase() === 'done';
+					
+					// Update the cache
+					tasksCache.set(dateKey, taskInfo);
+				}
+			}
+		}
+		
+		// Check for daily notes in the month
+		const dailyNotesFolder = this.plugin.settings.dailyNotesFolder;
+		const files = this.app.vault.getFiles().filter(file => 
+			file.path.startsWith(dailyNotesFolder) && file.extension === 'md'
+		);
+		
+		for (const file of files) {
+			const filename = file.basename;
+			// Check if filename is in YYYY-MM-DD format
+			if (/^\d{4}-\d{2}-\d{2}$/.test(filename)) {
+				const fileDate = new Date(filename);
+				// If the file is for the current month, add to cache
+				if (fileDate.getFullYear() === year && fileDate.getMonth() === month) {
+					dailyNotesCache.add(filename);
 				}
 			}
 		}
@@ -414,6 +516,9 @@ export class CalendarView extends View {
 			contentArea.empty();
 			this.activeTab = 'tasks';
 			this.createTasksView(contentArea);
+			
+			// Update calendar colorization for tasks
+			this.colorizeCalendarForTasks();
 		});
 		
 		notesTab.addEventListener('click', () => {
@@ -421,6 +526,9 @@ export class CalendarView extends View {
 			contentArea.empty();
 			this.activeTab = 'notes';
 			this.createNotesView(contentArea);
+			
+			// Update calendar heatmap for notes
+			this.colorizeCalendarForNotes();
 		});
 		
 		timeblockTab.addEventListener('click', () => {
@@ -428,6 +536,212 @@ export class CalendarView extends View {
 			contentArea.empty();
 			this.activeTab = 'timeblock';
 			this.createTimeblockView(contentArea);
+			
+			// Update calendar colorization for daily notes
+			this.colorizeCalendarForDailyNotes();
+		});
+		
+		// Initially colorize the calendar for tasks tab
+		this.colorizeCalendarForTasks();
+	}
+	
+	// Method to colorize calendar for notes tab (heatmap)
+	colorizeCalendarForNotes() {
+		// Get current month key for cache
+		const monthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+		const notesCache = this.monthNotesCache.get(monthKey);
+		
+		if (!notesCache) return;
+		
+		// Find all calendar days
+		const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
+		
+		// Clear any existing note indicators
+		calendarDays.forEach(day => {
+			day.classList.remove('has-notes', 'has-few-notes', 'has-some-notes', 'has-many-notes');
+			// Remove any existing indicator elements
+			const indicators = day.querySelectorAll('.note-indicator');
+			indicators.forEach(indicator => indicator.remove());
+		});
+		
+		// Add heatmap classes based on note count
+		calendarDays.forEach(day => {
+			const dateText = (day as HTMLElement).innerText.trim();
+			if (dateText) {
+				// Create the date string in yyyy-MM-dd format
+				const year = this.currentDate.getFullYear();
+				const month = this.currentDate.getMonth();
+				const date = parseInt(dateText);
+				
+				// Skip if the date is not valid
+				if (isNaN(date)) return;
+				
+				// Adjust for days outside current month
+				let actualMonth = month;
+				if (day.classList.contains('outside-month')) {
+					if (date > 15) { // Probably previous month
+						actualMonth = month === 0 ? 11 : month - 1;
+					} else { // Probably next month
+						actualMonth = month === 11 ? 0 : month + 1;
+					}
+				}
+				
+				const dateObj = new Date(year, actualMonth, date);
+				const dateKey = format(dateObj, 'yyyy-MM-dd');
+				
+				// Get note count for this date
+				const noteCount = notesCache.get(dateKey) || 0;
+				
+				if (noteCount > 0) {
+					// Create indicator element
+					const indicator = document.createElement('div');
+					indicator.className = 'note-indicator';
+					
+					// Apply heatmap classes based on note count
+					if (noteCount >= 5) {
+						day.classList.add('has-many-notes');
+						indicator.classList.add('many-notes');
+					} else if (noteCount >= 3) {
+						day.classList.add('has-some-notes');
+						indicator.classList.add('some-notes');
+					} else {
+						day.classList.add('has-few-notes');
+						indicator.classList.add('few-notes');
+					}
+					
+					// Add indicator to the day cell
+					day.appendChild(indicator);
+				}
+			}
+		});
+	}
+	
+	// Method to colorize calendar for tasks tab
+	colorizeCalendarForTasks() {
+		// Get current month key for cache
+		const monthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+		const tasksCache = this.monthTasksCache.get(monthKey);
+		
+		if (!tasksCache) return;
+		
+		// Find all calendar days
+		const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
+		
+		// Clear any existing task indicators
+		calendarDays.forEach(day => {
+			day.classList.remove('has-tasks', 'has-completed-tasks');
+			// Remove any existing indicator elements
+			const indicators = day.querySelectorAll('.task-indicator');
+			indicators.forEach(indicator => indicator.remove());
+		});
+		
+		// Add task indicators
+		calendarDays.forEach(day => {
+			const dateText = (day as HTMLElement).innerText.trim();
+			if (dateText) {
+				// Create the date string in yyyy-MM-dd format
+				const year = this.currentDate.getFullYear();
+				const month = this.currentDate.getMonth();
+				const date = parseInt(dateText);
+				
+				// Skip if the date is not valid
+				if (isNaN(date)) return;
+				
+				// Adjust for days outside current month
+				let actualMonth = month;
+				if (day.classList.contains('outside-month')) {
+					if (date > 15) { // Probably previous month
+						actualMonth = month === 0 ? 11 : month - 1;
+					} else { // Probably next month
+						actualMonth = month === 11 ? 0 : month + 1;
+					}
+				}
+				
+				const dateObj = new Date(year, actualMonth, date);
+				const dateKey = format(dateObj, 'yyyy-MM-dd');
+				
+				// Get task info for this date
+				const taskInfo = tasksCache.get(dateKey);
+				
+				if (taskInfo && taskInfo.hasDue) {
+					// Create indicator element
+					const indicator = document.createElement('div');
+					indicator.className = 'task-indicator';
+					
+					// Different styling for completed and due tasks
+					if (taskInfo.hasCompleted) {
+						day.classList.add('has-completed-tasks');
+						indicator.classList.add('completed-tasks');
+					} else {
+						day.classList.add('has-tasks');
+						indicator.classList.add('due-tasks');
+					}
+					
+					// Add indicator to the day cell
+					day.appendChild(indicator);
+				}
+			}
+		});
+	}
+	
+	// Method to colorize calendar for daily notes (timeblock tab)
+	colorizeCalendarForDailyNotes() {
+		// Get current month key for cache
+		const monthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+		const dailyNotesCache = this.monthDailyNotesCache.get(monthKey);
+		
+		if (!dailyNotesCache) return;
+		
+		// Find all calendar days
+		const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
+		
+		// Clear any existing daily note indicators
+		calendarDays.forEach(day => {
+			day.classList.remove('has-daily-note');
+			// Remove any existing indicator elements
+			const indicators = day.querySelectorAll('.daily-note-indicator');
+			indicators.forEach(indicator => indicator.remove());
+		});
+		
+		// Add daily note indicators
+		calendarDays.forEach(day => {
+			const dateText = (day as HTMLElement).innerText.trim();
+			if (dateText) {
+				// Create the date string in yyyy-MM-dd format
+				const year = this.currentDate.getFullYear();
+				const month = this.currentDate.getMonth();
+				const date = parseInt(dateText);
+				
+				// Skip if the date is not valid
+				if (isNaN(date)) return;
+				
+				// Adjust for days outside current month
+				let actualMonth = month;
+				if (day.classList.contains('outside-month')) {
+					if (date > 15) { // Probably previous month
+						actualMonth = month === 0 ? 11 : month - 1;
+					} else { // Probably next month
+						actualMonth = month === 11 ? 0 : month + 1;
+					}
+				}
+				
+				// Format the date as the file basename
+				const dateObj = new Date(year, actualMonth, date);
+				const dateStr = format(dateObj, 'yyyy-MM-dd');
+				
+				// Check if we have a daily note for this date
+				if (dailyNotesCache.has(dateStr)) {
+					// Create indicator element
+					const indicator = document.createElement('div');
+					indicator.className = 'daily-note-indicator';
+					
+					// Add class to the day
+					day.classList.add('has-daily-note');
+					
+					// Add indicator to the day cell
+					day.appendChild(indicator);
+				}
+			}
 		});
 	}
   
@@ -697,7 +1011,7 @@ export class CalendarView extends View {
 		});
 	}
 	
-	async getNotesForView(): Promise<NoteInfo[]> {
+	async getNotesForView(filterByDate: boolean = true): Promise<NoteInfo[]> {
 		const result: NoteInfo[] = [];
 		const taskTag = this.plugin.settings.taskTag;
 		
@@ -708,7 +1022,7 @@ export class CalendarView extends View {
 		
 		// Get the selected date
 		const selectedDate = this.getSingleSelectedDate();
-		const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+		const selectedDateStr = selectedDate && filterByDate ? format(selectedDate, 'yyyy-MM-dd') : null;
 		
 		// Extract note information from each file
 		for (const file of files) {
@@ -722,8 +1036,8 @@ export class CalendarView extends View {
 					file.path !== this.plugin.settings.homeNotePath && 
 					!file.path.startsWith(this.plugin.settings.dailyNotesFolder)) {
 					
-					// Only include notes that match the selected date's creation date
-					if (!selectedDateStr || (noteInfo.createdDate && noteInfo.createdDate.startsWith(selectedDateStr))) {
+					// Only include notes that match the selected date's creation date if filtering by date
+					if (!filterByDate || !selectedDateStr || (noteInfo.createdDate && noteInfo.createdDate.startsWith(selectedDateStr))) {
 						result.push(noteInfo);
 					}
 				}
