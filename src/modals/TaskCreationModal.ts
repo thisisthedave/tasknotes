@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import ChronoSyncPlugin from '../main';
 import { ensureFolderExists } from '../utils/helpers';
-import { CALENDAR_VIEW_TYPE, DETAIL_VIEW_TYPE } from '../types';
+import { CALENDAR_VIEW_TYPE } from '../types';
 
 export class TaskCreationModal extends Modal {
 	plugin: ChronoSyncPlugin;

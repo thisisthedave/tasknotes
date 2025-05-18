@@ -19,7 +19,9 @@ export class FileIndexer {
         this.excludedFolders = excludedFolders 
             ? excludedFolders.split(',').map(folder => folder.trim())
             : [];
-        this.dailyNotesPath = dailyNotesPath;
+        
+        // Normalize daily notes path by removing leading/trailing slashes
+        this.dailyNotesPath = dailyNotesPath.replace(/^\/+|\/+$/g, '');
         
         // Register event listeners for file changes
         this.registerFileEvents();
@@ -488,23 +490,52 @@ export class FileIndexer {
         });
         
         // Process daily notes
-        const dailyNotesFolder = this.vault.getAbstractFileByPath("/" + this.dailyNotesPath);
+        // First, fix potential path issues by properly normalizing the path
+        const normalizedDailyNotesPath = this.dailyNotesPath.replace(/^\/+|\/+$/g, '');
+        
+        // Log for debugging
+        console.debug(`Looking for daily notes in path: ${normalizedDailyNotesPath}`);
+        
+        // Try both with and without leading slash to be safe
+        let dailyNotesFolder = this.vault.getAbstractFileByPath(normalizedDailyNotesPath);
+        if (!dailyNotesFolder) {
+            dailyNotesFolder = this.vault.getAbstractFileByPath(`/${normalizedDailyNotesPath}`);
+        }
+        
         if (dailyNotesFolder) {
-            const dailyNoteFiles = this.vault.getMarkdownFiles().filter(file => 
-                file.path.startsWith(this.dailyNotesPath) && /^\d{4}-\d{2}-\d{2}\.md$/.test(file.basename + '.md')
-            );
+            console.debug(`Found daily notes folder: ${dailyNotesFolder.path}`);
+            
+            // Get all markdown files and filter for daily notes with the correct path and naming pattern
+            const dailyNoteFiles = this.vault.getMarkdownFiles().filter(file => {
+                // Check if file is in the daily notes folder, handling path variations
+                const isInDailyNotesFolder = 
+                    file.path.startsWith(normalizedDailyNotesPath + '/') || 
+                    file.path === normalizedDailyNotesPath ||
+                    // Handle edge case for files at root when path is empty
+                    (normalizedDailyNotesPath === '' && !file.path.includes('/'));
+                
+                // Check if filename matches YYYY-MM-DD.md format
+                const hasCorrectFormat = /^\d{4}-\d{2}-\d{2}\.md$/.test(file.basename + '.md');
+                
+                return isInDailyNotesFolder && hasCorrectFormat;
+            });
+            
+            console.debug(`Found ${dailyNoteFiles.length} potential daily note files`);
             
             dailyNoteFiles.forEach(file => {
                 const dateStr = file.basename;
                 try {
                     const fileDate = new Date(dateStr);
                     if (fileDate.getFullYear() === year && fileDate.getMonth() === month) {
+                        console.debug(`Adding daily note for ${dateStr}`);
                         dailyNotesSet.add(dateStr);
                     }
                 } catch (e) {
                     console.error(`Error processing daily note date: ${dateStr}`, e);
                 }
             });
+        } else {
+            console.debug(`Could not find daily notes folder at: ${normalizedDailyNotesPath}`);
         }
         
         // Update the cache
@@ -539,10 +570,53 @@ export class FileIndexer {
                 console.error(`Error re-indexing file ${path}:`, e);
             });
         }
+        
+        // If this is a daily note, also clear the calendar cache
+        if (file instanceof TFile && 
+            path.startsWith(this.dailyNotesPath) && 
+            /^\d{4}-\d{2}-\d{2}\.md$/.test(file.basename + '.md')) {
+            // Extract the date from the filename to clear the specific month cache
+            try {
+                const dateStr = file.basename;
+                const date = new Date(dateStr);
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const monthKey = `${year}-${month}`;
+                
+                // Clear this month's cache to force a rebuild
+                this.calendarCache.delete(monthKey);
+                console.debug(`Cleared calendar cache for ${monthKey} because daily note was updated`);
+            } catch (e) {
+                console.error(`Error processing daily note date for cache invalidation: ${file instanceof TFile ? file.basename : path}`, e);
+                // If we can't parse the date, clear the entire calendar cache to be safe
+                this.calendarCache.clear();
+            }
+        }
+    }
+    
+    /**
+     * Forces a rebuild of the daily notes cache for a specific month
+     * @param year The year
+     * @param month The month (0-11)
+     */
+    public async rebuildDailyNotesCache(year: number, month: number): Promise<Set<string>> {
+        const monthKey = `${year}-${month}`;
+        
+        // Delete this month's cache entry to force rebuild
+        this.calendarCache.delete(monthKey);
+        
+        // Get fresh calendar data for this month with forced refresh
+        const calendarData = await this.getCalendarData(year, month, true);
+        
+        console.debug(`Rebuilt daily notes cache for ${year}-${month+1}, found ${calendarData.dailyNotes.size} daily notes`);
+        
+        return calendarData.dailyNotes;
     }
     
     // Force a complete rebuild of the index
     public async rebuildIndex() {
+        console.debug('Rebuilding file index and cache...');
+        
         // Set lastIndexed to 0 to force a rebuild
         if (this.fileIndex) {
             this.fileIndex.lastIndexed = 0;
@@ -554,7 +628,7 @@ export class FileIndexer {
             this.fileIndex.noteFiles.forEach(f => f.cachedInfo = undefined);
         }
         
-        // Clear calendar cache
+        // Clear calendar cache which includes daily notes
         this.calendarCache.clear();
         
         // Clear query result cache
@@ -563,6 +637,8 @@ export class FileIndexer {
         
         // Get a fresh index
         await this.getIndex(true);
+        
+        console.debug('Index and cache rebuilt successfully');
     }
     
     // Update a task's info in the cache without reloading all tasks

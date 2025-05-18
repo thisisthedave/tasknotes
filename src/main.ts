@@ -8,18 +8,15 @@ import {
 } from './settings/settings';
 import { 
 	CALENDAR_VIEW_TYPE, 
-	DETAIL_VIEW_TYPE,
 	NOTES_VIEW_TYPE, 
 	TASK_LIST_VIEW_TYPE,
 	TimeInfo,
-	DetailTab,
 	TaskInfo,
 	EVENT_DATE_SELECTED,
 	EVENT_TAB_CHANGED,
 	EVENT_DATA_CHANGED
 } from './types';
 import { CalendarView } from './views/CalendarView';
-import { DetailView } from './views/DetailView';
 import { TaskListView } from './views/TaskListView';
 import { NotesView } from './views/NotesView';
 import { TaskCreationModal } from './modals/TaskCreationModal';
@@ -39,7 +36,6 @@ export default class ChronoSyncPlugin extends Plugin {
 	
 	// Shared state between views
 	selectedDate: Date = new Date();
-	activeTab: DetailTab = 'tasks';
 	
 	// Event emitter for view communication
 	emitter = new EventEmitter();
@@ -62,10 +58,6 @@ export default class ChronoSyncPlugin extends Plugin {
 		this.registerView(
 			CALENDAR_VIEW_TYPE,
 			(leaf) => new CalendarView(leaf, this)
-		);
-		this.registerView(
-			DETAIL_VIEW_TYPE,
-			(leaf) => new DetailView(leaf, this)
 		);
 		this.registerView(
 			TASK_LIST_VIEW_TYPE,
@@ -96,14 +88,6 @@ export default class ChronoSyncPlugin extends Plugin {
 	setSelectedDate(date: Date): void {
 		this.selectedDate = date;
 		this.emitter.emit(EVENT_DATE_SELECTED, date);
-	}
-	
-	/**
-	 * Update the active detail tab and notify all views
-	 */
-	setActiveTab(tab: DetailTab): void {
-		this.activeTab = tab;
-		this.emitter.emit(EVENT_TAB_CHANGED, tab);
 	}
 	
 	/**
@@ -179,16 +163,24 @@ export default class ChronoSyncPlugin extends Plugin {
 		});
 		
 		this.addCommand({
-			id: 'open-detail-view',
-			name: 'Open tasks/notes/timeblock view',
+			id: 'open-tasks-view',
+			name: 'Open tasks view',
 			callback: async () => {
-				await this.activateDetailView();
+				await this.activateTasksView();
+			}
+		});
+		
+		this.addCommand({
+			id: 'open-notes-view',
+			name: 'Open notes view',
+			callback: async () => {
+				await this.activateNotesView();
 			}
 		});
 		
 		this.addCommand({
 			id: 'open-linked-views',
-			name: 'Open linked calendar and detail views',
+			name: 'Open calendar with task view',
 			callback: async () => {
 				await this.activateLinkedViews();
 			}
@@ -238,64 +230,55 @@ export default class ChronoSyncPlugin extends Plugin {
 		});
 	}
 
-	async activateCalendarView() {
+	// Helper method to create or activate a view of specific type
+	async activateView(viewType: string) {
 		const { workspace } = this.app;
 		
-		// Use existing calendar view if it exists
-		let leaf = this.getCalendarLeaf();
+		// Use existing view if it exists
+		let leaf = this.getLeafOfType(viewType);
 		
 		if (!leaf) {
-			// Create new leaf for calendar view
-			leaf = workspace.getLeaf('split', 'vertical');
+			// Create new leaf for view
+			leaf = workspace.getLeaf('tab');
 			await leaf.setViewState({
-				type: CALENDAR_VIEW_TYPE,
+				type: viewType,
 				active: true,
 			});
 		}
 		
 		// Reveal the leaf in case it's in a collapsed state
 		workspace.revealLeaf(leaf);
+		return leaf;
 	}
 	
-	async activateDetailView() {
-		const { workspace } = this.app;
-		
-		// Use existing detail view if it exists
-		let leaf = this.getDetailLeaf();
-		
-		if (!leaf) {
-			// Create new leaf for detail view
-			leaf = workspace.getLeaf('split', 'vertical');
-			await leaf.setViewState({
-				type: DETAIL_VIEW_TYPE,
-				active: true,
-			});
-		}
-		
-		// Reveal the leaf in case it's in a collapsed state
-		workspace.revealLeaf(leaf);
+	async activateCalendarView() {
+		return this.activateView(CALENDAR_VIEW_TYPE);
+	}
+	
+	async activateTasksView() {
+		return this.activateView(TASK_LIST_VIEW_TYPE);
+	}
+	
+	async activateNotesView() {
+		return this.activateView(NOTES_VIEW_TYPE);
 	}
 	
 	async activateLinkedViews() {
-		const { workspace } = this.app;
-		
 		// Create or activate calendar view first
 		await this.activateCalendarView();
 		
-		// Then create or activate detail view
-		await this.activateDetailView();
+		// Then create or activate tasks view
+		await this.activateTasksView();
 	}
 
-	getCalendarLeaf(): WorkspaceLeaf | null {
+	getLeafOfType(viewType: string): WorkspaceLeaf | null {
 		const { workspace } = this.app;
-		const leaves = workspace.getLeavesOfType(CALENDAR_VIEW_TYPE);
+		const leaves = workspace.getLeavesOfType(viewType);
 		return leaves.length > 0 ? leaves[0] : null;
 	}
 	
-	getDetailLeaf(): WorkspaceLeaf | null {
-		const { workspace } = this.app;
-		const leaves = workspace.getLeavesOfType(DETAIL_VIEW_TYPE);
-		return leaves.length > 0 ? leaves[0] : null;
+	getCalendarLeaf(): WorkspaceLeaf | null {
+		return this.getLeafOfType(CALENDAR_VIEW_TYPE);
 	}
 
 	async navigateToCurrentDailyNote() {
@@ -309,6 +292,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		
 		// Check if the daily note exists, if not create it
 		const fileExists = await this.app.vault.adapter.exists(dailyNotePath);
+		let noteWasCreated = false;
 		
 		if (!fileExists) {
 			// Create the daily notes folder if it doesn't exist
@@ -317,12 +301,31 @@ export default class ChronoSyncPlugin extends Plugin {
 			// Create daily note with default content
 			const content = this.generateDailyNoteTemplate(date);
 			await this.app.vault.create(dailyNotePath, content);
+			noteWasCreated = true;
 		}
 		
 		// Open the daily note
 		const file = this.app.vault.getAbstractFileByPath(dailyNotePath);
 		if (file instanceof TFile) {
 			await this.app.workspace.getLeaf(false).openFile(file);
+			
+			// If we created a new daily note, force a rebuild of the calendar cache
+			// for this month to ensure it shows up immediately in the calendar view
+			if (noteWasCreated && this.fileIndexer) {
+				// Get the year and month from the date
+				const year = date.getFullYear();
+				const month = date.getMonth();
+				
+				// Rebuild the daily notes cache for this month
+				this.fileIndexer.rebuildDailyNotesCache(year, month)
+					.then(() => {
+						// Notify views that data has changed to trigger a UI refresh
+						this.notifyDataChanged(dailyNotePath, false, true);
+					})
+					.catch(e => {
+						console.error('Error rebuilding daily notes cache:', e);
+					});
+			}
 		}
 	}
 

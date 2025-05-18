@@ -4,10 +4,10 @@ import ChronoSyncPlugin from '../main';
 import { 
     CALENDAR_VIEW_TYPE, 
     EVENT_DATA_CHANGED,
-    EVENT_TAB_CHANGED,
     TaskInfo, 
     NoteInfo, 
-    TimeInfo 
+    TimeInfo,
+    ColorizeMode
 } from '../types';
 import { 
     extractNoteInfo, 
@@ -17,8 +17,12 @@ import {
 } from '../utils/helpers';
 
 export class CalendarView extends View {
+    // Static property to track initialization status for daily notes
+    static dailyNotesInitialized: boolean = false;
+    
     plugin: ChronoSyncPlugin;
     viewType: 'month' = 'month';
+    colorizeMode: ColorizeMode = 'tasks';
     
     // Event listeners
     private listeners: (() => void)[] = [];
@@ -41,16 +45,6 @@ export class CalendarView extends View {
             this.refresh();
         });
         this.listeners.push(dataListener);
-        
-        // Listen for tab changes and update colorization
-        const tabListener = this.plugin.emitter.on(EVENT_TAB_CHANGED, (tab: string) => {
-            // Update the view to show the correct colorization
-            const container = this.containerEl.querySelector('.chronosync-container') as HTMLElement;
-            if (container) {
-                this.colorizeCalendar();
-            }
-        });
-        this.listeners.push(tabListener);
     }
   
     getViewType(): string {
@@ -101,14 +95,14 @@ export class CalendarView extends View {
     }
     
     colorizeCalendar() {
-        switch (this.plugin.activeTab) {
+        switch (this.colorizeMode) {
             case 'tasks':
                 this.colorizeCalendarForTasks();
                 break;
             case 'notes':
                 this.colorizeCalendarForNotes();
                 break;
-            case 'timeblock':
+            case 'daily':
                 this.colorizeCalendarForDailyNotes();
                 break;
         }
@@ -120,6 +114,11 @@ export class CalendarView extends View {
         date.setMonth(date.getMonth() - 1);
         this.plugin.setSelectedDate(date);
         
+        // Force daily notes cache rebuild for the new month
+        if (this.colorizeMode === 'daily') {
+            this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+        }
+        
         // Refresh the view to show the new month
         await this.refresh();
     }
@@ -130,6 +129,11 @@ export class CalendarView extends View {
         date.setMonth(date.getMonth() + 1);
         this.plugin.setSelectedDate(date);
         
+        // Force daily notes cache rebuild for the new month
+        if (this.colorizeMode === 'daily') {
+            this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+        }
+        
         // Refresh the view to show the new month
         await this.refresh();
     }
@@ -137,6 +141,11 @@ export class CalendarView extends View {
     async navigateToToday() {
         const today = new Date();
         this.plugin.setSelectedDate(today);
+        
+        // Force daily notes cache rebuild for the current month
+        if (this.colorizeMode === 'daily') {
+            this.plugin.fileIndexer.rebuildDailyNotesCache(today.getFullYear(), today.getMonth());
+        }
         
         // Refresh the view to show the current month
         await this.refresh();
@@ -307,8 +316,48 @@ export class CalendarView extends View {
         nextButton.setAttribute('aria-label', 'Next month (→)');
         nextButton.setAttribute('title', 'Next month (→)');
         
-        // Today button on the right side
-        const todayButton = navContainer.createEl('button', { text: 'Today', cls: 'today-button' });
+        // Add colorize mode selector
+        const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
+        const colorizeLabel = colorizeContainer.createEl('span', { text: 'Show: ', cls: 'colorize-mode-label' });
+        
+        const colorizeSelect = colorizeContainer.createEl('select', { cls: 'colorize-mode-select' });
+        
+        // Add colorize mode options
+        const modes = [
+            { value: 'tasks', text: 'Tasks' },
+            { value: 'notes', text: 'Notes' },
+            { value: 'daily', text: 'Daily Notes' }
+        ];
+        
+        modes.forEach(mode => {
+            const option = colorizeSelect.createEl('option', { 
+                value: mode.value, 
+                text: mode.text 
+            });
+            
+            if (mode.value === this.colorizeMode) {
+                option.selected = true;
+            }
+        });
+        
+        // Add change event listener
+        colorizeSelect.addEventListener('change', async () => {
+            const newMode = colorizeSelect.value as ColorizeMode;
+            // Show loading indicator while changing modes
+            this.showLoadingIndicator();
+            try {
+                await this.setColorizeMode(newMode);
+            } finally {
+                this.hideLoadingIndicator();
+            }
+        });
+        
+        // Today button
+        const todayButton = navContainer.createEl('button', { 
+            text: 'Today', 
+            cls: 'today-button chronosync-button chronosync-button-primary' 
+        });
+        
         todayButton.addEventListener('click', () => {
             this.navigateToToday();
         });
@@ -316,6 +365,22 @@ export class CalendarView extends View {
         // Add keyboard navigation hint
         const keyboardHint = controlsContainer.createDiv({ cls: 'keyboard-nav-hint' });
         keyboardHint.setText('Keyboard navigation: Arrow keys / h,j,k,l to navigate, Enter to open daily note');
+    }
+    
+    // Set the colorization mode and update the view
+    async setColorizeMode(mode: ColorizeMode) {
+        if (this.colorizeMode !== mode) {
+            this.colorizeMode = mode;
+            
+            // If switching to daily notes mode, rebuild the daily notes cache
+            if (mode === 'daily') {
+                const currentYear = this.plugin.selectedDate.getFullYear();
+                const currentMonth = this.plugin.selectedDate.getMonth();
+                await this.plugin.fileIndexer.rebuildDailyNotesCache(currentYear, currentMonth);
+            }
+            
+            this.colorizeCalendar();
+        }
     }
     
     createCalendarGrid(container: HTMLElement) {
@@ -704,9 +769,26 @@ export class CalendarView extends View {
         const currentYear = this.plugin.selectedDate.getFullYear();
         const currentMonth = this.plugin.selectedDate.getMonth();
         
-        // Get calendar data from file indexer
-        const calendarData = await this.plugin.fileIndexer.getCalendarData(currentYear, currentMonth);
-        const dailyNotesCache = calendarData.dailyNotes;
+        // Force a rebuild of the cache on the first call to ensure daily notes are properly indexed
+        // Using class property instead of static variable to track first call
+        let dailyNotesCache: Set<string>;
+        
+        if (!CalendarView.dailyNotesInitialized) {
+            console.debug('First call to colorizeCalendarForDailyNotes, forcing cache rebuild');
+            // Use the targeted rebuild method instead of rebuilding the entire index
+            dailyNotesCache = await this.plugin.fileIndexer.rebuildDailyNotesCache(currentYear, currentMonth);
+            CalendarView.dailyNotesInitialized = true;
+        } else {
+            // Get calendar data from file indexer
+            const calendarData = await this.plugin.fileIndexer.getCalendarData(currentYear, currentMonth);
+            dailyNotesCache = calendarData.dailyNotes;
+        }
+        
+        // Log the number of daily notes found for debugging
+        console.debug(`Found ${dailyNotesCache.size} daily notes for ${currentYear}-${currentMonth+1}`);
+        if (dailyNotesCache.size > 0) {
+            console.debug('Daily notes:', Array.from(dailyNotesCache));
+        }
         
         // Find all calendar days
         const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
