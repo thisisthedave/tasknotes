@@ -110,7 +110,6 @@ export function generateDailyNoteTemplate(date: Date, timeblockStartTime: TimeIn
 		pomodoros: 0,
 		workout: false,
 		meditate: false,
-		important: false,
 		tags: ['daily']
 	};
 	

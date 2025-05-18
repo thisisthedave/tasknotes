@@ -321,6 +321,16 @@ export class CalendarView extends View {
     createCalendarGrid(container: HTMLElement) {
         // Create container for the calendar grid
         const gridContainer = container.createDiv({ cls: 'calendar-grid-container' });
+
+        // Add skip link for accessibility
+        const skipLink = gridContainer.createEl('a', {
+            cls: 'a11y-skip-link',
+            text: 'Skip to calendar content',
+            attr: {
+                href: '#calendar-grid',
+                'aria-label': 'Skip to calendar content'
+            }
+        });
         
         // Get the currently selected date
         const selectedDate = this.plugin.selectedDate;
@@ -338,20 +348,36 @@ export class CalendarView extends View {
         // Get the day of the week for the first day (0-6, 0 is Sunday)
         const firstDayOfWeek = firstDayOfMonth.getDay();
         
-        // Create the calendar grid
-        const calendarGrid = gridContainer.createDiv({ cls: 'calendar-grid' });
+        // Create the calendar grid with ARIA role
+        const calendarGrid = gridContainer.createDiv({ 
+            cls: 'calendar-grid',
+            attr: {
+                'role': 'grid',
+                'aria-label': `Calendar for ${format(this.plugin.selectedDate, 'MMMM yyyy')}`,
+                'id': 'calendar-grid'
+            }
+        });
         
         // Create the calendar header (day names)
-        const calendarHeader = calendarGrid.createDiv({ cls: 'calendar-header' });
+        const calendarHeader = calendarGrid.createDiv({ 
+            cls: 'calendar-header',
+            attr: {
+                'role': 'row'
+            }
+        });
         
         // Day names
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         
-        // Add day headers
-        dayNames.forEach(dayName => {
+        // Add day headers with ARIA roles
+        dayNames.forEach((dayName, index) => {
             calendarHeader.createDiv({ 
                 text: dayName, 
-                cls: 'calendar-day-header' 
+                cls: 'calendar-day-header',
+                attr: {
+                    'role': 'columnheader',
+                    'aria-label': dayName
+                }
             });
         });
         
@@ -366,7 +392,11 @@ export class CalendarView extends View {
         // Get the last day of the previous month
         const lastDayOfPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
         
-        // Create calendar days
+        // Create calendar days - start new row for first week
+        let currentWeekRow = calendarGrid.createDiv({
+            cls: 'calendar-week',
+            attr: { 'role': 'row' }
+        });
         
         // Days from previous month
         for (let i = 0; i < daysFromPrevMonth; i++) {
@@ -375,9 +405,15 @@ export class CalendarView extends View {
             
             const isSelected = isSameDay(dayDate, selectedDate);
             
-            const dayEl = calendarGrid.createDiv({ 
+            const dayEl = currentWeekRow.createDiv({ 
                 cls: `calendar-day outside-month${isSelected ? ' selected' : ''}`, 
-                text: dayNum.toString() 
+                text: dayNum.toString(),
+                attr: {
+                    'role': 'gridcell',
+                    'tabindex': isSelected ? '0' : '-1',
+                    'aria-label': format(dayDate, 'EEEE, MMMM d, yyyy'),
+                    'aria-selected': isSelected ? 'true' : 'false'
+                }
             });
             
             // Add click handler
@@ -385,11 +421,28 @@ export class CalendarView extends View {
                 this.plugin.setSelectedDate(dayDate);
                 this.refresh();
             });
+            
+            // Add keyboard event handler to each day
+            dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.plugin.setSelectedDate(dayDate);
+                    this.refresh();
+                }
+            });
         }
         
         // Days from current month
         const today = new Date();
         for (let i = 1; i <= daysThisMonth; i++) {
+            // Start a new row every 7 days (once per week)
+            if ((i + daysFromPrevMonth) % 7 === 1) {
+                currentWeekRow = calendarGrid.createDiv({
+                    cls: 'calendar-week',
+                    attr: { 'role': 'row' }
+                });
+            }
+            
             const dayDate = new Date(currentYear, currentMonth, i);
             
             const isToday = isSameDay(dayDate, today);
@@ -399,33 +452,72 @@ export class CalendarView extends View {
             if (isToday) classNames += ' today';
             if (isSelected) classNames += ' selected';
             
-            const dayEl = calendarGrid.createDiv({ 
+            const dayEl = currentWeekRow.createDiv({ 
                 cls: classNames, 
-                text: i.toString() 
+                text: i.toString(),
+                attr: {
+                    'role': 'gridcell',
+                    'tabindex': isSelected ? '0' : '-1',
+                    'aria-label': format(dayDate, 'EEEE, MMMM d, yyyy') + (isToday ? ' (Today)' : ''),
+                    'aria-selected': isSelected ? 'true' : 'false',
+                    'aria-current': isToday ? 'date' : null
+                }
             });
             
             // Add click handler
             dayEl.addEventListener('click', () => {
                 this.plugin.setSelectedDate(dayDate);
                 this.refresh();
+            });
+            
+            // Add keyboard event handler to each day
+            dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.plugin.setSelectedDate(dayDate);
+                    this.refresh();
+                }
             });
         }
         
         // Days from next month
         for (let i = 1; i <= daysFromNextMonth; i++) {
+            // Start a new row every 7 days (once per week)
+            if ((i + daysFromPrevMonth + daysThisMonth) % 7 === 1) {
+                currentWeekRow = calendarGrid.createDiv({
+                    cls: 'calendar-week',
+                    attr: { 'role': 'row' }
+                });
+            }
+            
             const dayDate = new Date(currentYear, currentMonth + 1, i);
             
             const isSelected = isSameDay(dayDate, selectedDate);
             
-            const dayEl = calendarGrid.createDiv({ 
+            const dayEl = currentWeekRow.createDiv({ 
                 cls: `calendar-day outside-month${isSelected ? ' selected' : ''}`, 
-                text: i.toString() 
+                text: i.toString(),
+                attr: {
+                    'role': 'gridcell',
+                    'tabindex': isSelected ? '0' : '-1',
+                    'aria-label': format(dayDate, 'EEEE, MMMM d, yyyy'),
+                    'aria-selected': isSelected ? 'true' : 'false'
+                }
             });
             
             // Add click handler
             dayEl.addEventListener('click', () => {
                 this.plugin.setSelectedDate(dayDate);
                 this.refresh();
+            });
+            
+            // Add keyboard event handler to each day
+            dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.plugin.setSelectedDate(dayDate);
+                    this.refresh();
+                }
             });
         }
     }

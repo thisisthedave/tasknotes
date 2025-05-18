@@ -212,14 +212,6 @@ export default class ChronoSyncPlugin extends Plugin {
 			}
 		});
 
-		this.addCommand({
-			id: 'go-to-home',
-			name: 'Open home note',
-			callback: async () => {
-				await this.navigateToHomeNote();
-			}
-		});
-
 		// Daily note metadata commands
 		this.addCommand({
 			id: 'increment-pomodoros',
@@ -242,14 +234,6 @@ export default class ChronoSyncPlugin extends Plugin {
 			name: 'Toggle daily meditation',
 			callback: async () => {
 				await this.toggleDailyMetadata('meditate');
-			}
-		});
-
-		this.addCommand({
-			id: 'toggle-important',
-			name: 'Toggle daily important flag',
-			callback: async () => {
-				await this.toggleDailyMetadata('important');
 			}
 		});
 	}
@@ -342,29 +326,6 @@ export default class ChronoSyncPlugin extends Plugin {
 		}
 	}
 
-	async navigateToHomeNote() {
-		const homeNotePath = this.settings.homeNotePath;
-		
-		// Check if the home note exists, if not create it
-		const fileExists = await this.app.vault.adapter.exists(homeNotePath);
-		
-		if (!fileExists) {
-			// Create the parent folder if it doesn't exist
-			const folderPath = homeNotePath.substring(0, homeNotePath.lastIndexOf('/'));
-			await ensureFolderExists(this.app.vault, folderPath);
-			
-			// Create home note with default content
-			const content = '# ChronoSync Home\n\nWelcome to your ChronoSync Home note!\n';
-			await this.app.vault.create(homeNotePath, content);
-		}
-		
-		// Open the home note
-		const file = this.app.vault.getAbstractFileByPath(homeNotePath);
-		if (file instanceof TFile) {
-			await this.app.workspace.getLeaf(false).openFile(file);
-		}
-	}
-
 	async incrementPomodoros() {
 		await this.updateDailyNoteMetadata('pomodoros', (val) => {
 			const current = typeof val === 'number' ? val : 0;
@@ -372,7 +333,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		});
 	}
 
-	async toggleDailyMetadata(key: 'workout' | 'meditate' | 'important') {
+	async toggleDailyMetadata(key: 'workout' | 'meditate') {
 		await this.updateDailyNoteMetadata(key, (val) => {
 			return typeof val === 'boolean' ? !val : true;
 		});

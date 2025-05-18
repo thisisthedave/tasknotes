@@ -488,10 +488,10 @@ export class FileIndexer {
         });
         
         // Process daily notes
-        const dailyNotesFolder = this.vault.getAbstractFileByPath("/" + dailyNotesPath);
+        const dailyNotesFolder = this.vault.getAbstractFileByPath("/" + this.dailyNotesPath);
         if (dailyNotesFolder) {
             const dailyNoteFiles = this.vault.getMarkdownFiles().filter(file => 
-                file.path.startsWith(dailyNotesPath) && /^\d{4}-\d{2}-\d{2}\.md$/.test(file.basename + '.md')
+                file.path.startsWith(this.dailyNotesPath) && /^\d{4}-\d{2}-\d{2}\.md$/.test(file.basename + '.md')
             );
             
             dailyNoteFiles.forEach(file => {

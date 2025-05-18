@@ -980,9 +980,8 @@ export class DetailView extends View {
             // Use the FileIndexer to get notes information for the specific date
             const notes = await this.plugin.fileIndexer.getNotesForDate(this.plugin.selectedDate, forceRefresh);
             
-            // Filter out home note and daily notes
+            // Filter out daily notes
             const filteredNotes = notes.filter(note => 
-                note.path !== this.plugin.settings.homeNotePath && 
                 !note.path.startsWith(this.plugin.settings.dailyNotesFolder)
             );
             
