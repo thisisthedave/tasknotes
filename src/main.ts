@@ -109,6 +109,9 @@ export default class ChronoSyncPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		
+		// If settings have changed, notify views to refresh their data
+		this.notifyDataChanged();
 	}
 
 	addCommands() {

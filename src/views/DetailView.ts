@@ -705,9 +705,22 @@ export class DetailView extends View {
             file.extension === 'md'
         );
         
+        // Get excluded folders as an array
+        const excludedFolders = this.plugin.settings.excludedFolders
+            ? this.plugin.settings.excludedFolders.split(',').map(folder => folder.trim())
+            : [];
+            
         // Extract note information from each file
         for (const file of files) {
             try {
+                // Check if the file is in an excluded folder
+                const isExcluded = excludedFolders.some(folder => 
+                    folder && file.path.startsWith(folder)
+                );
+                
+                // Skip excluded folders
+                if (isExcluded) continue;
+                
                 const content = await this.app.vault.read(file);
                 const noteInfo = extractNoteInfo(content, file.path, file);
                 

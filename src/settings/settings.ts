@@ -6,6 +6,7 @@ export interface ChronoSyncSettings {
 	tasksFolder: string;  // Now just a default location for new tasks
 	homeNotePath: string;
 	taskTag: string;      // The tag that identifies tasks
+	excludedFolders: string;  // Comma-separated list of folders to exclude from Notes tab
 	defaultTaskPriority: 'low' | 'normal' | 'high';
 	defaultTaskStatus: 'open' | 'in-progress' | 'done';
 	timeblockStartTime: string;
@@ -19,6 +20,7 @@ export const DEFAULT_SETTINGS: ChronoSyncSettings = {
 	tasksFolder: 'ChronoSync/Tasks',
 	homeNotePath: 'ChronoSync/Home.md',
 	taskTag: 'task',
+	excludedFolders: '',  // Default to no excluded folders
 	defaultTaskPriority: 'normal',
 	defaultTaskStatus: 'open',
 	timeblockStartTime: '05:00',
@@ -70,6 +72,17 @@ export class ChronoSyncSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.homeNotePath)
 				.onChange(async (value) => {
 					this.plugin.settings.homeNotePath = value;
+					await this.plugin.saveSettings();
+				}));
+		
+		new Setting(containerEl)
+			.setName('Excluded folders')
+			.setDesc('Comma-separated list of folder paths to exclude from Notes tab (e.g., "Templates,Archive,Attachments")')
+			.addText(text => text
+				.setPlaceholder('Templates,Archive')
+				.setValue(this.plugin.settings.excludedFolders)
+				.onChange(async (value) => {
+					this.plugin.settings.excludedFolders = value;
 					await this.plugin.saveSettings();
 				}));
 		
