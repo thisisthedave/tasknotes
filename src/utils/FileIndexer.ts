@@ -11,13 +11,15 @@ export class FileIndexer {
     private fileIndex: FileIndex | null = null;
     private taskTag: string;
     private excludedFolders: string[];
+    private dailyNotesPath: string;
 
-    constructor(vault: Vault, taskTag: string, excludedFolders: string = '') {
+    constructor(vault: Vault, taskTag: string, excludedFolders: string = '', dailyNotesPath: string = '') {
         this.vault = vault;
         this.taskTag = taskTag;
         this.excludedFolders = excludedFolders 
             ? excludedFolders.split(',').map(folder => folder.trim())
             : [];
+        this.dailyNotesPath = dailyNotesPath;
         
         // Register event listeners for file changes
         this.registerFileEvents();
@@ -335,6 +337,192 @@ export class FileIndexer {
     private lastNotesQueryDate: string | null = null;
     private lastNotesQueryResult: NoteInfo[] | null = null;
     
+    // Calendar data caching
+    private calendarCache: Map<string, {
+        notes: Map<string, number>,  // Date -> count
+        tasks: Map<string, {
+            count: number,
+            hasDue: boolean,
+            hasCompleted: boolean,
+            hasArchived: boolean
+        }>,
+        dailyNotes: Set<string>,     // YYYY-MM-DD strings
+        lastUpdated: number
+    }> = new Map();
+    
+    /**
+     * Get calendar data for a specific month
+     * This provides the data needed for calendar highlighting
+     * 
+     * @param year The year
+     * @param month The month (0-11)
+     * @param forceRefresh Whether to force a refresh of the cache
+     * @returns Calendar data needed for highlighting
+     */
+    public async getCalendarData(year: number, month: number, forceRefresh = false): Promise<{
+        notes: Map<string, number>,
+        tasks: Map<string, {
+            count: number,
+            hasDue: boolean,
+            hasCompleted: boolean,
+            hasArchived: boolean
+        }>,
+        dailyNotes: Set<string>
+    }> {
+        const monthKey = `${year}-${month}`;
+        const cacheAge = 5 * 60 * 1000; // 5 minutes
+        
+        // Check if we have fresh cached data
+        if (!forceRefresh && 
+            this.calendarCache.has(monthKey) && 
+            (Date.now() - this.calendarCache.get(monthKey)!.lastUpdated < cacheAge)) {
+            const cachedData = this.calendarCache.get(monthKey)!;
+            return {
+                notes: cachedData.notes,
+                tasks: cachedData.tasks,
+                dailyNotes: cachedData.dailyNotes
+            };
+        }
+        
+        // Calculate month boundaries
+        const startOfMonth = new Date(year, month, 1);
+        const endOfMonth = new Date(year, month + 1, 0);
+        
+        // Initialize data structures for the month
+        const notesMap = new Map<string, number>();
+        const tasksMap = new Map<string, {
+            count: number,
+            hasDue: boolean,
+            hasCompleted: boolean,
+            hasArchived: boolean
+        }>();
+        const dailyNotesSet = new Set<string>();
+        
+        // Get data for the month
+        await this.getIndex(forceRefresh);
+        
+        // Process notes
+        const noteFiles = await Promise.all(
+            this.fileIndex!.noteFiles
+                .filter(file => !file.tags?.includes(this.taskTag))
+                .map(async file => {
+                    try {
+                        if (!file.cachedInfo || ('status' in file.cachedInfo)) {
+                            const fileObj = this.vault.getAbstractFileByPath(file.path);
+                            if (!(fileObj instanceof TFile)) return null;
+                            
+                            const content = await this.vault.cachedRead(fileObj);
+                            return extractNoteInfo(content, file.path, fileObj);
+                        } else {
+                            return file.cachedInfo as NoteInfo;
+                        }
+                    } catch (e) {
+                        console.error(`Error processing note for calendar: ${file.path}`, e);
+                        return null;
+                    }
+                })
+        );
+        
+        // Process valid notes
+        noteFiles.forEach(note => {
+            if (note?.createdDate) {
+                try {
+                    const noteDate = new Date(note.createdDate);
+                    if (noteDate >= startOfMonth && noteDate <= endOfMonth) {
+                        const dateKey = noteDate.toISOString().split('T')[0]; // YYYY-MM-DD
+                        notesMap.set(dateKey, (notesMap.get(dateKey) || 0) + 1);
+                    }
+                } catch (e) {
+                    console.error(`Error processing note date: ${note.createdDate}`, e);
+                }
+            }
+        });
+        
+        // Process tasks
+        const taskFiles = await Promise.all(
+            this.fileIndex!.taskFiles.map(async file => {
+                try {
+                    if (!file.cachedInfo || !('status' in file.cachedInfo)) {
+                        const fileObj = this.vault.getAbstractFileByPath(file.path);
+                        if (!(fileObj instanceof TFile)) return null;
+                        
+                        const content = await this.vault.cachedRead(fileObj);
+                        return extractTaskInfo(content, file.path);
+                    } else {
+                        return file.cachedInfo as TaskInfo;
+                    }
+                } catch (e) {
+                    console.error(`Error processing task for calendar: ${file.path}`, e);
+                    return null;
+                }
+            })
+        );
+        
+        // Process valid tasks
+        taskFiles.forEach(task => {
+            if (task?.due) {
+                try {
+                    const dueDate = new Date(task.due);
+                    if (dueDate >= startOfMonth && dueDate <= endOfMonth) {
+                        const dateKey = dueDate.toISOString().split('T')[0]; // YYYY-MM-DD
+                        const taskInfo = tasksMap.get(dateKey) || { 
+                            count: 0, 
+                            hasDue: false, 
+                            hasCompleted: false,
+                            hasArchived: false 
+                        };
+                        
+                        // Update task info
+                        taskInfo.count++;
+                        taskInfo.hasDue = true;
+                        taskInfo.hasCompleted = taskInfo.hasCompleted || task.status.toLowerCase() === 'done';
+                        taskInfo.hasArchived = taskInfo.hasArchived || task.archived;
+                        
+                        // Update the map
+                        tasksMap.set(dateKey, taskInfo);
+                    }
+                } catch (e) {
+                    console.error(`Error processing task date: ${task.due}`, e);
+                }
+            }
+        });
+        
+        // Process daily notes
+        const dailyNotesFolder = this.vault.getAbstractFileByPath("/" + dailyNotesPath);
+        if (dailyNotesFolder) {
+            const dailyNoteFiles = this.vault.getMarkdownFiles().filter(file => 
+                file.path.startsWith(dailyNotesPath) && /^\d{4}-\d{2}-\d{2}\.md$/.test(file.basename + '.md')
+            );
+            
+            dailyNoteFiles.forEach(file => {
+                const dateStr = file.basename;
+                try {
+                    const fileDate = new Date(dateStr);
+                    if (fileDate.getFullYear() === year && fileDate.getMonth() === month) {
+                        dailyNotesSet.add(dateStr);
+                    }
+                } catch (e) {
+                    console.error(`Error processing daily note date: ${dateStr}`, e);
+                }
+            });
+        }
+        
+        // Update the cache
+        this.calendarCache.set(monthKey, {
+            notes: notesMap,
+            tasks: tasksMap,
+            dailyNotes: dailyNotesSet,
+            lastUpdated: Date.now()
+        });
+        
+        // Return the data
+        return {
+            notes: notesMap,
+            tasks: tasksMap,
+            dailyNotes: dailyNotesSet
+        };
+    }
+    
     // For clearing specific cached info when a file is updated
     public clearCachedInfo(path: string) {
         if (!this.fileIndex) return;
@@ -365,6 +553,13 @@ export class FileIndexer {
             this.fileIndex.taskFiles.forEach(f => f.cachedInfo = undefined);
             this.fileIndex.noteFiles.forEach(f => f.cachedInfo = undefined);
         }
+        
+        // Clear calendar cache
+        this.calendarCache.clear();
+        
+        // Clear query result cache
+        this.lastNotesQueryDate = null;
+        this.lastNotesQueryResult = null;
         
         // Get a fresh index
         await this.getIndex(true);

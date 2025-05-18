@@ -54,7 +54,8 @@ export default class ChronoSyncPlugin extends Plugin {
 		this.fileIndexer = new FileIndexer(
 			this.app.vault, 
 			this.settings.taskTag,
-			this.settings.excludedFolders
+			this.settings.excludedFolders,
+			this.settings.dailyNotesFolder
 		);
 
 		// Register view types
@@ -158,7 +159,8 @@ export default class ChronoSyncPlugin extends Plugin {
 			this.fileIndexer = new FileIndexer(
 				this.app.vault, 
 				this.settings.taskTag,
-				this.settings.excludedFolders
+				this.settings.excludedFolders,
+				this.settings.dailyNotesFolder
 			);
 		}
 		
