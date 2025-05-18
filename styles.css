@@ -163,42 +163,54 @@
 
 /* Notes heatmap indicators */
 .note-indicator.few-notes {
-    background-color: rgba(var(--interactive-accent-rgb), 0.5);
+    background-color: #5a8de3;
+    width: 6px;
+    height: 6px;
 }
 
 .note-indicator.some-notes {
-    background-color: rgba(var(--interactive-accent-rgb), 0.7);
+    background-color: #3670d9;
+    width: 7px;
+    height: 7px;
 }
 
 .note-indicator.many-notes {
-    background-color: rgba(var(--interactive-accent-rgb), 1);
+    background-color: #1e56c2;
+    width: 8px;
+    height: 8px;
 }
 
 /* Task indicators */
 .task-indicator.due-tasks {
     background-color: var(--text-error);
+    width: 6px;
+    height: 6px;
 }
 
 .task-indicator.completed-tasks {
     background-color: var(--text-success);
+    width: 6px;
+    height: 6px;
 }
 
 /* Daily note indicators */
 .daily-note-indicator {
     background-color: var(--text-normal);
+    width: 6px;
+    height: 6px;
 }
 
 /* Calendar heatmap colors for notes */
 .calendar-day.has-few-notes {
-    background-color: rgba(var(--interactive-accent-rgb), 0.1);
+    background-color: rgba(90, 141, 227, 0.2);
 }
 
 .calendar-day.has-some-notes {
-    background-color: rgba(var(--interactive-accent-rgb), 0.25);
+    background-color: rgba(54, 112, 217, 0.3);
 }
 
 .calendar-day.has-many-notes {
-    background-color: rgba(var(--interactive-accent-rgb), 0.4);
+    background-color: rgba(30, 86, 194, 0.4);
 }
 
 /* Calendar colors for tasks */

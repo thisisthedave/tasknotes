@@ -73,7 +73,7 @@ export class CalendarView extends View {
 		this.createSidePanel(container);
 	}
 	
-	navigateToPreviousPeriod() {
+	async navigateToPreviousPeriod() {
 		if (this.viewType === 'month') {
 			// Go to previous month
 			this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
@@ -82,10 +82,10 @@ export class CalendarView extends View {
 			this.currentDate = new Date(this.currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
 		}
 		
-		this.refreshView();
+		await this.refreshView();
 	}
 	
-	navigateToNextPeriod() {
+	async navigateToNextPeriod() {
 		if (this.viewType === 'month') {
 			// Go to next month
 			this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
@@ -94,18 +94,18 @@ export class CalendarView extends View {
 			this.currentDate = new Date(this.currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
 		}
 		
-		this.refreshView();
+		await this.refreshView();
 	}
 	
-	navigateToToday() {
+	async navigateToToday() {
 		this.currentDate = new Date();
-		this.refreshView();
+		await this.refreshView();
 	}
 	
-	switchView(viewType: 'month' | 'week') {
+	async switchView(viewType: 'month' | 'week') {
 		if (this.viewType === viewType) return;
 		this.viewType = viewType;
-		this.refreshView();
+		await this.refreshView();
 	}
   
 	async onClose() {
@@ -114,20 +114,20 @@ export class CalendarView extends View {
 	}
 	
 	// Helper method to refresh the view
-	refreshView() {
+	async refreshView() {
 		// Store the current active tab
 		const activeTabBefore = this.activeTab;
 		
 		// Get the current month-year key for caching
 		const currentMonthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
 		
-		// If the month has changed, clear the caches
+		// If the month has changed, update the caches
 		if (!this.monthNotesCache.has(currentMonthKey) || 
 			!this.monthTasksCache.has(currentMonthKey) || 
 			!this.monthDailyNotesCache.has(currentMonthKey)) {
 			
 			// Force cache refresh for the current month
-			this.buildCalendarCaches(currentMonthKey);
+			await this.buildCalendarCaches(currentMonthKey);
 		}
 		
 		const container = this.containerEl.querySelector('.chronosync-container') as HTMLElement;
@@ -328,10 +328,10 @@ export class CalendarView extends View {
 				}
 				
 				// Add click event handler - just select the date, don't open the note
-				dayCell.addEventListener('click', () => {
+				dayCell.addEventListener('click', async () => {
 					// Update current date and refresh the view
 					this.currentDate = new Date(cellDate);
-					this.refreshView();
+					await this.refreshView();
 				});
 				
 				// Add double-click handler to open the daily note
@@ -545,8 +545,31 @@ export class CalendarView extends View {
 		this.colorizeCalendarForTasks();
 	}
 	
+	// Clear all calendar colorization
+	clearCalendarColorization() {
+		// Find all calendar days
+		const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
+		
+		// Clear all classes and indicators
+		calendarDays.forEach(day => {
+			// Remove all indicator-related classes
+			day.classList.remove(
+				'has-notes', 'has-few-notes', 'has-some-notes', 'has-many-notes',
+				'has-tasks', 'has-completed-tasks', 
+				'has-daily-note'
+			);
+			
+			// Remove all indicator elements
+			const indicators = day.querySelectorAll('.note-indicator, .task-indicator, .daily-note-indicator');
+			indicators.forEach(indicator => indicator.remove());
+		});
+	}
+	
 	// Method to colorize calendar for notes tab (heatmap)
 	colorizeCalendarForNotes() {
+		// First clear all existing colorization
+		this.clearCalendarColorization();
+		
 		// Get current month key for cache
 		const monthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
 		const notesCache = this.monthNotesCache.get(monthKey);
@@ -555,14 +578,6 @@ export class CalendarView extends View {
 		
 		// Find all calendar days
 		const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
-		
-		// Clear any existing note indicators
-		calendarDays.forEach(day => {
-			day.classList.remove('has-notes', 'has-few-notes', 'has-some-notes', 'has-many-notes');
-			// Remove any existing indicator elements
-			const indicators = day.querySelectorAll('.note-indicator');
-			indicators.forEach(indicator => indicator.remove());
-		});
 		
 		// Add heatmap classes based on note count
 		calendarDays.forEach(day => {
@@ -618,6 +633,9 @@ export class CalendarView extends View {
 	
 	// Method to colorize calendar for tasks tab
 	colorizeCalendarForTasks() {
+		// First clear all existing colorization
+		this.clearCalendarColorization();
+		
 		// Get current month key for cache
 		const monthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
 		const tasksCache = this.monthTasksCache.get(monthKey);
@@ -626,14 +644,6 @@ export class CalendarView extends View {
 		
 		// Find all calendar days
 		const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
-		
-		// Clear any existing task indicators
-		calendarDays.forEach(day => {
-			day.classList.remove('has-tasks', 'has-completed-tasks');
-			// Remove any existing indicator elements
-			const indicators = day.querySelectorAll('.task-indicator');
-			indicators.forEach(indicator => indicator.remove());
-		});
 		
 		// Add task indicators
 		calendarDays.forEach(day => {
@@ -686,6 +696,9 @@ export class CalendarView extends View {
 	
 	// Method to colorize calendar for daily notes (timeblock tab)
 	colorizeCalendarForDailyNotes() {
+		// First clear all existing colorization
+		this.clearCalendarColorization();
+		
 		// Get current month key for cache
 		const monthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
 		const dailyNotesCache = this.monthDailyNotesCache.get(monthKey);
@@ -694,14 +707,6 @@ export class CalendarView extends View {
 		
 		// Find all calendar days
 		const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
-		
-		// Clear any existing daily note indicators
-		calendarDays.forEach(day => {
-			day.classList.remove('has-daily-note');
-			// Remove any existing indicator elements
-			const indicators = day.querySelectorAll('.daily-note-indicator');
-			indicators.forEach(indicator => indicator.remove());
-		});
 		
 		// Add daily note indicators
 		calendarDays.forEach(day => {
