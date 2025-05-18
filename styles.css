@@ -152,16 +152,46 @@
 .note-indicator,
 .task-indicator,
 .daily-note-indicator {
+    position: absolute;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Position indicators differently to avoid overlap */
+.note-indicator {
     width: 8px;
     height: 8px;
-    border-radius: 50%;
-    position: absolute;
+    bottom: 4px;
+    left: 30%;
+    transform: translateX(-50%);
+}
+
+.task-indicator {
+    width: 8px;
+    height: 8px;
     bottom: 4px;
     left: 50%;
     transform: translateX(-50%);
 }
 
-/* Notes heatmap indicators */
+.daily-note-indicator {
+    width: 8px;
+    height: 8px;
+    bottom: 4px;
+    left: 70%;
+    transform: translateX(-50%);
+}
+
+/* Hover effect for all indicators */
+.calendar-day:hover .note-indicator,
+.calendar-day:hover .task-indicator,
+.calendar-day:hover .daily-note-indicator {
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Notes heatmap indicators - blues of different intensity */
 .note-indicator.few-notes {
     background-color: #5a8de3;
     width: 6px;
@@ -180,51 +210,69 @@
     height: 8px;
 }
 
-/* Task indicators */
+/* Task indicators - reds for due, greens for completed, gray for archived */
 .task-indicator.due-tasks {
     background-color: var(--text-error);
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
 }
 
 .task-indicator.completed-tasks {
     background-color: var(--text-success);
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
 }
 
-/* Daily note indicators */
+.task-indicator.archived-tasks {
+    background-color: var(--text-faint);
+    width: 7px;
+    height: 7px;
+    opacity: 0.7;
+}
+
+/* Daily note indicators - distinctive purple */
 .daily-note-indicator {
-    background-color: var(--text-normal);
-    width: 6px;
-    height: 6px;
+    background-color: #9e74d0;
+    width: 7px;
+    height: 7px;
 }
 
 /* Calendar heatmap colors for notes */
 .calendar-day.has-few-notes {
-    background-color: rgba(90, 141, 227, 0.2);
+    background-color: rgba(90, 141, 227, 0.15);
+    border-bottom: 2px solid #5a8de3;
 }
 
 .calendar-day.has-some-notes {
-    background-color: rgba(54, 112, 217, 0.3);
+    background-color: rgba(54, 112, 217, 0.2);
+    border-bottom: 2px solid #3670d9;
 }
 
 .calendar-day.has-many-notes {
-    background-color: rgba(30, 86, 194, 0.4);
+    background-color: rgba(30, 86, 194, 0.25);
+    border-bottom: 2px solid #1e56c2;
 }
 
 /* Calendar colors for tasks */
 .calendar-day.has-tasks {
-    background-color: rgba(var(--text-error-rgb), 0.15);
+    background-color: rgba(var(--text-error-rgb), 0.1);
+    border-bottom: 2px solid var(--text-error);
 }
 
 .calendar-day.has-completed-tasks {
-    background-color: rgba(var(--text-success-rgb), 0.15);
+    background-color: rgba(var(--text-success-rgb), 0.1);
+    border-bottom: 2px solid var(--text-success);
+}
+
+.calendar-day.has-archived-tasks {
+    background-color: rgba(var(--text-faint-rgb), 0.1);
+    border-bottom: 2px solid var(--text-faint);
 }
 
 /* Calendar colors for daily notes */
 .calendar-day.has-daily-note {
-    background-color: rgba(var(--text-normal-rgb), 0.1);
+    background-color: rgba(158, 116, 208, 0.1);
+    border-bottom: 2px solid #9e74d0;
 }
 
 /* Main Content Area with Tabs */
@@ -301,20 +349,174 @@
     gap: 0.5rem;
 }
 
-.task-item {
+/* Task sections for due today and other tasks */
+.task-section {
+    margin-bottom: 1.5rem;
+}
+
+.task-section-header {
     padding: 0.5rem;
+    margin: 0.5rem 0;
+    background-color: var(--background-secondary);
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.selected-date-tasks .task-section-header {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.task-item {
+    padding: 0.75rem;
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
 }
 
 .task-item:hover {
     background-color: var(--background-modifier-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Task layout structure */
+.task-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Header row with info and meta */
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+}
+
+/* Task info section */
+.task-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    cursor: pointer;
+}
+
+/* Controls row */
+.task-controls {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(7rem, 1fr));
+    gap: 0.5rem;
+    align-items: center;
+    width: 100%;
+}
+
+/* Task metadata display */
+.task-item-metadata {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-width: 8rem;
+}
+
+.task-control-item {
+    display: flex;
+    align-items: center;
+}
+
+/* Style task control elements */
+.task-status-select, 
+.task-priority-select,
+.task-due-date-input {
+    font-size: 0.85rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary-alt);
+    width: auto;
+    min-width: 7rem;
+}
+
+.task-due-date-input {
+    width: 9rem;
+}
+
+.task-status-select:focus, 
+.task-priority-select:focus,
+.task-due-date-input:focus {
+    border-color: var(--interactive-accent);
+    outline: none;
+}
+
+/* Archived task styling */
+.task-item.task-archived {
+    opacity: 0.7;
+    background-color: var(--background-secondary-alt);
+}
+
+.task-archived-badge {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    background-color: var(--text-faint);
+    color: var(--background-primary);
+}
+
+/* Archive button styling */
+.archive-button-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    background-color: var(--background-secondary-alt);
+    color: var(--text-normal);
+    padding: 0;
+    text-align: center;
+}
+
+.archive-button-icon:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.archive-button-icon.archived {
+    background-color: var(--text-faint);
+    color: var(--background-primary);
+}
+
+/* Task controls responsive layout */
+@media (max-width: 768px) {
+    .task-controls {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .task-controls {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Highlight tasks due on the selected date */
+.task-item.task-due-today {
+    border-left: 3px solid var(--interactive-accent);
+    background-color: var(--background-primary-alt);
 }
 
 .task-item-title {
+    font-weight: bold;
+}
+
+.task-item-due.due-today {
+    color: var(--interactive-accent);
     font-weight: bold;
 }
 
@@ -353,6 +555,16 @@
 .task-overdue {
     color: var(--text-error);
     font-weight: bold;
+}
+
+/* Style for the refresh button */
+.refresh-tasks-button {
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    margin-right: 0.5rem;
+    cursor: pointer;
 }
 
 /* Task Creation Modal */
@@ -584,6 +796,28 @@
 
 .week-time-cell.current-time {
     background-color: rgba(var(--interactive-accent-rgb), 0.1);
+}
+
+/* Loading indicator */
+.cache-loading-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 0.5rem;
+    background-color: var(--background-modifier-success);
+    color: var(--text-on-accent);
+    text-align: center;
+    font-weight: bold;
+    z-index: 10;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-100%); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Responsive adjustments */

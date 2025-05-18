@@ -275,9 +275,23 @@ export class TaskCreationModal extends Modal {
 			const calendarLeaf = this.plugin.getCalendarLeaf();
 			if (calendarLeaf) {
 				const view = calendarLeaf.view as CalendarView;
+				
+				// Refresh tasks view if it's active
 				if (view.activeTab === 'tasks') {
-					// Refresh the view
-					view.refreshView();
+					await view.refreshTaskView();
+				}
+				
+				// Always refresh the calendar caches to update visualizations
+				const monthKey = `${view.currentDate.getFullYear()}-${view.currentDate.getMonth()}`;
+				await view.buildCalendarCaches(monthKey);
+				
+				// Reapply current colorization based on active tab
+				if (view.activeTab === 'tasks') {
+					view.colorizeCalendarForTasks();
+				} else if (view.activeTab === 'notes') {
+					view.colorizeCalendarForNotes();
+				} else if (view.activeTab === 'timeblock') {
+					view.colorizeCalendarForDailyNotes();
 				}
 			}
 		} catch (error) {

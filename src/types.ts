@@ -16,6 +16,8 @@ export interface TaskInfo {
 	priority: string;
 	due?: string;
 	path: string;
+	archived: boolean;
+	tags?: string[];
 }
 
 // Note types

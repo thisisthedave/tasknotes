@@ -135,7 +135,7 @@ export function isSameDay(date1: Date, date2: Date): boolean {
 /**
  * Extracts task information from a task file's content
  */
-export function extractTaskInfo(content: string, path: string): { title: string, status: string, priority: string, due?: string, path: string } | null {
+export function extractTaskInfo(content: string, path: string): { title: string, status: string, priority: string, due?: string, path: string, archived: boolean, tags?: string[] } | null {
 	// Try to extract task info from frontmatter
 	if (content.startsWith('---')) {
 		const endOfFrontmatter = content.indexOf('---', 3);
@@ -145,12 +145,18 @@ export function extractTaskInfo(content: string, path: string): { title: string,
 				const yaml = YAML.parse(frontmatter);
 				
 				if (yaml) {
+					// Check if task has archive tag
+					const tags = yaml.tags || [];
+					const archived = Array.isArray(tags) && tags.includes('archive');
+					
 					return {
 						title: yaml.title || 'Untitled Task',
 						status: yaml.status || 'open',
 						priority: yaml.priority || 'normal',
 						due: yaml.due,
-						path
+						path,
+						archived,
+						tags: Array.isArray(tags) ? [...tags] : []
 					};
 				}
 			} catch (e) {
@@ -165,7 +171,8 @@ export function extractTaskInfo(content: string, path: string): { title: string,
 		title: filename,
 		status: 'open',
 		priority: 'normal',
-		path
+		path,
+		archived: false
 	};
 }
 

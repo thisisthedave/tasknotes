@@ -19,7 +19,7 @@ export class CalendarView extends View {
 	
 	// Caches for heatmap data
 	private monthNotesCache: Map<string, Map<string, number>> = new Map(); // year-month -> date -> count
-	private monthTasksCache: Map<string, Map<string, {count: number, hasDue: boolean, hasCompleted: boolean}>> = new Map();
+	private monthTasksCache: Map<string, Map<string, {count: number, hasDue: boolean, hasCompleted: boolean, hasArchived: boolean}>> = new Map();
 	private monthDailyNotesCache: Map<string, Set<string>> = new Map(); // year-month -> Set of dates
   
 	constructor(leaf: WorkspaceLeaf, plugin: ChronoSyncPlugin) {
@@ -51,8 +51,20 @@ export class CalendarView extends View {
 		// Create and add UI elements
 		container.createEl('h2', { text: 'ChronoSync Calendar' });
 		
-		// Create the calendar UI
+		// Pre-build the cache for the current month
+		const currentMonthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+		
+		// Show loading indicator while building initial cache
+		this.showLoadingIndicator();
+		
+		// Start rendering the view immediately
 		this.renderView(container);
+		
+		// Build the cache in the background
+		await this.buildCalendarCaches(currentMonthKey);
+		
+		// Refresh the view once the cache is built
+		await this.refreshView();
 	}
 
 	renderView(container: HTMLElement) {
@@ -82,6 +94,13 @@ export class CalendarView extends View {
 			this.currentDate = new Date(this.currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
 		}
 		
+		// Get the new month key
+		const newMonthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+		
+		// Preload the cache for the new month in the background
+		await this.buildCalendarCaches(newMonthKey);
+		
+		// Then refresh the view
 		await this.refreshView();
 	}
 	
@@ -94,17 +113,53 @@ export class CalendarView extends View {
 			this.currentDate = new Date(this.currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
 		}
 		
+		// Get the new month key
+		const newMonthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+		
+		// Preload the cache for the new month in the background
+		await this.buildCalendarCaches(newMonthKey);
+		
+		// Then refresh the view
 		await this.refreshView();
 	}
 	
 	async navigateToToday() {
 		this.currentDate = new Date();
+		
+		// Get the current month key
+		const currentMonthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+		
+		// Ensure cache is built for current month
+		await this.buildCalendarCaches(currentMonthKey);
+		
+		// Then refresh the view
 		await this.refreshView();
 	}
 	
 	async switchView(viewType: 'month' | 'week') {
 		if (this.viewType === viewType) return;
 		this.viewType = viewType;
+		
+		// If switching to week view, ensure we have data for the week's month
+		if (viewType === 'week') {
+			const weekStart = this.getViewStartDate();
+			const weekEnd = this.getViewEndDate();
+			
+			// If week crosses month boundary, ensure both months are cached
+			const startMonthKey = `${weekStart.getFullYear()}-${weekStart.getMonth()}`;
+			const endMonthKey = `${weekEnd.getFullYear()}-${weekEnd.getMonth()}`;
+			
+			// Build caches for start and end months if they're different
+			await this.buildCalendarCaches(startMonthKey);
+			if (startMonthKey !== endMonthKey) {
+				await this.buildCalendarCaches(endMonthKey);
+			}
+		} else {
+			// For month view, just ensure current month is cached
+			const monthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+			await this.buildCalendarCaches(monthKey);
+		}
+		
 		await this.refreshView();
 	}
   
@@ -121,8 +176,13 @@ export class CalendarView extends View {
 		// Get the current month-year key for caching
 		const currentMonthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
 		
-		// If the month has changed, update the caches
-		if (!this.monthNotesCache.has(currentMonthKey) || 
+		// Check if we need to build/refresh the cache
+		const cacheTimestamp = this.cacheTimestamps.get(currentMonthKey) || 0;
+		const cacheAge = Date.now() - cacheTimestamp;
+		
+		// If cache is older than the invalidation time or doesn't exist, rebuild it
+		if (cacheAge > this.CACHE_INVALIDATION_TIME || 
+			!this.monthNotesCache.has(currentMonthKey) || 
 			!this.monthTasksCache.has(currentMonthKey) || 
 			!this.monthDailyNotesCache.has(currentMonthKey)) {
 			
@@ -146,88 +206,169 @@ export class CalendarView extends View {
 		}
 	}
 	
+	// Date when cache was last built for each month
+	private cacheTimestamps: Map<string, number> = new Map();
+	// Flag to indicate if cache building is in progress
+	private isBuildingCache: boolean = false;
+	// Cache invalidation time in milliseconds - 5 minutes
+	private CACHE_INVALIDATION_TIME = 5 * 60 * 1000;
+
 	// Method to build all caches for a given month
 	async buildCalendarCaches(monthKey: string) {
-		const [year, month] = monthKey.split('-').map(Number);
-		
-		// Create month caches if they don't exist
-		if (!this.monthNotesCache.has(monthKey)) {
-			this.monthNotesCache.set(monthKey, new Map());
+		// If cache is being built, show a loading indicator and wait
+		if (this.isBuildingCache) {
+			this.showLoadingIndicator();
+			return;
 		}
-		
-		if (!this.monthTasksCache.has(monthKey)) {
-			this.monthTasksCache.set(monthKey, new Map());
-		}
-		
-		if (!this.monthDailyNotesCache.has(monthKey)) {
-			this.monthDailyNotesCache.set(monthKey, new Set());
-		}
-		
-		// Get the cache references - we know these exist since we just created them
-		const notesCache = this.monthNotesCache.get(monthKey)!;
-		const tasksCache = this.monthTasksCache.get(monthKey)!;
-		const dailyNotesCache = this.monthDailyNotesCache.get(monthKey)!;
-		
-		// Get all notes in vault
-		const notes = await this.getNotesForView(false); // false to get all notes, not just for selected date
-		
-		// Get all tasks in vault
-		const tasks = await this.getTasksForView();
-		
-		// Calculate start and end dates for the month
-		const startOfMonth = new Date(year, month, 1);
-		const endOfMonth = new Date(year, month + 1, 0);
-		
-		// Process notes for the cache
-		for (const note of notes) {
-			if (note.createdDate) {
-				const noteDate = new Date(note.createdDate);
-				// Check if the note is within the current month
-				if (noteDate >= startOfMonth && noteDate <= endOfMonth) {
-					const dateKey = format(noteDate, 'yyyy-MM-dd');
-					// Increment count for the date
-					notesCache.set(dateKey, (notesCache.get(dateKey) || 0) + 1);
+
+		// Set building flag to prevent multiple builds
+		this.isBuildingCache = true;
+		this.showLoadingIndicator();
+
+		try {
+			const [year, month] = monthKey.split('-').map(Number);
+			
+			// Check cache timestamp - if recently built, skip rebuilding
+			const cacheTimestamp = this.cacheTimestamps.get(monthKey) || 0;
+			const cacheAge = Date.now() - cacheTimestamp;
+			
+			// If cache is fresh enough, don't rebuild
+			if (cacheAge < this.CACHE_INVALIDATION_TIME && 
+				this.monthNotesCache.has(monthKey) && 
+				this.monthTasksCache.has(monthKey) && 
+				this.monthDailyNotesCache.has(monthKey)) {
+				
+				// Update timestamp to indicate we checked this cache
+				this.cacheTimestamps.set(monthKey, Date.now());
+				this.hideLoadingIndicator();
+				return;
+			}
+			
+			// Create month caches if they don't exist
+			if (!this.monthNotesCache.has(monthKey)) {
+				this.monthNotesCache.set(monthKey, new Map());
+			} else {
+				// Clear existing data if rebuilding
+				this.monthNotesCache.get(monthKey)!.clear();
+			}
+			
+			if (!this.monthTasksCache.has(monthKey)) {
+				this.monthTasksCache.set(monthKey, new Map());
+			} else {
+				// Clear existing data if rebuilding
+				this.monthTasksCache.get(monthKey)!.clear();
+			}
+			
+			if (!this.monthDailyNotesCache.has(monthKey)) {
+				this.monthDailyNotesCache.set(monthKey, new Set());
+			} else {
+				// Clear existing data if rebuilding
+				this.monthDailyNotesCache.get(monthKey)!.clear();
+			}
+			
+			// Get the cache references - we know these exist since we just created them
+			const notesCache = this.monthNotesCache.get(monthKey)!;
+			const tasksCache = this.monthTasksCache.get(monthKey)!;
+			const dailyNotesCache = this.monthDailyNotesCache.get(monthKey)!;
+			
+			// Calculate start and end dates for the month
+			const startOfMonth = new Date(year, month, 1);
+			const endOfMonth = new Date(year, month + 1, 0);
+			
+			// Process notes - retrieve and cache asynchronously
+			const notes = await this.getNotesForView(false); // false to get all notes, not just for selected date
+			
+			// Process notes for the cache
+			for (const note of notes) {
+				if (note.createdDate) {
+					const noteDate = new Date(note.createdDate);
+					// Check if the note is within the current month
+					if (noteDate >= startOfMonth && noteDate <= endOfMonth) {
+						const dateKey = format(noteDate, 'yyyy-MM-dd');
+						// Increment count for the date
+						notesCache.set(dateKey, (notesCache.get(dateKey) || 0) + 1);
+					}
 				}
 			}
-		}
-		
-		// Process tasks for the cache
-		for (const task of tasks) {
-			if (task.due) {
-				const dueDate = new Date(task.due);
-				// Check if the task is due within the current month
-				if (dueDate >= startOfMonth && dueDate <= endOfMonth) {
-					const dateKey = format(dueDate, 'yyyy-MM-dd');
-					// Get or create the task info for this date
-					const taskInfo = tasksCache.get(dateKey) || { count: 0, hasDue: false, hasCompleted: false };
-					
-					// Update task info
-					taskInfo.count++;
-					taskInfo.hasDue = true;
-					taskInfo.hasCompleted = taskInfo.hasCompleted || task.status.toLowerCase() === 'done';
-					
-					// Update the cache
-					tasksCache.set(dateKey, taskInfo);
+			
+			// Process tasks - retrieve and cache asynchronously
+			const tasks = await this.getTasksForView();
+			
+			// Process tasks for the cache
+			for (const task of tasks) {
+				if (task.due) {
+					const dueDate = new Date(task.due);
+					// Check if the task is due within the current month
+					if (dueDate >= startOfMonth && dueDate <= endOfMonth) {
+						const dateKey = format(dueDate, 'yyyy-MM-dd');
+						// Get or create the task info for this date
+						const taskInfo = tasksCache.get(dateKey) || { 
+							count: 0, 
+							hasDue: false, 
+							hasCompleted: false,
+							hasArchived: false 
+						};
+						
+						// Update task info
+						taskInfo.count++;
+						taskInfo.hasDue = true;
+						taskInfo.hasCompleted = taskInfo.hasCompleted || task.status.toLowerCase() === 'done';
+						taskInfo.hasArchived = taskInfo.hasArchived || task.archived;
+						
+						// Update the cache
+						tasksCache.set(dateKey, taskInfo);
+					}
 				}
 			}
-		}
-		
-		// Check for daily notes in the month
-		const dailyNotesFolder = this.plugin.settings.dailyNotesFolder;
-		const files = this.app.vault.getFiles().filter(file => 
-			file.path.startsWith(dailyNotesFolder) && file.extension === 'md'
-		);
-		
-		for (const file of files) {
-			const filename = file.basename;
-			// Check if filename is in YYYY-MM-DD format
-			if (/^\d{4}-\d{2}-\d{2}$/.test(filename)) {
-				const fileDate = new Date(filename);
-				// If the file is for the current month, add to cache
-				if (fileDate.getFullYear() === year && fileDate.getMonth() === month) {
-					dailyNotesCache.add(filename);
+			
+			// Check for daily notes in the month
+			const dailyNotesFolder = this.plugin.settings.dailyNotesFolder;
+			const files = this.app.vault.getFiles().filter(file => 
+				file.path.startsWith(dailyNotesFolder) && file.extension === 'md'
+			);
+			
+			for (const file of files) {
+				const filename = file.basename;
+				// Check if filename is in YYYY-MM-DD format
+				if (/^\d{4}-\d{2}-\d{2}$/.test(filename)) {
+					const fileDate = new Date(filename);
+					// If the file is for the current month, add to cache
+					if (fileDate.getFullYear() === year && fileDate.getMonth() === month) {
+						dailyNotesCache.add(filename);
+					}
 				}
 			}
+			
+			// Update the timestamp for this cache
+			this.cacheTimestamps.set(monthKey, Date.now());
+		} catch (error) {
+			console.error('Error building calendar caches:', error);
+		} finally {
+			// Always reset the flag and hide the indicator
+			this.isBuildingCache = false;
+			this.hideLoadingIndicator();
+		}
+	}
+
+	// Show a loading indicator while building cache
+	private showLoadingIndicator() {
+		const container = this.containerEl.querySelector('.chronosync-container');
+		if (!container) return;
+
+		// Check if indicator already exists
+		if (container.querySelector('.cache-loading-indicator')) return;
+
+		const indicator = document.createElement('div');
+		indicator.className = 'cache-loading-indicator';
+		indicator.innerHTML = 'Loading calendar data...';
+		container.prepend(indicator);
+	}
+
+	// Hide the loading indicator
+	private hideLoadingIndicator() {
+		const indicator = this.containerEl.querySelector('.cache-loading-indicator');
+		if (indicator) {
+			indicator.remove();
 		}
 	}
   
@@ -329,8 +470,56 @@ export class CalendarView extends View {
 				
 				// Add click event handler - just select the date, don't open the note
 				dayCell.addEventListener('click', async () => {
-					// Update current date and refresh the view
+					// Update current date
 					this.currentDate = new Date(cellDate);
+					
+					// If tasks tab is active, we need to re-sort the task list based on the new date
+					if (this.activeTab === 'tasks' && this.taskListContainer) {
+						const tasks = await this.getTasksForView(false); // Use cache
+						const selectedDateStr = format(cellDate, 'yyyy-MM-dd');
+						
+						// Get the active status filter
+						const statusSelect = this.containerEl.querySelector('.status-select') as HTMLSelectElement;
+						const selectedStatus = statusSelect ? statusSelect.value : 'all';
+						
+						// Apply filtering logic based on status and archived flag
+						let filteredTasks: TaskInfo[] = [];
+						
+						if (selectedStatus === 'archived') {
+							// Show only archived tasks
+							filteredTasks = tasks.filter(task => task.archived);
+						} else {
+							// For all other statuses including 'all', exclude archived tasks
+							const nonArchivedTasks = tasks.filter(task => !task.archived);
+							
+							if (selectedStatus === 'all') {
+								// 'All' means all non-archived tasks
+								filteredTasks = nonArchivedTasks;
+							} else {
+								// Other status filters apply only to non-archived tasks
+								filteredTasks = nonArchivedTasks.filter(task => 
+									task.status.toLowerCase() === selectedStatus
+								);
+							}
+						}
+							
+						// Sort tasks with selected date first
+						this.prioritizeTasksByDate(filteredTasks, selectedDateStr);
+						
+						// Update the task list without reloading all tasks
+						this.renderTaskItems(this.taskListContainer, filteredTasks, selectedDateStr);
+					}
+					
+					// If notes tab is active, filter notes by the selected date
+					if (this.activeTab === 'notes') {
+						const contentArea = this.containerEl.querySelector('.chronosync-content-area') as HTMLElement;
+						if (contentArea) {
+							contentArea.empty();
+							this.createNotesView(contentArea);
+						}
+					}
+					
+					// Still refresh the rest of the view (calendar, etc.)
 					await this.refreshView();
 				});
 				
@@ -367,10 +556,58 @@ export class CalendarView extends View {
 				}
 				
 				// Add click event handler for days outside current month - just select the date
-				dayCell.addEventListener('click', () => {
-					// Update current date and refresh the view
+				dayCell.addEventListener('click', async () => {
+					// Update current date
 					this.currentDate = new Date(date);
-					this.refreshView();
+					
+					// If tasks tab is active, we need to re-sort the task list based on the new date
+					if (this.activeTab === 'tasks' && this.taskListContainer) {
+						const tasks = await this.getTasksForView(false); // Use cache
+						const selectedDateStr = format(date, 'yyyy-MM-dd');
+						
+						// Get the active status filter
+						const statusSelect = this.containerEl.querySelector('.status-select') as HTMLSelectElement;
+						const selectedStatus = statusSelect ? statusSelect.value : 'all';
+						
+						// Apply filtering logic based on status and archived flag
+						let filteredTasks: TaskInfo[] = [];
+						
+						if (selectedStatus === 'archived') {
+							// Show only archived tasks
+							filteredTasks = tasks.filter(task => task.archived);
+						} else {
+							// For all other statuses including 'all', exclude archived tasks
+							const nonArchivedTasks = tasks.filter(task => !task.archived);
+							
+							if (selectedStatus === 'all') {
+								// 'All' means all non-archived tasks
+								filteredTasks = nonArchivedTasks;
+							} else {
+								// Other status filters apply only to non-archived tasks
+								filteredTasks = nonArchivedTasks.filter(task => 
+									task.status.toLowerCase() === selectedStatus
+								);
+							}
+						}
+							
+						// Sort tasks with selected date first
+						this.prioritizeTasksByDate(filteredTasks, selectedDateStr);
+						
+						// Update the task list without reloading all tasks
+						this.renderTaskItems(this.taskListContainer, filteredTasks, selectedDateStr);
+					}
+					
+					// If notes tab is active, filter notes by the selected date
+					if (this.activeTab === 'notes') {
+						const contentArea = this.containerEl.querySelector('.chronosync-content-area') as HTMLElement;
+						if (contentArea) {
+							contentArea.empty();
+							this.createNotesView(contentArea);
+						}
+					}
+					
+					// Still refresh the rest of the view (calendar, etc.)
+					await this.refreshView();
 				});
 				
 				// Add double-click handler to open the daily note
@@ -555,7 +792,7 @@ export class CalendarView extends View {
 			// Remove all indicator-related classes
 			day.classList.remove(
 				'has-notes', 'has-few-notes', 'has-some-notes', 'has-many-notes',
-				'has-tasks', 'has-completed-tasks', 
+				'has-tasks', 'has-completed-tasks', 'has-archived-tasks',
 				'has-daily-note'
 			);
 			
@@ -613,16 +850,24 @@ export class CalendarView extends View {
 					indicator.className = 'note-indicator';
 					
 					// Apply heatmap classes based on note count
+					let noteCategory = '';
 					if (noteCount >= 5) {
 						day.classList.add('has-many-notes');
 						indicator.classList.add('many-notes');
+						noteCategory = 'Many';
 					} else if (noteCount >= 3) {
 						day.classList.add('has-some-notes');
 						indicator.classList.add('some-notes');
+						noteCategory = 'Some';
 					} else {
 						day.classList.add('has-few-notes');
 						indicator.classList.add('few-notes');
+						noteCategory = 'Few';
 					}
+					
+					// Add tooltip with note count information
+					indicator.setAttribute('aria-label', `${noteCategory} notes (${noteCount})`);
+					indicator.setAttribute('title', `${noteCategory} notes (${noteCount})`);
 					
 					// Add indicator to the day cell
 					day.appendChild(indicator);
@@ -678,14 +923,28 @@ export class CalendarView extends View {
 					const indicator = document.createElement('div');
 					indicator.className = 'task-indicator';
 					
-					// Different styling for completed and due tasks
-					if (taskInfo.hasCompleted) {
+					// Different styling for completed, due, and archived tasks
+					let taskStatus = '';
+					if (taskInfo.hasArchived) {
+						// Archived tasks get a different style
+						day.classList.add('has-archived-tasks');
+						indicator.classList.add('archived-tasks');
+						taskStatus = 'Archived';
+					} else if (taskInfo.hasCompleted) {
+						// Completed tasks
 						day.classList.add('has-completed-tasks');
 						indicator.classList.add('completed-tasks');
+						taskStatus = 'Completed';
 					} else {
+						// Due tasks
 						day.classList.add('has-tasks');
 						indicator.classList.add('due-tasks');
+						taskStatus = 'Due';
 					}
+					
+					// Add tooltip with task count information
+					indicator.setAttribute('aria-label', `${taskStatus} tasks (${taskInfo.count})`);
+					indicator.setAttribute('title', `${taskStatus} tasks (${taskInfo.count})`);
 					
 					// Add indicator to the day cell
 					day.appendChild(indicator);
@@ -743,6 +1002,10 @@ export class CalendarView extends View {
 					// Add class to the day
 					day.classList.add('has-daily-note');
 					
+					// Add tooltip for daily note
+					indicator.setAttribute('aria-label', 'Daily note exists');
+					indicator.setAttribute('title', 'Daily note exists');
+					
 					// Add indicator to the day cell
 					day.appendChild(indicator);
 				}
@@ -756,6 +1019,11 @@ export class CalendarView extends View {
 		activeTab.classList.add('active');
 	}
   
+	// Store cached tasks to avoid unnecessary reloads
+	private cachedTasks: TaskInfo[] | null = null;
+	private lastTasksRefresh: number = 0;
+	private readonly TASKS_CACHE_TTL = 60000; // 1 minute TTL for tasks cache
+
 	async createTasksView(container: HTMLElement) {
 		container.createEl('h3', { text: 'Tasks' });
 		
@@ -767,9 +1035,24 @@ export class CalendarView extends View {
 		statusFilter.createEl('span', { text: 'Status: ' });
 		const statusSelect = statusFilter.createEl('select', { cls: 'status-select' });
 		
-		const statuses = ['All', 'Open', 'In Progress', 'Done'];
+		const statuses = ['All', 'Open', 'In Progress', 'Done', 'Archived'];
 		statuses.forEach(status => {
 			const option = statusSelect.createEl('option', { value: status.toLowerCase(), text: status });
+		});
+		
+		// Refresh button
+		const refreshButton = filtersContainer.createEl('button', { 
+			text: 'Refresh', 
+			cls: 'refresh-tasks-button',
+			attr: {
+				'aria-label': 'Refresh task list',
+				'title': 'Refresh task list'
+			}
+		});
+		refreshButton.addEventListener('click', async () => {
+			// Force refresh the cache
+			this.cachedTasks = null;
+			await this.refreshTaskView(container);
 		});
 		
 		// Add task button
@@ -782,29 +1065,145 @@ export class CalendarView extends View {
 		// Task list
 		const taskList = container.createDiv({ cls: 'task-list' });
 		
-		// Get tasks for the current view
-		const tasks = await this.getTasksForView();
+		// Get tasks without triggering a full reload
+		const tasks = await this.getTasksForView(false);
 		
 		// Add change event listener to the status filter
 		statusSelect.addEventListener('change', async () => {
 			const selectedStatus = statusSelect.value;
-			const allTasks = await this.getTasksForView();
+			const allTasks = await this.getTasksForView(false); // Use cache
+
+			// Re-filter and re-prioritize tasks based on the selected date
+			const selectedDate = this.getSingleSelectedDate();
+			const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
 			
-			// Filter tasks based on selected status
-			const filteredTasks = selectedStatus === 'all' 
-				? allTasks 
-				: allTasks.filter(task => task.status.toLowerCase() === selectedStatus);
+			// Apply filtering logic based on status and archived flag
+			let filteredTasks: TaskInfo[] = [];
+			
+			if (selectedStatus === 'archived') {
+				// Show only archived tasks
+				filteredTasks = allTasks.filter(task => task.archived);
+			} else {
+				// For other statuses, exclude archived tasks unless specifically requested
+				const nonArchivedTasks = allTasks.filter(task => !task.archived);
+				
+				if (selectedStatus === 'all') {
+					filteredTasks = nonArchivedTasks;
+				} else {
+					filteredTasks = nonArchivedTasks.filter(task => 
+						task.status.toLowerCase() === selectedStatus
+					);
+				}
+			}
+				
+			// Then sort the tasks to prioritize those due on the selected date
+			this.prioritizeTasksByDate(filteredTasks, selectedDateStr);
 			
 			// Refresh the task list
-			this.renderTaskItems(taskList, filteredTasks);
+			this.renderTaskItems(taskList, filteredTasks, selectedDateStr);
 		});
 		
-		// Initial task rendering with all tasks (no filtering)
-		this.renderTaskItems(taskList, tasks);
+		// Get the selected date
+		const selectedDate = this.getSingleSelectedDate();
+		const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+		
+		// Sort tasks to prioritize those due on the selected date
+		this.prioritizeTasksByDate(tasks, selectedDateStr);
+		
+		// Initial task rendering 
+		this.renderTaskItems(taskList, tasks, selectedDateStr);
+		
+		// Store reference to the task list container for future updates
+		this.taskListContainer = taskList;
 	}
 	
+	// Method to prioritize tasks by date
+	private prioritizeTasksByDate(tasks: TaskInfo[], selectedDateStr: string | null): void {
+		if (!selectedDateStr) return;
+		
+		// Sort with tasks due on selected date first, then by normal sort criteria
+		tasks.sort((a, b) => {
+			// First prioritize tasks due on the selected date
+			const aIsDueOnSelectedDate = a.due === selectedDateStr;
+			const bIsDueOnSelectedDate = b.due === selectedDateStr;
+			
+			if (aIsDueOnSelectedDate && !bIsDueOnSelectedDate) return -1;
+			if (!aIsDueOnSelectedDate && bIsDueOnSelectedDate) return 1;
+			
+			// For tasks with the same priority on the selected date, use the normal sort
+			// Sort by due date
+			if (a.due && b.due) {
+				return new Date(a.due).getTime() - new Date(b.due).getTime();
+			}
+			// Tasks with due dates come before tasks without
+			if (a.due && !b.due) return -1;
+			if (!a.due && b.due) return 1;
+			
+			// Then sort by priority
+			const priorityOrder = { high: 0, normal: 1, low: 2 };
+			return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
+		});
+	}
+	
+	// Method to refresh the task view when needed (e.g., after creating a new task)
+	async refreshTaskView(container?: HTMLElement) {
+		// Force reload tasks
+		const tasks = await this.getTasksForView(true);
+		
+		// If container isn't provided, use the stored task list container
+		if (!container && this.taskListContainer) {
+			// Get the active status filter
+			const statusSelect = this.containerEl.querySelector('.status-select') as HTMLSelectElement;
+			const selectedStatus = statusSelect ? statusSelect.value : 'all';
+			
+			// Apply filtering logic based on status and archived flag
+			let filteredTasks: TaskInfo[] = [];
+			
+			if (selectedStatus === 'archived') {
+				// Show only archived tasks
+				filteredTasks = tasks.filter(task => task.archived);
+			} else {
+				// For all other statuses including 'all', exclude archived tasks
+				const nonArchivedTasks = tasks.filter(task => !task.archived);
+				
+				if (selectedStatus === 'all') {
+					// 'All' means all non-archived tasks
+					filteredTasks = nonArchivedTasks;
+				} else {
+					// Other status filters apply only to non-archived tasks
+					filteredTasks = nonArchivedTasks.filter(task => 
+						task.status.toLowerCase() === selectedStatus
+					);
+				}
+			}
+				
+			// Get the selected date
+			const selectedDate = this.getSingleSelectedDate();
+			const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+			
+			// Sort tasks
+			this.prioritizeTasksByDate(filteredTasks, selectedDateStr);
+			
+			// Update the task list
+			this.renderTaskItems(this.taskListContainer, filteredTasks, selectedDateStr);
+			
+			// Also refresh the calendar visualization
+			const monthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+			// Only rebuild the cache for the current month 
+			await this.buildCalendarCaches(monthKey);
+			
+			// Reapply colorization based on active tab
+			if (this.activeTab === 'tasks') {
+				this.colorizeCalendarForTasks();
+			}
+		}
+	}
+	
+	// Reference to the task list container for updates
+	private taskListContainer: HTMLElement | null = null;
+	
 	// Helper method to render task items
-	renderTaskItems(container: HTMLElement, tasks: TaskInfo[]) {
+	renderTaskItems(container: HTMLElement, tasks: TaskInfo[], selectedDateStr: string | null = null) {
 		// Clear the container
 		container.empty();
 		
@@ -812,35 +1211,254 @@ export class CalendarView extends View {
 			// Placeholder for empty task list
 			container.createEl('p', { text: 'No tasks found for the selected filters.' });
 		} else {
-			// Create task items
-			tasks.forEach(task => {
-				const taskItem = container.createDiv({ cls: 'task-item' });
+			// Check if we have tasks due on the selected date
+			const tasksForSelectedDate = selectedDateStr 
+				? tasks.filter(task => task.due === selectedDateStr)
+				: [];
 				
-				const taskInfo = taskItem.createDiv({ cls: 'task-info' });
-				taskInfo.createDiv({ 
-					cls: `task-item-title task-priority-${task.priority}`, 
-					text: task.title
+			// If we have tasks due on the selected date, create a section for them
+			if (tasksForSelectedDate.length > 0 && selectedDateStr) {
+				const selectedDateSection = container.createDiv({ cls: 'task-section selected-date-tasks' });
+				selectedDateSection.createEl('h4', { 
+					text: `Tasks due on ${format(new Date(selectedDateStr), 'MMM d, yyyy')}`,
+					cls: 'task-section-header'
 				});
 				
-				if (task.due) {
-					taskInfo.createDiv({ 
-						cls: `task-item-due ${isTaskOverdue(task) ? 'task-overdue' : ''}`,
-						text: `Due: ${task.due}`
+				const selectedDateTaskList = selectedDateSection.createDiv({ cls: 'task-list' });
+				
+				// Create task items for selected date
+				this.renderTaskGroup(selectedDateTaskList, tasksForSelectedDate, selectedDateStr);
+				
+				// If there are other tasks, add a separate section
+				const otherTasks = tasks.filter(task => task.due !== selectedDateStr);
+				
+				if (otherTasks.length > 0) {
+					const otherTasksSection = container.createDiv({ cls: 'task-section other-tasks' });
+					otherTasksSection.createEl('h4', { 
+						text: 'Other tasks',
+						cls: 'task-section-header'
 					});
+					
+					const otherTasksList = otherTasksSection.createDiv({ cls: 'task-list' });
+					
+					// Create task items for other tasks
+					this.renderTaskGroup(otherTasksList, otherTasks, selectedDateStr);
+				}
+			} else {
+				// No tasks on selected date, or no date selected - render all tasks together
+				this.renderTaskGroup(container, tasks, selectedDateStr);
+			}
+		}
+	}
+	
+	// Helper to render a group of tasks
+	private renderTaskGroup(container: HTMLElement, tasks: TaskInfo[], selectedDateStr: string | null = null) {
+		tasks.forEach(task => {
+			// Determine if this task is due on the selected date
+			const isDueOnSelectedDate = selectedDateStr && task.due === selectedDateStr;
+			
+			const taskItem = container.createDiv({ 
+				cls: `task-item ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''}`
+			});
+			
+			// Create header row (title and metadata)
+			const taskHeader = taskItem.createDiv({ cls: 'task-header' });
+			
+			// Create info section (left side)
+			const taskInfo = taskHeader.createDiv({ cls: 'task-info' });
+			
+			// Task title with priority
+			taskInfo.createDiv({ 
+				cls: `task-item-title task-priority-${task.priority}`, 
+				text: task.title
+			});
+			
+			// Due date
+			if (task.due) {
+				taskInfo.createDiv({ 
+					cls: `task-item-due ${isTaskOverdue(task) ? 'task-overdue' : ''} ${isDueOnSelectedDate ? 'due-today' : ''}`,
+					text: `Due: ${task.due}`
+				});
+			}
+			
+			// Create metadata section (right side)
+			const taskMeta = taskHeader.createDiv({ cls: 'task-item-metadata' });
+			
+			// Status badge
+			taskMeta.createDiv({
+				cls: `task-status task-status-${task.status.replace(/\s+/g, '-').toLowerCase()}`,
+				text: task.status
+			});
+			
+			// Archived badge if applicable
+			if (task.archived) {
+				taskMeta.createDiv({
+					cls: 'task-archived-badge',
+					text: 'Archived'
+				});
+			}
+			
+			// Create controls row
+			const taskControls = taskItem.createDiv({ cls: 'task-controls' });
+			
+			// Task status dropdown (direct child of controls grid)
+			const statusSelect = taskControls.createEl('select', { cls: 'task-status-select' });
+			
+			// Add status options
+			const statuses = ['Open', 'In Progress', 'Done'];
+			statuses.forEach(status => {
+				const option = statusSelect.createEl('option', { value: status.toLowerCase(), text: status });
+				if (task.status.toLowerCase() === status.toLowerCase()) {
+					option.selected = true;
+				}
+			});
+			
+			// Add event listener for status change
+			statusSelect.addEventListener('change', async (e) => {
+				e.stopPropagation(); // Prevent task opening
+				const newStatus = (e.target as HTMLSelectElement).value;
+				await this.updateTaskProperty(task, 'status', newStatus);
+			});
+			
+			// Task priority dropdown (direct child of controls grid)
+			const prioritySelect = taskControls.createEl('select', { cls: 'task-priority-select' });
+			
+			// Add priority options
+			const priorities = ['High', 'Normal', 'Low'];
+			priorities.forEach(priority => {
+				const option = prioritySelect.createEl('option', { value: priority.toLowerCase(), text: priority });
+				if (task.priority === priority.toLowerCase()) {
+					option.selected = true;
+				}
+			});
+			
+			// Add event listener for priority change
+			prioritySelect.addEventListener('change', async (e) => {
+				e.stopPropagation(); // Prevent task opening
+				const newPriority = (e.target as HTMLSelectElement).value;
+				await this.updateTaskProperty(task, 'priority', newPriority);
+			});
+			
+			// Due date input (direct child of controls grid)
+			const dueDateInput = taskControls.createEl('input', { 
+				type: 'date',
+				cls: 'task-due-date-input',
+				attr: { title: 'Set due date' }
+			});
+			
+			// Set current due date if exists
+				if (task.due) {
+					dueDateInput.value = task.due;
 				}
 				
-				const taskMeta = taskItem.createDiv({ cls: 'task-item-metadata' });
-				
-				taskMeta.createDiv({
-					cls: `task-status task-status-${task.status.replace(/\s+/g, '-').toLowerCase()}`,
-					text: task.status
+				// Add event listener for due date change
+				dueDateInput.addEventListener('change', async (e) => {
+					e.stopPropagation(); // Prevent task opening
+					const newDueDate = (e.target as HTMLInputElement).value;
+					await this.updateTaskProperty(task, 'due', newDueDate);
 				});
 				
-				// Add click handler to open task
-				taskItem.addEventListener('click', () => {
-					this.openTask(task.path);
+				// Archive button as icon (direct child of controls grid)
+				const archiveButton = taskControls.createEl('button', { 
+					cls: `archive-button-icon ${task.archived ? 'archived' : ''}`,
+					attr: { 
+						title: task.archived ? 'Unarchive this task' : 'Archive this task',
+						'aria-label': task.archived ? 'Unarchive' : 'Archive'
+					}
 				});
+				
+				// Add icon based on archive status
+				archiveButton.innerHTML = task.archived 
+					? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>'
+					: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>';
+				
+				// Add event listener for archive toggle
+				archiveButton.addEventListener('click', async (e) => {
+					e.stopPropagation(); // Prevent task opening
+					await this.toggleTaskArchive(task);
+				});
+				
+				// Add click handler to open task (only on the task info part)
+				taskInfo.addEventListener('click', () => {
+					this.openTask(task.path);			});
+		});
+	}
+	
+	// Update a task property in the frontmatter
+	async updateTaskProperty(task: TaskInfo, property: string, value: any): Promise<void> {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(task.path);
+			if (!(file instanceof TFile)) {
+				new Notice(`Cannot find task file: ${task.path}`);
+				return;
+			}
+			
+			// Read the file content
+			const content = await this.app.vault.read(file);
+			
+			// Process the frontmatter
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				// Update the property
+				frontmatter[property] = value;
 			});
+			
+			// Show a notice
+			new Notice(`Updated task ${property}`);
+			
+			// Refresh the task view
+			await this.refreshTaskView();
+		} catch (error) {
+			console.error('Error updating task property:', error);
+			new Notice('Failed to update task property');
+		}
+	}
+	
+	// Toggle archive status for a task
+	async toggleTaskArchive(task: TaskInfo): Promise<void> {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(task.path);
+			if (!(file instanceof TFile)) {
+				new Notice(`Cannot find task file: ${task.path}`);
+				return;
+			}
+			
+			// Read the file content
+			const content = await this.app.vault.read(file);
+			
+			// Process the frontmatter
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				// Make sure tags array exists
+				if (!frontmatter.tags) {
+					frontmatter.tags = [];
+				}
+				
+				// Convert to array if it's not already
+				if (!Array.isArray(frontmatter.tags)) {
+					frontmatter.tags = [frontmatter.tags];
+				}
+				
+				// Toggle archive tag
+				if (task.archived) {
+					// Remove archive tag
+					frontmatter.tags = frontmatter.tags.filter(
+						(tag: string) => tag !== 'archive'
+					);
+				} else {
+					// Add archive tag if not present
+					if (!frontmatter.tags.includes('archive')) {
+						frontmatter.tags.push('archive');
+					}
+				}
+			});
+			
+			// Show a notice
+			new Notice(task.archived ? 'Task unarchived' : 'Task archived');
+			
+			// Refresh the task view
+			await this.refreshTaskView();
+		} catch (error) {
+			console.error('Error toggling task archive status:', error);
+			new Notice('Failed to update task archive status');
 		}
 	}
   
@@ -971,7 +1589,15 @@ export class CalendarView extends View {
 		}
 	}
 	
-	async getTasksForView(): Promise<TaskInfo[]> {
+	async getTasksForView(forceRefresh: boolean = false): Promise<TaskInfo[]> {
+		// Use cached tasks if available and not forcing refresh
+		const now = Date.now();
+		if (!forceRefresh && 
+			this.cachedTasks && 
+			now - this.lastTasksRefresh < this.TASKS_CACHE_TTL) {
+			return [...this.cachedTasks]; // Return a copy to prevent modification of cache
+		}
+		
 		const result: TaskInfo[] = [];
 		const taskTag = this.plugin.settings.taskTag;
 		
@@ -1001,7 +1627,7 @@ export class CalendarView extends View {
 		}
 		
 		// Sort tasks by due date, then priority
-		return result.sort((a, b) => {
+		const sortedResult = result.sort((a, b) => {
 			// Sort by due date
 			if (a.due && b.due) {
 				return new Date(a.due).getTime() - new Date(b.due).getTime();
@@ -1014,9 +1640,41 @@ export class CalendarView extends View {
 			const priorityOrder = { high: 0, normal: 1, low: 2 };
 			return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
 		});
+		
+		// Update cache and timestamp
+		this.cachedTasks = [...sortedResult];
+		this.lastTasksRefresh = now;
+		
+		return sortedResult;
 	}
 	
-	async getNotesForView(filterByDate: boolean = true): Promise<NoteInfo[]> {
+	// Cache for notes
+	private cachedNotes: NoteInfo[] | null = null;
+	private lastNotesRefresh: number = 0;
+	private readonly NOTES_CACHE_TTL = 60000; // 1 minute TTL for notes cache
+	
+	async getNotesForView(filterByDate: boolean = true, forceRefresh: boolean = false): Promise<NoteInfo[]> {
+		// Use cached notes if available and not forcing refresh
+		const now = Date.now();
+		if (!forceRefresh &&
+			this.cachedNotes && 
+			now - this.lastNotesRefresh < this.NOTES_CACHE_TTL) {
+			
+			// We can filter the cached notes based on the selected date
+			if (filterByDate) {
+				const selectedDate = this.getSingleSelectedDate();
+				const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+				
+				if (selectedDateStr) {
+					return this.cachedNotes.filter(note => 
+						note.createdDate && note.createdDate.startsWith(selectedDateStr)
+					);
+				}
+			}
+			
+			return [...this.cachedNotes]; // Return a copy to prevent modification of cache
+		}
+		
 		const result: NoteInfo[] = [];
 		const taskTag = this.plugin.settings.taskTag;
 		
@@ -1024,10 +1682,6 @@ export class CalendarView extends View {
 		const files = this.app.vault.getFiles().filter(file => 
 			file.extension === 'md'
 		);
-		
-		// Get the selected date
-		const selectedDate = this.getSingleSelectedDate();
-		const selectedDateStr = selectedDate && filterByDate ? format(selectedDate, 'yyyy-MM-dd') : null;
 		
 		// Extract note information from each file
 		for (const file of files) {
@@ -1041,10 +1695,7 @@ export class CalendarView extends View {
 					file.path !== this.plugin.settings.homeNotePath && 
 					!file.path.startsWith(this.plugin.settings.dailyNotesFolder)) {
 					
-					// Only include notes that match the selected date's creation date if filtering by date
-					if (!filterByDate || !selectedDateStr || (noteInfo.createdDate && noteInfo.createdDate.startsWith(selectedDateStr))) {
-						result.push(noteInfo);
-					}
+					result.push(noteInfo);
 				}
 			} catch (e) {
 				console.error(`Error processing note file ${file.path}:`, e);
@@ -1052,7 +1703,49 @@ export class CalendarView extends View {
 		}
 		
 		// Sort notes by title
-		return result.sort((a, b) => a.title.localeCompare(b.title));
+		const sortedResult = result.sort((a, b) => a.title.localeCompare(b.title));
+		
+		// Update cache and timestamp - store all notes without date filtering
+		this.cachedNotes = [...sortedResult];
+		this.lastNotesRefresh = now;
+		
+		// Apply date filtering if needed
+		if (filterByDate) {
+			const selectedDate = this.getSingleSelectedDate();
+			const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+			
+			if (selectedDateStr) {
+				return sortedResult.filter(note => 
+					note.createdDate && note.createdDate.startsWith(selectedDateStr)
+				);
+			}
+		}
+		
+		return sortedResult;
+	}
+	
+	// Method to refresh the notes view (similar to refreshTaskView)
+	async refreshNotesView() {
+		// Force reload notes
+		await this.getNotesForView(true, true);
+		
+		// Also refresh the calendar visualization
+		const monthKey = `${this.currentDate.getFullYear()}-${this.currentDate.getMonth()}`;
+		await this.buildCalendarCaches(monthKey);
+		
+		// Reapply colorization based on active tab
+		if (this.activeTab === 'notes') {
+			this.colorizeCalendarForNotes();
+		}
+		
+		// Find the current container and refresh it if possible
+		if (this.containerEl) {
+			const contentArea = this.containerEl.querySelector('.chronosync-content-area') as HTMLElement;
+			if (contentArea && this.activeTab === 'notes') {
+				contentArea.empty();
+				this.createNotesView(contentArea);
+			}
+		}
 	}
 	
 	async addTimeblockToNote(file: TFile) {
