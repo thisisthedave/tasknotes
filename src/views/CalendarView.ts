@@ -446,7 +446,7 @@ export class CalendarView extends View {
 		// Status filter
 		const statusFilter = filtersContainer.createDiv({ cls: 'filter-group' });
 		statusFilter.createEl('span', { text: 'Status: ' });
-		const statusSelect = statusFilter.createEl('select');
+		const statusSelect = statusFilter.createEl('select', { cls: 'status-select' });
 		
 		const statuses = ['All', 'Open', 'In Progress', 'Done'];
 		statuses.forEach(status => {
@@ -466,13 +466,36 @@ export class CalendarView extends View {
 		// Get tasks for the current view
 		const tasks = await this.getTasksForView();
 		
+		// Add change event listener to the status filter
+		statusSelect.addEventListener('change', async () => {
+			const selectedStatus = statusSelect.value;
+			const allTasks = await this.getTasksForView();
+			
+			// Filter tasks based on selected status
+			const filteredTasks = selectedStatus === 'all' 
+				? allTasks 
+				: allTasks.filter(task => task.status.toLowerCase() === selectedStatus);
+			
+			// Refresh the task list
+			this.renderTaskItems(taskList, filteredTasks);
+		});
+		
+		// Initial task rendering with all tasks (no filtering)
+		this.renderTaskItems(taskList, tasks);
+	}
+	
+	// Helper method to render task items
+	renderTaskItems(container: HTMLElement, tasks: TaskInfo[]) {
+		// Clear the container
+		container.empty();
+		
 		if (tasks.length === 0) {
 			// Placeholder for empty task list
-			taskList.createEl('p', { text: 'No tasks found for the selected date and filters.' });
+			container.createEl('p', { text: 'No tasks found for the selected filters.' });
 		} else {
 			// Create task items
 			tasks.forEach(task => {
-				const taskItem = taskList.createDiv({ cls: 'task-item' });
+				const taskItem = container.createDiv({ cls: 'task-item' });
 				
 				const taskInfo = taskItem.createDiv({ cls: 'task-info' });
 				taskInfo.createDiv({ 
@@ -649,38 +672,8 @@ export class CalendarView extends View {
 					const taskInfo = extractTaskInfo(content, file.path);
 					
 					if (taskInfo) {
-						// Filter based on current view date if it's a specific date
-						if (this.viewType === 'month' || this.viewType === 'week') {
-							// If we're in a specific date view, filter only tasks due in the current month/week
-							if (taskInfo.due) {
-								const dueDate = new Date(taskInfo.due);
-								const startDate = this.getViewStartDate();
-								const endDate = this.getViewEndDate();
-								
-								// Only include tasks due in the current view range
-								if (dueDate >= startDate && dueDate <= endDate) {
-									result.push(taskInfo);
-								}
-							} else {
-								// For the current view, only include tasks without due dates
-								// if they were created within the view range
-								if (noteInfo.createdDate) {
-									const createdDate = new Date(noteInfo.createdDate);
-									const startDate = this.getViewStartDate();
-									const endDate = this.getViewEndDate();
-									
-									if (createdDate >= startDate && createdDate <= endDate) {
-										result.push(taskInfo);
-									}
-								} else {
-									// If no creation date, include anyway
-									result.push(taskInfo);
-								}
-							}
-						} else {
-							// For all other views, include all tasks
-							result.push(taskInfo);
-						}
+						// Include all tasks regardless of due date or any other filters
+						result.push(taskInfo);
 					}
 				}
 			} catch (e) {
