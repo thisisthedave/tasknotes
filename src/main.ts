@@ -421,6 +421,63 @@ export default class ChronoSyncPlugin extends Plugin {
 		}
 	}
 	
+	/**
+	 * Toggles a recurring task's completion status for the selected date
+	 */
+	async toggleRecurringTaskStatus(task: TaskInfo, date?: Date): Promise<void> {
+		try {
+			if (!task.recurrence) {
+				// Not a recurring task - do regular status toggle
+				const newStatus = task.status === 'done' ? 'open' : 'done';
+				await this.updateTaskProperty(task, 'status', newStatus);
+				return;
+			}
+			
+			const file = this.app.vault.getAbstractFileByPath(task.path);
+			if (!(file instanceof TFile)) {
+				new Notice(`Cannot find task file: ${task.path}`);
+				return;
+			}
+			
+			// Use the provided date or fall back to the currently selected date
+			const targetDate = date || this.selectedDate;
+			const dateStr = format(targetDate, 'yyyy-MM-dd');
+			
+			// Process the frontmatter
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				// Make sure complete_instances array exists
+				if (!frontmatter.complete_instances) {
+					frontmatter.complete_instances = [];
+				}
+				
+				// If the target date is in the array, remove it; otherwise add it
+				const completeDates: string[] = frontmatter.complete_instances;
+				const dateIndex = completeDates.indexOf(dateStr);
+				
+				// Format the date for display
+				const displayDate = format(targetDate, 'MMM d, yyyy');
+				
+				if (dateIndex > -1) {
+					// Remove date from the completed dates
+					completeDates.splice(dateIndex, 1);
+					new Notice(`Marked task as incomplete for ${displayDate}`);
+				} else {
+					// Add date to the completed dates
+					completeDates.push(dateStr);
+					new Notice(`Marked task as complete for ${displayDate}`);
+				}
+				
+				frontmatter.complete_instances = completeDates;
+			});
+			
+			// Notify views that data has changed
+			this.notifyDataChanged();
+		} catch (error) {
+			console.error('Error toggling recurring task status:', error);
+			new Notice('Failed to update recurring task status');
+		}
+	}
+	
 	async toggleTaskArchive(task: TaskInfo): Promise<void> {
 		try {
 			const file = this.app.vault.getAbstractFileByPath(task.path);

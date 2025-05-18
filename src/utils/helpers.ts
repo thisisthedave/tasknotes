@@ -135,7 +135,21 @@ export function isSameDay(date1: Date, date2: Date): boolean {
 /**
  * Extracts task information from a task file's content
  */
-export function extractTaskInfo(content: string, path: string): { title: string, status: string, priority: string, due?: string, path: string, archived: boolean, tags?: string[] } | null {
+export function extractTaskInfo(content: string, path: string): { 
+	title: string, 
+	status: string, 
+	priority: string, 
+	due?: string, 
+	path: string, 
+	archived: boolean, 
+	tags?: string[],
+	recurrence?: {
+		frequency: 'daily' | 'weekly' | 'monthly' | 'yearly',
+		days_of_week?: string[],
+		day_of_month?: number
+	},
+	complete_instances?: string[]
+} | null {
 	// Try to extract task info from frontmatter
 	if (content.startsWith('---')) {
 		const endOfFrontmatter = content.indexOf('---', 3);
@@ -149,6 +163,22 @@ export function extractTaskInfo(content: string, path: string): { title: string,
 					const tags = yaml.tags || [];
 					const archived = Array.isArray(tags) && tags.includes('archive');
 					
+					// Extract recurrence info if present
+					let recurrence = undefined;
+					if (yaml.recurrence && typeof yaml.recurrence === 'object') {
+						recurrence = {
+							frequency: yaml.recurrence.frequency,
+							days_of_week: yaml.recurrence.days_of_week,
+							day_of_month: yaml.recurrence.day_of_month
+						};
+					}
+					
+					// Extract complete_instances array if present
+					let complete_instances = undefined;
+					if (yaml.complete_instances && Array.isArray(yaml.complete_instances)) {
+						complete_instances = yaml.complete_instances;
+					}
+					
 					return {
 						title: yaml.title || 'Untitled Task',
 						status: yaml.status || 'open',
@@ -156,7 +186,9 @@ export function extractTaskInfo(content: string, path: string): { title: string,
 						due: yaml.due,
 						path,
 						archived,
-						tags: Array.isArray(tags) ? [...tags] : []
+						tags: Array.isArray(tags) ? [...tags] : [],
+						recurrence,
+						complete_instances
 					};
 				}
 			} catch (e) {
@@ -187,6 +219,56 @@ export function isTaskOverdue(task: {due?: string}): boolean {
 	today.setHours(0, 0, 0, 0);
 	
 	return dueDate < today;
+}
+
+/**
+ * Checks if a recurring task is due on a specific date
+ */
+export function isRecurringTaskDueOn(task: any, date: Date): boolean {
+	if (!task.recurrence) return true; // Non-recurring tasks are always shown
+	
+	const frequency = task.recurrence.frequency;
+	const targetDate = new Date(date);
+	targetDate.setHours(0, 0, 0, 0);
+	const dayOfWeek = targetDate.getDay();
+	const dayOfMonth = targetDate.getDate();
+	// Map JavaScript's day of week (0-6, where 0 is Sunday) to our day abbreviations
+	const weekdayMap = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+	
+	switch (frequency) {
+		case 'daily':
+			return true;
+		case 'weekly':
+			// Check if the day of week is in the specified days
+			const daysOfWeek = task.recurrence.days_of_week || [];
+			return daysOfWeek.includes(weekdayMap[dayOfWeek]);
+		case 'monthly':
+			// Check if the day of month matches
+			return dayOfMonth === task.recurrence.day_of_month;
+		case 'yearly':
+			// Check if it's the specific day of month in the correct month
+			if (!task.due) return false;
+			const originalDueDate = new Date(task.due);
+			return originalDueDate.getDate() === dayOfMonth && 
+				originalDueDate.getMonth() === targetDate.getMonth();
+		default:
+			return false;
+	}
+}
+
+/**
+ * Gets the effective status of a task, considering recurrence
+ */
+export function getEffectiveTaskStatus(task: any, date: Date): string {
+	if (!task.recurrence) {
+		return task.status || 'open';
+	}
+	
+	// If it has recurrence, check if it's completed for the specified date
+	const dateStr = format(date, 'yyyy-MM-dd');
+	const completedDates = task.complete_instances || [];
+	
+	return completedDates.includes(dateStr) ? 'done' : 'open';
 }
 
 /**

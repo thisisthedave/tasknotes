@@ -16,7 +16,9 @@ import {
     extractTimeblockContent, 
     isTaskOverdue, 
     isSameDay,
-    parseTime 
+    parseTime,
+    isRecurringTaskDueOn,
+    getEffectiveTaskStatus
 } from '../utils/helpers';
 
 export class DetailView extends View {
@@ -346,10 +348,25 @@ export class DetailView extends View {
     private renderTaskGroup(container: HTMLElement, tasks: TaskInfo[], selectedDateStr: string | null = null) {
         tasks.forEach(task => {
             // Determine if this task is due on the selected date
-            const isDueOnSelectedDate = selectedDateStr && task.due === selectedDateStr;
+            let isDueOnSelectedDate = selectedDateStr && task.due === selectedDateStr;
+            
+            // For recurring tasks, check if it's due on the selected date
+            if (task.recurrence) {
+                isDueOnSelectedDate = isRecurringTaskDueOn(task, this.plugin.selectedDate);
+            }
+            
+            // If not due on selected date, skip this task (for recurring tasks only)
+            if (task.recurrence && !isDueOnSelectedDate) {
+                return;
+            }
+            
+            // Get effective status for recurring tasks
+            const effectiveStatus = task.recurrence 
+                ? getEffectiveTaskStatus(task, this.plugin.selectedDate)
+                : task.status;
             
             const taskItem = container.createDiv({ 
-                cls: `task-item ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''}`
+                cls: `task-item ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''} ${task.recurrence ? 'task-recurring' : ''}`
             });
             
             // Create header row (title and metadata)
@@ -359,10 +376,19 @@ export class DetailView extends View {
             const taskInfo = taskHeader.createDiv({ cls: 'task-info' });
             
             // Task title with priority
-            taskInfo.createDiv({ 
+            const titleEl = taskInfo.createDiv({ 
                 cls: `task-item-title task-priority-${task.priority}`, 
                 text: task.title
             });
+            
+            // Add recurring indicator if needed
+            if (task.recurrence) {
+                const recurIcon = document.createElement('span');
+                recurIcon.className = 'task-recurring-icon';
+                recurIcon.textContent = '⟳ ';
+                recurIcon.title = `${task.recurrence.frequency} recurring task`;
+                titleEl.prepend(recurIcon);
+            }
             
             // Due date
             if (task.due) {
@@ -375,10 +401,10 @@ export class DetailView extends View {
             // Create metadata section (right side)
             const taskMeta = taskHeader.createDiv({ cls: 'task-item-metadata' });
             
-            // Status badge
+            // Status badge - use effective status for recurring tasks
             taskMeta.createDiv({
-                cls: `task-status task-status-${task.status.replace(/\s+/g, '-').toLowerCase()}`,
-                text: task.status
+                cls: `task-status task-status-${effectiveStatus.replace(/\s+/g, '-').toLowerCase()} ${task.recurrence ? 'recurring-status' : ''}`,
+                text: effectiveStatus
             });
             
             // Create archive button in the metadata section (top right)
@@ -412,24 +438,39 @@ export class DetailView extends View {
             // Create controls row
             const taskControls = taskItem.createDiv({ cls: 'task-controls' });
             
-            // Task status dropdown (direct child of controls grid)
-            const statusSelect = taskControls.createEl('select', { cls: 'task-status-select' });
-            
-            // Add status options
-            const statuses = ['Open', 'In Progress', 'Done'];
-            statuses.forEach(status => {
-                const option = statusSelect.createEl('option', { value: status.toLowerCase(), text: status });
-                if (task.status.toLowerCase() === status.toLowerCase()) {
-                    option.selected = true;
-                }
-            });
-            
-            // Add event listener for status change
-            statusSelect.addEventListener('change', async (e) => {
-                e.stopPropagation(); // Prevent task opening
-                const newStatus = (e.target as HTMLSelectElement).value;
-                await this.plugin.updateTaskProperty(task, 'status', newStatus);
-            });
+            // Status control - different behavior for recurring vs. regular tasks
+            if (task.recurrence) {
+                // Toggle button for recurring tasks
+                const toggleButton = taskControls.createEl('button', { 
+                    cls: `task-toggle-button ${effectiveStatus === 'done' ? 'mark-incomplete' : 'mark-complete'}`,
+                    text: effectiveStatus === 'done' ? 'Mark Incomplete' : 'Mark Complete'
+                });
+                
+                // Add event listener for toggle
+                toggleButton.addEventListener('click', async (e) => {
+                    e.stopPropagation(); // Prevent task opening
+                    await this.plugin.toggleRecurringTaskStatus(task, this.plugin.selectedDate);
+                });
+            } else {
+                // Task status dropdown (direct child of controls grid)
+                const statusSelect = taskControls.createEl('select', { cls: 'task-status-select' });
+                
+                // Add status options
+                const statuses = ['Open', 'In Progress', 'Done'];
+                statuses.forEach(status => {
+                    const option = statusSelect.createEl('option', { value: status.toLowerCase(), text: status });
+                    if (task.status.toLowerCase() === status.toLowerCase()) {
+                        option.selected = true;
+                    }
+                });
+                
+                // Add event listener for status change
+                statusSelect.addEventListener('change', async (e) => {
+                    e.stopPropagation(); // Prevent task opening
+                    const newStatus = (e.target as HTMLSelectElement).value;
+                    await this.plugin.updateTaskProperty(task, 'status', newStatus);
+                });
+            }
             
             // Task priority dropdown (direct child of controls grid)
             const prioritySelect = taskControls.createEl('select', { cls: 'task-priority-select' });

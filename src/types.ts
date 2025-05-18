@@ -19,6 +19,12 @@ export interface TimeInfo {
 }
 
 // Task types
+export interface RecurrenceInfo {
+	frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+	days_of_week?: string[];  // For weekly recurrence: ['mon', 'tue', etc.]
+	day_of_month?: number;    // For monthly/yearly recurrence: 1-31
+}
+
 export interface TaskInfo {
 	title: string;
 	status: string;
@@ -27,6 +33,8 @@ export interface TaskInfo {
 	path: string;
 	archived: boolean;
 	tags?: string[];
+	recurrence?: RecurrenceInfo;
+	complete_instances?: string[]; // Array of dates (YYYY-MM-DD) when recurring task was completed
 }
 
 // Note types

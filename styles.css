@@ -613,6 +613,43 @@
     font-weight: bold;
 }
 
+/* Recurring task styles */
+.task-item.task-recurring {
+    border-left: 3px solid var(--color-cyan);
+}
+
+.task-recurring-icon {
+    color: var(--color-cyan);
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+.recurring-status {
+    border: 1px dashed var(--color-cyan);
+}
+
+.task-toggle-button {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.task-toggle-button.mark-complete {
+    color: var(--text-normal);
+}
+
+.task-toggle-button.mark-incomplete {
+    color: var(--text-accent);
+}
+
+.task-toggle-button:hover {
+    background: var(--background-modifier-hover);
+}
+
 /* Style for the refresh button */
 .refresh-tasks-button {
     background-color: var(--background-secondary);
@@ -626,6 +663,50 @@
 /* Task Creation Modal */
 .task-creation-modal {
     min-width: 500px;
+}
+
+/* Recurrence options styling */
+.recurrence-options {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: var(--background-secondary);
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+/* Days of week grid */
+.days-of-week-title {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    color: var(--text-normal);
+}
+
+.days-of-week-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.day-checkbox-container {
+    margin-bottom: 0.5rem;
+}
+
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.day-checkbox {
+    margin-right: 0.5rem;
+}
+
+.recurrence-helper-text {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
 }
 
 .form-group {

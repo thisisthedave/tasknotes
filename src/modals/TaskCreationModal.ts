@@ -155,17 +155,33 @@ export class TaskCreationModal extends Modal {
 	}
   
 	createDaysOfWeekSelector(container: HTMLElement) {
-		container.createEl('label', { text: 'Days of week' });
+		container.createEl('h4', { text: 'Select days of week:', cls: 'days-of-week-title' });
 		const checkboxContainer = container.createDiv({ cls: 'checkbox-container' });
 		
 		const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 		const shortDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 		
+		// Create a flex container for the day checkboxes
+		const daysGrid = checkboxContainer.createDiv({ cls: 'days-of-week-grid' });
+		
 		daysOfWeek.forEach((day, index) => {
-			const label = checkboxContainer.createEl('label', { cls: 'checkbox-label' });
-			const checkbox = label.createEl('input', { type: 'checkbox' });
+			// Create a container for each day checkbox for better styling
+			const dayContainer = daysGrid.createDiv({ cls: 'day-checkbox-container' });
+			
+			// Add label and checkbox
+			const label = dayContainer.createEl('label', { cls: 'checkbox-label' });
+			const checkbox = label.createEl('input', { 
+				type: 'checkbox',
+				cls: 'day-checkbox'
+			});
+			
+			// Set data attribute for the day
 			checkbox.dataset.day = shortDays[index];
 			
+			// Add the day name after the checkbox
+			label.appendChild(document.createTextNode(day));
+			
+			// Add change listener
 			checkbox.addEventListener('change', (e) => {
 				const isChecked = (e.target as HTMLInputElement).checked;
 				const day = (e.target as HTMLInputElement).dataset.day;
@@ -176,8 +192,12 @@ export class TaskCreationModal extends Modal {
 					this.daysOfWeek = this.daysOfWeek.filter(d => d !== day);
 				}
 			});
-			
-			label.appendChild(document.createTextNode(day));
+		});
+		
+		// Add helper text
+		const helperText = checkboxContainer.createEl('div', { 
+			text: 'Select at least one day of the week on which this task should recur.',
+			cls: 'recurrence-helper-text'
 		});
 	}
   
