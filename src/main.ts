@@ -8,11 +8,18 @@ import {
 } from './settings/settings';
 import { 
 	CALENDAR_VIEW_TYPE, 
+	DETAIL_VIEW_TYPE,
 	NOTES_VIEW_TYPE, 
 	TASK_LIST_VIEW_TYPE,
-	TimeInfo
+	TimeInfo,
+	DetailTab,
+	TaskInfo,
+	EVENT_DATE_SELECTED,
+	EVENT_TAB_CHANGED,
+	EVENT_DATA_CHANGED
 } from './types';
 import { CalendarView } from './views/CalendarView';
+import { DetailView } from './views/DetailView';
 import { TaskListView } from './views/TaskListView';
 import { NotesView } from './views/NotesView';
 import { TaskCreationModal } from './modals/TaskCreationModal';
@@ -22,9 +29,17 @@ import {
 	parseTime, 
 	updateYamlFrontmatter 
 } from './utils/helpers';
+import { EventEmitter } from './utils/EventEmitter';
 
 export default class ChronoSyncPlugin extends Plugin {
 	settings: ChronoSyncSettings;
+	
+	// Shared state between views
+	selectedDate: Date = new Date();
+	activeTab: DetailTab = 'tasks';
+	
+	// Event emitter for view communication
+	emitter = new EventEmitter();
 	
 	async onload() {
 		await this.loadSettings();
@@ -35,6 +50,10 @@ export default class ChronoSyncPlugin extends Plugin {
 			(leaf) => new CalendarView(leaf, this)
 		);
 		this.registerView(
+			DETAIL_VIEW_TYPE,
+			(leaf) => new DetailView(leaf, this)
+		);
+		this.registerView(
 			TASK_LIST_VIEW_TYPE,
 			(leaf) => new TaskListView(leaf, this)
 		);
@@ -42,10 +61,10 @@ export default class ChronoSyncPlugin extends Plugin {
 			NOTES_VIEW_TYPE,
 			(leaf) => new NotesView(leaf, this)
 		);
-
+		
 		// Add ribbon icon
 		this.addRibbonIcon('calendar-days', 'ChronoSync', async () => {
-			await this.activateCalendarView();
+			await this.activateLinkedViews();
 		});
 
 		// Add commands
@@ -53,6 +72,31 @@ export default class ChronoSyncPlugin extends Plugin {
 
 		// Add settings tab
 		this.addSettingTab(new ChronoSyncSettingTab(this.app, this));
+	}
+	
+	// Methods for updating shared state and emitting events
+	
+	/**
+	 * Update the selected date and notify all views
+	 */
+	setSelectedDate(date: Date): void {
+		this.selectedDate = date;
+		this.emitter.emit(EVENT_DATE_SELECTED, date);
+	}
+	
+	/**
+	 * Update the active detail tab and notify all views
+	 */
+	setActiveTab(tab: DetailTab): void {
+		this.activeTab = tab;
+		this.emitter.emit(EVENT_TAB_CHANGED, tab);
+	}
+	
+	/**
+	 * Notify views that data has changed and views should refresh
+	 */
+	notifyDataChanged(): void {
+		this.emitter.emit(EVENT_DATA_CHANGED);
 	}
 
 	onunload() {
@@ -68,12 +112,28 @@ export default class ChronoSyncPlugin extends Plugin {
 	}
 
 	addCommands() {
-		// Dashboard/Calendar commands
+		// View commands
 		this.addCommand({
-			id: 'open-dashboard',
-			name: 'Open dashboard/calendar view',
+			id: 'open-calendar-view',
+			name: 'Open calendar view',
 			callback: async () => {
 				await this.activateCalendarView();
+			}
+		});
+		
+		this.addCommand({
+			id: 'open-detail-view',
+			name: 'Open tasks/notes/timeblock view',
+			callback: async () => {
+				await this.activateDetailView();
+			}
+		});
+		
+		this.addCommand({
+			id: 'open-linked-views',
+			name: 'Open linked calendar and detail views',
+			callback: async () => {
+				await this.activateLinkedViews();
 			}
 		});
 
@@ -140,7 +200,7 @@ export default class ChronoSyncPlugin extends Plugin {
 	async activateCalendarView() {
 		const { workspace } = this.app;
 		
-		// Close existing calendar view if it exists
+		// Use existing calendar view if it exists
 		let leaf = this.getCalendarLeaf();
 		
 		if (!leaf) {
@@ -155,10 +215,45 @@ export default class ChronoSyncPlugin extends Plugin {
 		// Reveal the leaf in case it's in a collapsed state
 		workspace.revealLeaf(leaf);
 	}
+	
+	async activateDetailView() {
+		const { workspace } = this.app;
+		
+		// Use existing detail view if it exists
+		let leaf = this.getDetailLeaf();
+		
+		if (!leaf) {
+			// Create new leaf for detail view
+			leaf = workspace.getLeaf('split', 'vertical');
+			await leaf.setViewState({
+				type: DETAIL_VIEW_TYPE,
+				active: true,
+			});
+		}
+		
+		// Reveal the leaf in case it's in a collapsed state
+		workspace.revealLeaf(leaf);
+	}
+	
+	async activateLinkedViews() {
+		const { workspace } = this.app;
+		
+		// Create or activate calendar view first
+		await this.activateCalendarView();
+		
+		// Then create or activate detail view
+		await this.activateDetailView();
+	}
 
 	getCalendarLeaf(): WorkspaceLeaf | null {
 		const { workspace } = this.app;
 		const leaves = workspace.getLeavesOfType(CALENDAR_VIEW_TYPE);
+		return leaves.length > 0 ? leaves[0] : null;
+	}
+	
+	getDetailLeaf(): WorkspaceLeaf | null {
+		const { workspace } = this.app;
+		const leaves = workspace.getLeavesOfType(DETAIL_VIEW_TYPE);
 		return leaves.length > 0 ? leaves[0] : null;
 	}
 
@@ -298,6 +393,76 @@ export default class ChronoSyncPlugin extends Plugin {
 		return table;
 	}
 
+	async updateTaskProperty(task: TaskInfo, property: string, value: any): Promise<void> {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(task.path);
+			if (!(file instanceof TFile)) {
+				new Notice(`Cannot find task file: ${task.path}`);
+				return;
+			}
+			
+			// Process the frontmatter
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				// Update the property
+				frontmatter[property] = value;
+			});
+			
+			// Show a notice
+			new Notice(`Updated task ${property}`);
+			
+			// Notify views that data has changed
+			this.notifyDataChanged();
+		} catch (error) {
+			console.error('Error updating task property:', error);
+			new Notice('Failed to update task property');
+		}
+	}
+	
+	async toggleTaskArchive(task: TaskInfo): Promise<void> {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(task.path);
+			if (!(file instanceof TFile)) {
+				new Notice(`Cannot find task file: ${task.path}`);
+				return;
+			}
+			
+			// Process the frontmatter
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				// Make sure tags array exists
+				if (!frontmatter.tags) {
+					frontmatter.tags = [];
+				}
+				
+				// Convert to array if it's not already
+				if (!Array.isArray(frontmatter.tags)) {
+					frontmatter.tags = [frontmatter.tags];
+				}
+				
+				// Toggle archive tag
+				if (task.archived) {
+					// Remove archive tag
+					frontmatter.tags = frontmatter.tags.filter(
+						(tag: string) => tag !== 'archive'
+					);
+				} else {
+					// Add archive tag if not present
+					if (!frontmatter.tags.includes('archive')) {
+						frontmatter.tags.push('archive');
+					}
+				}
+			});
+			
+			// Show a notice
+			new Notice(task.archived ? 'Task unarchived' : 'Task archived');
+			
+			// Notify views that data has changed
+			this.notifyDataChanged();
+		} catch (error) {
+			console.error('Error toggling task archive status:', error);
+			new Notice('Failed to update task archive status');
+		}
+	}
+	
 	openTaskCreationModal() {
 		new TaskCreationModal(this.app, this).open();
 	}

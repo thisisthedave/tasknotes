@@ -9,6 +9,41 @@
     overflow-y: auto;
 }
 
+/* Specific container styles for calendar and detail views */
+.calendar-view-container {
+    max-width: 100%;
+}
+
+.detail-view-container {
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Header for detail view */
+.detail-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.detail-view-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Week view prompt */
+.week-view-prompt {
+    text-align: center;
+    padding: 1rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 /* Calendar Month View */
 .calendar-controls {
     display: flex;
@@ -280,6 +315,9 @@
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
 }
 
 .chronosync-tabs {
@@ -310,8 +348,8 @@
 .chronosync-content-area {
     padding: 1rem;
     background-color: var(--background-primary);
+    flex-grow: 1;
     min-height: 300px;
-    max-height: 500px;
     overflow-y: auto;
 }
 
@@ -321,6 +359,12 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
+}
+
+.filters-left-group, .filters-right-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .filter-group {
@@ -338,6 +382,15 @@
     padding: 0.25rem 0.5rem;
     background-color: var(--interactive-accent);
     color: var(--text-on-accent);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.refresh-tasks-button {
+    padding: 0.25rem 0.5rem;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
     border-radius: 4px;
     cursor: pointer;
 }
