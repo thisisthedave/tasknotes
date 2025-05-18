@@ -18,7 +18,7 @@ import {
 
 export class CalendarView extends View {
     plugin: ChronoSyncPlugin;
-    viewType: 'month' | 'week' = 'month';
+    viewType: 'month' = 'month';
     
     // Caches for heatmap data
     private monthNotesCache: Map<string, Map<string, number>> = new Map(); // year-month -> date -> count
@@ -78,9 +78,6 @@ export class CalendarView extends View {
         // Add a container for our view content
         const container = contentEl.createDiv({ cls: 'chronosync-container calendar-view-container' });
         
-        // Create and add UI elements
-        container.createEl('h2', { text: 'ChronoSync Calendar' });
-        
         // Pre-build the cache for the current month
         const currentMonthKey = `${this.plugin.selectedDate.getFullYear()}-${this.plugin.selectedDate.getMonth()}`;
         
@@ -98,19 +95,14 @@ export class CalendarView extends View {
     }
 
     renderView(container: HTMLElement) {
-        // Clear existing content except the header
-        const header = container.querySelector('h2');
+        // Clear existing content
         container.empty();
-        if (header) container.appendChild(header);
         
         // Create the calendar UI
         this.createCalendarControls(container);
         
-        if (this.viewType === 'month') {
-            this.createCalendarGrid(container);
-        } else {
-            this.createWeekView(container);
-        }
+        // Create the calendar grid
+        this.createCalendarGrid(container);
         
         // Add colorization based on the currently active detail tab
         this.colorizeCalendar();
@@ -131,17 +123,10 @@ export class CalendarView extends View {
     }
     
     async navigateToPreviousPeriod() {
-        if (this.viewType === 'month') {
-            // Go to previous month
-            const date = new Date(this.plugin.selectedDate);
-            date.setMonth(date.getMonth() - 1);
-            this.plugin.setSelectedDate(date);
-        } else {
-            // Go to previous week
-            const date = new Date(this.plugin.selectedDate);
-            date.setDate(date.getDate() - 7);
-            this.plugin.setSelectedDate(date);
-        }
+        // Go to previous month
+        const date = new Date(this.plugin.selectedDate);
+        date.setMonth(date.getMonth() - 1);
+        this.plugin.setSelectedDate(date);
         
         // Get the new month key
         const newMonthKey = `${this.plugin.selectedDate.getFullYear()}-${this.plugin.selectedDate.getMonth()}`;
@@ -154,17 +139,10 @@ export class CalendarView extends View {
     }
     
     async navigateToNextPeriod() {
-        if (this.viewType === 'month') {
-            // Go to next month
-            const date = new Date(this.plugin.selectedDate);
-            date.setMonth(date.getMonth() + 1);
-            this.plugin.setSelectedDate(date);
-        } else {
-            // Go to next week
-            const date = new Date(this.plugin.selectedDate);
-            date.setDate(date.getDate() + 7);
-            this.plugin.setSelectedDate(date);
-        }
+        // Go to next month
+        const date = new Date(this.plugin.selectedDate);
+        date.setMonth(date.getMonth() + 1);
+        this.plugin.setSelectedDate(date);
         
         // Get the new month key
         const newMonthKey = `${this.plugin.selectedDate.getFullYear()}-${this.plugin.selectedDate.getMonth()}`;
@@ -190,32 +168,6 @@ export class CalendarView extends View {
         await this.refresh();
     }
     
-    async switchView(viewType: 'month' | 'week') {
-        if (this.viewType === viewType) return;
-        this.viewType = viewType;
-        
-        // If switching to week view, ensure we have data for the week's month
-        if (viewType === 'week') {
-            const weekStart = this.getViewStartDate();
-            const weekEnd = this.getViewEndDate();
-            
-            // If week crosses month boundary, ensure both months are cached
-            const startMonthKey = `${weekStart.getFullYear()}-${weekStart.getMonth()}`;
-            const endMonthKey = `${weekEnd.getFullYear()}-${weekEnd.getMonth()}`;
-            
-            // Build caches for start and end months if they're different
-            await this.buildCalendarCaches(startMonthKey);
-            if (startMonthKey !== endMonthKey) {
-                await this.buildCalendarCaches(endMonthKey);
-            }
-        } else {
-            // For month view, just ensure current month is cached
-            const monthKey = `${this.plugin.selectedDate.getFullYear()}-${this.plugin.selectedDate.getMonth()}`;
-            await this.buildCalendarCaches(monthKey);
-        }
-        
-        await this.refresh();
-    }
   
     async onClose() {
         // Remove event listeners
@@ -422,39 +374,28 @@ export class CalendarView extends View {
         // Add month navigation
         const navContainer = controlsContainer.createDiv({ cls: 'calendar-nav' });
         
-        const prevButton = navContainer.createEl('button', { text: '←' });
+        // Group the current month display with navigation buttons
+        const monthNavigationGroup = navContainer.createDiv({ cls: 'month-navigation-group' });
+        
+        const prevButton = monthNavigationGroup.createEl('button', { text: '←' });
         prevButton.addEventListener('click', () => {
             this.navigateToPreviousPeriod();
         });
         
-        const currentMonth = navContainer.createEl('span', { 
+        const currentMonth = monthNavigationGroup.createEl('span', { 
             text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
             cls: 'current-month' 
         });
         
-        const todayButton = navContainer.createEl('button', { text: 'Today' });
-        todayButton.addEventListener('click', () => {
-            this.navigateToToday();
-        });
-        
-        const nextButton = navContainer.createEl('button', { text: '→' });
+        const nextButton = monthNavigationGroup.createEl('button', { text: '→' });
         nextButton.addEventListener('click', () => {
             this.navigateToNextPeriod();
         });
         
-        // Add view type switcher
-        const viewContainer = controlsContainer.createDiv({ cls: 'view-switcher' });
-        
-        const monthButton = viewContainer.createEl('button', { text: 'Month' });
-        if (this.viewType === 'month') monthButton.classList.add('active');
-        monthButton.addEventListener('click', () => {
-            this.switchView('month');
-        });
-        
-        const weekButton = viewContainer.createEl('button', { text: 'Week' });
-        if (this.viewType === 'week') weekButton.classList.add('active');
-        weekButton.addEventListener('click', () => {
-            this.switchView('week');
+        // Today button on the right side
+        const todayButton = navContainer.createEl('button', { text: 'Today', cls: 'today-button' });
+        todayButton.addEventListener('click', () => {
+            this.navigateToToday();
         });
     }
   
@@ -568,62 +509,6 @@ export class CalendarView extends View {
         }
     }
     
-    createWeekView(container: HTMLElement) {
-        const weekContainer = container.createDiv({ cls: 'week-view-container' });
-        const grid = weekContainer.createDiv({ cls: 'week-grid' });
-        
-        // Determine the start of the week (Sunday of the week containing selectedDate)
-        const selectedDate = new Date(this.plugin.selectedDate);
-        const dayOfWeek = selectedDate.getDay();
-        const startOfWeek = new Date(selectedDate);
-        startOfWeek.setDate(selectedDate.getDate() - dayOfWeek);
-        
-        // Create header with day names and dates
-        const header = grid.createDiv({ cls: 'week-header' });
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        
-        for (let i = 0; i < 7; i++) {
-            const date = new Date(startOfWeek);
-            date.setDate(startOfWeek.getDate() + i);
-            
-            const dayHeader = header.createDiv({ cls: 'week-day-header' });
-            dayHeader.createDiv({ cls: 'week-day-name', text: dayNames[i] });
-            dayHeader.createDiv({ cls: 'week-day-date', text: format(date, 'MMM d') });
-            
-            // Highlight today
-            const today = new Date();
-            if (today.getFullYear() === date.getFullYear() && 
-                today.getMonth() === date.getMonth() && 
-                today.getDate() === date.getDate()) {
-                dayHeader.classList.add('today');
-            }
-            
-            // Highlight selected date
-            if (isSameDay(date, this.plugin.selectedDate)) {
-                dayHeader.classList.add('selected');
-            }
-            
-            // Add click event to select the day
-            dayHeader.addEventListener('click', () => {
-                this.plugin.setSelectedDate(new Date(date));
-                this.refresh();
-            });
-            
-            // Add double-click event to navigate to the daily note
-            dayHeader.addEventListener('dblclick', () => {
-                this.plugin.navigateToDailyNote(date);
-            });
-        }
-        
-        // Create basic time slots for the week view
-        const timeContainer = grid.createDiv({ cls: 'week-time-container' });
-        
-        // Add simple label
-        timeContainer.createDiv({ 
-            cls: 'week-view-prompt',
-            text: 'Double-click a day to open its daily note with timeblock view'
-        });
-    }
     
     // Clear all calendar colorization
     clearCalendarColorization() {
@@ -858,31 +743,13 @@ export class CalendarView extends View {
     
     // Helper methods for date calculations
     getViewStartDate(): Date {
-        if (this.viewType === 'month') {
-            // First day of the month
-            return new Date(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth(), 1);
-        } else if (this.viewType === 'week') {
-            // Start of the week (Sunday)
-            const date = new Date(this.plugin.selectedDate);
-            const dayOfWeek = date.getDay();
-            date.setDate(date.getDate() - dayOfWeek);
-            return date;
-        }
-        return this.plugin.selectedDate;
+        // First day of the month
+        return new Date(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth(), 1);
     }
     
     getViewEndDate(): Date {
-        if (this.viewType === 'month') {
-            // Last day of the month
-            return new Date(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth() + 1, 0);
-        } else if (this.viewType === 'week') {
-            // End of the week (Saturday)
-            const date = new Date(this.plugin.selectedDate);
-            const dayOfWeek = date.getDay();
-            date.setDate(date.getDate() + (6 - dayOfWeek));
-            return date;
-        }
-        return this.plugin.selectedDate;
+        // Last day of the month
+        return new Date(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth() + 1, 0);
     }
     
     // Get notes for a specific month

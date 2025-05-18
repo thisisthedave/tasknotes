@@ -304,13 +304,29 @@ export class DetailView extends View {
             // Placeholder for empty task list
             container.createEl('p', { text: 'No tasks found for the selected filters.' });
         } else {
-            // Check if we have tasks due on the selected date
+            // Check if we have tasks due on the selected date (non-recurring tasks)
             const tasksForSelectedDate = selectedDateStr 
-                ? tasks.filter(task => task.due === selectedDateStr)
+                ? tasks.filter(task => task.due === selectedDateStr && !task.recurrence)
                 : [];
+            
+            // Check for recurring tasks due on the selected date
+            const recurringTasks = tasks.filter(task => 
+                task.recurrence && isRecurringTaskDueOn(task, this.plugin.selectedDate)
+            );
+            
+            // Calculate other tasks - not due today and not recurring for today
+            const otherTasks = tasks.filter(task => {
+                const isNotDueToday = !selectedDateStr || task.due !== selectedDateStr;
+                const isNotRecurringToday = !task.recurrence || 
+                    (task.recurrence && !isRecurringTaskDueOn(task, this.plugin.selectedDate));
+                return isNotDueToday && isNotRecurringToday;
+            });
+            
+            let hasRenderedAnySection = false;
                 
             // If we have tasks due on the selected date, create a section for them
             if (tasksForSelectedDate.length > 0 && selectedDateStr) {
+                hasRenderedAnySection = true;
                 const selectedDateSection = container.createDiv({ cls: 'task-section selected-date-tasks' });
                 selectedDateSection.createEl('h4', { 
                     text: `Tasks due on ${format(new Date(selectedDateStr), 'MMM d, yyyy')}`,
@@ -319,33 +335,49 @@ export class DetailView extends View {
                 
                 const selectedDateTaskList = selectedDateSection.createDiv({ cls: 'task-list' });
                 
-                // Create task items for selected date
-                this.renderTaskGroup(selectedDateTaskList, tasksForSelectedDate, selectedDateStr);
+                // Create task items for selected date - pass false to not filter recurring tasks
+                this.renderTaskGroup(selectedDateTaskList, tasksForSelectedDate, selectedDateStr, false);
+            }
+            
+            // If we have recurring tasks, add a section for them
+            if (recurringTasks.length > 0) {
+                hasRenderedAnySection = true;
+                const recurringTasksSection = container.createDiv({ cls: 'task-section recurring-tasks' });
+                recurringTasksSection.createEl('h4', { 
+                    text: `Recurring tasks for ${format(this.plugin.selectedDate, 'MMM d, yyyy')}`,
+                    cls: 'task-section-header recurring-section-header'
+                });
                 
-                // If there are other tasks, add a separate section
-                const otherTasks = tasks.filter(task => task.due !== selectedDateStr);
+                const recurringTasksList = recurringTasksSection.createDiv({ cls: 'task-list' });
                 
-                if (otherTasks.length > 0) {
-                    const otherTasksSection = container.createDiv({ cls: 'task-section other-tasks' });
-                    otherTasksSection.createEl('h4', { 
-                        text: 'Other tasks',
-                        cls: 'task-section-header'
-                    });
-                    
-                    const otherTasksList = otherTasksSection.createDiv({ cls: 'task-list' });
-                    
-                    // Create task items for other tasks
-                    this.renderTaskGroup(otherTasksList, otherTasks, selectedDateStr);
-                }
-            } else {
-                // No tasks on selected date, or no date selected - render all tasks together
+                // Create task items for recurring tasks - pass false to not filter recurring tasks again
+                this.renderTaskGroup(recurringTasksList, recurringTasks, selectedDateStr, false);
+            }
+            
+            // If there are other tasks, add a separate section
+            if (otherTasks.length > 0) {
+                hasRenderedAnySection = true;
+                const otherTasksSection = container.createDiv({ cls: 'task-section other-tasks' });
+                otherTasksSection.createEl('h4', { 
+                    text: 'Other tasks',
+                    cls: 'task-section-header'
+                });
+                
+                const otherTasksList = otherTasksSection.createDiv({ cls: 'task-list' });
+                
+                // Create task items for other tasks
+                this.renderTaskGroup(otherTasksList, otherTasks, selectedDateStr, false);
+            }
+            
+            // If no sections were rendered, show all tasks
+            if (!hasRenderedAnySection) {
                 this.renderTaskGroup(container, tasks, selectedDateStr);
             }
         }
     }
     
     // Helper to render a group of tasks
-    private renderTaskGroup(container: HTMLElement, tasks: TaskInfo[], selectedDateStr: string | null = null) {
+    private renderTaskGroup(container: HTMLElement, tasks: TaskInfo[], selectedDateStr: string | null = null, filterRecurring: boolean = true) {
         tasks.forEach(task => {
             // Determine if this task is due on the selected date
             let isDueOnSelectedDate = selectedDateStr && task.due === selectedDateStr;
@@ -355,8 +387,8 @@ export class DetailView extends View {
                 isDueOnSelectedDate = isRecurringTaskDueOn(task, this.plugin.selectedDate);
             }
             
-            // If not due on selected date, skip this task (for recurring tasks only)
-            if (task.recurrence && !isDueOnSelectedDate) {
+            // If filtering recurring tasks is enabled and this task is not due on the selected date, skip it
+            if (filterRecurring && task.recurrence && !isDueOnSelectedDate) {
                 return;
             }
             
@@ -642,7 +674,14 @@ export class DetailView extends View {
         
         // Sort with tasks due on selected date first, then by normal sort criteria
         tasks.sort((a, b) => {
-            // First prioritize tasks due on the selected date
+            // First, put completed tasks at the bottom
+            const aIsDone = a.status.toLowerCase() === 'done';
+            const bIsDone = b.status.toLowerCase() === 'done';
+            
+            if (aIsDone && !bIsDone) return 1;
+            if (!aIsDone && bIsDone) return -1;
+            
+            // For non-completed tasks, prioritize those due on the selected date
             const aIsDueOnSelectedDate = a.due === selectedDateStr;
             const bIsDueOnSelectedDate = b.due === selectedDateStr;
             

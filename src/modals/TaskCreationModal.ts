@@ -156,20 +156,18 @@ export class TaskCreationModal extends Modal {
   
 	createDaysOfWeekSelector(container: HTMLElement) {
 		container.createEl('h4', { text: 'Select days of week:', cls: 'days-of-week-title' });
-		const checkboxContainer = container.createDiv({ cls: 'checkbox-container' });
+		
+		// Container for the days of week selection
+		const daysContainer = container.createDiv({ cls: 'days-container' });
 		
 		const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 		const shortDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 		
-		// Create a flex container for the day checkboxes
-		const daysGrid = checkboxContainer.createDiv({ cls: 'days-of-week-grid' });
-		
+		// Create checkboxes in a clearer layout - one per row
 		daysOfWeek.forEach((day, index) => {
-			// Create a container for each day checkbox for better styling
-			const dayContainer = daysGrid.createDiv({ cls: 'day-checkbox-container' });
+			const dayRow = daysContainer.createDiv({ cls: 'day-row' });
 			
-			// Add label and checkbox
-			const label = dayContainer.createEl('label', { cls: 'checkbox-label' });
+			const label = dayRow.createEl('label', { cls: 'day-checkbox-label' });
 			const checkbox = label.createEl('input', { 
 				type: 'checkbox',
 				cls: 'day-checkbox'
@@ -179,7 +177,7 @@ export class TaskCreationModal extends Modal {
 			checkbox.dataset.day = shortDays[index];
 			
 			// Add the day name after the checkbox
-			label.appendChild(document.createTextNode(day));
+			label.appendChild(document.createTextNode(' ' + day));
 			
 			// Add change listener
 			checkbox.addEventListener('change', (e) => {
@@ -195,7 +193,7 @@ export class TaskCreationModal extends Modal {
 		});
 		
 		// Add helper text
-		const helperText = checkboxContainer.createEl('div', { 
+		const helperText = container.createEl('div', { 
 			text: 'Select at least one day of the week on which this task should recur.',
 			cls: 'recurrence-helper-text'
 		});
