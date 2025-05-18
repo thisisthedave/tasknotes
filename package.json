@@ -1,0 +1,30 @@
+{
+	"name": "chronosync",
+	"version": "0.1.0",
+	"description": "Comprehensive diary, task, note, and time management for Obsidian",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"version": "node version-bump.mjs && git add manifest.json versions.json"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/date-fns": "^2.5.3",
+		"@types/node": "^16.11.6",
+		"@types/yaml": "^1.9.6",
+		"@typescript-eslint/eslint-plugin": "5.29.0",
+		"@typescript-eslint/parser": "5.29.0",
+		"builtin-modules": "3.3.0",
+		"esbuild": "0.17.3",
+		"obsidian": "latest",
+		"tslib": "2.4.0",
+		"typescript": "4.7.4"
+	},
+	"dependencies": {
+		"date-fns": "^2.30.0",
+		"yaml": "^2.3.1"
+	}
+}
