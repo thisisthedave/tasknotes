@@ -26,6 +26,7 @@ export class DetailView extends View {
     
     // UI elements
     private taskListContainer: HTMLElement | null = null;
+    private loadingIndicator: HTMLElement | null = null;
     
     // Cached data
     private cachedTasks: TaskInfo[] | null = null;
@@ -35,6 +36,10 @@ export class DetailView extends View {
     private cachedNotes: NoteInfo[] | null = null;
     private lastNotesRefresh: number = 0;
     private readonly NOTES_CACHE_TTL = 60000; // 1 minute TTL for notes cache
+    
+    // Loading states
+    private isTasksLoading: boolean = false;
+    private isNotesLoading: boolean = false;
     
     // Event listeners
     private listeners: (() => void)[] = [];
@@ -88,9 +93,8 @@ export class DetailView extends View {
     }
     
     async refresh() {
-        // Clear cached data
-        this.cachedTasks = null;
-        this.cachedNotes = null;
+        // Don't clear the cache immediately, this prevents task disappearing 
+        // during modifications
         
         // Clear and prepare the content element
         this.containerEl.empty();
@@ -241,11 +245,27 @@ export class DetailView extends View {
             await this.refresh();
         });
         
-        // Task list
+        // Task list container
         const taskList = container.createDiv({ cls: 'task-list' });
         
-        // Get tasks
+        // Add loading indicator
+        this.loadingIndicator = taskList.createDiv({ cls: 'loading-indicator' });
+        this.loadingIndicator.innerHTML = `
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading tasks...</div>
+        `;
+        this.loadingIndicator.style.display = 'none';
+        
+        // Show loading state if we're fetching data
+        this.isTasksLoading = true;
+        this.updateLoadingState();
+        
+        // Get tasks (this will now show loading indicator while working)
         const tasks = await this.getTasksForView(false);
+        
+        // Hide loading state when done
+        this.isTasksLoading = false;
+        this.updateLoadingState();
         
         // Add change event listener to the status filter
         statusSelect.addEventListener('change', async () => {
@@ -549,6 +569,19 @@ export class DetailView extends View {
         });
     }
     
+    /**
+     * Helper method to update the loading indicator visibility
+     */
+    private updateLoadingState(): void {
+        if (!this.loadingIndicator) return;
+        
+        if (this.isTasksLoading || this.isNotesLoading) {
+            this.loadingIndicator.style.display = 'flex';
+        } else {
+            this.loadingIndicator.style.display = 'none';
+        }
+    }
+    
     async createNotesView(container: HTMLElement) {
         // Get the selected date as a string for display
         const dateText = `Notes for ${format(this.plugin.selectedDate, 'MMM d, yyyy')}`;
@@ -558,8 +591,26 @@ export class DetailView extends View {
         // Notes list
         const notesList = container.createDiv({ cls: 'notes-list' });
         
+        // Add loading indicator if it doesn't exist yet
+        if (!this.loadingIndicator) {
+            this.loadingIndicator = notesList.createDiv({ cls: 'loading-indicator' });
+            this.loadingIndicator.innerHTML = `
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading notes...</div>
+            `;
+            this.loadingIndicator.style.display = 'none';
+        }
+        
+        // Show loading state
+        this.isNotesLoading = true;
+        this.updateLoadingState();
+        
         // Get notes for the current view
         const notes = await this.getNotesForView();
+        
+        // Hide loading state
+        this.isNotesLoading = false;
+        this.updateLoadingState();
         
         if (notes.length === 0) {
             // Placeholder for empty notes list
@@ -704,132 +755,91 @@ export class DetailView extends View {
     }
     
     async getTasksForView(forceRefresh: boolean = false): Promise<TaskInfo[]> {
-        // Use cached tasks if available and not forcing refresh
-        const now = Date.now();
-        if (!forceRefresh && 
-            this.cachedTasks && 
-            now - this.lastTasksRefresh < this.TASKS_CACHE_TTL) {
-            return [...this.cachedTasks]; // Return a copy to prevent modification of cache
-        }
-        
-        const result: TaskInfo[] = [];
-        const taskTag = this.plugin.settings.taskTag;
-        
-        // Get all markdown files in the vault
-        const files = this.app.vault.getFiles().filter(file => 
-            file.extension === 'md'
-        );
-        
-        // Extract task information from each file
-        for (const file of files) {
-            try {
-                const content = await this.app.vault.read(file);
-                const noteInfo = extractNoteInfo(content, file.path, file);
-                
-                // Check if this note has the task tag
-                if (noteInfo && noteInfo.tags && noteInfo.tags.includes(taskTag)) {
-                    const taskInfo = extractTaskInfo(content, file.path);
-                    
-                    if (taskInfo) {
-                        // Include all tasks regardless of due date or any other filters
-                        result.push(taskInfo);
-                    }
-                }
-            } catch (e) {
-                console.error(`Error processing file ${file.path}:`, e);
-            }
-        }
-        
-        // Sort tasks by due date, then priority
-        const sortedResult = result.sort((a, b) => {
-            // Sort by due date
-            if (a.due && b.due) {
-                return new Date(a.due).getTime() - new Date(b.due).getTime();
-            }
-            // Tasks with due dates come before tasks without
-            if (a.due && !b.due) return -1;
-            if (!a.due && b.due) return 1;
+        try {
+            // Set loading state
+            this.isTasksLoading = true;
+            this.updateLoadingState();
             
-            // Then sort by priority
-            const priorityOrder = { high: 0, normal: 1, low: 2 };
-            return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
-        });
-        
-        // Update cache and timestamp
-        this.cachedTasks = [...sortedResult];
-        this.lastTasksRefresh = now;
-        
-        return sortedResult;
+            // Use cached tasks if available and not forcing refresh
+            const now = Date.now();
+            if (!forceRefresh && 
+                this.cachedTasks && 
+                now - this.lastTasksRefresh < this.TASKS_CACHE_TTL) {
+                return [...this.cachedTasks]; // Return a copy to prevent modification of cache
+            }
+            
+            // Use the FileIndexer to get task information much more efficiently
+            const tasks = await this.plugin.fileIndexer.getTaskInfoForDate(this.plugin.selectedDate, forceRefresh);
+            
+            // Sort tasks by due date, then priority
+            const sortedResult = tasks.sort((a, b) => {
+                // Sort by due date
+                if (a.due && b.due) {
+                    return new Date(a.due).getTime() - new Date(b.due).getTime();
+                }
+                // Tasks with due dates come before tasks without
+                if (a.due && !b.due) return -1;
+                if (!a.due && b.due) return 1;
+                
+                // Then sort by priority
+                const priorityOrder = { high: 0, normal: 1, low: 2 };
+                return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
+            });
+            
+            // Update cache and timestamp
+            this.cachedTasks = [...sortedResult];
+            this.lastTasksRefresh = now;
+            
+            return sortedResult;
+        } finally {
+            // Clear loading state
+            this.isTasksLoading = false;
+            this.updateLoadingState();
+        }
     }
     
     async getNotesForView(forceRefresh: boolean = false): Promise<NoteInfo[]> {
-        // Use cached notes if available and not forcing refresh
-        const now = Date.now();
-        if (!forceRefresh &&
-            this.cachedNotes && 
-            now - this.lastNotesRefresh < this.NOTES_CACHE_TTL) {
+        try {
+            // Set loading state
+            this.isNotesLoading = true;
+            this.updateLoadingState();
             
-            // Filter cached notes based on the selected date
-            const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
-            
-            return this.cachedNotes.filter(note => 
-                note.createdDate && note.createdDate.startsWith(selectedDateStr)
-            );
-        }
-        
-        const result: NoteInfo[] = [];
-        const taskTag = this.plugin.settings.taskTag;
-        
-        // Get all markdown files in the vault
-        const files = this.app.vault.getFiles().filter(file => 
-            file.extension === 'md'
-        );
-        
-        // Get excluded folders as an array
-        const excludedFolders = this.plugin.settings.excludedFolders
-            ? this.plugin.settings.excludedFolders.split(',').map(folder => folder.trim())
-            : [];
-            
-        // Extract note information from each file
-        for (const file of files) {
-            try {
-                // Check if the file is in an excluded folder
-                const isExcluded = excludedFolders.some(folder => 
-                    folder && file.path.startsWith(folder)
+            // Use cached notes if available and not forcing refresh
+            const now = Date.now();
+            if (!forceRefresh &&
+                this.cachedNotes && 
+                now - this.lastNotesRefresh < this.NOTES_CACHE_TTL) {
+                
+                // Filter cached notes based on the selected date
+                const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
+                
+                return this.cachedNotes.filter(note => 
+                    note.createdDate && note.createdDate.startsWith(selectedDateStr)
                 );
-                
-                // Skip excluded folders
-                if (isExcluded) continue;
-                
-                const content = await this.app.vault.read(file);
-                const noteInfo = extractNoteInfo(content, file.path, file);
-                
-                // Include notes that don't have the task tag
-                if (noteInfo && 
-                    (!noteInfo.tags || !noteInfo.tags.includes(taskTag)) && 
-                    file.path !== this.plugin.settings.homeNotePath && 
-                    !file.path.startsWith(this.plugin.settings.dailyNotesFolder)) {
-                    
-                    result.push(noteInfo);
-                }
-            } catch (e) {
-                console.error(`Error processing note file ${file.path}:`, e);
             }
+            
+            // Use the FileIndexer to get notes information much more efficiently
+            const notes = await this.plugin.fileIndexer.getNotesForDate(this.plugin.selectedDate, forceRefresh);
+            
+            // Filter out home note and daily notes
+            const filteredNotes = notes.filter(note => 
+                note.path !== this.plugin.settings.homeNotePath && 
+                !note.path.startsWith(this.plugin.settings.dailyNotesFolder)
+            );
+            
+            // Sort notes by title
+            const sortedResult = filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
+            
+            // Update cache and timestamp - store all notes without date filtering
+            this.cachedNotes = [...sortedResult];
+            this.lastNotesRefresh = now;
+            
+            return sortedResult;
+        } finally {
+            // Clear loading state
+            this.isNotesLoading = false;
+            this.updateLoadingState();
         }
-        
-        // Sort notes by title
-        const sortedResult = result.sort((a, b) => a.title.localeCompare(b.title));
-        
-        // Update cache and timestamp - store all notes without date filtering
-        this.cachedNotes = [...sortedResult];
-        this.lastNotesRefresh = now;
-        
-        // Filter by selected date
-        const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
-        
-        return sortedResult.filter(note => 
-            note.createdDate && note.createdDate.startsWith(selectedDateStr)
-        );
     }
     
     async addTimeblockToNote(file: TFile) {

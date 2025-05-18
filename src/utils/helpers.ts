@@ -2,6 +2,7 @@ import { normalizePath, TFile, Vault } from 'obsidian';
 import { format } from 'date-fns';
 import { TimeInfo } from '../types';
 import * as YAML from 'yaml';
+import { YAMLCache } from './YAMLCache';
 
 /**
  * Ensures a folder and its parent folders exist
@@ -154,45 +155,41 @@ export function extractTaskInfo(content: string, path: string): {
 	if (content.startsWith('---')) {
 		const endOfFrontmatter = content.indexOf('---', 3);
 		if (endOfFrontmatter !== -1) {
-			const frontmatter = content.substring(3, endOfFrontmatter);
-			try {
-				const yaml = YAML.parse(frontmatter);
+			// Use our cached YAML parser
+			const yaml = YAMLCache.extractFrontmatter(content, path);
+			
+			if (yaml) {
+				// Check if task has archive tag
+				const tags = yaml.tags || [];
+				const archived = Array.isArray(tags) && tags.includes('archive');
 				
-				if (yaml) {
-					// Check if task has archive tag
-					const tags = yaml.tags || [];
-					const archived = Array.isArray(tags) && tags.includes('archive');
-					
-					// Extract recurrence info if present
-					let recurrence = undefined;
-					if (yaml.recurrence && typeof yaml.recurrence === 'object') {
-						recurrence = {
-							frequency: yaml.recurrence.frequency,
-							days_of_week: yaml.recurrence.days_of_week,
-							day_of_month: yaml.recurrence.day_of_month
-						};
-					}
-					
-					// Extract complete_instances array if present
-					let complete_instances = undefined;
-					if (yaml.complete_instances && Array.isArray(yaml.complete_instances)) {
-						complete_instances = yaml.complete_instances;
-					}
-					
-					return {
-						title: yaml.title || 'Untitled Task',
-						status: yaml.status || 'open',
-						priority: yaml.priority || 'normal',
-						due: yaml.due,
-						path,
-						archived,
-						tags: Array.isArray(tags) ? [...tags] : [],
-						recurrence,
-						complete_instances
+				// Extract recurrence info if present
+				let recurrence = undefined;
+				if (yaml.recurrence && typeof yaml.recurrence === 'object') {
+					recurrence = {
+						frequency: yaml.recurrence.frequency,
+						days_of_week: yaml.recurrence.days_of_week,
+						day_of_month: yaml.recurrence.day_of_month
 					};
 				}
-			} catch (e) {
-				console.error('Error parsing YAML frontmatter:', e);
+				
+				// Extract complete_instances array if present
+				let complete_instances = undefined;
+				if (yaml.complete_instances && Array.isArray(yaml.complete_instances)) {
+					complete_instances = yaml.complete_instances;
+				}
+				
+				return {
+					title: yaml.title || 'Untitled Task',
+					status: yaml.status || 'open',
+					priority: yaml.priority || 'normal',
+					due: yaml.due,
+					path,
+					archived,
+					tags: Array.isArray(tags) ? [...tags] : [],
+					recurrence,
+					complete_instances
+				};
 			}
 		}
 	}
@@ -274,37 +271,31 @@ export function getEffectiveTaskStatus(task: any, date: Date): string {
 /**
  * Extracts note information from a note file's content
  */
-export function extractNoteInfo(content: string, path: string, file?: TFile): {title: string, tags: string[], path: string, createdDate?: string} | null {
+export function extractNoteInfo(content: string, path: string, file?: TFile): {title: string, tags: string[], path: string, createdDate?: string, lastModified?: number} | null {
 	let title = path.split('/').pop()?.replace('.md', '') || 'Untitled';
 	let tags: string[] = [];
 	let createdDate: string | undefined = undefined;
+	let lastModified: number | undefined = file?.stat.mtime;
 	
 	// Try to extract note info from frontmatter
 	if (content.startsWith('---')) {
-		const endOfFrontmatter = content.indexOf('---', 3);
-		if (endOfFrontmatter !== -1) {
-			const frontmatter = content.substring(3, endOfFrontmatter);
-			try {
-				const yaml = YAML.parse(frontmatter);
-				
-				if (yaml) {
-					if (yaml.title) {
-						title = yaml.title;
-					}
-					
-					if (yaml.tags && Array.isArray(yaml.tags)) {
-						tags = yaml.tags;
-					}
-					
-					// Extract creation date from dateCreated or date field
-					if (yaml.dateCreated) {
-						createdDate = yaml.dateCreated;
-					} else if (yaml.date) {
-						createdDate = yaml.date;
-					}
-				}
-			} catch (e) {
-				console.error('Error parsing YAML frontmatter:', e);
+		// Use our cached YAML parser
+		const yaml = YAMLCache.extractFrontmatter(content, path);
+		
+		if (yaml) {
+			if (yaml.title) {
+				title = yaml.title;
+			}
+			
+			if (yaml.tags && Array.isArray(yaml.tags)) {
+				tags = yaml.tags;
+			}
+			
+			// Extract creation date from dateCreated or date field
+			if (yaml.dateCreated) {
+				createdDate = yaml.dateCreated;
+			} else if (yaml.date) {
+				createdDate = yaml.date;
 			}
 		}
 	}
@@ -322,7 +313,7 @@ export function extractNoteInfo(content: string, path: string, file?: TFile): {t
 		createdDate = format(new Date(file.stat.ctime), "yyyy-MM-dd'T'HH:mm:ss");
 	}
 	
-	return { title, tags, path, createdDate };
+	return { title, tags, path, createdDate, lastModified };
 }
 
 /**

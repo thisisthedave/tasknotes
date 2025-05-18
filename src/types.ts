@@ -43,4 +43,21 @@ export interface NoteInfo {
 	tags: string[];
 	path: string;
 	createdDate?: string;
+	lastModified?: number; // Timestamp of last modification
+}
+
+// File index types
+export interface FileIndex {
+	taskFiles: IndexedFile[];
+	noteFiles: IndexedFile[];
+	lastIndexed: number;
+}
+
+export interface IndexedFile {
+	path: string;
+	mtime: number;
+	ctime: number;
+	tags?: string[];
+	isTask?: boolean;
+	cachedInfo?: TaskInfo | NoteInfo;
 }

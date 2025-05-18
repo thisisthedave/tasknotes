@@ -26,10 +26,13 @@ import { TaskCreationModal } from './modals/TaskCreationModal';
 import { 
 	ensureFolderExists, 
 	generateDailyNoteTemplate,
-	parseTime, 
-	updateYamlFrontmatter 
+	parseTime,
+	updateYamlFrontmatter,
+	extractTaskInfo
 } from './utils/helpers';
 import { EventEmitter } from './utils/EventEmitter';
+import { FileIndexer } from './utils/FileIndexer';
+import { YAMLCache } from './utils/YAMLCache';
 
 export default class ChronoSyncPlugin extends Plugin {
 	settings: ChronoSyncSettings;
@@ -41,8 +44,18 @@ export default class ChronoSyncPlugin extends Plugin {
 	// Event emitter for view communication
 	emitter = new EventEmitter();
 	
+	// File indexer for efficient file access
+	fileIndexer: FileIndexer;
+	
 	async onload() {
 		await this.loadSettings();
+		
+		// Initialize the file indexer
+		this.fileIndexer = new FileIndexer(
+			this.app.vault, 
+			this.settings.taskTag,
+			this.settings.excludedFolders
+		);
 
 		// Register view types
 		this.registerView(
@@ -94,8 +107,20 @@ export default class ChronoSyncPlugin extends Plugin {
 	
 	/**
 	 * Notify views that data has changed and views should refresh
+	 * @param filePath Optional path of the file that changed (for targeted cache invalidation)
 	 */
-	notifyDataChanged(): void {
+	notifyDataChanged(filePath?: string): void {
+		// If we know which file changed, clear its cached info specifically
+		if (filePath) {
+			// Clear file index cache
+			if (this.fileIndexer) {
+				this.fileIndexer.clearCachedInfo(filePath);
+			}
+			
+			// Clear YAML parsing cache
+			YAMLCache.clearCacheEntry(filePath);
+		}
+		
 		this.emitter.emit(EVENT_DATA_CHANGED);
 	}
 
@@ -109,6 +134,16 @@ export default class ChronoSyncPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		
+		// Update the file indexer with new settings if relevant
+		if (this.fileIndexer) {
+			// Create a new indexer with updated settings
+			this.fileIndexer = new FileIndexer(
+				this.app.vault, 
+				this.settings.taskTag,
+				this.settings.excludedFolders
+			);
+		}
 		
 		// If settings have changed, notify views to refresh their data
 		this.notifyDataChanged();
@@ -404,6 +439,10 @@ export default class ChronoSyncPlugin extends Plugin {
 				return;
 			}
 			
+			// Create a local modified copy of the task to update UI immediately
+			const updatedTask = { ...task } as Record<string, any>;
+			updatedTask[property] = value;
+			
 			// Process the frontmatter
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				// Update the property
@@ -413,8 +452,18 @@ export default class ChronoSyncPlugin extends Plugin {
 			// Show a notice
 			new Notice(`Updated task ${property}`);
 			
-			// Notify views that data has changed
-			this.notifyDataChanged();
+			// Add the updated task to the file indexer's cache
+			if (this.fileIndexer) {
+				// Read the file to get the most up-to-date content
+				const content = await this.app.vault.cachedRead(file);
+				const taskInfo = extractTaskInfo(content, task.path);
+				
+				// Find and update this file in the index
+				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo);
+			}
+			
+			// Notify views that data has changed with the specific file path
+			this.notifyDataChanged(task.path);
 		} catch (error) {
 			console.error('Error updating task property:', error);
 			new Notice('Failed to update task property');
@@ -443,6 +492,14 @@ export default class ChronoSyncPlugin extends Plugin {
 			const targetDate = date || this.selectedDate;
 			const dateStr = format(targetDate, 'yyyy-MM-dd');
 			
+			// Create a local modified copy of the task to update UI immediately
+			const updatedTask = { ...task };
+			if (!updatedTask.complete_instances) {
+				updatedTask.complete_instances = [];
+			}
+			
+			let isCompleted = false;
+			
 			// Process the frontmatter
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				// Make sure complete_instances array exists
@@ -461,17 +518,29 @@ export default class ChronoSyncPlugin extends Plugin {
 					// Remove date from the completed dates
 					completeDates.splice(dateIndex, 1);
 					new Notice(`Marked task as incomplete for ${displayDate}`);
+					isCompleted = false;
 				} else {
 					// Add date to the completed dates
 					completeDates.push(dateStr);
 					new Notice(`Marked task as complete for ${displayDate}`);
+					isCompleted = true;
 				}
 				
 				frontmatter.complete_instances = completeDates;
 			});
 			
-			// Notify views that data has changed
-			this.notifyDataChanged();
+			// Add the updated task to the file indexer's cache
+			if (this.fileIndexer) {
+				// Read the file to get the most up-to-date content
+				const content = await this.app.vault.cachedRead(file);
+				const taskInfo = extractTaskInfo(content, task.path);
+				
+				// Find and update this file in the index
+				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo);
+			}
+			
+			// Notify views that data has changed with the specific file path
+			this.notifyDataChanged(task.path);
 		} catch (error) {
 			console.error('Error toggling recurring task status:', error);
 			new Notice('Failed to update recurring task status');
@@ -485,6 +554,10 @@ export default class ChronoSyncPlugin extends Plugin {
 				new Notice(`Cannot find task file: ${task.path}`);
 				return;
 			}
+			
+			// Create a local modified copy of the task to update UI immediately
+			const updatedTask = { ...task };
+			updatedTask.archived = !task.archived;
 			
 			// Process the frontmatter
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
@@ -515,8 +588,18 @@ export default class ChronoSyncPlugin extends Plugin {
 			// Show a notice
 			new Notice(task.archived ? 'Task unarchived' : 'Task archived');
 			
-			// Notify views that data has changed
-			this.notifyDataChanged();
+			// Add the updated task to the file indexer's cache
+			if (this.fileIndexer) {
+				// Read the file to get the most up-to-date content
+				const content = await this.app.vault.cachedRead(file);
+				const taskInfo = extractTaskInfo(content, task.path);
+				
+				// Find and update this file in the index
+				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo);
+			}
+			
+			// Notify views that data has changed with the specific file path
+			this.notifyDataChanged(task.path);
 		} catch (error) {
 			console.error('Error toggling task archive status:', error);
 			new Notice('Failed to update task archive status');
