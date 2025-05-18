@@ -3,9 +3,9 @@ import ChronoSyncPlugin from '../main';
 
 export interface ChronoSyncSettings {
 	dailyNotesFolder: string;
-	tasksFolder: string;
-	notesFolder: string;
+	tasksFolder: string;  // Now just a default location for new tasks
 	homeNotePath: string;
+	taskTag: string;      // The tag that identifies tasks
 	defaultTaskPriority: 'low' | 'normal' | 'high';
 	defaultTaskStatus: 'open' | 'in-progress' | 'done';
 	timeblockStartTime: string;
@@ -17,8 +17,8 @@ export interface ChronoSyncSettings {
 export const DEFAULT_SETTINGS: ChronoSyncSettings = {
 	dailyNotesFolder: 'ChronoSync/Daily',
 	tasksFolder: 'ChronoSync/Tasks',
-	notesFolder: 'ChronoSync/Notes',
 	homeNotePath: 'ChronoSync/Home.md',
+	taskTag: 'task',
 	defaultTaskPriority: 'normal',
 	defaultTaskStatus: 'open',
 	timeblockStartTime: '05:00',
@@ -52,24 +52,13 @@ export class ChronoSyncSettingTab extends PluginSettingTab {
 				}));
 		
 		new Setting(containerEl)
-			.setName('Tasks folder')
-			.setDesc('Folder where tasks will be stored')
+			.setName('Default tasks folder')
+			.setDesc('Default folder for new tasks (tasks are identified by tag, not folder)')
 			.addText(text => text
 				.setPlaceholder('ChronoSync/Tasks')
 				.setValue(this.plugin.settings.tasksFolder)
 				.onChange(async (value) => {
 					this.plugin.settings.tasksFolder = value;
-					await this.plugin.saveSettings();
-				}));
-		
-		new Setting(containerEl)
-			.setName('Notes folder')
-			.setDesc('Folder where general notes will be stored (use "/" for vault root)')
-			.addText(text => text
-				.setPlaceholder('ChronoSync/Notes')
-				.setValue(this.plugin.settings.notesFolder)
-				.onChange(async (value) => {
-					this.plugin.settings.notesFolder = value;
 					await this.plugin.saveSettings();
 				}));
 		
@@ -86,6 +75,17 @@ export class ChronoSyncSettingTab extends PluginSettingTab {
 		
 		// Task Settings
 		new Setting(containerEl).setName('Tasks').setHeading();
+		
+		new Setting(containerEl)
+			.setName('Task tag')
+			.setDesc('Tag that identifies notes as tasks (without #)')
+			.addText(text => text
+				.setPlaceholder('task')
+				.setValue(this.plugin.settings.taskTag)
+				.onChange(async (value) => {
+					this.plugin.settings.taskTag = value;
+					await this.plugin.saveSettings();
+				}));
 		
 		new Setting(containerEl)
 			.setName('Default task priority')

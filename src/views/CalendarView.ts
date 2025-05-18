@@ -630,48 +630,61 @@ export class CalendarView extends View {
 	}
 	
 	async getTasksForView(): Promise<TaskInfo[]> {
-		const tasksFolder = this.plugin.settings.tasksFolder;
 		const result: TaskInfo[] = [];
+		const taskTag = this.plugin.settings.taskTag;
 		
-		// Ensure tasks folder exists
-		const folderExists = await this.app.vault.adapter.exists(tasksFolder);
-		if (!folderExists) return result;
-		
-		// Get all files in the tasks folder
+		// Get all markdown files in the vault
 		const files = this.app.vault.getFiles().filter(file => 
-			file.path.startsWith(tasksFolder) && file.extension === 'md'
+			file.extension === 'md'
 		);
 		
 		// Extract task information from each file
 		for (const file of files) {
 			try {
 				const content = await this.app.vault.read(file);
-				const taskInfo = extractTaskInfo(content, file.path);
+				const noteInfo = extractNoteInfo(content, file.path, file);
 				
-				if (taskInfo) {
-					// Filter based on current view date if it's a specific date
-					if (this.viewType === 'month' || this.viewType === 'week') {
-						// If we're in a specific date view, filter only tasks due in the current month/week
-						if (taskInfo.due) {
-							const dueDate = new Date(taskInfo.due);
-							const startDate = this.getViewStartDate();
-							const endDate = this.getViewEndDate();
-							
-							// Only include tasks due in the current view range
-							if (dueDate >= startDate && dueDate <= endDate) {
-								result.push(taskInfo);
+				// Check if this note has the task tag
+				if (noteInfo && noteInfo.tags && noteInfo.tags.includes(taskTag)) {
+					const taskInfo = extractTaskInfo(content, file.path);
+					
+					if (taskInfo) {
+						// Filter based on current view date if it's a specific date
+						if (this.viewType === 'month' || this.viewType === 'week') {
+							// If we're in a specific date view, filter only tasks due in the current month/week
+							if (taskInfo.due) {
+								const dueDate = new Date(taskInfo.due);
+								const startDate = this.getViewStartDate();
+								const endDate = this.getViewEndDate();
+								
+								// Only include tasks due in the current view range
+								if (dueDate >= startDate && dueDate <= endDate) {
+									result.push(taskInfo);
+								}
+							} else {
+								// For the current view, only include tasks without due dates
+								// if they were created within the view range
+								if (noteInfo.createdDate) {
+									const createdDate = new Date(noteInfo.createdDate);
+									const startDate = this.getViewStartDate();
+									const endDate = this.getViewEndDate();
+									
+									if (createdDate >= startDate && createdDate <= endDate) {
+										result.push(taskInfo);
+									}
+								} else {
+									// If no creation date, include anyway
+									result.push(taskInfo);
+								}
 							}
 						} else {
-							// Include tasks without due dates
+							// For all other views, include all tasks
 							result.push(taskInfo);
 						}
-					} else {
-						// For all other views, include all tasks
-						result.push(taskInfo);
 					}
 				}
 			} catch (e) {
-				console.error(`Error processing task file ${file.path}:`, e);
+				console.error(`Error processing file ${file.path}:`, e);
 			}
 		}
 		
@@ -692,16 +705,12 @@ export class CalendarView extends View {
 	}
 	
 	async getNotesForView(): Promise<NoteInfo[]> {
-		const notesFolder = this.plugin.settings.notesFolder;
 		const result: NoteInfo[] = [];
+		const taskTag = this.plugin.settings.taskTag;
 		
-		// Ensure notes folder exists
-		const folderExists = await this.app.vault.adapter.exists(notesFolder);
-		if (!folderExists) return result;
-		
-		// Get all markdown files in the notes folder
+		// Get all markdown files in the vault
 		const files = this.app.vault.getFiles().filter(file => 
-			file.path.startsWith(notesFolder) && file.extension === 'md'
+			file.extension === 'md'
 		);
 		
 		// Get the selected date
@@ -714,7 +723,12 @@ export class CalendarView extends View {
 				const content = await this.app.vault.read(file);
 				const noteInfo = extractNoteInfo(content, file.path, file);
 				
-				if (noteInfo) {
+				// Include notes that don't have the task tag
+				if (noteInfo && 
+					(!noteInfo.tags || !noteInfo.tags.includes(taskTag)) && 
+					file.path !== this.plugin.settings.homeNotePath && 
+					!file.path.startsWith(this.plugin.settings.dailyNotesFolder)) {
+					
 					// Only include notes that match the selected date's creation date
 					if (!selectedDateStr || (noteInfo.createdDate && noteInfo.createdDate.startsWith(selectedDateStr))) {
 						result.push(noteInfo);

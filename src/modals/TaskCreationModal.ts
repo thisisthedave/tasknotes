@@ -212,8 +212,8 @@ export class TaskCreationModal extends Modal {
 			// Create the task file
 			const taskFilePath = `${this.plugin.settings.tasksFolder}/${taskId}.md`;
 			
-			// Prepare tags (always include "task")
-			let tagsArray = ['task'];
+			// Prepare tags (always include the configured task tag)
+			let tagsArray = [this.plugin.settings.taskTag];
 			if (this.tags) {
 				tagsArray = tagsArray.concat(this.tags.split(',').map(tag => tag.trim()));
 			}
