@@ -1,5 +1,66 @@
 /* ChronoSync Plugin Styles */
 
+/* Design System Variables */
+:root {
+    /* Spacing scale (4px base) */
+    --cs-spacing-xs: 4px;
+    --cs-spacing-sm: 8px;
+    --cs-spacing-md: 16px;
+    --cs-spacing-lg: 24px;
+    --cs-spacing-xl: 32px;
+    
+    /* Border radius */
+    --cs-radius-sm: 4px;
+    --cs-radius-md: 6px;
+    --cs-radius-lg: 8px;
+    
+    /* Touch target minimum */
+    --cs-touch-target: 44px;
+    
+    /* Indicator sizes */
+    --cs-indicator-sm: 6px;
+    --cs-indicator-md: 8px;
+    --cs-indicator-lg: 10px;
+    
+    /* Transition timing */
+    --cs-transition-fast: 150ms ease;
+    --cs-transition-normal: 250ms ease;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Button click feedback */
+button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* Processing state for buttons */
+button.processing {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+button.processing::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spinner 0.8s linear infinite;
+}
+
 /* Accessibility - Focus Styles */
 .calendar-day:focus,
 .chronosync-tab:focus,
@@ -34,7 +95,7 @@
 
 /* Main container for all views */
 .chronosync-container {
-    padding: 1rem;
+    padding: var(--cs-spacing-md);
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -58,14 +119,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: var(--cs-spacing-md);
+    padding-bottom: var(--cs-spacing-sm);
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .detail-view-actions {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--cs-spacing-sm);
 }
 
 /* Week view prompt */
@@ -80,9 +141,11 @@
 .calendar-controls {
     display: flex;
     flex-direction: column;
-    margin-bottom: 1rem;
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--cs-spacing-lg);
+    padding: var(--cs-spacing-md);
+    background: var(--background-secondary);
+    border-radius: var(--cs-radius-md);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .calendar-nav {
@@ -97,7 +160,7 @@
 .month-navigation-group {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--cs-spacing-xs);
 }
 
 /* Calendar colorize mode selector styling */
@@ -113,14 +176,21 @@
 }
 
 .colorize-mode-select {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border-radius: var(--cs-radius-md);
     border: 1px solid var(--background-modifier-border);
-    background-color: var(--background-secondary-alt);
+    background-color: var(--background-primary);
     color: var(--text-normal);
     font-size: 0.9rem;
     cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: all var(--cs-transition-fast);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.colorize-mode-select:hover {
+    border-color: var(--background-modifier-border-hover);
+    background-color: var(--background-primary-alt);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .colorize-mode-select:focus {
@@ -130,38 +200,54 @@
 }
 
 .calendar-nav button {
-    background: transparent;
-    border: none;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
     color: var(--text-muted);
     cursor: pointer;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.9rem;
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border-radius: var(--cs-radius-md);
+    font-size: 1rem;
+    min-height: 36px;
+    min-width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--cs-transition-fast);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .calendar-nav button:hover {
-    background-color: var(--background-modifier-hover);
+    background-color: var(--background-primary-alt);
     color: var(--text-normal);
+    border-color: var(--background-modifier-border-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
 }
 
 .today-button {
     margin-left: auto;
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    font-size: 0.85rem;
+    min-height: 32px;
 }
 
 .current-month {
-    font-weight: bold;
-    min-width: 8rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    min-width: 10rem;
     text-align: center;
+    color: var(--text-normal);
+    letter-spacing: -0.02em;
 }
 
 .view-switcher {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--cs-spacing-sm);
 }
 
 .view-switcher button {
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
+    border-radius: var(--cs-radius-sm);
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
 }
 
 .view-switcher button.active {
@@ -170,66 +256,82 @@
 }
 
 .calendar-grid-container {
-    margin-bottom: 1rem;
+    margin-bottom: var(--cs-spacing-md);
+    background: var(--background-primary);
+    border-radius: var(--cs-radius-md);
+    padding: var(--cs-spacing-sm);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .calendar-grid {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    margin-bottom: 1rem;
+    gap: var(--cs-spacing-xs);
+    margin-bottom: var(--cs-spacing-md);
 }
 
 .calendar-header {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 0.25rem;
+    gap: var(--cs-spacing-xs);
 }
 
 .calendar-week {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 0.25rem;
+    gap: var(--cs-spacing-xs);
 }
 
 .calendar-day-header {
     text-align: center;
-    font-weight: normal;
-    font-size: 0.8rem;
+    font-weight: 500;
+    font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 0.4rem;
-    background-color: var(--background-secondary);
-    border-radius: 4px;
+    letter-spacing: 0.05em;
+    padding: var(--cs-spacing-sm);
+    color: var(--text-muted);
+    background: transparent;
+    border-radius: var(--cs-radius-sm);
 }
 
 .calendar-day {
     position: relative;
-    min-height: 2.5rem;
-    padding: 0.5rem;
+    min-height: 3rem;
+    padding: var(--cs-spacing-sm);
     text-align: center;
-    border-radius: 4px;
+    border-radius: var(--cs-radius-md);
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
+    background: var(--background-secondary);
+    border: 1px solid transparent;
+    transition: all var(--cs-transition-fast);
+    font-size: 0.9rem;
 }
 
 
 .calendar-day:hover {
-    background-color: var(--background-modifier-hover);
+    background-color: var(--background-primary-alt);
+    border-color: var(--background-modifier-border);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .calendar-day.today {
-    background-color: var(--interactive-accent-hover);
-    font-weight: bold;
+    background: linear-gradient(135deg, var(--interactive-accent), var(--interactive-accent-hover));
+    color: var(--text-on-accent);
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(var(--interactive-accent-rgb), 0.3);
 }
 
 .calendar-day.selected,
 .week-day-header.selected {
     border: 2px solid var(--interactive-accent);
-    font-weight: bold;
+    font-weight: 600;
+    background-color: var(--background-primary-alt);
+    box-shadow: 0 0 0 3px rgba(var(--interactive-accent-rgb), 0.1);
 }
 
 /* Style for dates that are selected but not today */
@@ -246,7 +348,8 @@
 
 .calendar-day.outside-month {
     color: var(--text-faint);
-    background-color: var(--background-primary-alt);
+    background-color: var(--background-primary);
+    opacity: 0.5;
 }
 
 .day-indicator {
@@ -326,47 +429,41 @@
 
 /* Notes heatmap indicators - blues of different intensity with better contrast */
 .note-indicator.few-notes {
-    background-color: #5a8de3;
-    width: 6px;
-    height: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #7BA7E7, #5a8de3);
+    width: var(--cs-indicator-sm);
+    height: var(--cs-indicator-sm);
 }
 
 .note-indicator.some-notes {
-    background-color: #3670d9;
-    width: 7px;
-    height: 7px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #4E82E4, #3670d9);
+    width: var(--cs-indicator-md);
+    height: var(--cs-indicator-md);
 }
 
 .note-indicator.many-notes {
-    background-color: #1e56c2;
-    width: 8px;
-    height: 8px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #2D65D0, #1e56c2);
+    width: var(--cs-indicator-lg);
+    height: var(--cs-indicator-lg);
 }
 
 /* Task indicators - reds for due, greens for completed, gray for archived */
 .task-indicator.due-tasks {
-    background-color: var(--text-error);
-    width: 7px;
-    height: 7px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #FF6B6B, var(--text-error));
+    width: var(--cs-indicator-md);
+    height: var(--cs-indicator-md);
 }
 
 .task-indicator.completed-tasks {
-    background-color: var(--text-success);
-    width: 7px;
-    height: 7px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #6FCF97, var(--text-success));
+    width: var(--cs-indicator-md);
+    height: var(--cs-indicator-md);
 }
 
 .task-indicator.archived-tasks {
-    background-color: var(--text-faint);
-    width: 7px;
-    height: 7px;
-    opacity: 0.8; /* Increased opacity for better contrast */
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    background: var(--text-faint);
+    width: var(--cs-indicator-md);
+    height: var(--cs-indicator-md);
+    opacity: 0.8;
 }
 
 /* Daily note indicators - distinctive purple */
@@ -552,18 +649,17 @@
 
 /* Unified Card Styles */
 .chronosync-card {
-    padding: 0.85rem;
-    border-radius: 6px;
+    padding: var(--cs-spacing-md);
+    border-radius: var(--cs-radius-md);
     border: 1px solid var(--background-modifier-border);
-    background-color: var(--background-primary);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s;
+    background-color: var(--background-secondary);
+    box-shadow: none;
+    transition: all var(--cs-transition-fast);
 }
 
 .chronosync-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    background-color: var(--background-primary-alt);
+    background-color: var(--background-secondary-alt);
+    border-color: var(--background-modifier-border-hover);
 }
 
 .chronosync-card-header {
@@ -651,6 +747,26 @@
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* Task update animation */
+.task-item.task-updated {
+    animation: taskUpdate 1.5s ease;
+}
+
+@keyframes taskUpdate {
+    0% { 
+        background-color: var(--background-primary);
+        transform: scale(1);
+    }
+    20% { 
+        background-color: var(--interactive-accent-hover);
+        transform: scale(1.02);
+    }
+    100% { 
+        background-color: var(--background-primary);
+        transform: scale(1);
+    }
+}
+
 /* Task layout structure */
 .task-item {
     display: flex;
@@ -679,7 +795,7 @@
 .task-controls {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
+    gap: var(--cs-spacing-sm);
     align-items: center;
     width: 100%;
 }
@@ -704,8 +820,8 @@
 .task-priority-select,
 .task-due-date-input {
     font-size: 0.85rem;
-    padding: 0.2rem 0.4rem;
-    border-radius: 4px;
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border-radius: var(--cs-radius-sm);
     border: 1px solid var(--background-modifier-border);
     background-color: var(--background-secondary-alt);
     width: 100%;
@@ -726,14 +842,14 @@
 
 /* Archived task styling */
 .task-item.task-archived {
-    opacity: 0.7;
+    opacity: 0.85;
     background-color: var(--background-secondary-alt);
 }
 
 .task-archived-badge {
     font-size: 0.75rem;
-    padding: 0.1rem 0.3rem;
-    border-radius: 4px;
+    padding: calc(var(--cs-spacing-xs) / 2) var(--cs-spacing-xs);
+    border-radius: var(--cs-radius-sm);
     background-color: var(--text-faint);
     color: var(--background-primary);
 }
@@ -743,14 +859,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 4px;
+    width: var(--cs-touch-target);
+    height: var(--cs-touch-target);
+    border-radius: var(--cs-radius-sm);
     background-color: var(--background-secondary-alt);
     color: var(--text-normal);
     padding: 0;
     text-align: center;
-    margin-left: 0.25rem;
+    margin-left: var(--cs-spacing-xs);
     border: none;
 }
 
@@ -1532,13 +1648,13 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .chronosync-container {
-        padding: 0.5rem;
+        padding: var(--cs-spacing-sm);
     }
     
     .calendar-nav {
         flex-direction: column;
-        gap: 0.5rem;
-        align-items: flex-start;
+        gap: var(--cs-spacing-sm);
+        align-items: stretch;
     }
     
     .month-navigation-group {
@@ -1553,7 +1669,7 @@
     }
     
     .calendar-grid {
-        gap: 0.1rem;
+        gap: 2px;
     }
     
     .calendar-day-header {
@@ -1562,20 +1678,33 @@
     }
     
     .calendar-day {
-        min-height: 1.25rem;
-        padding: 0.15rem;
-        font-size: 0.75rem;
+        min-height: var(--cs-touch-target);
+        padding: var(--cs-spacing-xs);
+        font-size: 0.85rem;
+        border-radius: var(--cs-radius-sm);
+    }
+    
+    .calendar-day.today {
+        box-shadow: 0 1px 4px rgba(var(--interactive-accent-rgb), 0.3);
     }
     
     .note-indicator, .task-indicator, .daily-note-indicator {
-        width: 5px;
-        height: 5px;
+        width: var(--cs-indicator-sm);
+        height: var(--cs-indicator-sm);
+        position: static;
+        margin: 1px;
     }
     
     /* Removed keyboard hint display none */
     
     .colorize-mode-container {
-        margin-top: 0.5rem;
+        margin-top: var(--cs-spacing-sm);
+        width: 100%;
+    }
+    
+    .colorize-mode-select {
+        width: 100%;
+        min-height: var(--cs-touch-target);
     }
     
     .chronosync-tabs {
@@ -1597,7 +1726,13 @@
     
     .task-controls {
         grid-template-columns: 1fr;
-        gap: 0.35rem;
+        gap: var(--cs-spacing-sm);
+    }
+    
+    .task-status-select,
+    .task-priority-select,
+    .task-due-date-input {
+        min-height: var(--cs-touch-target);
     }
     
     .task-item-metadata {

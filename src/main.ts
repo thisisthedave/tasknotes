@@ -144,6 +144,14 @@ export default class ChronoSyncPlugin extends Plugin {
 		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
 		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
 		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
+		
+		// Clean up the file indexer
+		if (this.fileIndexer) {
+			this.fileIndexer.destroy();
+		}
+		
+		// Clean up the event emitter
+		this.emitter.removeAllListeners();
 	}
 
 	async loadSettings() {
@@ -155,6 +163,9 @@ export default class ChronoSyncPlugin extends Plugin {
 		
 		// Update the file indexer with new settings if relevant
 		if (this.fileIndexer) {
+			// Properly destroy the old indexer first
+			this.fileIndexer.destroy();
+			
 			// Create a new indexer with updated settings
 			this.fileIndexer = new FileIndexer(
 				this.app.vault, 

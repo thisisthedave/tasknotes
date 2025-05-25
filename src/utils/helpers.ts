@@ -5,18 +5,44 @@ import * as YAML from 'yaml';
 import { YAMLCache } from './YAMLCache';
 
 /**
+ * Creates a debounced version of a function
+ */
+export function debounce<T extends (...args: any[]) => any>(
+    func: T,
+    wait: number
+): (...args: Parameters<T>) => void {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    
+    return function debounced(...args: Parameters<T>) {
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+        
+        timeout = setTimeout(() => {
+            func(...args);
+            timeout = null;
+        }, wait);
+    };
+}
+
+/**
  * Ensures a folder and its parent folders exist
  */
 export async function ensureFolderExists(vault: Vault, folderPath: string): Promise<void> {
-	const folders = folderPath.split('/').filter(folder => folder.length > 0);
-	let currentPath = '';
-	
-	for (const folder of folders) {
-		currentPath = currentPath ? `${currentPath}/${folder}` : folder;
-		const exists = await vault.adapter.exists(currentPath);
-		if (!exists) {
-			await vault.createFolder(currentPath);
+	try {
+		const folders = folderPath.split('/').filter(folder => folder.length > 0);
+		let currentPath = '';
+		
+		for (const folder of folders) {
+			currentPath = currentPath ? `${currentPath}/${folder}` : folder;
+			const exists = await vault.adapter.exists(currentPath);
+			if (!exists) {
+				await vault.createFolder(currentPath);
+			}
 		}
+	} catch (error) {
+		console.error('Error creating folder structure:', error);
+		throw new Error(`Failed to create folder: ${folderPath}`);
 	}
 }
 
@@ -24,27 +50,36 @@ export async function ensureFolderExists(vault: Vault, folderPath: string): Prom
  * Parses a time string in the format HH:MM and returns hours and minutes
  */
 export function parseTime(timeStr: string): TimeInfo | null {
-	const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
-	if (!match) return null;
-	
-	const hours = parseInt(match[1]);
-	const minutes = parseInt(match[2]);
-	
-	if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+	try {
+		if (!timeStr || typeof timeStr !== 'string') {
+			return null;
+		}
+		
+		const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+		if (!match) return null;
+		
+		const hours = parseInt(match[1]);
+		const minutes = parseInt(match[2]);
+		
+		if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+			return null;
+		}
+		
+		return { hours, minutes };
+	} catch (error) {
+		console.error('Error parsing time string:', error);
 		return null;
 	}
-	
-	return { hours, minutes };
 }
 
 /**
  * Updates a YAML frontmatter value in a Markdown file
  */
-export function updateYamlFrontmatter(content: string, key: string, updateFn: (val: any) => any): string {
+export function updateYamlFrontmatter<T = any>(content: string, key: string, updateFn: (val: T | undefined) => T): string {
 	// Check if the content has YAML frontmatter
 	if (!content.startsWith('---')) {
 		// If not, add it with the updated key
-		const yamlObj: any = {};
+		const yamlObj: Record<string, any> = {};
 		yamlObj[key] = updateFn(undefined);
 		const yamlStr = YAML.stringify(yamlObj);
 		return `---\n${yamlStr}---\n\n${content}`;
@@ -59,7 +94,7 @@ export function updateYamlFrontmatter(content: string, key: string, updateFn: (v
 	const restOfContent = content.substring(endOfFrontmatter);
 	
 	// Parse the frontmatter
-	let yamlObj: any = {};
+	let yamlObj: Record<string, any> = {};
 	try {
 		yamlObj = YAML.parse(frontmatter) || {};
 	} catch (e) {
@@ -68,7 +103,7 @@ export function updateYamlFrontmatter(content: string, key: string, updateFn: (v
 	}
 	
 	// Update the key
-	yamlObj[key] = updateFn(yamlObj[key]);
+	yamlObj[key] = updateFn(yamlObj[key] as T | undefined);
 	
 	// Stringify the frontmatter
 	const updatedFrontmatter = YAML.stringify(yamlObj);

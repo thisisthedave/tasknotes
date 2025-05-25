@@ -423,7 +423,11 @@ export class TaskListView extends View {
                 // Toggle button for recurring tasks
                 const toggleButton = taskControls.createEl('button', { 
                     cls: `task-toggle-button ${effectiveStatus === 'done' ? 'mark-incomplete' : 'mark-complete'} chronosync-button chronosync-button-${effectiveStatus === 'done' ? 'secondary' : 'primary'}`,
-                    text: effectiveStatus === 'done' ? 'Mark Incomplete' : 'Mark Complete'
+                    text: effectiveStatus === 'done' ? 'Mark Incomplete' : 'Mark Complete',
+                    attr: {
+                        'aria-label': `${effectiveStatus === 'done' ? 'Mark task incomplete' : 'Mark task complete'} for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}`,
+                        'aria-pressed': (effectiveStatus === 'done').toString()
+                    }
                 });
                 
                 // Add event listener for toggle
@@ -472,7 +476,13 @@ export class TaskListView extends View {
                 });
             } else {
                 // Task status dropdown (direct child of controls grid)
-                const statusSelect = taskControls.createEl('select', { cls: 'task-status-select' });
+                const statusSelect = taskControls.createEl('select', { 
+                    cls: 'task-status-select',
+                    attr: {
+                        'aria-label': `Task status for ${task.title}`,
+                        'title': 'Change task status'
+                    }
+                });
                 
                 // Add status options
                 const statuses = ['Open', 'In Progress', 'Done'];
@@ -515,7 +525,13 @@ export class TaskListView extends View {
             }
             
             // Task priority dropdown (direct child of controls grid)
-            const prioritySelect = taskControls.createEl('select', { cls: 'task-priority-select' });
+            const prioritySelect = taskControls.createEl('select', { 
+                cls: 'task-priority-select',
+                attr: {
+                    'aria-label': `Task priority for ${task.title}`,
+                    'title': 'Change task priority'
+                }
+            });
             
             // Add priority options
             const priorities = ['High', 'Normal', 'Low'];
@@ -560,7 +576,10 @@ export class TaskListView extends View {
             const dueDateInput = taskControls.createEl('input', { 
                 type: 'date',
                 cls: 'task-due-date-input',
-                attr: { title: 'Set due date' }
+                attr: { 
+                    'title': 'Set due date',
+                    'aria-label': `Due date for ${task.title}`
+                }
             });
             
             // Set current due date if exists

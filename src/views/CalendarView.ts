@@ -277,11 +277,20 @@ export class CalendarView extends View {
         // Apply week offset (7 days per week)
         newDate.setDate(currentDate.getDate() + (weekOffset * 7) + dayOffset);
         
-        // Update the date
-        this.plugin.setSelectedDate(newDate);
+        // Check if we're navigating to a different month
+        const currentMonth = this.plugin.selectedDate.getMonth();
+        const currentYear = this.plugin.selectedDate.getFullYear();
+        const newMonth = newDate.getMonth();
+        const newYear = newDate.getFullYear();
         
-        // Refresh the view
-        this.refresh();
+        if (currentMonth !== newMonth || currentYear !== newYear) {
+            // Different month, need full refresh
+            this.plugin.setSelectedDate(newDate);
+            this.refresh();
+        } else {
+            // Same month, just update selected date
+            this.updateSelectedDate(newDate);
+        }
     }
     
     // Helper method to refresh the view
@@ -297,6 +306,34 @@ export class CalendarView extends View {
         } finally {
             this.hideLoadingIndicator();
         }
+    }
+    
+    // Update selected date without re-rendering entire calendar
+    private updateSelectedDate(newDate: Date) {
+        // Remove selected class from all days
+        const allDays = this.containerEl.querySelectorAll('.calendar-day');
+        allDays.forEach(day => {
+            day.classList.remove('selected');
+            day.setAttribute('aria-selected', 'false');
+            day.setAttribute('tabindex', '-1');
+        });
+        
+        // Find and select the new date element
+        const newDateStr = format(newDate, 'yyyy-MM-dd');
+        allDays.forEach(day => {
+            const dayEl = day as HTMLElement;
+            const ariaLabel = dayEl.getAttribute('aria-label') || '';
+            // Check if this element represents the new date
+            if (ariaLabel.includes(format(newDate, 'EEEE, MMMM d, yyyy'))) {
+                dayEl.classList.add('selected');
+                dayEl.setAttribute('aria-selected', 'true');
+                dayEl.setAttribute('tabindex', '0');
+                dayEl.focus();
+            }
+        });
+        
+        // Update the plugin's selected date
+        this.plugin.setSelectedDate(newDate);
     }
     
     // Show a loading indicator while building cache
@@ -334,8 +371,8 @@ export class CalendarView extends View {
         prevButton.addEventListener('click', () => {
             this.navigateToPreviousPeriod();
         });
-        prevButton.setAttribute('aria-label', 'Previous month (←)');
-        prevButton.setAttribute('title', 'Previous month (←)');
+        prevButton.setAttribute('aria-label', 'Previous month');
+        prevButton.setAttribute('title', 'Previous month (Left arrow or H key)');
         
         const currentMonth = monthNavigationGroup.createEl('span', { 
             text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
@@ -346,8 +383,8 @@ export class CalendarView extends View {
         nextButton.addEventListener('click', () => {
             this.navigateToNextPeriod();
         });
-        nextButton.setAttribute('aria-label', 'Next month (→)');
-        nextButton.setAttribute('title', 'Next month (→)');
+        nextButton.setAttribute('aria-label', 'Next month');
+        nextButton.setAttribute('title', 'Next month (Right arrow or L key)');
         
         // Add colorize mode selector
         const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
@@ -394,7 +431,11 @@ export class CalendarView extends View {
         // Today button
         const todayButton = navContainer.createEl('button', { 
             text: 'Today', 
-            cls: 'today-button chronosync-button chronosync-button-primary' 
+            cls: 'today-button chronosync-button chronosync-button-primary',
+            attr: {
+                'aria-label': 'Go to today',
+                'title': 'Go to today (T key)'
+            }
         });
         
         todayButton.addEventListener('click', () => {
@@ -520,16 +561,14 @@ export class CalendarView extends View {
             
             // Add click handler
             dayEl.addEventListener('click', () => {
-                this.plugin.setSelectedDate(dayDate);
-                this.refresh();
+                this.updateSelectedDate(dayDate);
             });
             
             // Add keyboard event handler to each day
             dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.plugin.setSelectedDate(dayDate);
-                    this.refresh();
+                    this.updateSelectedDate(dayDate);
                 }
             });
         }
@@ -568,16 +607,14 @@ export class CalendarView extends View {
             
             // Add click handler
             dayEl.addEventListener('click', () => {
-                this.plugin.setSelectedDate(dayDate);
-                this.refresh();
+                this.updateSelectedDate(dayDate);
             });
             
             // Add keyboard event handler to each day
             dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.plugin.setSelectedDate(dayDate);
-                    this.refresh();
+                    this.updateSelectedDate(dayDate);
                 }
             });
         }
@@ -609,16 +646,14 @@ export class CalendarView extends View {
             
             // Add click handler
             dayEl.addEventListener('click', () => {
-                this.plugin.setSelectedDate(dayDate);
-                this.refresh();
+                this.updateSelectedDate(dayDate);
             });
             
             // Add keyboard event handler to each day
             dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.plugin.setSelectedDate(dayDate);
-                    this.refresh();
+                    this.updateSelectedDate(dayDate);
                 }
             });
         }

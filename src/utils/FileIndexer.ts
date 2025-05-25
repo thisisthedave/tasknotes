@@ -1,6 +1,6 @@
 import { TFile, Vault } from 'obsidian';
-import { FileIndex, IndexedFile, TaskInfo, NoteInfo } from '../types';
-import { extractNoteInfo, extractTaskInfo } from './helpers';
+import { FileIndex, IndexedFile, TaskInfo, NoteInfo, FileEventHandlers } from '../types';
+import { extractNoteInfo, extractTaskInfo, debounce } from './helpers';
 import * as YAML from 'yaml';
 import { YAMLCache } from './YAMLCache';
 
@@ -12,6 +12,9 @@ export class FileIndexer {
     private taskTag: string;
     private excludedFolders: string[];
     private dailyNotesPath: string;
+    
+    // Store event handlers for cleanup
+    private eventHandlers: FileEventHandlers = {};
 
     constructor(vault: Vault, taskTag: string, excludedFolders: string = '', dailyNotesPath: string = '') {
         this.vault = vault;
@@ -28,30 +31,45 @@ export class FileIndexer {
     }
 
     private registerFileEvents() {
-        // These events will mark specific files as dirty in the index
-        this.vault.on('modify', (file) => {
-            if (file instanceof TFile) {
-                this.updateIndexedFile(file);
-            }
-        });
+        // Create debounced versions of file operations
+        const debouncedUpdate = debounce((file: TFile) => {
+            this.updateIndexedFile(file);
+        }, 300); // 300ms debounce for file modifications
         
-        this.vault.on('delete', (file) => {
-            if (file instanceof TFile) {
-                this.removeFromIndex(file);
-            }
-        });
+        const debouncedAdd = debounce((file: TFile) => {
+            this.addToIndex(file);
+        }, 300); // 300ms debounce for file creation
         
-        this.vault.on('rename', (file, oldPath) => {
+        // Create and store event handlers for proper cleanup later
+        this.eventHandlers.modify = (file) => {
             if (file instanceof TFile) {
-                this.updateFileOnRename(file, oldPath);
+                debouncedUpdate(file);
             }
-        });
+        };
         
-        this.vault.on('create', (file) => {
+        this.eventHandlers.delete = (file) => {
             if (file instanceof TFile) {
-                this.addToIndex(file);
+                this.removeFromIndex(file); // No debounce for deletion
             }
-        });
+        };
+        
+        this.eventHandlers.rename = (file, oldPath) => {
+            if (file instanceof TFile) {
+                this.updateFileOnRename(file, oldPath); // No debounce for rename
+            }
+        };
+        
+        this.eventHandlers.create = (file) => {
+            if (file instanceof TFile) {
+                debouncedAdd(file);
+            }
+        };
+        
+        // Register the events
+        this.vault.on('modify', this.eventHandlers.modify);
+        this.vault.on('delete', this.eventHandlers.delete);
+        this.vault.on('rename', this.eventHandlers.rename);
+        this.vault.on('create', this.eventHandlers.create);
     }
 
     private updateFileOnRename(file: TFile, oldPath: string) {
@@ -668,5 +686,32 @@ export class FileIndexer {
                 cachedInfo: taskInfo
             });
         }
+    }
+    
+    /**
+     * Clean up event listeners and clear caches
+     * This should be called when the plugin is unloaded or settings change
+     */
+    public destroy(): void {
+        // Unregister all event handlers
+        if (this.eventHandlers.modify) {
+            this.vault.off('modify', this.eventHandlers.modify);
+        }
+        if (this.eventHandlers.delete) {
+            this.vault.off('delete', this.eventHandlers.delete);
+        }
+        if (this.eventHandlers.rename) {
+            this.vault.off('rename', this.eventHandlers.rename);
+        }
+        if (this.eventHandlers.create) {
+            this.vault.off('create', this.eventHandlers.create);
+        }
+        
+        // Clear all caches
+        this.fileIndex = null;
+        this.calendarCache.clear();
+        
+        // Clear event handlers object
+        this.eventHandlers = {};
     }
 }

@@ -22,6 +22,7 @@ export interface RecurrenceInfo {
 	frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
 	days_of_week?: string[];  // For weekly recurrence: ['mon', 'tue', etc.]
 	day_of_month?: number;    // For monthly/yearly recurrence: 1-31
+	month_of_year?: number;   // For yearly recurrence: 1-12
 }
 
 export interface TaskInfo {
@@ -59,4 +60,43 @@ export interface IndexedFile {
 	tags?: string[];
 	isTask?: boolean;
 	cachedInfo?: TaskInfo | NoteInfo;
+}
+
+// YAML Frontmatter types
+export interface DailyNoteFrontmatter {
+	date?: string;
+	pomodoros?: number;
+	workout?: boolean;
+	meditate?: boolean;
+	tags?: string[];
+	important?: boolean;
+}
+
+export interface TaskFrontmatter {
+	title: string;
+	zettelid: string;
+	dateCreated: string;
+	dateModified: string;
+	status: 'open' | 'in-progress' | 'done';
+	due?: string;
+	tags: string[];
+	priority: 'low' | 'normal' | 'high';
+	contexts?: string[];
+	recurrence?: RecurrenceInfo;
+	complete_instances?: string[];
+}
+
+export interface NoteFrontmatter {
+	title: string;
+	dateCreated: string;
+	dateModified?: string;
+	tags?: string[];
+}
+
+// Event handler types
+export interface FileEventHandlers {
+	modify?: (file: any) => void;
+	delete?: (file: any) => void;
+	rename?: (file: any, oldPath: string) => void;
+	create?: (file: any) => void;
 }

@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import ChronoSyncPlugin from '../main';
 import { ensureFolderExists } from '../utils/helpers';
-import { CALENDAR_VIEW_TYPE } from '../types';
+import { CALENDAR_VIEW_TYPE, TaskFrontmatter } from '../types';
 
 export class TaskCreationModal extends Modal {
 	plugin: ChronoSyncPlugin;
@@ -265,9 +265,38 @@ export class TaskCreationModal extends Modal {
 	}
   
 	async createTask() {
-		if (!this.title) {
+		if (!this.title || !this.title.trim()) {
 			new Notice('Title is required');
 			return;
+		}
+		
+		// Validate title length
+		if (this.title.length > 200) {
+			new Notice('Task title is too long (max 200 characters)');
+			return;
+		}
+		
+		// Validate due date if provided
+		if (this.dueDate) {
+			const dueDateTime = new Date(this.dueDate);
+			if (isNaN(dueDateTime.getTime())) {
+				new Notice('Invalid due date format');
+				return;
+			}
+		}
+		
+		// Validate recurrence settings
+		if (this.recurrence === 'weekly' && this.daysOfWeek.length === 0) {
+			new Notice('Please select at least one day of the week for weekly recurrence');
+			return;
+		}
+		
+		if ((this.recurrence === 'monthly' || this.recurrence === 'yearly') && this.dayOfMonth) {
+			const dayNum = parseInt(this.dayOfMonth);
+			if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
+				new Notice('Day of month must be between 1 and 31');
+				return;
+			}
 		}
 		
 		try {
@@ -286,17 +315,23 @@ export class TaskCreationModal extends Modal {
 			// Prepare tags (always include the configured task tag)
 			let tagsArray = [this.plugin.settings.taskTag];
 			if (this.tags) {
-				tagsArray = tagsArray.concat(this.tags.split(',').map(tag => tag.trim()));
+				tagsArray = tagsArray.concat(
+					this.tags.split(',')
+						.map(tag => tag.trim())
+						.filter(tag => tag.length > 0)
+				);
 			}
 			
 			// Prepare contexts
 			let contextsArray: string[] = [];
 			if (this.contexts) {
-				contextsArray = this.contexts.split(',').map(context => context.trim());
+				contextsArray = this.contexts.split(',')
+					.map(context => context.trim())
+					.filter(context => context.length > 0);
 			}
 			
 			// Create the YAML frontmatter
-			const yaml: any = {
+			const yaml: Partial<TaskFrontmatter> = {
 				title: this.title,
 				zettelid: taskId,
 				dateCreated: format(now, "yyyy-MM-dd'T'HH:mm:ss"),
