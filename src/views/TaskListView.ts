@@ -1,4 +1,4 @@
-import { Notice, TFile, View, WorkspaceLeaf } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
 import { format } from 'date-fns';
 import ChronoSyncPlugin from '../main';
 import { 
@@ -13,7 +13,7 @@ import {
     getEffectiveTaskStatus 
 } from '../utils/helpers';
 
-export class TaskListView extends View {
+export class TaskListView extends ItemView {
     plugin: ChronoSyncPlugin;
     
     // UI elements
@@ -78,7 +78,7 @@ export class TaskListView extends View {
     async onClose() {
         // Remove event listeners
         this.listeners.forEach(unsubscribe => unsubscribe());
-        this.containerEl.empty();
+        this.contentEl.empty();
     }
     
     async refresh(forceFullRefresh: boolean = false) {
@@ -89,12 +89,12 @@ export class TaskListView extends View {
         }
         
         // Clear and prepare the content element
-        this.containerEl.empty();
+        this.contentEl.empty();
         await this.render();
     }
     
     async render() {
-        const container = this.containerEl.createDiv({ cls: 'chronosync-container task-list-view-container' });
+        const container = this.contentEl.createDiv({ cls: 'chronosync-container task-list-view-container' });
         
         // Create header with current date information
         this.createHeader(container);

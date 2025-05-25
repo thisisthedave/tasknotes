@@ -1,4 +1,4 @@
-import { Notice, TFile, View, WorkspaceLeaf } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
 import { format } from 'date-fns';
 import ChronoSyncPlugin from '../main';
 import { 
@@ -8,7 +8,7 @@ import {
     EVENT_DATA_CHANGED
 } from '../types';
 
-export class NotesView extends View {
+export class NotesView extends ItemView {
     plugin: ChronoSyncPlugin;
     
     // UI elements
@@ -72,7 +72,7 @@ export class NotesView extends View {
     async onClose() {
         // Remove event listeners
         this.listeners.forEach(unsubscribe => unsubscribe());
-        this.containerEl.empty();
+        this.contentEl.empty();
     }
     
     async refresh(forceFullRefresh: boolean = false) {
@@ -83,12 +83,12 @@ export class NotesView extends View {
         }
         
         // Clear and prepare the content element
-        this.containerEl.empty();
+        this.contentEl.empty();
         await this.render();
     }
     
     async render() {
-        const container = this.containerEl.createDiv({ cls: 'chronosync-container notes-view-container' });
+        const container = this.contentEl.createDiv({ cls: 'chronosync-container notes-view-container' });
         
         // Create header with current date information
         this.createHeader(container);

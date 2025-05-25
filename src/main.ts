@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath } from 'obsidian';
+import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath, Platform } from 'obsidian';
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import { 
@@ -228,6 +228,33 @@ export default class ChronoSyncPlugin extends Plugin {
 				await this.createTabsLayout();
 			}
 		});
+		
+		// Popout window commands (desktop only)
+		if (this.app.workspace.openPopoutLeaf !== undefined) {
+			this.addCommand({
+				id: 'open-calendar-popout',
+				name: 'Open calendar in new window',
+				callback: async () => {
+					await this.openViewInPopout(CALENDAR_VIEW_TYPE);
+				}
+			});
+			
+			this.addCommand({
+				id: 'open-tasks-popout',
+				name: 'Open tasks in new window',
+				callback: async () => {
+					await this.openViewInPopout(TASK_LIST_VIEW_TYPE);
+				}
+			});
+			
+			this.addCommand({
+				id: 'open-notes-popout',
+				name: 'Open notes in new window',
+				callback: async () => {
+					await this.openViewInPopout(NOTES_VIEW_TYPE);
+				}
+			});
+		}
 
 		// Task commands
 		this.addCommand({
@@ -309,6 +336,36 @@ export default class ChronoSyncPlugin extends Plugin {
 	
 	async activateNotesView() {
 		return this.activateView(NOTES_VIEW_TYPE);
+	}
+	
+	// Open a view in a popout window
+	async openViewInPopout(viewType: string) {
+		const { workspace } = this.app;
+		
+		// Check if we're on desktop (mobile doesn't support popout windows)
+		if (Platform.isMobile) {
+			new Notice('Popout windows are only available on desktop');
+			return;
+		}
+		
+		try {
+			// Create a new popout window
+			const popoutLeaf = workspace.openPopoutLeaf({
+				size: { width: 800, height: 600 }
+			});
+			
+			// Set the view state for the popout leaf
+			await popoutLeaf.setViewState({
+				type: viewType,
+				active: true
+			});
+			
+			// Make the popout leaf active
+			workspace.setActiveLeaf(popoutLeaf, { focus: true });
+		} catch (error) {
+			console.error('Error opening popout window:', error);
+			new Notice('Failed to open view in new window');
+		}
 	}
 	
 	async activateLinkedViews() {

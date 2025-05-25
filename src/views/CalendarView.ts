@@ -1,4 +1,4 @@
-import { Notice, TFile, View, WorkspaceLeaf, normalizePath } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf, normalizePath } from 'obsidian';
 import { format } from 'date-fns';
 import ChronoSyncPlugin from '../main';
 import { 
@@ -16,7 +16,7 @@ import {
     parseTime 
 } from '../utils/helpers';
 
-export class CalendarView extends View {
+export class CalendarView extends ItemView {
     // Static property to track initialization status for daily notes
     static dailyNotesInitialized: boolean = false;
     
@@ -61,7 +61,7 @@ export class CalendarView extends View {
   
     async onOpen() {
         // Clear and prepare the content element
-        const contentEl = this.containerEl;
+        const contentEl = this.contentEl;
         contentEl.empty();
         
         // Add a container for our view content
@@ -157,7 +157,7 @@ export class CalendarView extends View {
         this.listeners.forEach(unsubscribe => unsubscribe());
         
         // Clean up when the view is closed
-        this.containerEl.empty();
+        this.contentEl.empty();
     }
     
     /**
@@ -216,7 +216,7 @@ export class CalendarView extends View {
                     if (this.colorizeMode !== 'tasks') {
                         await this.setColorizeMode('tasks');
                         // Update the dropdown to match
-                        const dropdown = this.containerEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
+                        const dropdown = this.contentEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
                         if (dropdown) dropdown.value = 'tasks';
                     }
                     return;
@@ -227,7 +227,7 @@ export class CalendarView extends View {
                     if (this.colorizeMode !== 'notes') {
                         await this.setColorizeMode('notes');
                         // Update the dropdown to match
-                        const dropdown = this.containerEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
+                        const dropdown = this.contentEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
                         if (dropdown) dropdown.value = 'notes';
                     }
                     return;
@@ -238,7 +238,7 @@ export class CalendarView extends View {
                     if (this.colorizeMode !== 'daily') {
                         await this.setColorizeMode('daily');
                         // Update the dropdown to match
-                        const dropdown = this.containerEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
+                        const dropdown = this.contentEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
                         if (dropdown) dropdown.value = 'daily';
                     }
                     return;
@@ -298,7 +298,7 @@ export class CalendarView extends View {
         this.showLoadingIndicator();
         
         try {
-            const container = this.containerEl.querySelector('.chronosync-container') as HTMLElement;
+            const container = this.contentEl.querySelector('.chronosync-container') as HTMLElement;
             if (container) {
                 // Simply render the view and get fresh data from FileIndexer
                 this.renderView(container);
@@ -311,7 +311,7 @@ export class CalendarView extends View {
     // Update selected date without re-rendering entire calendar
     private updateSelectedDate(newDate: Date) {
         // Remove selected class from all days
-        const allDays = this.containerEl.querySelectorAll('.calendar-day');
+        const allDays = this.contentEl.querySelectorAll('.calendar-day');
         allDays.forEach(day => {
             day.classList.remove('selected');
             day.setAttribute('aria-selected', 'false');
@@ -338,7 +338,7 @@ export class CalendarView extends View {
     
     // Show a loading indicator while building cache
     private showLoadingIndicator() {
-        const container = this.containerEl.querySelector('.chronosync-container');
+        const container = this.contentEl.querySelector('.chronosync-container');
         if (!container) return;
 
         // Check if indicator already exists
@@ -352,7 +352,7 @@ export class CalendarView extends View {
 
     // Hide the loading indicator
     private hideLoadingIndicator() {
-        const indicator = this.containerEl.querySelector('.cache-loading-indicator');
+        const indicator = this.contentEl.querySelector('.cache-loading-indicator');
         if (indicator) {
             indicator.remove();
         }
@@ -364,27 +364,30 @@ export class CalendarView extends View {
         // Add month navigation
         const navContainer = controlsContainer.createDiv({ cls: 'calendar-nav' });
         
-        // Group the current month display with navigation buttons
+        // Create compact navigation group
         const monthNavigationGroup = navContainer.createDiv({ cls: 'month-navigation-group' });
         
-        const prevButton = monthNavigationGroup.createEl('button', { text: '←' });
+        // Button group for prev/next
+        const navButtons = monthNavigationGroup.createDiv({ cls: 'nav-button-group' });
+        
+        const prevButton = navButtons.createEl('button', { text: '‹', cls: 'nav-arrow-button' });
         prevButton.addEventListener('click', () => {
             this.navigateToPreviousPeriod();
         });
         prevButton.setAttribute('aria-label', 'Previous month');
         prevButton.setAttribute('title', 'Previous month (Left arrow or H key)');
         
-        const currentMonth = monthNavigationGroup.createEl('span', { 
-            text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
-            cls: 'current-month' 
-        });
-        
-        const nextButton = monthNavigationGroup.createEl('button', { text: '→' });
+        const nextButton = navButtons.createEl('button', { text: '›', cls: 'nav-arrow-button' });
         nextButton.addEventListener('click', () => {
             this.navigateToNextPeriod();
         });
         nextButton.setAttribute('aria-label', 'Next month');
         nextButton.setAttribute('title', 'Next month (Right arrow or L key)');
+        
+        const currentMonth = monthNavigationGroup.createEl('span', { 
+            text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
+            cls: 'current-month' 
+        });
         
         // Add colorize mode selector
         const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
@@ -662,7 +665,7 @@ export class CalendarView extends View {
     // Clear all colorization to prepare for new colorization
     private clearCalendarColorization() {
         // Get all calendar day elements
-        const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
         
         // Remove all colorization classes and indicators
         calendarDays.forEach(day => {
@@ -692,7 +695,7 @@ export class CalendarView extends View {
         const notesCache = calendarData.notes;
         
         // Find all calendar days
-        const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
         
         // Add note indicators
         calendarDays.forEach(day => {
@@ -767,7 +770,7 @@ export class CalendarView extends View {
         const tasksCache = calendarData.tasks;
         
         // Find all calendar days
-        const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
         
         // Add task indicators
         calendarDays.forEach(day => {
@@ -863,7 +866,7 @@ export class CalendarView extends View {
         }
         
         // Find all calendar days
-        const calendarDays = this.containerEl.querySelectorAll('.calendar-day');
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
         
         // Add daily note indicators
         calendarDays.forEach(day => {
