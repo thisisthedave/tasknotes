@@ -1421,6 +1421,9 @@ button.processing::after {
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
 }
 
 .note-item-date {
@@ -1441,6 +1444,23 @@ button.processing::after {
     padding: 0.1rem 0.3rem;
     background-color: var(--background-secondary);
     border-radius: 4px;
+}
+
+/* Daily note styling */
+.daily-note-item {
+    border-left: 3px solid #9e74d0;
+}
+
+.daily-note-badge {
+    background: #9e74d0;
+    color: white;
+    padding: 2px 6px;
+    border-radius: var(--cs-radius-sm);
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
 }
 
 /* Timeblock Editor */

@@ -107,31 +107,8 @@ export class NotesView extends ItemView {
         // Add actions
         const actionsContainer = headerContainer.createDiv({ cls: 'detail-view-actions' });
         
-        const createNoteButton = actionsContainer.createEl('button', { 
-            text: 'New Note', 
-            cls: 'new-note-button chronosync-button chronosync-button-primary',
-            attr: {
-                'aria-label': 'Create new note',
-                'title': 'Create new note'
-            }
-        });
-        
-        createNoteButton.addEventListener('click', () => {
-            // TODO: Implement note creation
-            new Notice('Note creation not yet implemented');
-        });
-    }
-    
-    async createNotesContent(container: HTMLElement) {
-        // Get the selected date as a string for display
-        const dateText = `Notes for ${format(this.plugin.selectedDate, 'MMM d, yyyy')}`;
-        
-        // Create header with refresh option
-        const headerContainer = container.createDiv({ cls: 'notes-header' });
-        headerContainer.createEl('h3', { text: dateText, cls: 'notes-title' });
-        
-        // Add refresh button to header
-        const refreshButton = headerContainer.createEl('button', { 
+        // Add refresh button
+        const refreshButton = actionsContainer.createEl('button', { 
             text: 'Refresh', 
             cls: 'refresh-notes-button chronosync-button chronosync-button-secondary',
             attr: {
@@ -146,7 +123,9 @@ export class NotesView extends ItemView {
             this.lastNotesRefresh = 0;
             await this.refresh(true);
         });
-        
+    }
+    
+    async createNotesContent(container: HTMLElement) {
         // Notes list
         const notesList = container.createDiv({ cls: 'notes-list' });
         
@@ -182,11 +161,22 @@ export class NotesView extends ItemView {
             // Create note items
             notes.forEach(note => {
                 const noteItem = document.createElement('div');
-                noteItem.className = 'note-item chronosync-card';
+                const isDailyNote = note.path.startsWith(this.plugin.settings.dailyNotesFolder);
+                noteItem.className = `note-item chronosync-card ${isDailyNote ? 'daily-note-item' : ''}`;
                 
                 const titleEl = document.createElement('div');
                 titleEl.className = 'note-item-title chronosync-card-header';
-                titleEl.textContent = note.title;
+                
+                // Add indicator for daily notes
+                if (isDailyNote) {
+                    const dailyIndicator = document.createElement('span');
+                    dailyIndicator.className = 'daily-note-badge';
+                    dailyIndicator.textContent = 'Daily';
+                    titleEl.appendChild(dailyIndicator);
+                    titleEl.appendChild(document.createTextNode(' '));
+                }
+                
+                titleEl.appendChild(document.createTextNode(note.title));
                 noteItem.appendChild(titleEl);
                 
                 const contentContainer = document.createElement('div');
@@ -265,10 +255,8 @@ export class NotesView extends ItemView {
             // Use the FileIndexer to get notes information for the specific date
             const notes = await this.plugin.fileIndexer.getNotesForDate(this.plugin.selectedDate, forceRefresh);
             
-            // Filter out daily notes
-            const filteredNotes = notes.filter(note => 
-                !note.path.startsWith(this.plugin.settings.dailyNotesFolder)
-            );
+            // Include all notes (both regular notes and daily notes)
+            const filteredNotes = notes;
             
             // Sort notes by title
             const sortedResult = filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
