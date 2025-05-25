@@ -92,20 +92,41 @@
     width: 100%;
 }
 
-.keyboard-nav-hint {
-    margin-top: 0.5rem;
-    padding: 0.25rem;
-    text-align: center;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    background-color: var(--background-secondary-alt);
-    border-radius: 4px;
-}
+/* We're removing the keyboard nav hint */
 
 .month-navigation-group {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* Calendar colorize mode selector styling */
+.colorize-mode-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.colorize-mode-label {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.colorize-mode-select {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary-alt);
+    color: var(--text-normal);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.colorize-mode-select:focus {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+    outline: none;
 }
 
 .calendar-nav button {
@@ -578,6 +599,15 @@
     gap: 0.75rem;
 }
 
+/* Tasks container with card layout */
+.tasks-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 0.75rem;
+    padding: 0.25rem;
+    contain: layout style;
+}
+
 /* Task sections for due today and other tasks */
 .task-section {
     margin-bottom: 1.5rem;
@@ -648,7 +678,7 @@
 /* Controls row */
 .task-controls {
     display: grid;
-    grid-template-columns: repeat(3, minmax(7rem, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
     align-items: center;
     width: 100%;
@@ -678,12 +708,13 @@
     border-radius: 4px;
     border: 1px solid var(--background-modifier-border);
     background-color: var(--background-secondary-alt);
-    width: auto;
-    min-width: 7rem;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .task-due-date-input {
-    width: 9rem;
+    width: 100%;
 }
 
 .task-status-select:focus, 
@@ -789,7 +820,7 @@
 }
 
 .task-item-title {
-    font-weight: bold;
+    font-weight: 500;
 }
 
 .task-item-due.due-today {
@@ -855,14 +886,14 @@
     border: 1px solid var(--background-modifier-border);
     background: var(--background-secondary-alt);
     cursor: pointer;
-    width: auto;
-    min-width: 7rem;
+    width: 100%;
     font-size: 0.85rem;
     margin: 0;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
 }
 
 .task-toggle-button.mark-complete {
@@ -1541,8 +1572,10 @@
         height: 5px;
     }
     
-    .keyboard-nav-hint {
-        display: none;
+    /* Removed keyboard hint display none */
+    
+    .colorize-mode-container {
+        margin-top: 0.5rem;
     }
     
     .chronosync-tabs {
@@ -1573,7 +1606,11 @@
     }
     
     .notes-container {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+    
+    .tasks-container {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     }
 }
 
@@ -1602,5 +1639,9 @@
     .add-task-button, .refresh-tasks-button {
         width: 100%;
         justify-content: center;
+    }
+    
+    .notes-container, .tasks-container {
+        grid-template-columns: 1fr;
     }
 }

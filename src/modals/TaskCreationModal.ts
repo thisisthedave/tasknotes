@@ -16,6 +16,7 @@ export class TaskCreationModal extends Modal {
 	recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' = 'none';
 	daysOfWeek: string[] = [];
 	dayOfMonth: string = '';
+	monthOfYear: string = '';
   
 	constructor(app: App, plugin: ChronoSyncPlugin) {
 		super(app);
@@ -147,8 +148,10 @@ export class TaskCreationModal extends Modal {
 		
 		if (this.recurrence === 'weekly') {
 			this.createDaysOfWeekSelector(optionsContainer as HTMLElement);
-		} else if (this.recurrence === 'monthly' || this.recurrence === 'yearly') {
+		} else if (this.recurrence === 'monthly') {
 			this.createDayOfMonthSelector(optionsContainer as HTMLElement);
+		} else if (this.recurrence === 'yearly') {
+			this.createYearlySelector(optionsContainer as HTMLElement);
 		} else {
 			(optionsContainer as HTMLElement).style.display = 'none';
 		}
@@ -207,6 +210,57 @@ export class TaskCreationModal extends Modal {
 			input.addEventListener('input', (e) => {
 				this.dayOfMonth = (e.target as HTMLInputElement).value;
 			});
+		});
+	}
+	
+	createYearlySelector(container: HTMLElement) {
+		// Month selector
+		this.createFormGroup(container, 'Month', (group) => {
+			const select = group.createEl('select');
+			
+			const months = [
+				{ value: '1', text: 'January' },
+				{ value: '2', text: 'February' },
+				{ value: '3', text: 'March' },
+				{ value: '4', text: 'April' },
+				{ value: '5', text: 'May' },
+				{ value: '6', text: 'June' },
+				{ value: '7', text: 'July' },
+				{ value: '8', text: 'August' },
+				{ value: '9', text: 'September' },
+				{ value: '10', text: 'October' },
+				{ value: '11', text: 'November' },
+				{ value: '12', text: 'December' }
+			];
+			
+			months.forEach(month => {
+				select.createEl('option', { value: month.value, text: month.text });
+			});
+			
+			// Set default to current month
+			const currentMonth = (new Date().getMonth() + 1).toString();
+			select.value = currentMonth;
+			this.monthOfYear = currentMonth;
+			
+			select.addEventListener('change', (e) => {
+				this.monthOfYear = (e.target as HTMLSelectElement).value;
+			});
+		});
+		
+		// Day of month selector
+		this.createFormGroup(container, 'Day of month', (group) => {
+			const input = group.createEl('input', { type: 'number' });
+			input.min = '1';
+			input.max = '31';
+			input.addEventListener('input', (e) => {
+				this.dayOfMonth = (e.target as HTMLInputElement).value;
+			});
+		});
+		
+		// Add helper text
+		const helperText = container.createEl('div', { 
+			text: 'Select the month and day on which this task should recur each year.',
+			cls: 'recurrence-helper-text'
 		});
 	}
   
@@ -271,8 +325,17 @@ export class TaskCreationModal extends Modal {
 					yaml.recurrence.days_of_week = this.daysOfWeek;
 				}
 				
-				if ((this.recurrence === 'monthly' || this.recurrence === 'yearly') && this.dayOfMonth) {
+				if (this.recurrence === 'monthly' && this.dayOfMonth) {
 					yaml.recurrence.day_of_month = parseInt(this.dayOfMonth);
+				}
+				
+				if (this.recurrence === 'yearly') {
+					if (this.dayOfMonth) {
+						yaml.recurrence.day_of_month = parseInt(this.dayOfMonth);
+					}
+					if (this.monthOfYear) {
+						yaml.recurrence.month_of_year = parseInt(this.monthOfYear);
+					}
 				}
 				
 				yaml.complete_instances = [];

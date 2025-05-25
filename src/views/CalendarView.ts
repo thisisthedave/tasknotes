@@ -165,7 +165,7 @@ export class CalendarView extends View {
      */
     registerKeyboardNavigation() {
         // Add keyboard event handling for this view
-        this.registerDomEvent(document, 'keydown', (e: KeyboardEvent) => {
+        this.registerDomEvent(document, 'keydown', async (e: KeyboardEvent) => {
             // Only handle events when this view is active
             if (!this.isThisViewActive()) {
                 return;
@@ -208,6 +208,39 @@ export class CalendarView extends View {
                 case 'Enter':
                     e.preventDefault();
                     this.plugin.navigateToDailyNote(currentDate);
+                    return;
+                    
+                // Number 1 key - switch to Tasks colorization
+                case '1':
+                    e.preventDefault();
+                    if (this.colorizeMode !== 'tasks') {
+                        await this.setColorizeMode('tasks');
+                        // Update the dropdown to match
+                        const dropdown = this.containerEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
+                        if (dropdown) dropdown.value = 'tasks';
+                    }
+                    return;
+                    
+                // Number 2 key - switch to Notes colorization
+                case '2':
+                    e.preventDefault();
+                    if (this.colorizeMode !== 'notes') {
+                        await this.setColorizeMode('notes');
+                        // Update the dropdown to match
+                        const dropdown = this.containerEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
+                        if (dropdown) dropdown.value = 'notes';
+                    }
+                    return;
+                    
+                // Number 3 key - switch to Daily Notes colorization
+                case '3':
+                    e.preventDefault();
+                    if (this.colorizeMode !== 'daily') {
+                        await this.setColorizeMode('daily');
+                        // Update the dropdown to match
+                        const dropdown = this.containerEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
+                        if (dropdown) dropdown.value = 'daily';
+                    }
                     return;
                     
                 default:
@@ -320,13 +353,19 @@ export class CalendarView extends View {
         const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
         const colorizeLabel = colorizeContainer.createEl('span', { text: 'Show: ', cls: 'colorize-mode-label' });
         
-        const colorizeSelect = colorizeContainer.createEl('select', { cls: 'colorize-mode-select' });
+        const colorizeSelect = colorizeContainer.createEl('select', { 
+            cls: 'colorize-mode-select',
+            attr: {
+                'title': 'Change view (use keys 1, 2, 3 to switch)',
+                'aria-label': 'Change calendar view (use keys 1, 2, 3 to switch)'
+            }
+        });
         
-        // Add colorize mode options
+        // Add colorize mode options with keyboard shortcuts
         const modes = [
-            { value: 'tasks', text: 'Tasks' },
-            { value: 'notes', text: 'Notes' },
-            { value: 'daily', text: 'Daily Notes' }
+            { value: 'tasks', text: 'Tasks (1)' },
+            { value: 'notes', text: 'Notes (2)' },
+            { value: 'daily', text: 'Daily Notes (3)' }
         ];
         
         modes.forEach(mode => {
@@ -362,9 +401,7 @@ export class CalendarView extends View {
             this.navigateToToday();
         });
         
-        // Add keyboard navigation hint
-        const keyboardHint = controlsContainer.createDiv({ cls: 'keyboard-nav-hint' });
-        keyboardHint.setText('Keyboard navigation: Arrow keys / h,j,k,l to navigate, Enter to open daily note');
+        // Keyboard navigation hint removed as requested
     }
     
     // Set the colorization mode and update the view

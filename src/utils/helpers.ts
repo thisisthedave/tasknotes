@@ -146,7 +146,8 @@ export function extractTaskInfo(content: string, path: string): {
 	recurrence?: {
 		frequency: 'daily' | 'weekly' | 'monthly' | 'yearly',
 		days_of_week?: string[],
-		day_of_month?: number
+		day_of_month?: number,
+		month_of_year?: number
 	},
 	complete_instances?: string[]
 } | null {
@@ -168,7 +169,8 @@ export function extractTaskInfo(content: string, path: string): {
 					recurrence = {
 						frequency: yaml.recurrence.frequency,
 						days_of_week: yaml.recurrence.days_of_week,
-						day_of_month: yaml.recurrence.day_of_month
+						day_of_month: yaml.recurrence.day_of_month,
+						month_of_year: yaml.recurrence.month_of_year
 					};
 				}
 				
@@ -228,6 +230,7 @@ export function isRecurringTaskDueOn(task: any, date: Date): boolean {
 	targetDate.setHours(0, 0, 0, 0);
 	const dayOfWeek = targetDate.getDay();
 	const dayOfMonth = targetDate.getDate();
+	const monthOfYear = targetDate.getMonth() + 1; // JavaScript months are 0-indexed
 	// Map JavaScript's day of week (0-6, where 0 is Sunday) to our day abbreviations
 	const weekdayMap = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 	
@@ -243,10 +246,18 @@ export function isRecurringTaskDueOn(task: any, date: Date): boolean {
 			return dayOfMonth === task.recurrence.day_of_month;
 		case 'yearly':
 			// Check if it's the specific day of month in the correct month
-			if (!task.due) return false;
-			const originalDueDate = new Date(task.due);
-			return originalDueDate.getDate() === dayOfMonth && 
-				originalDueDate.getMonth() === targetDate.getMonth();
+			// First check if we have explicit month_of_year in recurrence
+			if (task.recurrence.month_of_year && task.recurrence.day_of_month) {
+				return dayOfMonth === task.recurrence.day_of_month && 
+					monthOfYear === task.recurrence.month_of_year;
+			}
+			// Fall back to using the original due date
+			else if (task.due) {
+				const originalDueDate = new Date(task.due);
+				return originalDueDate.getDate() === dayOfMonth && 
+					originalDueDate.getMonth() === targetDate.getMonth();
+			}
+			return false;
 		default:
 			return false;
 	}

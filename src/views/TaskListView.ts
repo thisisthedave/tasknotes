@@ -282,10 +282,11 @@ export class TaskListView extends View {
                     cls: 'task-section-header'
                 });
                 
-                const selectedDateTaskList = selectedDateSection.createDiv({ cls: 'task-list' });
+                // Create a container for the task cards layout
+                const selectedDateTasksContainer = selectedDateSection.createDiv({ cls: 'tasks-container task-cards' });
                 
                 // Create task items for selected date - pass false to not filter recurring tasks
-                this.renderTaskGroup(selectedDateTaskList, tasksForSelectedDate, selectedDateStr, false);
+                this.renderTaskGroup(selectedDateTasksContainer, tasksForSelectedDate, selectedDateStr, false);
             }
             
             // If we have recurring tasks, add a section for them
@@ -297,10 +298,11 @@ export class TaskListView extends View {
                     cls: 'task-section-header recurring-section-header'
                 });
                 
-                const recurringTasksList = recurringTasksSection.createDiv({ cls: 'task-list' });
+                // Create a container for the task cards layout
+                const recurringTasksContainer = recurringTasksSection.createDiv({ cls: 'tasks-container task-cards' });
                 
                 // Create task items for recurring tasks - pass false to not filter recurring tasks again
-                this.renderTaskGroup(recurringTasksList, recurringTasks, selectedDateStr, false);
+                this.renderTaskGroup(recurringTasksContainer, recurringTasks, selectedDateStr, false);
             }
             
             // If there are other tasks, add a separate section
@@ -312,15 +314,18 @@ export class TaskListView extends View {
                     cls: 'task-section-header'
                 });
                 
-                const otherTasksList = otherTasksSection.createDiv({ cls: 'task-list' });
+                // Create a container for the task cards layout
+                const otherTasksContainer = otherTasksSection.createDiv({ cls: 'tasks-container task-cards' });
                 
                 // Create task items for other tasks
-                this.renderTaskGroup(otherTasksList, otherTasks, selectedDateStr, false);
+                this.renderTaskGroup(otherTasksContainer, otherTasks, selectedDateStr, false);
             }
             
             // If no sections were rendered, show all tasks
             if (!hasRenderedAnySection) {
-                this.renderTaskGroup(container, uniqueTasks, selectedDateStr);
+                // Create a container for the task cards layout
+                const tasksContainer = container.createDiv({ cls: 'tasks-container task-cards' });
+                this.renderTaskGroup(tasksContainer, uniqueTasks, selectedDateStr);
             }
         }
     }
@@ -371,13 +376,7 @@ export class TaskListView extends View {
                 titleEl.prepend(recurIcon);
             }
             
-            // Due date
-            if (task.due) {
-                taskInfo.createDiv({ 
-                    cls: `task-item-due ${isTaskOverdue(task) ? 'task-overdue' : ''} ${isDueOnSelectedDate ? 'due-today' : ''}`,
-                    text: `Due: ${task.due}`
-                });
-            }
+            // Due date display removed
             
             // Create metadata section (right side)
             const taskMeta = taskHeader.createDiv({ cls: 'task-item-metadata' });

@@ -72,6 +72,16 @@ export default class ChronoSyncPlugin extends Plugin {
 		this.addRibbonIcon('calendar-days', 'ChronoSync', async () => {
 			await this.activateLinkedViews();
 		});
+		
+		// Add ribbon icon for a side-by-side layout
+		this.addRibbonIcon('layout-grid', 'ChronoSync Grid Layout', async () => {
+			await this.createGridLayout();
+		});
+		
+		// Add ribbon icon for a tabs layout
+		this.addRibbonIcon('layout-tabs', 'ChronoSync Tabs Layout', async () => {
+			await this.createTabsLayout();
+		});
 
 		// Add commands
 		this.addCommands();
@@ -127,7 +137,13 @@ export default class ChronoSyncPlugin extends Plugin {
 	}
 
 	onunload() {
-		// Views cleanup happens automatically
+		// Properly detach all the views created by this plugin
+		const { workspace } = this.app;
+		
+		// Detach all leaves of the view types we registered
+		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
+		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
+		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
 	}
 
 	async loadSettings() {
@@ -185,6 +201,22 @@ export default class ChronoSyncPlugin extends Plugin {
 				await this.activateLinkedViews();
 			}
 		});
+		
+		this.addCommand({
+			id: 'open-grid-layout',
+			name: 'Open ChronoSync in grid layout',
+			callback: async () => {
+				await this.createGridLayout();
+			}
+		});
+		
+		this.addCommand({
+			id: 'open-tabs-layout',
+			name: 'Open ChronoSync in tabs layout',
+			callback: async () => {
+				await this.createTabsLayout();
+			}
+		});
 
 		// Task commands
 		this.addCommand({
@@ -238,16 +270,21 @@ export default class ChronoSyncPlugin extends Plugin {
 		let leaf = this.getLeafOfType(viewType);
 		
 		if (!leaf) {
-			// Create new leaf for view
+			// Simple approach - create a new tab
+			// This is more reliable for tab behavior
 			leaf = workspace.getLeaf('tab');
+			
+			// Set the view state for this leaf
 			await leaf.setViewState({
 				type: viewType,
 				active: true,
 			});
 		}
 		
-		// Reveal the leaf in case it's in a collapsed state
+		// Make this leaf active and ensure it's visible
+		workspace.setActiveLeaf(leaf, { focus: true });
 		workspace.revealLeaf(leaf);
+		
 		return leaf;
 	}
 	
@@ -264,11 +301,139 @@ export default class ChronoSyncPlugin extends Plugin {
 	}
 	
 	async activateLinkedViews() {
-		// Create or activate calendar view first
-		await this.activateCalendarView();
+		const { workspace } = this.app;
 		
-		// Then create or activate tasks view
-		await this.activateTasksView();
+		// Clear existing views first
+		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
+		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
+		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
+		
+		// Create a calendar view
+		const calendarLeaf = workspace.getLeaf('tab');
+		await calendarLeaf.setViewState({
+			type: CALENDAR_VIEW_TYPE,
+			active: true
+		});
+		
+		// Create a tasks view in a new tab
+		const tasksLeaf = workspace.getLeaf('tab');
+		await tasksLeaf.setViewState({
+			type: TASK_LIST_VIEW_TYPE
+		});
+		
+		// Create a notes view in a new tab
+		const notesLeaf = workspace.getLeaf('tab');
+		await notesLeaf.setViewState({
+			type: NOTES_VIEW_TYPE
+		});
+		
+		// Group these leaves together for synchronized date selection
+		const groupName = 'chronosync-views';
+		calendarLeaf.setGroup(groupName);
+		tasksLeaf.setGroup(groupName);
+		notesLeaf.setGroup(groupName);
+		
+		// Make calendar the active view
+		workspace.setActiveLeaf(calendarLeaf, { focus: true });
+		
+		new Notice('ChronoSync views created. You can drag and rearrange these tabs as needed.');
+	}
+	
+	/**
+	 * Creates a grid layout with calendar, tasks, and notes views arranged side by side
+	 * This creates a more complete workspace layout that users can then customize
+	 */
+	async createGridLayout() {
+		const { workspace } = this.app;
+		
+		// First, detach any existing views to start fresh
+		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
+		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
+		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
+		
+		// Create the main calendar view in the root split
+		// First, get a leaf in the main workspace area (this should be a tab)
+		let calendarLeaf = workspace.getLeaf('tab');
+		await calendarLeaf.setViewState({
+			type: CALENDAR_VIEW_TYPE,
+			active: true
+		});
+		
+		// Create the tasks view in a horizontal split below the calendar
+		workspace.setActiveLeaf(calendarLeaf, { focus: true });
+		const tasksLeaf = workspace.splitActiveLeaf('horizontal');
+		await tasksLeaf.setViewState({
+			type: TASK_LIST_VIEW_TYPE
+		});
+		
+		// Create the notes view in a vertical split next to the calendar
+		workspace.setActiveLeaf(calendarLeaf, { focus: true });
+		const notesLeaf = workspace.splitActiveLeaf('vertical');
+		await notesLeaf.setViewState({
+			type: NOTES_VIEW_TYPE
+		});
+		
+		// Group these leaves together
+		const groupName = 'chronosync-grid';
+		calendarLeaf.setGroup(groupName);
+		tasksLeaf.setGroup(groupName);
+		notesLeaf.setGroup(groupName);
+		
+		// Set calendar as active at the end
+		workspace.setActiveLeaf(calendarLeaf, { focus: true });
+		
+		// Show a notice to let the user know they can rearrange the tabs
+		new Notice('ChronoSync views created in grid layout. You can drag and rearrange these tabs freely.');
+	}
+	
+	/**
+	 * Creates a tabs-only layout with all views as tabs in the same container
+	 * This provides better tab draggability as they're all native Obsidian tabs
+	 */
+	async createTabsLayout() {
+		const { workspace } = this.app;
+		
+		// First, detach any existing views to start fresh
+		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
+		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
+		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
+		
+		// Create tabs for each view type in the main workspace
+		const firstLeaf = workspace.getLeaf('tab');
+		await firstLeaf.setViewState({
+			type: CALENDAR_VIEW_TYPE,
+			active: true
+		});
+		
+		// We need to wait for the first tab to be created completely
+		// before creating new tabs
+		await new Promise(resolve => setTimeout(resolve, 100));
+		
+		// Create the second tab
+		const secondLeaf = workspace.getLeaf('tab');
+		await secondLeaf.setViewState({
+			type: TASK_LIST_VIEW_TYPE,
+		});
+		
+		// Wait again before creating the third tab
+		await new Promise(resolve => setTimeout(resolve, 100));
+		
+		// Create the third tab
+		const thirdLeaf = workspace.getLeaf('tab');
+		await thirdLeaf.setViewState({
+			type: NOTES_VIEW_TYPE,
+		});
+		
+		// Group these views for synchronized date selection
+		const groupName = 'chronosync-tabs';
+		firstLeaf.setGroup(groupName);
+		secondLeaf.setGroup(groupName);
+		thirdLeaf.setGroup(groupName);
+		
+		// Make the calendar view active 
+		workspace.setActiveLeaf(firstLeaf, { focus: true });
+		
+		new Notice('ChronoSync tabs created. You can now freely drag and rearrange these tabs.');
 	}
 
 	getLeafOfType(viewType: string): WorkspaceLeaf | null {
