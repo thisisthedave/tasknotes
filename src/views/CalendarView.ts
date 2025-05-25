@@ -942,17 +942,12 @@ export class CalendarView extends ItemView {
     
     // Helper method to show day preview on hover
     private showDayPreview(event: MouseEvent, date: Date, targetEl: HTMLElement) {
-        // Check if we have Ctrl/Cmd pressed for enhanced preview
-        if (!event.ctrlKey && !event.metaKey) {
-            return; // Only show preview with Ctrl/Cmd + hover
-        }
-        
         // Get the daily note path for this date
         const dailyNotePath = this.getDailyNotePath(date);
-        const file = this.app.vault.getAbstractFileByPath(dailyNotePath);
+        const dailyNoteFile = this.app.vault.getAbstractFileByPath(dailyNotePath);
         
-        if (file) {
-            // Show preview for the daily note
+        if (dailyNoteFile) {
+            // Show preview for the daily note only
             this.app.workspace.trigger('hover-link', {
                 event,
                 source: 'chronosync-calendar',
@@ -962,6 +957,7 @@ export class CalendarView extends ItemView {
                 sourcePath: dailyNotePath
             });
         }
+        // If no daily note exists, don't show any preview
     }
     
     // Helper method to get daily note path for a date
