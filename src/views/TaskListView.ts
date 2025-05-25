@@ -621,6 +621,21 @@ export class TaskListView extends ItemView {
             taskInfo.addEventListener('click', () => {
                 this.openTask(task.path);
             });
+            
+            // Add hover preview functionality for tasks
+            taskInfo.addEventListener('mouseover', (event) => {
+                const file = this.app.vault.getAbstractFileByPath(task.path);
+                if (file) {
+                    this.app.workspace.trigger('hover-link', {
+                        event,
+                        source: 'chronosync-tasks',
+                        hoverParent: this,
+                        targetEl: taskInfo,
+                        linktext: task.path,
+                        sourcePath: task.path
+                    });
+                }
+            });
         });
     }
     

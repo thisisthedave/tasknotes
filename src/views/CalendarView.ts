@@ -567,6 +567,11 @@ export class CalendarView extends ItemView {
                 this.updateSelectedDate(dayDate);
             });
             
+            // Add hover preview functionality for daily notes
+            dayEl.addEventListener('mouseover', (event) => {
+                this.showDayPreview(event, dayDate, dayEl);
+            });
+            
             // Add keyboard event handler to each day
             dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -613,6 +618,11 @@ export class CalendarView extends ItemView {
                 this.updateSelectedDate(dayDate);
             });
             
+            // Add hover preview functionality for daily notes
+            dayEl.addEventListener('mouseover', (event) => {
+                this.showDayPreview(event, dayDate, dayEl);
+            });
+            
             // Add keyboard event handler to each day
             dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -650,6 +660,11 @@ export class CalendarView extends ItemView {
             // Add click handler
             dayEl.addEventListener('click', () => {
                 this.updateSelectedDate(dayDate);
+            });
+            
+            // Add hover preview functionality for daily notes
+            dayEl.addEventListener('mouseover', (event) => {
+                this.showDayPreview(event, dayDate, dayEl);
             });
             
             // Add keyboard event handler to each day
@@ -923,5 +938,35 @@ export class CalendarView extends ItemView {
     getViewEndDate(): Date {
         // Last day of the month
         return new Date(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth() + 1, 0);
+    }
+    
+    // Helper method to show day preview on hover
+    private showDayPreview(event: MouseEvent, date: Date, targetEl: HTMLElement) {
+        // Check if we have Ctrl/Cmd pressed for enhanced preview
+        if (!event.ctrlKey && !event.metaKey) {
+            return; // Only show preview with Ctrl/Cmd + hover
+        }
+        
+        // Get the daily note path for this date
+        const dailyNotePath = this.getDailyNotePath(date);
+        const file = this.app.vault.getAbstractFileByPath(dailyNotePath);
+        
+        if (file) {
+            // Show preview for the daily note
+            this.app.workspace.trigger('hover-link', {
+                event,
+                source: 'chronosync-calendar',
+                hoverParent: this,
+                targetEl: targetEl,
+                linktext: dailyNotePath,
+                sourcePath: dailyNotePath
+            });
+        }
+    }
+    
+    // Helper method to get daily note path for a date
+    private getDailyNotePath(date: Date): string {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        return `${this.plugin.settings.dailyNotesFolder}/${dateStr}.md`;
     }
 }

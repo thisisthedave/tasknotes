@@ -215,6 +215,21 @@ export class NotesView extends ItemView {
                     this.openNote(note.path);
                 });
                 
+                // Add hover preview functionality
+                noteItem.addEventListener('mouseover', (event) => {
+                    const file = this.app.vault.getAbstractFileByPath(note.path);
+                    if (file) {
+                        this.app.workspace.trigger('hover-link', {
+                            event,
+                            source: 'chronosync-notes',
+                            hoverParent: this,
+                            targetEl: noteItem,
+                            linktext: note.path,
+                            sourcePath: note.path
+                        });
+                    }
+                });
+                
                 fragment.appendChild(noteItem);
             });
             
