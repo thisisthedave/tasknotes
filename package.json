@@ -1,6 +1,6 @@
 {
 	"name": "chronosync",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "Comprehensive diary, task, note, and time management for Obsidian",
 	"main": "main.js",
 	"scripts": {
