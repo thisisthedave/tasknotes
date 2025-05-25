@@ -119,14 +119,25 @@ button.processing::after {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--cs-spacing-md);
-    padding-bottom: var(--cs-spacing-sm);
-    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--cs-spacing-xs);
+    padding: 0;
+    border-bottom: none;
 }
 
 .detail-view-actions {
     display: flex;
-    gap: var(--cs-spacing-sm);
+    gap: var(--cs-spacing-xs);
+    align-items: center;
+}
+
+.detail-view-header h2 {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.7;
 }
 
 /* Week view prompt */
@@ -791,42 +802,48 @@ button.processing::after {
 }
 
 .refresh-tasks-button {
-    padding: 0.35rem 0.7rem;
-    background-color: var(--background-secondary);
-    color: var(--text-normal);
-    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    background-color: transparent;
+    color: var(--text-faint);
+    border-radius: 0;
     cursor: pointer;
-    border: 1px solid var(--background-modifier-border);
-    transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+    border: none;
+    transition: opacity 0.15s ease;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
 }
 
 .refresh-tasks-button:hover {
-    background-color: var(--background-secondary-alt);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+    background-color: transparent;
+    transform: none;
+    box-shadow: none;
+    opacity: 1;
+    color: var(--text-normal);
 }
 
 /* Unified Card Styles */
 .chronosync-card {
-    padding: var(--cs-spacing-md);
-    border-radius: var(--cs-radius-md);
-    border: 1px solid var(--background-modifier-border);
-    background-color: var(--background-secondary);
+    padding: var(--cs-spacing-sm);
+    border-radius: 0;
+    border: none;
+    background-color: transparent;
     box-shadow: none;
-    transition: all var(--cs-transition-fast);
+    transition: opacity 0.15s ease;
 }
 
 .chronosync-card:hover {
-    background-color: var(--background-secondary-alt);
-    border-color: var(--background-modifier-border-hover);
+    background-color: var(--background-modifier-hover);
+    border-color: transparent;
 }
 
 .chronosync-card-header {
-    font-weight: 600;
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--background-modifier-border);
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.3rem;
+    border-bottom: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -837,14 +854,15 @@ button.processing::after {
 }
 
 .chronosync-card-footer {
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--background-modifier-border);
+    margin-top: 0.3rem;
+    padding-top: 0.3rem;
+    border-top: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.85rem;
-    color: var(--text-muted);
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    opacity: 0.8;
 }
 
 /* Task List */
@@ -857,9 +875,9 @@ button.processing::after {
 /* Tasks container with card layout */
 .tasks-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 0.5rem;
-    padding: 0.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0.3rem;
+    padding: 0;
     contain: layout style;
 }
 
@@ -869,41 +887,54 @@ button.processing::after {
 }
 
 .task-section-header {
-    padding: 0.5rem;
-    margin: 0.4rem 0;
-    background-color: var(--background-secondary-alt);
-    border-radius: 6px;
-    font-weight: 500;
-    font-size: 0.9rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    padding: 0.2rem 0;
+    margin: 0.3rem 0 0.2rem 0;
+    background-color: transparent;
+    border-radius: 0;
+    font-weight: 400;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    box-shadow: none;
+    border-bottom: none;
+    opacity: 0.6;
 }
 
 .selected-date-tasks .task-section-header {
-    border-left: 3px solid var(--interactive-accent);
-    color: var(--text-normal);
+    border-left: 1px solid var(--interactive-accent);
+    color: var(--interactive-accent);
+    opacity: 0.8;
+    padding-left: 0.3rem;
 }
 
 .recurring-tasks .task-section-header {
-    border-left: 3px solid var(--color-cyan);
-    color: var(--text-normal);
+    border-left: 1px solid var(--color-cyan);
+    color: var(--color-cyan);
+    opacity: 0.8;
+    padding-left: 0.3rem;
 }
 
 .task-item {
-    padding: 0.6rem;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 6px;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 0;
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    transition: all 0.2s ease;
-    background-color: var(--background-primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: opacity 0.15s ease;
+    background-color: transparent;
+    box-shadow: none;
+    border-bottom: 1px solid var(--background-modifier-border);
+    border-left: 1px solid var(--background-modifier-border);
+    border-right: 1px solid var(--background-modifier-border);
+    margin-bottom: 1px;
 }
 
 .task-item:hover {
-    background-color: var(--background-primary-alt);
-    transform: translateY(-2px);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    background-color: var(--background-modifier-hover);
+    transform: none;
+    box-shadow: none;
 }
 
 /* Task update animation */
@@ -978,15 +1009,17 @@ button.processing::after {
 .task-status-select, 
 .task-priority-select,
 .task-due-date-input {
-    font-size: 0.8rem;
-    padding: 2px 6px;
-    border-radius: var(--cs-radius-sm);
+    font-size: 0.75rem;
+    padding: 2px 4px;
+    border-radius: 0;
     border: 1px solid var(--background-modifier-border);
-    background-color: var(--background-secondary-alt);
+    background-color: transparent;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
     line-height: 1.2;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
 }
 
 .task-due-date-input {
@@ -998,12 +1031,19 @@ button.processing::after {
 .task-due-date-input:focus {
     border-color: var(--interactive-accent);
     outline: none;
+    opacity: 1;
+}
+
+.task-status-select:hover, 
+.task-priority-select:hover,
+.task-due-date-input:hover {
+    opacity: 1;
 }
 
 /* Archived task styling */
 .task-item.task-archived {
-    opacity: 0.85;
-    background-color: var(--background-secondary-alt);
+    opacity: 0.5;
+    background-color: transparent;
 }
 
 .task-archived-badge {
@@ -1020,20 +1060,24 @@ button.processing::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: var(--cs-touch-target);
-    height: var(--cs-touch-target);
-    border-radius: var(--cs-radius-sm);
-    background-color: var(--background-secondary-alt);
-    color: var(--text-normal);
+    width: 20px;
+    height: 20px;
+    border-radius: 0;
+    background-color: transparent;
+    color: var(--text-faint);
     padding: 0;
     text-align: center;
     margin-left: var(--cs-spacing-xs);
     border: none;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
 }
 
 .archive-button-icon:hover {
-    background-color: var(--background-modifier-hover);
+    background-color: transparent;
     cursor: pointer;
+    opacity: 1;
+    color: var(--text-normal);
 }
 
 .archive-button-icon.archived {
@@ -1092,8 +1136,8 @@ button.processing::after {
 
 /* Highlight tasks due on the selected date */
 .task-item.task-due-today {
-    border-left: 3px solid var(--interactive-accent);
-    background-color: var(--background-primary-alt);
+    border-left: 2px solid var(--interactive-accent);
+    background-color: transparent;
 }
 
 .task-item-title {
@@ -1104,7 +1148,7 @@ button.processing::after {
 
 .task-item-due.due-today {
     color: var(--interactive-accent);
-    font-weight: bold;
+    font-weight: normal;
 }
 
 .task-item-metadata {
@@ -1129,15 +1173,18 @@ button.processing::after {
 
 .task-status-open {
     color: var(--text-error);
+    opacity: 0.8;
 }
 
 .task-status-in-progress {
     color: var(--text-warning);
+    opacity: 0.8;
 }
 
 .task-status-done {
     color: var(--text-success);
-    text-decoration: line-through;
+    text-decoration: none;
+    opacity: 0.8;
 }
 
 .task-overdue {
@@ -1147,27 +1194,30 @@ button.processing::after {
 
 /* Recurring task styles */
 .task-item.task-recurring {
-    border-left: 3px solid var(--color-cyan);
+    border-left: 2px solid var(--color-cyan);
 }
 
 .task-recurring-icon {
     color: var(--color-cyan);
-    font-weight: bold;
+    font-weight: normal;
     margin-right: 4px;
+    opacity: 0.8;
 }
 
 .recurring-status {
-    border: 1px dashed var(--color-cyan);
+    border: none;
+    color: var(--color-cyan);
+    opacity: 0.8;
 }
 
 .task-toggle-button {
-    padding: 0.15rem 0.3rem;
-    border-radius: 4px;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0;
     border: 1px solid var(--background-modifier-border);
-    background: var(--background-secondary-alt);
+    background: transparent;
     cursor: pointer;
     width: 100%;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     margin: 0;
     height: 100%;
     display: flex;
@@ -1175,6 +1225,10 @@ button.processing::after {
     justify-content: center;
     box-sizing: border-box;
     line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
 }
 
 .task-toggle-button.mark-complete {
@@ -1186,7 +1240,9 @@ button.processing::after {
 }
 
 .task-toggle-button:hover {
-    background: var(--background-modifier-hover);
+    background: transparent;
+    opacity: 1;
+    border-color: var(--text-muted);
 }
 
 .task-toggle-button.processing, 
@@ -1373,18 +1429,23 @@ button.processing::after {
 }
 
 .refresh-notes-button {
-    background-color: var(--interactive-accent);
-    color: var(--text-on-accent);
+    background-color: transparent;
+    color: var(--text-faint);
     border: none;
-    padding: 4px 10px;
-    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0;
     cursor: pointer;
-    font-size: 12px;
-    transition: background-color 0.2s;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
 }
 
 .refresh-notes-button:hover {
-    background-color: var(--interactive-accent-hover);
+    background-color: transparent;
+    opacity: 1;
+    color: var(--text-normal);
 }
 
 .notes-list {
