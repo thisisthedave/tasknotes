@@ -672,20 +672,18 @@ export default class ChronoSyncPlugin extends Plugin {
 			
 			// Add the updated task to the file indexer's cache
 			if (this.fileIndexer) {
-				// Read the file to get the most up-to-date content
-				const content = await this.app.vault.cachedRead(file);
-				const taskInfo = extractTaskInfo(content, task.path);
+				// Use the manually constructed updated task like recurring tasks do
+				await this.fileIndexer.updateTaskInfoInCache(task.path, updatedTask as TaskInfo);
 				
-				// Find and update this file in the index
-				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo);
+				// Rebuild the file index to ensure all data is fresh like recurring tasks do
+				await this.fileIndexer.rebuildIndex();
 				
 				// Clear the YAML cache for this file
 				YAMLCache.clearCacheEntry(task.path);
 			}
 			
-			// Notify views that data has changed with the specific file path
-			// But DO NOT trigger a full UI refresh since we've directly updated the cache
-			this.notifyDataChanged(task.path, false, false);
+			// Notify views that data has changed and force a full refresh like recurring tasks do
+			this.notifyDataChanged(task.path, true, true);
 			
 			// Instead of a full refresh, we could implement a more targeted update
 			// mechanism in the future that updates just the affected DOM elements

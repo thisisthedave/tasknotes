@@ -431,17 +431,11 @@ export class TaskListView extends ItemView {
                 e.stopPropagation(); // Prevent task opening
                 
                 try {
-                    // Update the task object locally
-                    const updatedTask = { ...task, archived: !task.archived };
-                    
                     // Update in the backend
                     await this.plugin.toggleTaskArchive(task);
                     
-                    // Update the UI immediately
-                    this.updateTaskElementInDOM(task.path, updatedTask);
-                    
-                    // Update our cached task data
-                    this.updateTaskInCache(task.path, updatedTask);
+                    // Manually trigger refresh like recurring tasks do
+                    this.refresh();
                 } catch(err) {
                     console.error('Failed to toggle task archive:', err);
                 }
@@ -498,8 +492,8 @@ export class TaskListView extends ItemView {
                             updatedTask.complete_instances = updatedTask.complete_instances.filter(d => d !== selectedDateStr);
                         }
                         
-                        // Update in the backend
-                        await this.plugin.toggleRecurringTaskStatus(task, this.plugin.selectedDate);
+                        // Update in the backend with the updated task object
+                        await this.plugin.toggleRecurringTaskStatus(updatedTask, this.plugin.selectedDate);
                         
                         // Update the UI immediately
                         this.updateTaskElementInDOM(task.path, updatedTask);
@@ -541,32 +535,27 @@ export class TaskListView extends ItemView {
                 // Add event listener for status change
                 statusSelect.addEventListener('change', async (e) => {
                     e.stopPropagation(); // Prevent task opening
-                    const newStatus = (e.target as HTMLSelectElement).value;
+                    const select = e.target as HTMLSelectElement;
+                    const newStatus = select.value;
+                    const originalStatus = task.status;
                     
-                    // First update the UI element for immediate feedback
-                    statusSelect.disabled = true; // Prevent multiple changes
+                    // 1. Create a local copy of the task with the new status
+                    const updatedTask = { ...task, status: newStatus };
+                    
+                    // 2. Perform optimistic UI update
+                    this.updateTaskElementInDOM(task.path, updatedTask);
+                    this.updateTaskInCache(task.path, updatedTask);
                     
                     try {
-                        // Update the task object locally
-                        const updatedTask = { ...task, status: newStatus };
-                        
-                        // Update in the backend (silent to avoid duplicate notifications)
-                        await this.plugin.updateTaskProperty(task, 'status', newStatus, { silent: true });
-                        
-                        // Update the UI immediately
-                        this.updateTaskElementInDOM(task.path, updatedTask);
-                        
-                        // Update our cached task data
-                        this.updateTaskInCache(task.path, updatedTask);
-                        
-                        // Wait a bit before allowing more changes
-                        setTimeout(() => {
-                            statusSelect.disabled = false;
-                        }, 500);
+                        // 3. Sync change with the backend
+                        await this.plugin.updateTaskProperty(task, 'status', newStatus);
+                        // 4. The this.refresh() call is removed.
                     } catch(err) {
-                        // Re-enable on error and revert UI
-                        statusSelect.value = task.status;
-                        statusSelect.disabled = false;
+                        // Revert UI on error
+                        select.value = originalStatus;
+                        const revertedTask = { ...task, status: originalStatus };
+                        this.updateTaskElementInDOM(task.path, revertedTask);
+                        this.updateTaskInCache(task.path, revertedTask);
                         console.error('Failed to update task status:', err);
                     }
                 });
@@ -593,32 +582,22 @@ export class TaskListView extends ItemView {
             // Add event listener for priority change
             prioritySelect.addEventListener('change', async (e) => {
                 e.stopPropagation(); // Prevent task opening
-                const newPriority = (e.target as HTMLSelectElement).value;
+                const select = e.target as HTMLSelectElement;
+                const newPriority = select.value;
+                const originalPriority = task.priority;
                 
-                // First update the UI element for immediate feedback
-                prioritySelect.disabled = true; // Prevent multiple changes
+                const updatedTask = { ...task, priority: newPriority as 'low' | 'normal' | 'high' };
+                
+                this.updateTaskElementInDOM(task.path, updatedTask);
+                this.updateTaskInCache(task.path, updatedTask);
                 
                 try {
-                    // Update the task object locally
-                    const updatedTask = { ...task, priority: newPriority };
-                    
-                    // Update in the backend (silent to avoid duplicate notifications)
-                    await this.plugin.updateTaskProperty(task, 'priority', newPriority, { silent: true });
-                    
-                    // Update the UI immediately
-                    this.updateTaskElementInDOM(task.path, updatedTask);
-                    
-                    // Update our cached task data
-                    this.updateTaskInCache(task.path, updatedTask);
-                    
-                    // Wait a bit before allowing more changes
-                    setTimeout(() => {
-                        prioritySelect.disabled = false;
-                    }, 500);
+                    await this.plugin.updateTaskProperty(task, 'priority', newPriority);
                 } catch(err) {
-                    // Re-enable on error and revert UI
-                    prioritySelect.value = task.priority;
-                    prioritySelect.disabled = false;
+                    select.value = originalPriority;
+                    const revertedTask = { ...task, priority: originalPriority };
+                    this.updateTaskElementInDOM(task.path, revertedTask);
+                    this.updateTaskInCache(task.path, revertedTask);
                     console.error('Failed to update task priority:', err);
                 }
             });
@@ -641,32 +620,22 @@ export class TaskListView extends ItemView {
             // Add event listener for due date change
             dueDateInput.addEventListener('change', async (e) => {
                 e.stopPropagation(); // Prevent task opening
-                const newDueDate = (e.target as HTMLInputElement).value;
+                const input = e.target as HTMLInputElement;
+                const newDueDate = input.value;
+                const originalDueDate = task.due;
                 
-                // First update the UI element for immediate feedback
-                dueDateInput.disabled = true; // Prevent multiple changes
+                const updatedTask = { ...task, due: newDueDate };
+                
+                this.updateTaskElementInDOM(task.path, updatedTask);
+                this.updateTaskInCache(task.path, updatedTask);
                 
                 try {
-                    // Update the task object locally
-                    const updatedTask = { ...task, due: newDueDate };
-                    
-                    // Update in the backend (silent to avoid duplicate notifications)
-                    await this.plugin.updateTaskProperty(task, 'due', newDueDate, { silent: true });
-                    
-                    // Update the UI immediately
-                    this.updateTaskElementInDOM(task.path, updatedTask);
-                    
-                    // Update our cached task data
-                    this.updateTaskInCache(task.path, updatedTask);
-                    
-                    // Wait a bit before allowing more changes
-                    setTimeout(() => {
-                        dueDateInput.disabled = false;
-                    }, 500);
+                    await this.plugin.updateTaskProperty(task, 'due', newDueDate);
                 } catch(err) {
-                    // Re-enable on error and revert UI
-                    dueDateInput.value = task.due || '';
-                    dueDateInput.disabled = false;
+                    input.value = originalDueDate || '';
+                    const revertedTask = { ...task, due: originalDueDate };
+                    this.updateTaskElementInDOM(task.path, revertedTask);
+                    this.updateTaskInCache(task.path, revertedTask);
                     console.error('Failed to update task due date:', err);
                 }
             });
