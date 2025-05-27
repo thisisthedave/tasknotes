@@ -91,9 +91,6 @@ export class CalendarView extends ItemView {
         
         // Route to appropriate view based on display mode
         switch (this.displayMode) {
-            case 'week':
-                this.renderWeekGrid(container);
-                break;
             case 'agenda':
                 this.renderAgendaList(container);
                 break;
@@ -120,60 +117,81 @@ export class CalendarView extends ItemView {
     }
     
     async navigateToPreviousPeriod() {
-        const date = new Date(this.plugin.selectedDate);
+        const currentDate = new Date(this.plugin.selectedDate);
+        const date = new Date(currentDate);
         
-        if (this.displayMode === 'week' || this.displayMode === 'agenda') {
-            // Go to previous week (7 days)
+        if (this.displayMode === 'agenda') {
+            // Go to previous week (7 days) - always requires full refresh for agenda view
             date.setDate(date.getDate() - 7);
+            this.plugin.setSelectedDate(date);
+            await this.refresh();
         } else {
-            // Go to previous month
+            // Month view - go to previous month
             date.setMonth(date.getMonth() - 1);
+            this.plugin.setSelectedDate(date);
+            
+            // Check if we're changing months - if so, we need a full refresh
+            if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
+                // Force daily notes cache rebuild for the new month (only needed for month view)
+                if (this.colorizeMode === 'daily') {
+                    this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+                }
+                await this.refresh();
+            } else {
+                // Same month, just update selected date
+                this.updateSelectedDate(date);
+            }
         }
-        
-        this.plugin.setSelectedDate(date);
-        
-        // Force daily notes cache rebuild for the new month (only needed for month view)
-        if (this.colorizeMode === 'daily' && this.displayMode === 'month') {
-            this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
-        }
-        
-        // Refresh the view
-        await this.refresh();
     }
     
     async navigateToNextPeriod() {
-        const date = new Date(this.plugin.selectedDate);
+        const currentDate = new Date(this.plugin.selectedDate);
+        const date = new Date(currentDate);
         
-        if (this.displayMode === 'week' || this.displayMode === 'agenda') {
-            // Go to next week (7 days)
+        if (this.displayMode === 'agenda') {
+            // Go to next week (7 days) - always requires full refresh for agenda view
             date.setDate(date.getDate() + 7);
+            this.plugin.setSelectedDate(date);
+            await this.refresh();
         } else {
-            // Go to next month
+            // Month view - go to next month
             date.setMonth(date.getMonth() + 1);
+            this.plugin.setSelectedDate(date);
+            
+            // Check if we're changing months - if so, we need a full refresh
+            if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
+                // Force daily notes cache rebuild for the new month (only needed for month view)
+                if (this.colorizeMode === 'daily') {
+                    this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+                }
+                await this.refresh();
+            } else {
+                // Same month, just update selected date
+                this.updateSelectedDate(date);
+            }
         }
-        
-        this.plugin.setSelectedDate(date);
-        
-        // Force daily notes cache rebuild for the new month (only needed for month view)
-        if (this.colorizeMode === 'daily' && this.displayMode === 'month') {
-            this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
-        }
-        
-        // Refresh the view
-        await this.refresh();
     }
     
     async navigateToToday() {
+        const currentDate = new Date(this.plugin.selectedDate);
         const today = new Date();
         this.plugin.setSelectedDate(today);
         
-        // Force daily notes cache rebuild for the current month
-        if (this.colorizeMode === 'daily') {
-            this.plugin.fileIndexer.rebuildDailyNotesCache(today.getFullYear(), today.getMonth());
+        // Check if we're changing months/views - if so, we need a full refresh
+        if (this.displayMode === 'agenda' || 
+            currentDate.getMonth() !== today.getMonth() || 
+            currentDate.getFullYear() !== today.getFullYear()) {
+            
+            // Force daily notes cache rebuild for the current month (only for month view)
+            if (this.colorizeMode === 'daily' && this.displayMode === 'month') {
+                this.plugin.fileIndexer.rebuildDailyNotesCache(today.getFullYear(), today.getMonth());
+            }
+            
+            await this.refresh();
+        } else {
+            // Same month, just update selected date
+            this.updateSelectedDate(today);
         }
-        
-        // Refresh the view to show the current month
-        await this.refresh();
     }
     
   
@@ -276,10 +294,17 @@ export class CalendarView extends ItemView {
             // If we have a new date, update it and prevent default
             if (newDate) {
                 e.preventDefault();
-                this.plugin.setSelectedDate(newDate);
                 
-                // Refresh the view
-                this.refresh();
+                // Check if we're navigating to a different month
+                const currentDate = this.plugin.selectedDate;
+                if (currentDate.getMonth() !== newDate.getMonth() || currentDate.getFullYear() !== newDate.getFullYear()) {
+                    // Different month, need full refresh
+                    this.plugin.setSelectedDate(newDate);
+                    this.refresh();
+                } else {
+                    // Same month, just update selected date
+                    this.updateSelectedDate(newDate);
+                }
             }
         });
     }
@@ -391,7 +416,6 @@ export class CalendarView extends ItemView {
         
         const viewModes = [
             { value: 'month', text: 'Month' },
-            { value: 'week', text: 'Week' },
             { value: 'agenda', text: 'Agenda' }
         ];
         
@@ -1024,11 +1048,6 @@ export class CalendarView extends ItemView {
     // Helper method to get current period text based on display mode
     private getCurrentPeriodText(): string {
         switch (this.displayMode) {
-            case 'week':
-                const weekStart = this.getWeekStartDate(this.plugin.selectedDate);
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 6);
-                return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
             case 'agenda':
                 const agendaStart = this.plugin.selectedDate;
                 const agendaEnd = new Date(agendaStart);
@@ -1037,117 +1056,6 @@ export class CalendarView extends ItemView {
             case 'month':
             default:
                 return format(this.plugin.selectedDate, 'MMMM yyyy');
-        }
-    }
-    
-    // Helper method to get the start of the week (Sunday)
-    private getWeekStartDate(date: Date): Date {
-        const start = new Date(date);
-        const day = start.getDay();
-        start.setDate(start.getDate() - day);
-        return start;
-    }
-    
-    // Render week grid view
-    private async renderWeekGrid(container: HTMLElement): Promise<void> {
-        const weekGridContainer = container.createDiv({ cls: 'week-grid-container' });
-        
-        // Calculate week dates
-        const weekStart = this.getWeekStartDate(this.plugin.selectedDate);
-        const weekDates: Date[] = [];
-        for (let i = 0; i < 7; i++) {
-            const date = new Date(weekStart);
-            date.setDate(weekStart.getDate() + i);
-            weekDates.push(date);
-        }
-        
-        // Fetch data for all days concurrently
-        const dataPromises = weekDates.map(async date => {
-            const [tasks, notes] = await Promise.all([
-                this.plugin.fileIndexer.getTaskInfoForDate(date),
-                this.plugin.fileIndexer.getNotesForDate(date)
-            ]);
-            return { date, tasks, notes };
-        });
-        
-        const weekData = await Promise.all(dataPromises);
-        
-        // Create header
-        const weekHeader = weekGridContainer.createDiv({ cls: 'week-header' });
-        weekHeader.createDiv({ cls: 'time-label-header', text: 'Time' });
-        
-        weekDates.forEach(date => {
-            const dayHeader = weekHeader.createDiv({ cls: 'week-day-header' });
-            dayHeader.createDiv({ cls: 'day-name', text: format(date, 'EEE') });
-            dayHeader.createDiv({ cls: 'day-number', text: format(date, 'd') });
-        });
-        
-        // Create all-day section (above the time grid)
-        const allDaySection = weekGridContainer.createDiv({ cls: 'week-all-day-section' });
-        const allDayHeader = allDaySection.createDiv({ cls: 'all-day-header' });
-        allDayHeader.createDiv({ cls: 'all-day-label', text: 'All day' });
-        
-        // Create all-day columns for each day
-        const allDayColumns: HTMLElement[] = [];
-        weekDates.forEach((date, dayIndex) => {
-            allDayColumns.push(allDayHeader.createDiv({ cls: 'all-day-column' }));
-        });
-        
-        // Add tasks and notes to all-day section
-        weekData.forEach((dayData, dayIndex) => {
-            const allDayColumn = allDayColumns[dayIndex];
-            
-            // Filter tasks for this specific date
-            const dateStr = format(dayData.date, 'yyyy-MM-dd');
-            const tasksForThisDate = dayData.tasks.filter(task => {
-                // Show task if it's due on this date or if it's a recurring task due on this date
-                return task.due === dateStr || 
-                    (task.recurrence && isRecurringTaskDueOn(task, dayData.date));
-            });
-            
-            // Filter notes for this specific date (notes created on this date)
-            const notesForThisDate = dayData.notes.filter(note => {
-                // For notes, we check if they were created on this date
-                // The getNotesForDate method should already be filtering by creation date
-                return true; // Assuming getNotesForDate already filters correctly
-            });
-            
-            // Add tasks to all-day section
-            tasksForThisDate.forEach(task => {
-                const eventBlock = allDayColumn.createDiv({ cls: 'event-block task-event' });
-                eventBlock.textContent = task.title;
-                eventBlock.setAttribute('title', `Task: ${task.title} (Due: ${task.due || 'No due date'})`);
-            });
-            
-            // Add notes to all-day section
-            notesForThisDate.forEach(note => {
-                const eventBlock = allDayColumn.createDiv({ cls: 'event-block note-event' });
-                eventBlock.textContent = note.title;
-                eventBlock.setAttribute('title', `Note: ${note.title}`);
-            });
-        });
-        
-        // Create body with time slots (below the all-day section)
-        const weekBody = weekGridContainer.createDiv({ cls: 'week-body' });
-        
-        // Create time labels column
-        const timeLabelsCol = weekBody.createDiv({ cls: 'time-labels-col' });
-        
-        // Create day columns for time slots
-        const dayColumns: HTMLElement[] = [];
-        for (let i = 0; i < 7; i++) {
-            dayColumns.push(weekBody.createDiv({ cls: 'day-column' }));
-        }
-        
-        // Generate time slots (8 AM to 6 PM)
-        for (let hour = 8; hour <= 18; hour++) {
-            const timeStr = `${hour.toString().padStart(2, '0')}:00`;
-            timeLabelsCol.createDiv({ cls: 'time-slot', text: timeStr });
-            
-            // Add corresponding empty slots to each day column
-            dayColumns.forEach((column, dayIndex) => {
-                column.createDiv({ cls: 'time-slot' });
-            });
         }
     }
     

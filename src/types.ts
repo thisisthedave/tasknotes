@@ -13,7 +13,7 @@ export const EVENT_TASK_UPDATED = 'task-updated';
 export type ColorizeMode = 'tasks' | 'notes' | 'daily';
 
 // Calendar display modes
-export type CalendarDisplayMode = 'month' | 'week' | 'agenda';
+export type CalendarDisplayMode = 'month' | 'agenda';
 
 // Task sorting and grouping types
 export type TaskSortKey = 'due' | 'priority' | 'title';
