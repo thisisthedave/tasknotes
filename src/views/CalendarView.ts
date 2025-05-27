@@ -1129,6 +1129,29 @@ export class CalendarView extends ItemView {
                             meta.createSpan({ cls: 'context-tag', text: `@${context}` });
                         });
                     }
+                    
+                    // Add click handler to open task
+                    item.addEventListener('click', () => {
+                        const file = this.app.vault.getAbstractFileByPath(task.path);
+                        if (file instanceof TFile) {
+                            this.app.workspace.getLeaf(false).openFile(file);
+                        }
+                    });
+                    
+                    // Add hover preview functionality for tasks
+                    item.addEventListener('mouseover', (event) => {
+                        const file = this.app.vault.getAbstractFileByPath(task.path);
+                        if (file) {
+                            this.app.workspace.trigger('hover-link', {
+                                event,
+                                source: 'chronosync-agenda',
+                                hoverParent: this,
+                                targetEl: item,
+                                linktext: task.path,
+                                sourcePath: task.path
+                            });
+                        }
+                    });
                 });
                 
                 // Add notes
@@ -1143,6 +1166,29 @@ export class CalendarView extends ItemView {
                             meta.createSpan({ cls: 'note-tag', text: `#${tag}` });
                         });
                     }
+                    
+                    // Add click handler to open note
+                    item.addEventListener('click', () => {
+                        const file = this.app.vault.getAbstractFileByPath(note.path);
+                        if (file instanceof TFile) {
+                            this.app.workspace.getLeaf(false).openFile(file);
+                        }
+                    });
+                    
+                    // Add hover preview functionality for notes
+                    item.addEventListener('mouseover', (event) => {
+                        const file = this.app.vault.getAbstractFileByPath(note.path);
+                        if (file) {
+                            this.app.workspace.trigger('hover-link', {
+                                event,
+                                source: 'chronosync-agenda',
+                                hoverParent: this,
+                                targetEl: item,
+                                linktext: note.path,
+                                sourcePath: note.path
+                            });
+                        }
+                    });
                 });
             }
         });

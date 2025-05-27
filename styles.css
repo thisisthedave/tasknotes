@@ -2216,6 +2216,7 @@ button.processing::after {
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--cs-radius-md);
     transition: var(--cs-transition-fast);
+    cursor: pointer;
 }
 
 .agenda-item:hover {
