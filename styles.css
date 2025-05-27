@@ -1269,6 +1269,7 @@ button.processing::after {
 /* Recurring task status styling */
 .task-status.recurring-status {
     background: var(--color-cyan);
+    color: white;
 }
 
 
