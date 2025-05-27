@@ -1025,7 +1025,7 @@ export class CalendarView extends ItemView {
         const dailyNotePath = this.getDailyNotePath(date);
         const dailyNoteFile = this.app.vault.getAbstractFileByPath(dailyNotePath);
         
-        if (dailyNoteFile) {
+        if (dailyNoteFile && dailyNoteFile instanceof TFile) {
             // Show preview for the daily note only
             this.app.workspace.trigger('hover-link', {
                 event,
@@ -1042,7 +1042,7 @@ export class CalendarView extends ItemView {
     // Helper method to get daily note path for a date
     private getDailyNotePath(date: Date): string {
         const dateStr = format(date, 'yyyy-MM-dd');
-        return `${this.plugin.settings.dailyNotesFolder}/${dateStr}.md`;
+        return normalizePath(`${this.plugin.settings.dailyNotesFolder}/${dateStr}.md`);
     }
     
     // Helper method to get current period text based on display mode
@@ -1088,9 +1088,12 @@ export class CalendarView extends ItemView {
             const dateStr = format(dayData.date, 'yyyy-MM-dd');
             
             const tasksForThisDate = dayData.tasks.filter(task => {
-                // Show task if it's due on this date or if it's a recurring task due on this date
-                return task.due === dateStr || 
-                    (task.recurrence && isRecurringTaskDueOn(task, dayData.date));
+                // For recurring tasks, only show if they're due on this specific date according to recurrence rules
+                if (task.recurrence) {
+                    return isRecurringTaskDueOn(task, dayData.date);
+                }
+                // For non-recurring tasks, show if due date matches
+                return task.due === dateStr;
             });
             
             const notesForThisDate = dayData.notes.filter(note => {
