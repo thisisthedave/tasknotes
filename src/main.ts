@@ -647,7 +647,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		return table;
 	}
 
-	async updateTaskProperty(task: TaskInfo, property: string, value: any): Promise<void> {
+	async updateTaskProperty(task: TaskInfo, property: string, value: any, options: { silent?: boolean } = {}): Promise<void> {
 		try {
 			const file = this.app.vault.getAbstractFileByPath(task.path);
 			if (!(file instanceof TFile)) {
@@ -665,8 +665,10 @@ export default class ChronoSyncPlugin extends Plugin {
 				frontmatter[property] = value;
 			});
 			
-			// Show a notice
-			new Notice(`Updated task ${property}`);
+			// Show a notice (unless silent)
+			if (!options.silent) {
+				new Notice(`Updated task ${property}`);
+			}
 			
 			// Add the updated task to the file indexer's cache
 			if (this.fileIndexer) {

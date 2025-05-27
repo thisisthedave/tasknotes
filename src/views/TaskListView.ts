@@ -32,6 +32,9 @@ export class TaskListView extends ItemView {
     private selectedContexts: Set<string> = new Set();
     private availableContexts: string[] = [];
     
+    // Task item tracking for dynamic updates
+    private taskElements: Map<string, HTMLElement> = new Map();
+    
     // Event listeners
     private listeners: (() => void)[] = [];
     
@@ -238,6 +241,9 @@ export class TaskListView extends ItemView {
         
         // Store reference to the task list container for future updates
         this.taskListContainer = taskList;
+        
+        // Clear task elements map for new render
+        this.taskElements.clear();
     }
     
     // Helper method to render task items
@@ -363,15 +369,26 @@ export class TaskListView extends ItemView {
                 cls: `task-item ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''} ${task.recurrence ? 'task-recurring' : ''} chronosync-card`
             });
             
+            // Store reference to this task element for future updates
+            taskItem.dataset.taskPath = task.path;
+            this.taskElements.set(task.path, taskItem);
+            
             // Create header row (title and metadata)
             const taskHeader = taskItem.createDiv({ cls: 'task-header chronosync-card-header' });
             
             // Create info section (left side)
             const taskInfo = taskHeader.createDiv({ cls: 'task-info' });
             
-            // Task title with priority
-            const titleEl = taskInfo.createDiv({ 
-                cls: `task-item-title task-priority-${task.priority}`, 
+            // Task title with priority indicator
+            const titleContainer = taskInfo.createDiv({ cls: 'task-title-container' });
+            
+            // Priority indicator
+            const priorityIndicator = titleContainer.createDiv({ 
+                cls: `task-priority-indicator priority-${task.priority}`
+            });
+            
+            const titleEl = titleContainer.createDiv({ 
+                cls: 'task-item-title', 
                 text: task.title
             });
             
@@ -390,7 +407,7 @@ export class TaskListView extends ItemView {
             const taskMeta = taskHeader.createDiv({ cls: 'task-item-metadata' });
             
             // Status badge - use effective status for recurring tasks
-            taskMeta.createDiv({
+            const statusBadge = taskMeta.createDiv({
                 cls: `task-status task-status-${effectiveStatus.replace(/\s+/g, '-').toLowerCase()} ${task.recurrence ? 'recurring-status' : ''}`,
                 text: effectiveStatus
             });
@@ -412,7 +429,22 @@ export class TaskListView extends ItemView {
             // Add event listener for archive toggle
             archiveButton.addEventListener('click', async (e) => {
                 e.stopPropagation(); // Prevent task opening
-                await this.plugin.toggleTaskArchive(task);
+                
+                try {
+                    // Update the task object locally
+                    const updatedTask = { ...task, archived: !task.archived };
+                    
+                    // Update in the backend
+                    await this.plugin.toggleTaskArchive(task);
+                    
+                    // Update the UI immediately
+                    this.updateTaskElementInDOM(task.path, updatedTask);
+                    
+                    // Update our cached task data
+                    this.updateTaskInCache(task.path, updatedTask);
+                } catch(err) {
+                    console.error('Failed to toggle task archive:', err);
+                }
             });
             
             // Archived badge if applicable
@@ -447,29 +479,33 @@ export class TaskListView extends ItemView {
                     toggleButton.classList.add('processing');
                     
                     try {
-                        // Then update in the backend
+                        // Calculate the new state
+                        const currentlyComplete = effectiveStatus === 'done';
+                        const newComplete = !currentlyComplete;
+                        
+                        // Update task's complete_instances locally
+                        const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
+                        const updatedTask = { ...task };
+                        if (!updatedTask.complete_instances) {
+                            updatedTask.complete_instances = [];
+                        }
+                        
+                        if (newComplete) {
+                            if (!updatedTask.complete_instances.includes(selectedDateStr)) {
+                                updatedTask.complete_instances.push(selectedDateStr);
+                            }
+                        } else {
+                            updatedTask.complete_instances = updatedTask.complete_instances.filter(d => d !== selectedDateStr);
+                        }
+                        
+                        // Update in the backend
                         await this.plugin.toggleRecurringTaskStatus(task, this.plugin.selectedDate);
                         
-                        // Force a manual refresh of the task list to get updated status
-                        // This ensures we see the updated state
-                        const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
+                        // Update the UI immediately
+                        this.updateTaskElementInDOM(task.path, updatedTask);
                         
-                        // Toggle the button state manually since we know what it should be
-                        const currentState = toggleButton.classList.contains('mark-incomplete');
-                        const newState = !currentState;
-                        
-                        // Update button text and classes based on the new state
-                        toggleButton.textContent = newState ? 'Mark Incomplete' : 'Mark Complete';
-                        toggleButton.classList.remove(newState ? 'mark-complete' : 'mark-incomplete');
-                        toggleButton.classList.add(newState ? 'mark-incomplete' : 'mark-complete');
-                        
-                        // Update the button style classes
-                        toggleButton.classList.remove(`chronosync-button-${newState ? 'primary' : 'secondary'}`);
-                        toggleButton.classList.add(`chronosync-button-${newState ? 'secondary' : 'primary'}`);
-                        
-                        // Force a refresh of the task list
-                        this.cachedTasks = null;
-                        this.getTasksForView(true);
+                        // Update our cached task data
+                        this.updateTaskInCache(task.path, updatedTask);
                         
                         // Wait a bit before allowing more changes
                         setTimeout(() => {
@@ -480,6 +516,7 @@ export class TaskListView extends ItemView {
                         // Re-enable on error
                         toggleButton.disabled = false;
                         toggleButton.classList.remove('processing');
+                        console.error('Failed to toggle recurring task:', err);
                     }
                 });
             } else {
@@ -510,24 +547,27 @@ export class TaskListView extends ItemView {
                     statusSelect.disabled = true; // Prevent multiple changes
                     
                     try {
-                        // Then update in the backend
-                        await this.plugin.updateTaskProperty(task, 'status', newStatus);
+                        // Update the task object locally
+                        const updatedTask = { ...task, status: newStatus };
                         
-                        // Highlight the task item to indicate a change
-                        taskItem.classList.add('task-updated');
+                        // Update in the backend (silent to avoid duplicate notifications)
+                        await this.plugin.updateTaskProperty(task, 'status', newStatus, { silent: true });
                         
-                        // Remove highlight class after animation completes
-                        setTimeout(() => {
-                            taskItem.classList.remove('task-updated');
-                        }, 1500);
+                        // Update the UI immediately
+                        this.updateTaskElementInDOM(task.path, updatedTask);
+                        
+                        // Update our cached task data
+                        this.updateTaskInCache(task.path, updatedTask);
                         
                         // Wait a bit before allowing more changes
                         setTimeout(() => {
                             statusSelect.disabled = false;
                         }, 500);
                     } catch(err) {
-                        // Re-enable on error
+                        // Re-enable on error and revert UI
+                        statusSelect.value = task.status;
                         statusSelect.disabled = false;
+                        console.error('Failed to update task status:', err);
                     }
                 });
             }
@@ -559,24 +599,27 @@ export class TaskListView extends ItemView {
                 prioritySelect.disabled = true; // Prevent multiple changes
                 
                 try {
-                    // Then update in the backend
-                    await this.plugin.updateTaskProperty(task, 'priority', newPriority);
+                    // Update the task object locally
+                    const updatedTask = { ...task, priority: newPriority };
                     
-                    // Highlight the task item to indicate a change
-                    taskItem.classList.add('task-updated');
+                    // Update in the backend (silent to avoid duplicate notifications)
+                    await this.plugin.updateTaskProperty(task, 'priority', newPriority, { silent: true });
                     
-                    // Remove highlight class after animation completes
-                    setTimeout(() => {
-                        taskItem.classList.remove('task-updated');
-                    }, 1500);
+                    // Update the UI immediately
+                    this.updateTaskElementInDOM(task.path, updatedTask);
+                    
+                    // Update our cached task data
+                    this.updateTaskInCache(task.path, updatedTask);
                     
                     // Wait a bit before allowing more changes
                     setTimeout(() => {
                         prioritySelect.disabled = false;
                     }, 500);
                 } catch(err) {
-                    // Re-enable on error
+                    // Re-enable on error and revert UI
+                    prioritySelect.value = task.priority;
                     prioritySelect.disabled = false;
+                    console.error('Failed to update task priority:', err);
                 }
             });
             
@@ -604,24 +647,27 @@ export class TaskListView extends ItemView {
                 dueDateInput.disabled = true; // Prevent multiple changes
                 
                 try {
-                    // Then update in the backend
-                    await this.plugin.updateTaskProperty(task, 'due', newDueDate);
+                    // Update the task object locally
+                    const updatedTask = { ...task, due: newDueDate };
                     
-                    // Highlight the task item to indicate a change
-                    taskItem.classList.add('task-updated');
+                    // Update in the backend (silent to avoid duplicate notifications)
+                    await this.plugin.updateTaskProperty(task, 'due', newDueDate, { silent: true });
                     
-                    // Remove highlight class after animation completes
-                    setTimeout(() => {
-                        taskItem.classList.remove('task-updated');
-                    }, 1500);
+                    // Update the UI immediately
+                    this.updateTaskElementInDOM(task.path, updatedTask);
+                    
+                    // Update our cached task data
+                    this.updateTaskInCache(task.path, updatedTask);
                     
                     // Wait a bit before allowing more changes
                     setTimeout(() => {
                         dueDateInput.disabled = false;
                     }, 500);
                 } catch(err) {
-                    // Re-enable on error
+                    // Re-enable on error and revert UI
+                    dueDateInput.value = task.due || '';
                     dueDateInput.disabled = false;
+                    console.error('Failed to update task due date:', err);
                 }
             });
             
@@ -844,6 +890,83 @@ export class TaskListView extends ItemView {
             contextButton.textContent = Array.from(this.selectedContexts)[0];
         } else {
             contextButton.textContent = `${this.selectedContexts.size} contexts`;
+        }
+    }
+    
+    /**
+     * Update a specific task element in the DOM without full re-render
+     */
+    private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
+        const taskElement = this.taskElements.get(taskPath);
+        if (!taskElement) return;
+        
+        // Update task status badge
+        const statusBadge = taskElement.querySelector('.task-status') as HTMLElement;
+        if (statusBadge) {
+            const effectiveStatus = updatedTask.recurrence 
+                ? getEffectiveTaskStatus(updatedTask, this.plugin.selectedDate)
+                : updatedTask.status;
+            
+            statusBadge.className = `task-status task-status-${effectiveStatus.replace(/\s+/g, '-').toLowerCase()} ${updatedTask.recurrence ? 'recurring-status' : ''}`;
+            statusBadge.textContent = effectiveStatus;
+        }
+        
+        // Update priority indicator
+        const priorityIndicator = taskElement.querySelector('.task-priority-indicator') as HTMLElement;
+        if (priorityIndicator) {
+            priorityIndicator.className = `task-priority-indicator priority-${updatedTask.priority}`;
+        }
+        
+        // Update archive status
+        const archiveButton = taskElement.querySelector('.archive-button-icon') as HTMLElement;
+        if (archiveButton) {
+            archiveButton.className = `archive-button-icon ${updatedTask.archived ? 'archived' : ''}`;
+            archiveButton.title = updatedTask.archived ? 'Unarchive this task' : 'Archive this task';
+            archiveButton.innerHTML = updatedTask.archived 
+                ? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>'
+                : '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>';
+        }
+        
+        // Update archived badge visibility
+        const archivedBadge = taskElement.querySelector('.task-archived-badge') as HTMLElement;
+        if (archivedBadge) {
+            archivedBadge.style.display = updatedTask.archived ? 'block' : 'none';
+        } else if (updatedTask.archived) {
+            // Add archived badge if it doesn't exist
+            const taskMeta = taskElement.querySelector('.task-item-metadata');
+            if (taskMeta) {
+                taskMeta.createDiv({
+                    cls: 'task-archived-badge',
+                    text: 'Archived'
+                });
+            }
+        }
+        
+        // Update main task item classes
+        const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
+        const isDueOnSelectedDate = selectedDateStr && (
+            updatedTask.due === selectedDateStr || 
+            (updatedTask.recurrence && isRecurringTaskDueOn(updatedTask, this.plugin.selectedDate))
+        );
+        
+        taskElement.className = `task-item ${isDueOnSelectedDate ? 'task-due-today' : ''} ${updatedTask.archived ? 'task-archived' : ''} ${updatedTask.recurrence ? 'task-recurring' : ''} chronosync-card`;
+        
+        // Add visual feedback for the update
+        taskElement.classList.add('task-updated');
+        setTimeout(() => {
+            taskElement.classList.remove('task-updated');
+        }, 1500);
+    }
+    
+    /**
+     * Update a task in the cached tasks array
+     */
+    private updateTaskInCache(taskPath: string, updatedTask: TaskInfo): void {
+        if (!this.cachedTasks) return;
+        
+        const index = this.cachedTasks.findIndex(t => t.path === taskPath);
+        if (index !== -1) {
+            this.cachedTasks[index] = updatedTask;
         }
     }
     

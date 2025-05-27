@@ -1181,6 +1181,14 @@ button.processing::after {
     background-color: transparent;
 }
 
+/* Task title container with priority indicator */
+.task-title-container {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+}
+
 .task-item-title {
     font-weight: 500;
     font-size: var(--cs-text-sm);
@@ -1189,6 +1197,7 @@ button.processing::after {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1;
 }
 
 .task-item-due.due-today {
@@ -1204,33 +1213,64 @@ button.processing::after {
     line-height: 1.2;
 }
 
-.task-priority-high {
-    color: var(--text-error);
+
+/* Priority indicators - small colored badges */
+.task-priority-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    flex-shrink: 0;
+    border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.task-priority-normal {
-    color: var(--text-normal);
+.task-priority-indicator.priority-high {
+    background: var(--text-error);
+    box-shadow: 0 0 4px rgba(255, 107, 107, 0.3);
 }
 
-.task-priority-low {
-    color: var(--text-muted);
+.task-priority-indicator.priority-normal {
+    background: var(--interactive-accent);
+    box-shadow: 0 0 4px rgba(var(--interactive-accent-rgb), 0.3);
+}
+
+.task-priority-indicator.priority-low {
+    background: var(--text-muted);
+    box-shadow: 0 0 4px rgba(128, 128, 128, 0.2);
+}
+
+/* Status badges - styled like daily notes badge */
+.task-status {
+    padding: 2px 6px;
+    border-radius: var(--cs-radius-sm);
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    color: white;
+    border: none;
+    line-height: 1.2;
 }
 
 .task-status-open {
-    color: var(--text-error);
-    opacity: 0.8;
+    background: var(--text-error);
 }
 
 .task-status-in-progress {
-    color: var(--text-warning);
-    opacity: 0.8;
+    background: var(--text-warning);
 }
 
 .task-status-done {
-    color: var(--text-success);
-    text-decoration: none;
-    opacity: 0.8;
+    background: var(--text-success);
 }
+
+/* Recurring task status styling */
+.task-status.recurring-status {
+    background: var(--color-cyan);
+}
+
 
 .task-overdue {
     color: var(--text-error);
@@ -2070,5 +2110,24 @@ button.processing::after {
     .calendar-day {
         min-height: 24px;
         font-size: var(--cs-text-xs);
+    }
+}
+
+/* Task update animation */
+.task-updated {
+    animation: task-update-flash 1.5s ease-out;
+}
+
+@keyframes task-update-flash {
+    0% {
+        background-color: var(--interactive-accent);
+        transform: scale(1.02);
+    }
+    50% {
+        background-color: rgba(var(--interactive-accent-rgb), 0.3);
+    }
+    100% {
+        background-color: transparent;
+        transform: scale(1);
     }
 }
