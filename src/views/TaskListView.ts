@@ -484,8 +484,8 @@ export class TaskListView extends ItemView {
             if (task.recurrence) {
                 // Toggle button for recurring tasks
                 const toggleButton = taskControls.createEl('button', { 
-                    cls: `task-toggle-button ${effectiveStatus === 'done' ? 'mark-incomplete' : 'mark-complete'} chronosync-button chronosync-button-${effectiveStatus === 'done' ? 'secondary' : 'primary'}`,
-                    text: effectiveStatus === 'done' ? 'Mark Incomplete' : 'Mark Complete',
+                    cls: `task-toggle-button ${effectiveStatus === 'done' ? 'mark-incomplete' : 'mark-complete'}`,
+                    text: effectiveStatus === 'done' ? '✗' : '✓',
                     attr: {
                         'aria-label': `${effectiveStatus === 'done' ? 'Mark task incomplete' : 'Mark task complete'} for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}`,
                         'aria-pressed': (effectiveStatus === 'done').toString()
