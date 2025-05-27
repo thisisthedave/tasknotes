@@ -14,7 +14,8 @@ import {
     extractNoteInfo, 
     extractTaskInfo, 
     isSameDay, 
-    parseTime 
+    parseTime,
+    isRecurringTaskDueOn
 } from '../utils/helpers';
 
 export class CalendarView extends ItemView {
@@ -119,32 +120,46 @@ export class CalendarView extends ItemView {
     }
     
     async navigateToPreviousPeriod() {
-        // Go to previous month
         const date = new Date(this.plugin.selectedDate);
-        date.setMonth(date.getMonth() - 1);
+        
+        if (this.displayMode === 'week' || this.displayMode === 'agenda') {
+            // Go to previous week (7 days)
+            date.setDate(date.getDate() - 7);
+        } else {
+            // Go to previous month
+            date.setMonth(date.getMonth() - 1);
+        }
+        
         this.plugin.setSelectedDate(date);
         
-        // Force daily notes cache rebuild for the new month
-        if (this.colorizeMode === 'daily') {
+        // Force daily notes cache rebuild for the new month (only needed for month view)
+        if (this.colorizeMode === 'daily' && this.displayMode === 'month') {
             this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
         }
         
-        // Refresh the view to show the new month
+        // Refresh the view
         await this.refresh();
     }
     
     async navigateToNextPeriod() {
-        // Go to next month
         const date = new Date(this.plugin.selectedDate);
-        date.setMonth(date.getMonth() + 1);
+        
+        if (this.displayMode === 'week' || this.displayMode === 'agenda') {
+            // Go to next week (7 days)
+            date.setDate(date.getDate() + 7);
+        } else {
+            // Go to next month
+            date.setMonth(date.getMonth() + 1);
+        }
+        
         this.plugin.setSelectedDate(date);
         
-        // Force daily notes cache rebuild for the new month
-        if (this.colorizeMode === 'daily') {
+        // Force daily notes cache rebuild for the new month (only needed for month view)
+        if (this.colorizeMode === 'daily' && this.displayMode === 'month') {
             this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
         }
         
-        // Refresh the view to show the new month
+        // Refresh the view
         await this.refresh();
     }
     
@@ -1067,48 +1082,73 @@ export class CalendarView extends ItemView {
             dayHeader.createDiv({ cls: 'day-number', text: format(date, 'd') });
         });
         
-        // Create body with time slots
+        // Create all-day section (above the time grid)
+        const allDaySection = weekGridContainer.createDiv({ cls: 'week-all-day-section' });
+        const allDayHeader = allDaySection.createDiv({ cls: 'all-day-header' });
+        allDayHeader.createDiv({ cls: 'all-day-label', text: 'All day' });
+        
+        // Create all-day columns for each day
+        const allDayColumns: HTMLElement[] = [];
+        weekDates.forEach((date, dayIndex) => {
+            allDayColumns.push(allDayHeader.createDiv({ cls: 'all-day-column' }));
+        });
+        
+        // Add tasks and notes to all-day section
+        weekData.forEach((dayData, dayIndex) => {
+            const allDayColumn = allDayColumns[dayIndex];
+            
+            // Filter tasks for this specific date
+            const dateStr = format(dayData.date, 'yyyy-MM-dd');
+            const tasksForThisDate = dayData.tasks.filter(task => {
+                // Show task if it's due on this date or if it's a recurring task due on this date
+                return task.due === dateStr || 
+                    (task.recurrence && isRecurringTaskDueOn(task, dayData.date));
+            });
+            
+            // Filter notes for this specific date (notes created on this date)
+            const notesForThisDate = dayData.notes.filter(note => {
+                // For notes, we check if they were created on this date
+                // The getNotesForDate method should already be filtering by creation date
+                return true; // Assuming getNotesForDate already filters correctly
+            });
+            
+            // Add tasks to all-day section
+            tasksForThisDate.forEach(task => {
+                const eventBlock = allDayColumn.createDiv({ cls: 'event-block task-event' });
+                eventBlock.textContent = task.title;
+                eventBlock.setAttribute('title', `Task: ${task.title} (Due: ${task.due || 'No due date'})`);
+            });
+            
+            // Add notes to all-day section
+            notesForThisDate.forEach(note => {
+                const eventBlock = allDayColumn.createDiv({ cls: 'event-block note-event' });
+                eventBlock.textContent = note.title;
+                eventBlock.setAttribute('title', `Note: ${note.title}`);
+            });
+        });
+        
+        // Create body with time slots (below the all-day section)
         const weekBody = weekGridContainer.createDiv({ cls: 'week-body' });
         
         // Create time labels column
         const timeLabelsCol = weekBody.createDiv({ cls: 'time-labels-col' });
         
-        // Create day columns
+        // Create day columns for time slots
         const dayColumns: HTMLElement[] = [];
         for (let i = 0; i < 7; i++) {
             dayColumns.push(weekBody.createDiv({ cls: 'day-column' }));
         }
         
-        // Generate time slots (8 AM to 6 PM for example)
+        // Generate time slots (8 AM to 6 PM)
         for (let hour = 8; hour <= 18; hour++) {
             const timeStr = `${hour.toString().padStart(2, '0')}:00`;
             timeLabelsCol.createDiv({ cls: 'time-slot', text: timeStr });
             
-            // Add corresponding slots to each day column
+            // Add corresponding empty slots to each day column
             dayColumns.forEach((column, dayIndex) => {
                 column.createDiv({ cls: 'time-slot' });
             });
         }
-        
-        // Add events to day columns
-        weekData.forEach((dayData, dayIndex) => {
-            const column = dayColumns[dayIndex];
-            const allDaySection = column.createDiv({ cls: 'all-day-section' });
-            
-            // Add tasks
-            dayData.tasks.forEach(task => {
-                const eventBlock = allDaySection.createDiv({ cls: 'event-block task-event' });
-                eventBlock.textContent = task.title;
-                eventBlock.setAttribute('title', `Task: ${task.title}`);
-            });
-            
-            // Add notes
-            dayData.notes.forEach(note => {
-                const eventBlock = allDaySection.createDiv({ cls: 'event-block note-event' });
-                eventBlock.textContent = note.title;
-                eventBlock.setAttribute('title', `Note: ${note.title}`);
-            });
-        });
     }
     
     // Render agenda list view
@@ -1136,7 +1176,22 @@ export class CalendarView extends ItemView {
         
         // Render each day that has items
         agendaData.forEach(dayData => {
-            const hasItems = dayData.tasks.length > 0 || dayData.notes.length > 0;
+            // Filter items for this specific date
+            const dateStr = format(dayData.date, 'yyyy-MM-dd');
+            
+            const tasksForThisDate = dayData.tasks.filter(task => {
+                // Show task if it's due on this date or if it's a recurring task due on this date
+                return task.due === dateStr || 
+                    (task.recurrence && isRecurringTaskDueOn(task, dayData.date));
+            });
+            
+            const notesForThisDate = dayData.notes.filter(note => {
+                // For notes, we check if they were created on this date
+                // The getNotesForDate method should already be filtering by creation date
+                return true; // Assuming getNotesForDate already filters correctly
+            });
+            
+            const hasItems = tasksForThisDate.length > 0 || notesForThisDate.length > 0;
             
             if (hasItems) {
                 // Create day header
@@ -1147,11 +1202,15 @@ export class CalendarView extends ItemView {
                 const itemList = agendaContainer.createDiv({ cls: 'agenda-item-list' });
                 
                 // Add tasks
-                dayData.tasks.forEach(task => {
+                tasksForThisDate.forEach(task => {
                     const item = itemList.createDiv({ cls: 'agenda-item task-item' });
                     const title = item.createDiv({ cls: 'item-title', text: task.title });
                     const meta = item.createDiv({ cls: 'item-meta' });
                     meta.createSpan({ cls: 'item-type', text: 'Task' });
+                    
+                    if (task.due) {
+                        meta.createSpan({ cls: 'due-date', text: `Due: ${task.due}` });
+                    }
                     
                     if (task.priority && task.priority !== 'normal') {
                         meta.createSpan({ cls: `priority-badge priority-${task.priority}`, text: task.priority });
@@ -1165,7 +1224,7 @@ export class CalendarView extends ItemView {
                 });
                 
                 // Add notes
-                dayData.notes.forEach(note => {
+                notesForThisDate.forEach(note => {
                     const item = itemList.createDiv({ cls: 'agenda-item note-item' });
                     const title = item.createDiv({ cls: 'item-title', text: note.title });
                     const meta = item.createDiv({ cls: 'item-meta' });

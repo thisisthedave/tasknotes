@@ -151,15 +151,13 @@ export class TaskListView extends ItemView {
     }
     
     async createTasksContent(container: HTMLElement) {
-        container.createEl('h3', { text: 'Tasks' });
-        
-        // Create filters
+        // Create filters with improved layout
         const filtersContainer = container.createDiv({ cls: 'task-filters' });
         
-        // Left side - Status and Context filters
-        const leftGroup = filtersContainer.createDiv({ cls: 'filters-left-group' });
+        // First row - Primary filters
+        const primaryFiltersRow = filtersContainer.createDiv({ cls: 'filters-row primary-filters' });
         
-        const statusFilter = leftGroup.createDiv({ cls: 'filter-group' });
+        const statusFilter = primaryFiltersRow.createDiv({ cls: 'filter-group' });
         statusFilter.createEl('span', { text: 'Status: ' });
         const statusSelect = statusFilter.createEl('select', { cls: 'status-select' });
         
@@ -169,7 +167,7 @@ export class TaskListView extends ItemView {
         });
         
         // Context filter
-        const contextFilter = leftGroup.createDiv({ cls: 'filter-group context-filter' });
+        const contextFilter = primaryFiltersRow.createDiv({ cls: 'filter-group context-filter' });
         contextFilter.createEl('span', { text: 'Contexts: ' });
         
         // Context multi-select dropdown
@@ -181,8 +179,21 @@ export class TaskListView extends ItemView {
         const contextMenu = contextDropdown.createDiv({ cls: 'context-dropdown-menu' });
         contextMenu.style.display = 'none';
         
+        // Refresh button in primary row
+        const refreshButton = primaryFiltersRow.createEl('button', { 
+            text: 'Refresh', 
+            cls: 'refresh-tasks-button chronosync-button chronosync-button-secondary',
+            attr: {
+                'aria-label': 'Refresh task list',
+                'title': 'Refresh task list'
+            }
+        });
+        
+        // Second row - Organization filters
+        const organizationFiltersRow = filtersContainer.createDiv({ cls: 'filters-row organization-filters' });
+        
         // Grouping filter
-        const groupFilter = leftGroup.createDiv({ cls: 'filter-group' });
+        const groupFilter = organizationFiltersRow.createDiv({ cls: 'filter-group' });
         groupFilter.createEl('span', { text: 'Group by: ' });
         const groupSelect = groupFilter.createEl('select', { cls: 'group-select' });
         
@@ -200,7 +211,7 @@ export class TaskListView extends ItemView {
         });
         
         // Sorting filter
-        const sortFilter = leftGroup.createDiv({ cls: 'filter-group' });
+        const sortFilter = organizationFiltersRow.createDiv({ cls: 'filter-group' });
         sortFilter.createEl('span', { text: 'Sort by: ' });
         const sortSelect = sortFilter.createEl('select', { cls: 'sort-select' });
         
@@ -231,18 +242,6 @@ export class TaskListView extends ItemView {
         document.addEventListener('click', (e) => {
             if (!contextDropdown.contains(e.target as Node)) {
                 contextMenu.style.display = 'none';
-            }
-        });
-        
-        // Right side - Refresh button
-        const rightGroup = filtersContainer.createDiv({ cls: 'filters-right-group' });
-        
-        const refreshButton = rightGroup.createEl('button', { 
-            text: 'Refresh', 
-            cls: 'refresh-tasks-button chronosync-button chronosync-button-secondary',
-            attr: {
-                'aria-label': 'Refresh task list',
-                'title': 'Refresh task list'
             }
         });
         
