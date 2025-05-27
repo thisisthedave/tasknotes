@@ -28,6 +28,10 @@ export class TaskListView extends ItemView {
     // Loading states
     private isTasksLoading: boolean = false;
     
+    // Filter states
+    private selectedContexts: Set<string> = new Set();
+    private availableContexts: string[] = [];
+    
     // Event listeners
     private listeners: (() => void)[] = [];
     
@@ -133,7 +137,7 @@ export class TaskListView extends ItemView {
         // Create filters
         const filtersContainer = container.createDiv({ cls: 'task-filters' });
         
-        // Left side - Status filter
+        // Left side - Status and Context filters
         const leftGroup = filtersContainer.createDiv({ cls: 'filters-left-group' });
         
         const statusFilter = leftGroup.createDiv({ cls: 'filter-group' });
@@ -143,6 +147,37 @@ export class TaskListView extends ItemView {
         const statuses = ['All', 'Open', 'In Progress', 'Done', 'Archived'];
         statuses.forEach(status => {
             const option = statusSelect.createEl('option', { value: status.toLowerCase(), text: status });
+        });
+        
+        // Context filter
+        const contextFilter = leftGroup.createDiv({ cls: 'filter-group context-filter' });
+        contextFilter.createEl('span', { text: 'Contexts: ' });
+        
+        // Context multi-select dropdown
+        const contextDropdown = contextFilter.createDiv({ cls: 'context-dropdown' });
+        const contextButton = contextDropdown.createEl('button', { 
+            text: 'Select contexts', 
+            cls: 'context-dropdown-button'
+        });
+        const contextMenu = contextDropdown.createDiv({ cls: 'context-dropdown-menu' });
+        contextMenu.style.display = 'none';
+        
+        // Get available contexts from tasks
+        await this.updateAvailableContexts();
+        this.renderContextMenu(contextMenu, statusSelect);
+        
+        // Toggle dropdown menu
+        contextButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = contextMenu.style.display !== 'none';
+            contextMenu.style.display = isVisible ? 'none' : 'block';
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!contextDropdown.contains(e.target as Node)) {
+                contextMenu.style.display = 'none';
+            }
         });
         
         // Right side - Refresh button
@@ -186,34 +221,7 @@ export class TaskListView extends ItemView {
         
         // Add change event listener to the status filter
         statusSelect.addEventListener('change', async () => {
-            const selectedStatus = statusSelect.value;
-            const allTasks = await this.getTasksForView(true); // Force refresh to get latest data
-
-            // Apply filtering logic based on status and archived flag
-            let filteredTasks: TaskInfo[] = [];
-            
-            if (selectedStatus === 'archived') {
-                // Show only archived tasks
-                filteredTasks = allTasks.filter(task => task.archived);
-            } else {
-                // For other statuses, exclude archived tasks unless specifically requested
-                const nonArchivedTasks = allTasks.filter(task => !task.archived);
-                
-                if (selectedStatus === 'all') {
-                    filteredTasks = nonArchivedTasks;
-                } else {
-                    filteredTasks = nonArchivedTasks.filter(task => 
-                        task.status.toLowerCase() === selectedStatus
-                    );
-                }
-            }
-                
-            // Then sort the tasks to prioritize those due on the selected date
-            const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
-            this.prioritizeTasksByDate(filteredTasks, selectedDateStr);
-            
-            // Refresh the task list
-            this.renderTaskItems(taskList, filteredTasks, selectedDateStr);
+            await this.applyFilters(taskList, statusSelect);
         });
         
         // Get the selected date
@@ -747,6 +755,144 @@ export class TaskListView extends ItemView {
         }
         
         return Array.from(seen.values());
+    }
+    
+    /**
+     * Update the list of available contexts from all tasks
+     */
+    private async updateAvailableContexts(): Promise<void> {
+        const tasks = await this.getTasksForView(false);
+        const contextsSet = new Set<string>();
+        
+        tasks.forEach(task => {
+            if (task.contexts) {
+                task.contexts.forEach(context => {
+                    if (context.trim()) {
+                        contextsSet.add(context.trim());
+                    }
+                });
+            }
+        });
+        
+        this.availableContexts = Array.from(contextsSet).sort();
+    }
+    
+    /**
+     * Render the context filter menu with checkboxes
+     */
+    private renderContextMenu(menu: HTMLElement, statusSelect: HTMLSelectElement): void {
+        menu.empty();
+        
+        if (this.availableContexts.length === 0) {
+            menu.createEl('div', { text: 'No contexts available', cls: 'context-menu-empty' });
+            return;
+        }
+        
+        // "All contexts" option
+        const allOption = menu.createDiv({ cls: 'context-menu-item' });
+        const allCheckbox = allOption.createEl('input', { type: 'checkbox' });
+        allCheckbox.checked = this.selectedContexts.size === 0;
+        allOption.createSpan({ text: 'All contexts' });
+        
+        allCheckbox.addEventListener('change', async () => {
+            if (allCheckbox.checked) {
+                this.selectedContexts.clear();
+                // Uncheck all other options
+                menu.querySelectorAll('input[type="checkbox"]').forEach((cb, index) => {
+                    if (index > 0) (cb as HTMLInputElement).checked = false;
+                });
+            }
+            await this.updateContextButtonText();
+            await this.applyFilters(this.taskListContainer!, statusSelect);
+        });
+        
+        // Individual context options
+        this.availableContexts.forEach(context => {
+            const item = menu.createDiv({ cls: 'context-menu-item' });
+            const checkbox = item.createEl('input', { type: 'checkbox' });
+            checkbox.checked = this.selectedContexts.has(context);
+            item.createSpan({ text: context });
+            
+            checkbox.addEventListener('change', async () => {
+                if (checkbox.checked) {
+                    this.selectedContexts.add(context);
+                    // Uncheck "All contexts"
+                    (menu.querySelector('input[type="checkbox"]') as HTMLInputElement).checked = false;
+                } else {
+                    this.selectedContexts.delete(context);
+                    // If no contexts are selected, check "All contexts"
+                    if (this.selectedContexts.size === 0) {
+                        (menu.querySelector('input[type="checkbox"]') as HTMLInputElement).checked = true;
+                    }
+                }
+                await this.updateContextButtonText();
+                await this.applyFilters(this.taskListContainer!, statusSelect);
+            });
+        });
+    }
+    
+    /**
+     * Update the context button text based on selected contexts
+     */
+    private async updateContextButtonText(): Promise<void> {
+        const contextButton = this.contentEl.querySelector('.context-dropdown-button') as HTMLElement;
+        if (!contextButton) return;
+        
+        if (this.selectedContexts.size === 0) {
+            contextButton.textContent = 'All contexts';
+        } else if (this.selectedContexts.size === 1) {
+            contextButton.textContent = Array.from(this.selectedContexts)[0];
+        } else {
+            contextButton.textContent = `${this.selectedContexts.size} contexts`;
+        }
+    }
+    
+    /**
+     * Apply both status and context filters to the task list
+     */
+    private async applyFilters(taskListContainer: HTMLElement, statusSelect: HTMLSelectElement): Promise<void> {
+        const selectedStatus = statusSelect.value;
+        const allTasks = await this.getTasksForView(true); // Force refresh to get latest data
+
+        // Apply status filtering logic
+        let filteredTasks: TaskInfo[] = [];
+        
+        if (selectedStatus === 'archived') {
+            // Show only archived tasks
+            filteredTasks = allTasks.filter(task => task.archived);
+        } else {
+            // For other statuses, exclude archived tasks unless specifically requested
+            const nonArchivedTasks = allTasks.filter(task => !task.archived);
+            
+            if (selectedStatus === 'all') {
+                filteredTasks = nonArchivedTasks;
+            } else {
+                filteredTasks = nonArchivedTasks.filter(task => 
+                    task.status.toLowerCase() === selectedStatus
+                );
+            }
+        }
+        
+        // Apply context filtering
+        if (this.selectedContexts.size > 0) {
+            filteredTasks = filteredTasks.filter(task => {
+                if (!task.contexts || task.contexts.length === 0) {
+                    return false; // Task has no contexts, exclude it
+                }
+                
+                // Check if task has any of the selected contexts
+                return task.contexts.some(context => 
+                    this.selectedContexts.has(context.trim())
+                );
+            });
+        }
+            
+        // Then sort the tasks to prioritize those due on the selected date
+        const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
+        this.prioritizeTasksByDate(filteredTasks, selectedDateStr);
+        
+        // Refresh the task list
+        this.renderTaskItems(taskListContainer, filteredTasks, selectedDateStr);
     }
     
     openTask(path: string) {

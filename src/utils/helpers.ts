@@ -178,6 +178,7 @@ export function extractTaskInfo(content: string, path: string): {
 	path: string, 
 	archived: boolean, 
 	tags?: string[],
+	contexts?: string[],
 	recurrence?: {
 		frequency: 'daily' | 'weekly' | 'monthly' | 'yearly',
 		days_of_week?: string[],
@@ -215,6 +216,9 @@ export function extractTaskInfo(content: string, path: string): {
 					complete_instances = yaml.complete_instances;
 				}
 				
+				// Extract contexts
+				const contexts = yaml.contexts || [];
+				
 				return {
 					title: yaml.title || 'Untitled Task',
 					status: yaml.status || 'open',
@@ -223,6 +227,7 @@ export function extractTaskInfo(content: string, path: string): {
 					path,
 					archived,
 					tags: Array.isArray(tags) ? [...tags] : [],
+					contexts: Array.isArray(contexts) ? [...contexts] : [],
 					recurrence,
 					complete_instances
 				};

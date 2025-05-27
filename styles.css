@@ -750,6 +750,84 @@ button.processing::after {
     border-radius: 4px;
 }
 
+/* Context Filter Dropdown */
+.context-filter {
+    position: relative;
+}
+
+.context-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.context-dropdown-button {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: var(--cs-text-sm);
+    min-width: 120px;
+    text-align: left;
+    position: relative;
+}
+
+.context-dropdown-button:hover {
+    background: var(--background-modifier-hover);
+}
+
+.context-dropdown-button::after {
+    content: '▼';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    color: var(--text-faint);
+}
+
+.context-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 2px;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: var(--cs-text-sm);
+    transition: background-color var(--cs-transition-fast);
+}
+
+.context-menu-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.context-menu-item input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.context-menu-empty {
+    padding: 6px 12px;
+    color: var(--text-faint);
+    font-size: var(--cs-text-sm);
+    font-style: italic;
+}
+
 .add-task-button {
     padding: 0.35rem 0.7rem;
     background-color: var(--interactive-accent);

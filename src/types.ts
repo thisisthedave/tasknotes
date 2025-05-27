@@ -33,6 +33,7 @@ export interface TaskInfo {
 	path: string;
 	archived: boolean;
 	tags?: string[];
+	contexts?: string[];
 	recurrence?: RecurrenceInfo;
 	complete_instances?: string[]; // Array of dates (YYYY-MM-DD) when recurring task was completed
 }
