@@ -154,30 +154,28 @@ export class TaskListView extends ItemView {
         // Create filters with improved layout
         const filtersContainer = container.createDiv({ cls: 'task-filters' });
         
-        // First row - Primary filters
+        // First row - Primary controls only
         const primaryFiltersRow = filtersContainer.createDiv({ cls: 'filters-row primary-filters' });
         
-        const statusFilter = primaryFiltersRow.createDiv({ cls: 'filter-group' });
-        statusFilter.createEl('span', { text: 'Status: ' });
-        const statusSelect = statusFilter.createEl('select', { cls: 'status-select' });
+        // Toggle button for filters
+        const toggleOrgButton = primaryFiltersRow.createEl('button', {
+            cls: 'toggle-org-filters-button',
+            attr: {
+                'aria-label': 'Toggle filters',
+                'title': 'Toggle filters',
+                'aria-expanded': 'true'
+            }
+        });
+        toggleOrgButton.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 10l5 5 5-5z"></path></svg>';
         
-        const statuses = ['All', 'Open', 'In Progress', 'Done', 'Archived'];
-        statuses.forEach(status => {
-            const option = statusSelect.createEl('option', { value: status.toLowerCase(), text: status });
+        // Add label next to toggle
+        const toggleLabel = primaryFiltersRow.createEl('span', {
+            text: 'Filters',
+            cls: 'toggle-filters-label'
         });
         
-        // Context filter
-        const contextFilter = primaryFiltersRow.createDiv({ cls: 'filter-group context-filter' });
-        contextFilter.createEl('span', { text: 'Contexts: ' });
-        
-        // Context multi-select dropdown
-        const contextDropdown = contextFilter.createDiv({ cls: 'context-dropdown' });
-        const contextButton = contextDropdown.createEl('button', { 
-            text: 'Select contexts', 
-            cls: 'context-dropdown-button'
-        });
-        const contextMenu = contextDropdown.createDiv({ cls: 'context-dropdown-menu' });
-        contextMenu.style.display = 'none';
+        // Spacer to push refresh button to the right
+        primaryFiltersRow.createDiv({ cls: 'filters-spacer' });
         
         // Refresh button in primary row
         const refreshButton = primaryFiltersRow.createEl('button', { 
@@ -189,8 +187,38 @@ export class TaskListView extends ItemView {
             }
         });
         
-        // Second row - Organization filters
+        // Second row - All filters (collapsible)
         const organizationFiltersRow = filtersContainer.createDiv({ cls: 'filters-row organization-filters' });
+        
+        // Apply saved collapse state
+        if (this.plugin.settings.taskOrgFiltersCollapsed) {
+            organizationFiltersRow.style.display = 'none';
+            toggleOrgButton.setAttribute('aria-expanded', 'false');
+            toggleOrgButton.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 14l5-5 5 5z"></path></svg>';
+        }
+        
+        // Status filter (moved to collapsible section)
+        const statusFilter = organizationFiltersRow.createDiv({ cls: 'filter-group' });
+        statusFilter.createEl('span', { text: 'Status: ' });
+        const statusSelect = statusFilter.createEl('select', { cls: 'status-select' });
+        
+        const statuses = ['All', 'Open', 'In Progress', 'Done', 'Archived'];
+        statuses.forEach(status => {
+            const option = statusSelect.createEl('option', { value: status.toLowerCase(), text: status });
+        });
+        
+        // Context filter (moved to collapsible section)
+        const contextFilter = organizationFiltersRow.createDiv({ cls: 'filter-group context-filter' });
+        contextFilter.createEl('span', { text: 'Contexts: ' });
+        
+        // Context multi-select dropdown
+        const contextDropdown = contextFilter.createDiv({ cls: 'context-dropdown' });
+        const contextButton = contextDropdown.createEl('button', { 
+            text: 'Select contexts', 
+            cls: 'context-dropdown-button'
+        });
+        const contextMenu = contextDropdown.createDiv({ cls: 'context-dropdown-menu' });
+        contextMenu.style.display = 'none';
         
         // Grouping filter
         const groupFilter = organizationFiltersRow.createDiv({ cls: 'filter-group' });
@@ -243,6 +271,25 @@ export class TaskListView extends ItemView {
             if (!contextDropdown.contains(e.target as Node)) {
                 contextMenu.style.display = 'none';
             }
+        });
+        
+        // Toggle filters visibility
+        toggleOrgButton.addEventListener('click', async () => {
+            const isExpanded = organizationFiltersRow.style.display !== 'none';
+            organizationFiltersRow.style.display = isExpanded ? 'none' : 'flex';
+            toggleOrgButton.setAttribute('aria-expanded', (!isExpanded).toString());
+            toggleOrgButton.innerHTML = isExpanded 
+                ? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 14l5-5 5 5z"></path></svg>'
+                : '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 10l5 5 5-5z"></path></svg>';
+            
+            // Save the collapse state
+            this.plugin.settings.taskOrgFiltersCollapsed = isExpanded;
+            await this.plugin.saveSettings();
+        });
+        
+        // Also allow clicking on the label to toggle
+        toggleLabel.addEventListener('click', () => {
+            toggleOrgButton.click();
         });
         
         refreshButton.addEventListener('click', async () => {

@@ -12,6 +12,7 @@ export interface ChronoSyncSettings {
 	timeblockEndTime: string;
 	timeblockInterval: '30' | '60';
 	autoAddTimeblock: boolean;
+	taskOrgFiltersCollapsed: boolean;  // Save collapse state of task organization filters
 }
 
 export const DEFAULT_SETTINGS: ChronoSyncSettings = {
@@ -24,7 +25,8 @@ export const DEFAULT_SETTINGS: ChronoSyncSettings = {
 	timeblockStartTime: '05:00',
 	timeblockEndTime: '23:30',
 	timeblockInterval: '30',
-	autoAddTimeblock: true
+	autoAddTimeblock: true,
+	taskOrgFiltersCollapsed: false  // Default to expanded
 };
 
 export class ChronoSyncSettingTab extends PluginSettingTab {
