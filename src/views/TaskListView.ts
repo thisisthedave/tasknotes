@@ -328,8 +328,8 @@ export class TaskListView extends ItemView {
             // Create group section (only if we have groups other than 'all')
             const groupSection = container.createDiv({ cls: 'task-section task-group' });
             
-            // Add group header (skip if grouping is 'none' and group name is 'all')
-            if (this.groupKey !== 'none' || groupName !== 'all') {
+            // Add group header (skip only if grouping is 'none' and group name is 'all')
+            if (!(this.groupKey === 'none' && groupName === 'all')) {
                 const groupHeader = groupSection.createEl('h4', { 
                     cls: 'task-group-header',
                     text: this.formatGroupName(groupName)
@@ -994,7 +994,36 @@ export class TaskListView extends ItemView {
         
         // Then, group the sorted tasks
         if (this.groupKey === 'none') {
-            return new Map([['all', sortedTasks]]);
+            // Special handling for "None" grouping - create groups for recurring and due today
+            const grouped = new Map<string, TaskInfo[]>();
+            const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
+            
+            const recurringTasks: TaskInfo[] = [];
+            const dueTodayTasks: TaskInfo[] = [];
+            const otherTasks: TaskInfo[] = [];
+            
+            sortedTasks.forEach(task => {
+                if (task.recurrence) {
+                    recurringTasks.push(task);
+                } else if (task.due === selectedDateStr) {
+                    dueTodayTasks.push(task);
+                } else {
+                    otherTasks.push(task);
+                }
+            });
+            
+            // Add groups in order they should appear
+            if (recurringTasks.length > 0) {
+                grouped.set('Recurring Tasks', recurringTasks);
+            }
+            if (dueTodayTasks.length > 0) {
+                grouped.set('Due Today', dueTodayTasks);
+            }
+            if (otherTasks.length > 0) {
+                grouped.set('Other Tasks', otherTasks);
+            }
+            
+            return grouped;
         }
         
         const grouped = new Map<string, TaskInfo[]>();
