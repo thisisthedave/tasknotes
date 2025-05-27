@@ -7,7 +7,8 @@ import {
     TaskInfo, 
     NoteInfo, 
     TimeInfo,
-    ColorizeMode
+    ColorizeMode,
+    CalendarDisplayMode
 } from '../types';
 import { 
     extractNoteInfo, 
@@ -21,7 +22,7 @@ export class CalendarView extends ItemView {
     static dailyNotesInitialized: boolean = false;
     
     plugin: ChronoSyncPlugin;
-    viewType: 'month' = 'month';
+    displayMode: CalendarDisplayMode = 'month';
     colorizeMode: ColorizeMode = 'tasks';
     
     // Event listeners
@@ -87,11 +88,20 @@ export class CalendarView extends ItemView {
         // Create the calendar UI
         this.createCalendarControls(container);
         
-        // Create the calendar grid
-        this.createCalendarGrid(container);
-        
-        // Add colorization based on the currently active detail tab
-        this.colorizeCalendar();
+        // Route to appropriate view based on display mode
+        switch (this.displayMode) {
+            case 'week':
+                this.renderWeekGrid(container);
+                break;
+            case 'agenda':
+                this.renderAgendaList(container);
+                break;
+            case 'month':
+            default:
+                this.createCalendarGrid(container);
+                this.colorizeCalendar();
+                break;
+        }
     }
     
     colorizeCalendar() {
@@ -361,6 +371,36 @@ export class CalendarView extends ItemView {
     createCalendarControls(container: HTMLElement) {
         const controlsContainer = container.createDiv({ cls: 'calendar-controls' });
         
+        // Add view switcher buttons
+        const viewSwitcherContainer = controlsContainer.createDiv({ cls: 'view-switcher-container' });
+        
+        const viewModes = [
+            { value: 'month', text: 'Month' },
+            { value: 'week', text: 'Week' },
+            { value: 'agenda', text: 'Agenda' }
+        ];
+        
+        viewModes.forEach(mode => {
+            const button = viewSwitcherContainer.createEl('button', { 
+                text: mode.text, 
+                cls: `view-switcher-button${this.displayMode === mode.value ? ' active' : ''}` 
+            });
+            
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons
+                viewSwitcherContainer.querySelectorAll('.view-switcher-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                // Update display mode and refresh
+                this.displayMode = mode.value as CalendarDisplayMode;
+                this.refresh();
+            });
+        });
+        
         // Add month navigation
         const navContainer = controlsContainer.createDiv({ cls: 'calendar-nav' });
         
@@ -374,62 +414,64 @@ export class CalendarView extends ItemView {
         prevButton.addEventListener('click', () => {
             this.navigateToPreviousPeriod();
         });
-        prevButton.setAttribute('aria-label', 'Previous month');
-        prevButton.setAttribute('title', 'Previous month (Left arrow or H key)');
+        prevButton.setAttribute('aria-label', 'Previous period');
+        prevButton.setAttribute('title', 'Previous period (Left arrow or H key)');
         
         const nextButton = navButtons.createEl('button', { text: '›', cls: 'nav-arrow-button' });
         nextButton.addEventListener('click', () => {
             this.navigateToNextPeriod();
         });
-        nextButton.setAttribute('aria-label', 'Next month');
-        nextButton.setAttribute('title', 'Next month (Right arrow or L key)');
+        nextButton.setAttribute('aria-label', 'Next period');
+        nextButton.setAttribute('title', 'Next period (Right arrow or L key)');
         
-        const currentMonth = monthNavigationGroup.createEl('span', { 
-            text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
-            cls: 'current-month' 
+        const currentPeriod = monthNavigationGroup.createEl('span', { 
+            text: this.getCurrentPeriodText(), 
+            cls: 'current-period' 
         });
         
-        // Add colorize mode selector
-        const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
-        const colorizeLabel = colorizeContainer.createEl('span', { text: 'Show: ', cls: 'colorize-mode-label' });
-        
-        const colorizeSelect = colorizeContainer.createEl('select', { 
-            cls: 'colorize-mode-select',
-            attr: {
-                'title': 'Change view (use keys 1, 2, 3 to switch)',
-                'aria-label': 'Change calendar view (use keys 1, 2, 3 to switch)'
-            }
-        });
-        
-        // Add colorize mode options with keyboard shortcuts
-        const modes = [
-            { value: 'tasks', text: 'Tasks (1)' },
-            { value: 'notes', text: 'Notes (2)' },
-            { value: 'daily', text: 'Daily Notes (3)' }
-        ];
-        
-        modes.forEach(mode => {
-            const option = colorizeSelect.createEl('option', { 
-                value: mode.value, 
-                text: mode.text 
+        // Add colorize mode selector (only show for month view)
+        if (this.displayMode === 'month') {
+            const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
+            const colorizeLabel = colorizeContainer.createEl('span', { text: 'Show: ', cls: 'colorize-mode-label' });
+            
+            const colorizeSelect = colorizeContainer.createEl('select', { 
+                cls: 'colorize-mode-select',
+                attr: {
+                    'title': 'Change view (use keys 1, 2, 3 to switch)',
+                    'aria-label': 'Change calendar view (use keys 1, 2, 3 to switch)'
+                }
             });
             
-            if (mode.value === this.colorizeMode) {
-                option.selected = true;
-            }
-        });
-        
-        // Add change event listener
-        colorizeSelect.addEventListener('change', async () => {
-            const newMode = colorizeSelect.value as ColorizeMode;
-            // Show loading indicator while changing modes
-            this.showLoadingIndicator();
-            try {
-                await this.setColorizeMode(newMode);
-            } finally {
-                this.hideLoadingIndicator();
-            }
-        });
+            // Add colorize mode options with keyboard shortcuts
+            const modes = [
+                { value: 'tasks', text: 'Tasks (1)' },
+                { value: 'notes', text: 'Notes (2)' },
+                { value: 'daily', text: 'Daily Notes (3)' }
+            ];
+            
+            modes.forEach(mode => {
+                const option = colorizeSelect.createEl('option', { 
+                    value: mode.value, 
+                    text: mode.text 
+                });
+                
+                if (mode.value === this.colorizeMode) {
+                    option.selected = true;
+                }
+            });
+            
+            // Add change event listener
+            colorizeSelect.addEventListener('change', async () => {
+                const newMode = colorizeSelect.value as ColorizeMode;
+                // Show loading indicator while changing modes
+                this.showLoadingIndicator();
+                try {
+                    await this.setColorizeMode(newMode);
+                } finally {
+                    this.hideLoadingIndicator();
+                }
+            });
+        }
         
         // Today button
         const todayButton = navContainer.createEl('button', { 
@@ -444,8 +486,6 @@ export class CalendarView extends ItemView {
         todayButton.addEventListener('click', () => {
             this.navigateToToday();
         });
-        
-        // Keyboard navigation hint removed as requested
     }
     
     // Set the colorization mode and update the view
@@ -964,5 +1004,186 @@ export class CalendarView extends ItemView {
     private getDailyNotePath(date: Date): string {
         const dateStr = format(date, 'yyyy-MM-dd');
         return `${this.plugin.settings.dailyNotesFolder}/${dateStr}.md`;
+    }
+    
+    // Helper method to get current period text based on display mode
+    private getCurrentPeriodText(): string {
+        switch (this.displayMode) {
+            case 'week':
+                const weekStart = this.getWeekStartDate(this.plugin.selectedDate);
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
+            case 'agenda':
+                const agendaStart = this.plugin.selectedDate;
+                const agendaEnd = new Date(agendaStart);
+                agendaEnd.setDate(agendaStart.getDate() + 6);
+                return `${format(agendaStart, 'MMM d')} - ${format(agendaEnd, 'MMM d, yyyy')}`;
+            case 'month':
+            default:
+                return format(this.plugin.selectedDate, 'MMMM yyyy');
+        }
+    }
+    
+    // Helper method to get the start of the week (Sunday)
+    private getWeekStartDate(date: Date): Date {
+        const start = new Date(date);
+        const day = start.getDay();
+        start.setDate(start.getDate() - day);
+        return start;
+    }
+    
+    // Render week grid view
+    private async renderWeekGrid(container: HTMLElement): Promise<void> {
+        const weekGridContainer = container.createDiv({ cls: 'week-grid-container' });
+        
+        // Calculate week dates
+        const weekStart = this.getWeekStartDate(this.plugin.selectedDate);
+        const weekDates: Date[] = [];
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(weekStart);
+            date.setDate(weekStart.getDate() + i);
+            weekDates.push(date);
+        }
+        
+        // Fetch data for all days concurrently
+        const dataPromises = weekDates.map(async date => {
+            const [tasks, notes] = await Promise.all([
+                this.plugin.fileIndexer.getTaskInfoForDate(date),
+                this.plugin.fileIndexer.getNotesForDate(date)
+            ]);
+            return { date, tasks, notes };
+        });
+        
+        const weekData = await Promise.all(dataPromises);
+        
+        // Create header
+        const weekHeader = weekGridContainer.createDiv({ cls: 'week-header' });
+        weekHeader.createDiv({ cls: 'time-label-header', text: 'Time' });
+        
+        weekDates.forEach(date => {
+            const dayHeader = weekHeader.createDiv({ cls: 'week-day-header' });
+            dayHeader.createDiv({ cls: 'day-name', text: format(date, 'EEE') });
+            dayHeader.createDiv({ cls: 'day-number', text: format(date, 'd') });
+        });
+        
+        // Create body with time slots
+        const weekBody = weekGridContainer.createDiv({ cls: 'week-body' });
+        
+        // Create time labels column
+        const timeLabelsCol = weekBody.createDiv({ cls: 'time-labels-col' });
+        
+        // Create day columns
+        const dayColumns: HTMLElement[] = [];
+        for (let i = 0; i < 7; i++) {
+            dayColumns.push(weekBody.createDiv({ cls: 'day-column' }));
+        }
+        
+        // Generate time slots (8 AM to 6 PM for example)
+        for (let hour = 8; hour <= 18; hour++) {
+            const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+            timeLabelsCol.createDiv({ cls: 'time-slot', text: timeStr });
+            
+            // Add corresponding slots to each day column
+            dayColumns.forEach((column, dayIndex) => {
+                column.createDiv({ cls: 'time-slot' });
+            });
+        }
+        
+        // Add events to day columns
+        weekData.forEach((dayData, dayIndex) => {
+            const column = dayColumns[dayIndex];
+            const allDaySection = column.createDiv({ cls: 'all-day-section' });
+            
+            // Add tasks
+            dayData.tasks.forEach(task => {
+                const eventBlock = allDaySection.createDiv({ cls: 'event-block task-event' });
+                eventBlock.textContent = task.title;
+                eventBlock.setAttribute('title', `Task: ${task.title}`);
+            });
+            
+            // Add notes
+            dayData.notes.forEach(note => {
+                const eventBlock = allDaySection.createDiv({ cls: 'event-block note-event' });
+                eventBlock.textContent = note.title;
+                eventBlock.setAttribute('title', `Note: ${note.title}`);
+            });
+        });
+    }
+    
+    // Render agenda list view
+    private async renderAgendaList(container: HTMLElement): Promise<void> {
+        const agendaContainer = container.createDiv({ cls: 'agenda-list-container' });
+        
+        // Get next 7 days starting from selected date
+        const agendaDates: Date[] = [];
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(this.plugin.selectedDate);
+            date.setDate(this.plugin.selectedDate.getDate() + i);
+            agendaDates.push(date);
+        }
+        
+        // Fetch data for all days concurrently
+        const dataPromises = agendaDates.map(async date => {
+            const [tasks, notes] = await Promise.all([
+                this.plugin.fileIndexer.getTaskInfoForDate(date),
+                this.plugin.fileIndexer.getNotesForDate(date)
+            ]);
+            return { date, tasks, notes };
+        });
+        
+        const agendaData = await Promise.all(dataPromises);
+        
+        // Render each day that has items
+        agendaData.forEach(dayData => {
+            const hasItems = dayData.tasks.length > 0 || dayData.notes.length > 0;
+            
+            if (hasItems) {
+                // Create day header
+                const dayHeader = agendaContainer.createDiv({ cls: 'agenda-day-header' });
+                dayHeader.textContent = format(dayData.date, 'EEEE, MMMM d');
+                
+                // Create item list
+                const itemList = agendaContainer.createDiv({ cls: 'agenda-item-list' });
+                
+                // Add tasks
+                dayData.tasks.forEach(task => {
+                    const item = itemList.createDiv({ cls: 'agenda-item task-item' });
+                    const title = item.createDiv({ cls: 'item-title', text: task.title });
+                    const meta = item.createDiv({ cls: 'item-meta' });
+                    meta.createSpan({ cls: 'item-type', text: 'Task' });
+                    
+                    if (task.priority && task.priority !== 'normal') {
+                        meta.createSpan({ cls: `priority-badge priority-${task.priority}`, text: task.priority });
+                    }
+                    
+                    if (task.contexts && task.contexts.length > 0) {
+                        task.contexts.forEach(context => {
+                            meta.createSpan({ cls: 'context-tag', text: `@${context}` });
+                        });
+                    }
+                });
+                
+                // Add notes
+                dayData.notes.forEach(note => {
+                    const item = itemList.createDiv({ cls: 'agenda-item note-item' });
+                    const title = item.createDiv({ cls: 'item-title', text: note.title });
+                    const meta = item.createDiv({ cls: 'item-meta' });
+                    meta.createSpan({ cls: 'item-type', text: 'Note' });
+                    
+                    if (note.tags && note.tags.length > 0) {
+                        note.tags.slice(0, 3).forEach(tag => {
+                            meta.createSpan({ cls: 'note-tag', text: `#${tag}` });
+                        });
+                    }
+                });
+            }
+        });
+        
+        // If no items found
+        if (agendaContainer.children.length === 0) {
+            const emptyMessage = agendaContainer.createDiv({ cls: 'empty-agenda-message' });
+            emptyMessage.textContent = 'No tasks or notes found for the next 7 days.';
+        }
     }
 }

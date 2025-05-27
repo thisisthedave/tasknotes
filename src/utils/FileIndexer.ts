@@ -263,10 +263,6 @@ export class FileIndexer {
         targetDate.setHours(10, 0, 0, 0); // Normalize to mid-day to avoid timezone issues
         const selectedDateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
         
-        // Check if we have a cached result for this date that's still valid
-        if (!forceRefresh && this.lastNotesQueryDate === selectedDateStr && this.lastNotesQueryResult) {
-            return this.lastNotesQueryResult;
-        }
         
         // Create a map to track processed files (faster lookup than Set for large collections)
         const processedPaths = new Map<string, NoteInfo>();
@@ -346,16 +342,10 @@ export class FileIndexer {
             );
         }
         
-        // Cache the result for this date query
-        this.lastNotesQueryDate = selectedDateStr;
-        this.lastNotesQueryResult = result;
         
         return result;
     }
     
-    // Store the last notes query result to avoid unnecessary reprocessing
-    private lastNotesQueryDate: string | null = null;
-    private lastNotesQueryResult: NoteInfo[] | null = null;
     
     // Calendar data caching
     private calendarCache: Map<string, {
@@ -649,9 +639,6 @@ export class FileIndexer {
         // Clear calendar cache which includes daily notes
         this.calendarCache.clear();
         
-        // Clear query result cache
-        this.lastNotesQueryDate = null;
-        this.lastNotesQueryResult = null;
         
         // Get a fresh index
         await this.getIndex(true);

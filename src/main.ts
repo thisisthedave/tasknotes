@@ -14,7 +14,8 @@ import {
 	TaskInfo,
 	EVENT_DATE_SELECTED,
 	EVENT_TAB_CHANGED,
-	EVENT_DATA_CHANGED
+	EVENT_DATA_CHANGED,
+	EVENT_TASK_UPDATED
 } from './types';
 import { CalendarView } from './views/CalendarView';
 import { TaskListView } from './views/TaskListView';
@@ -682,8 +683,14 @@ export default class ChronoSyncPlugin extends Plugin {
 				YAMLCache.clearCacheEntry(task.path);
 			}
 			
-			// Notify views that data has changed and force a full refresh like recurring tasks do
-			this.notifyDataChanged(task.path, true, true);
+			// For simple property updates (priority, status, due), emit a granular update event
+			// For more complex changes that affect task identity, keep using full refresh
+			if (['priority', 'status', 'due'].includes(property)) {
+				this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask: updatedTask as TaskInfo });
+			} else {
+				// Notify views that data has changed and force a full refresh for other properties
+				this.notifyDataChanged(task.path, true, true);
+			}
 			
 			// Instead of a full refresh, we could implement a more targeted update
 			// mechanism in the future that updates just the affected DOM elements

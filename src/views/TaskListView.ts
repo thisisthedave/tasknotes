@@ -5,7 +5,10 @@ import {
     TASK_LIST_VIEW_TYPE, 
     TaskInfo, 
     EVENT_DATE_SELECTED,
-    EVENT_DATA_CHANGED
+    EVENT_DATA_CHANGED,
+    EVENT_TASK_UPDATED,
+    TaskSortKey,
+    TaskGroupKey
 } from '../types';
 import { 
     isTaskOverdue,
@@ -31,6 +34,10 @@ export class TaskListView extends ItemView {
     // Filter states
     private selectedContexts: Set<string> = new Set();
     private availableContexts: string[] = [];
+    
+    // Sorting and grouping states
+    private sortKey: TaskSortKey = 'due';
+    private groupKey: TaskGroupKey = 'none';
     
     // Task item tracking for dynamic updates
     private taskElements: Map<string, HTMLElement> = new Map();
@@ -76,6 +83,15 @@ export class TaskListView extends ItemView {
             this.refresh();
         });
         this.listeners.push(dataListener);
+        
+        // Listen for individual task updates
+        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, updatedTask }) => {
+            // Update the data in the view's local cache
+            this.updateTaskInCache(path, updatedTask);
+            // Update the single task element in the DOM without a full refresh
+            this.updateTaskElementInDOM(path, updatedTask);
+        });
+        this.listeners.push(taskUpdateListener);
     }
     
     async onOpen() {
@@ -165,6 +181,41 @@ export class TaskListView extends ItemView {
         const contextMenu = contextDropdown.createDiv({ cls: 'context-dropdown-menu' });
         contextMenu.style.display = 'none';
         
+        // Grouping filter
+        const groupFilter = leftGroup.createDiv({ cls: 'filter-group' });
+        groupFilter.createEl('span', { text: 'Group by: ' });
+        const groupSelect = groupFilter.createEl('select', { cls: 'group-select' });
+        
+        const groupOptions = [
+            { value: 'none', text: 'None' },
+            { value: 'priority', text: 'Priority' },
+            { value: 'context', text: 'Context' },
+            { value: 'due', text: 'Due Date' }
+        ];
+        groupOptions.forEach(option => {
+            const optionEl = groupSelect.createEl('option', { value: option.value, text: option.text });
+            if (option.value === this.groupKey) {
+                optionEl.selected = true;
+            }
+        });
+        
+        // Sorting filter
+        const sortFilter = leftGroup.createDiv({ cls: 'filter-group' });
+        sortFilter.createEl('span', { text: 'Sort by: ' });
+        const sortSelect = sortFilter.createEl('select', { cls: 'sort-select' });
+        
+        const sortOptions = [
+            { value: 'due', text: 'Due Date' },
+            { value: 'priority', text: 'Priority' },
+            { value: 'title', text: 'Title' }
+        ];
+        sortOptions.forEach(option => {
+            const optionEl = sortSelect.createEl('option', { value: option.value, text: option.text });
+            if (option.value === this.sortKey) {
+                optionEl.selected = true;
+            }
+        });
+        
         // Get available contexts from tasks
         await this.updateAvailableContexts();
         this.renderContextMenu(contextMenu, statusSelect);
@@ -222,22 +273,26 @@ export class TaskListView extends ItemView {
         this.isTasksLoading = false;
         this.updateLoadingState();
         
-        // Add change event listener to the status filter
+        // Add change event listeners to the filters
         statusSelect.addEventListener('change', async () => {
+            await this.applyFilters(taskList, statusSelect);
+        });
+        
+        groupSelect.addEventListener('change', async () => {
+            this.groupKey = groupSelect.value as TaskGroupKey;
+            await this.applyFilters(taskList, statusSelect);
+        });
+        
+        sortSelect.addEventListener('change', async () => {
+            this.sortKey = sortSelect.value as TaskSortKey;
             await this.applyFilters(taskList, statusSelect);
         });
         
         // Get the selected date
         const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
         
-        // Apply initial filtering based on the default "all" status (exclude archived tasks)
-        const nonArchivedTasks = tasks.filter(task => !task.archived);
-        
-        // Sort tasks to prioritize those due on the selected date
-        this.prioritizeTasksByDate(nonArchivedTasks, selectedDateStr);
-        
-        // Initial task rendering with filtered tasks (non-archived)
-        this.renderTaskItems(taskList, nonArchivedTasks, selectedDateStr);
+        // Apply initial filtering and render
+        await this.applyFilters(taskList, statusSelect);
         
         // Store reference to the task list container for future updates
         this.taskListContainer = taskList;
@@ -246,101 +301,75 @@ export class TaskListView extends ItemView {
         this.taskElements.clear();
     }
     
-    // Helper method to render task items
-    renderTaskItems(container: HTMLElement, tasks: TaskInfo[], selectedDateStr: string | null = null) {
-        // Create a map to track unique tasks by path to prevent duplicates
-        const processedTaskPaths = new Set<string>();
-        
+    // Helper method to render task items with grouping support
+    renderTaskItems(container: HTMLElement, groupedTasks: Map<string, TaskInfo[]> | TaskInfo[], selectedDateStr: string | null = null) {
+        // Handle backward compatibility - if passed array, convert to map
+        let taskGroups: Map<string, TaskInfo[]>;
+        if (Array.isArray(groupedTasks)) {
+            taskGroups = new Map([['all', groupedTasks]]);
+        } else {
+            taskGroups = groupedTasks;
+        }
         // Clear the container
         container.empty();
         
-        if (tasks.length === 0) {
+        // Check if there are any tasks across all groups
+        const totalTasks = Array.from(taskGroups.values()).reduce((total, tasks) => total + tasks.length, 0);
+        
+        if (totalTasks === 0) {
             // Placeholder for empty task list
             container.createEl('p', { text: 'No tasks found for the selected filters.' });
-        } else {
-            // First, deduplicate the tasks array based on path
+            return;
+        }
+        
+        // Render each group
+        taskGroups.forEach((tasks, groupName) => {
+            if (tasks.length === 0) return;
+            
+            // Create group section (only if we have groups other than 'all')
+            const groupSection = container.createDiv({ cls: 'task-section task-group' });
+            
+            // Add group header (skip if grouping is 'none' and group name is 'all')
+            if (this.groupKey !== 'none' || groupName !== 'all') {
+                const groupHeader = groupSection.createEl('h4', { 
+                    cls: 'task-group-header',
+                    text: this.formatGroupName(groupName)
+                });
+            }
+            
+            // Create task cards container
+            const taskCardsContainer = groupSection.createDiv({ cls: 'tasks-container task-cards' });
+            
+            // Deduplicate tasks within this group
+            const processedTaskPaths = new Set<string>();
             const uniqueTasks = tasks.filter(task => {
                 if (processedTaskPaths.has(task.path)) {
-                    return false; // Skip this task, it's a duplicate
+                    return false;
                 }
                 processedTaskPaths.add(task.path);
                 return true;
             });
             
-            // Check if we have tasks due on the selected date (non-recurring tasks)
-            const tasksForSelectedDate = selectedDateStr 
-                ? uniqueTasks.filter(task => task.due === selectedDateStr && !task.recurrence)
-                : [];
-            
-            // Check for recurring tasks due on the selected date
-            const recurringTasks = uniqueTasks.filter(task => 
-                task.recurrence && isRecurringTaskDueOn(task, this.plugin.selectedDate)
-            );
-            
-            // Calculate other tasks - not due today and not recurring for today
-            const otherTasks = uniqueTasks.filter(task => {
-                const isNotDueToday = !selectedDateStr || task.due !== selectedDateStr;
-                const isNotRecurringToday = !task.recurrence || 
-                    (task.recurrence && !isRecurringTaskDueOn(task, this.plugin.selectedDate));
-                return isNotDueToday && isNotRecurringToday;
-            });
-            
-            let hasRenderedAnySection = false;
-                
-            // If we have tasks due on the selected date, create a section for them
-            if (tasksForSelectedDate.length > 0 && selectedDateStr) {
-                hasRenderedAnySection = true;
-                const selectedDateSection = container.createDiv({ cls: 'task-section selected-date-tasks' });
-                selectedDateSection.createEl('h4', { 
-                    text: `Tasks due on ${format(new Date(selectedDateStr), 'MMM d, yyyy')}`,
-                    cls: 'task-section-header'
-                });
-                
-                // Create a container for the task cards layout
-                const selectedDateTasksContainer = selectedDateSection.createDiv({ cls: 'tasks-container task-cards' });
-                
-                // Create task items for selected date - pass false to not filter recurring tasks
-                this.renderTaskGroup(selectedDateTasksContainer, tasksForSelectedDate, selectedDateStr, false);
-            }
-            
-            // If we have recurring tasks, add a section for them
-            if (recurringTasks.length > 0) {
-                hasRenderedAnySection = true;
-                const recurringTasksSection = container.createDiv({ cls: 'task-section recurring-tasks' });
-                recurringTasksSection.createEl('h4', { 
-                    text: `Recurring tasks for ${format(this.plugin.selectedDate, 'MMM d, yyyy')}`,
-                    cls: 'task-section-header recurring-section-header'
-                });
-                
-                // Create a container for the task cards layout
-                const recurringTasksContainer = recurringTasksSection.createDiv({ cls: 'tasks-container task-cards' });
-                
-                // Create task items for recurring tasks - pass false to not filter recurring tasks again
-                this.renderTaskGroup(recurringTasksContainer, recurringTasks, selectedDateStr, false);
-            }
-            
-            // If there are other tasks, add a separate section
-            if (otherTasks.length > 0) {
-                hasRenderedAnySection = true;
-                const otherTasksSection = container.createDiv({ cls: 'task-section other-tasks' });
-                otherTasksSection.createEl('h4', { 
-                    text: 'Other tasks',
-                    cls: 'task-section-header'
-                });
-                
-                // Create a container for the task cards layout
-                const otherTasksContainer = otherTasksSection.createDiv({ cls: 'tasks-container task-cards' });
-                
-                // Create task items for other tasks
-                this.renderTaskGroup(otherTasksContainer, otherTasks, selectedDateStr, false);
-            }
-            
-            // If no sections were rendered, show all tasks
-            if (!hasRenderedAnySection) {
-                // Create a container for the task cards layout
-                const tasksContainer = container.createDiv({ cls: 'tasks-container task-cards' });
-                this.renderTaskGroup(tasksContainer, uniqueTasks, selectedDateStr);
-            }
+            // Render tasks using existing renderTaskGroup method
+            this.renderTaskGroup(taskCardsContainer, uniqueTasks, selectedDateStr, false);
+        });
+    }
+    
+    /**
+     * Format group name for display
+     */
+    private formatGroupName(groupName: string): string {
+        switch (groupName) {
+            case 'high':
+                return 'High Priority';
+            case 'normal':
+                return 'Normal Priority';
+            case 'low':
+                return 'Low Priority';
+            case 'all':
+                return 'All Tasks';
+            default:
+                return groupName;
         }
     }
     
@@ -940,7 +969,98 @@ export class TaskListView extends ItemView {
     }
     
     /**
-     * Apply both status and context filters to the task list
+     * Sort and group tasks according to current settings
+     */
+    private getSortedAndGroupedTasks(tasks: TaskInfo[]): Map<string, TaskInfo[]> {
+        // First, sort the tasks
+        const sortedTasks = [...tasks].sort((a, b) => {
+            switch (this.sortKey) {
+                case 'priority':
+                    const priorityOrder = { high: 0, normal: 1, low: 2 };
+                    const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 1;
+                    const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 1;
+                    return aPriority - bPriority;
+                
+                case 'title':
+                    return a.title.localeCompare(b.title);
+                
+                case 'due':
+                default:
+                    // Handle due dates
+                    const aDate = a.due ? new Date(a.due) : new Date('9999-12-31');
+                    const bDate = b.due ? new Date(b.due) : new Date('9999-12-31');
+                    return aDate.getTime() - bDate.getTime();
+            }
+        });
+        
+        // Then, group the sorted tasks
+        if (this.groupKey === 'none') {
+            return new Map([['all', sortedTasks]]);
+        }
+        
+        const grouped = new Map<string, TaskInfo[]>();
+        
+        sortedTasks.forEach(task => {
+            let groupKey: string;
+            
+            switch (this.groupKey) {
+                case 'priority':
+                    groupKey = task.priority || 'normal';
+                    break;
+                
+                case 'context':
+                    if (task.contexts && task.contexts.length > 0) {
+                        // For tasks with multiple contexts, create separate entries
+                        task.contexts.forEach(context => {
+                            const contextKey = context.trim();
+                            if (!grouped.has(contextKey)) {
+                                grouped.set(contextKey, []);
+                            }
+                            grouped.get(contextKey)!.push(task);
+                        });
+                        return; // Skip the default grouping below
+                    } else {
+                        groupKey = 'No Context';
+                    }
+                    break;
+                
+                case 'due':
+                    if (task.due) {
+                        const dueDate = new Date(task.due);
+                        const today = new Date();
+                        const tomorrow = new Date(today);
+                        tomorrow.setDate(today.getDate() + 1);
+                        
+                        if (dueDate < today) {
+                            groupKey = 'Overdue';
+                        } else if (dueDate.toDateString() === today.toDateString()) {
+                            groupKey = 'Today';
+                        } else if (dueDate.toDateString() === tomorrow.toDateString()) {
+                            groupKey = 'Tomorrow';
+                        } else {
+                            groupKey = 'Later';
+                        }
+                    } else {
+                        groupKey = 'No Due Date';
+                    }
+                    break;
+                
+                default:
+                    groupKey = 'all';
+                    break;
+            }
+            
+            if (!grouped.has(groupKey)) {
+                grouped.set(groupKey, []);
+            }
+            grouped.get(groupKey)!.push(task);
+        });
+        
+        return grouped;
+    }
+    
+    /**
+     * Apply status, context, sorting, and grouping filters to the task list
      */
     private async applyFilters(taskListContainer: HTMLElement, statusSelect: HTMLSelectElement): Promise<void> {
         const selectedStatus = statusSelect.value;
@@ -978,13 +1098,12 @@ export class TaskListView extends ItemView {
                 );
             });
         }
-            
-        // Then sort the tasks to prioritize those due on the selected date
-        const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
-        this.prioritizeTasksByDate(filteredTasks, selectedDateStr);
+        
+        // Apply sorting and grouping
+        const groupedTasks = this.getSortedAndGroupedTasks(filteredTasks);
         
         // Refresh the task list
-        this.renderTaskItems(taskListContainer, filteredTasks, selectedDateStr);
+        this.renderTaskItems(taskListContainer, groupedTasks);
     }
     
     openTask(path: string) {

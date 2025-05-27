@@ -2114,21 +2114,270 @@ button.processing::after {
     }
 }
 
-/* Task update animation */
+/* Task update animation - improved subtle highlight */
 .task-updated {
-    animation: task-update-flash 1.5s ease-out;
+    animation: highlight-fade 1.5s ease-out;
 }
 
-@keyframes task-update-flash {
-    0% {
-        background-color: var(--interactive-accent);
-        transform: scale(1.02);
+@keyframes highlight-fade {
+    from {
+        background-color: rgba(var(--interactive-accent-rgb), 0.2);
+        box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.3);
     }
-    50% {
-        background-color: rgba(var(--interactive-accent-rgb), 0.3);
-    }
-    100% {
+    to {
         background-color: transparent;
-        transform: scale(1);
+        box-shadow: 0 0 0 0px rgba(var(--interactive-accent-rgb), 0);
     }
+}
+
+/* Calendar View Switcher */
+.view-switcher-container {
+    display: flex;
+    gap: var(--cs-spacing-xs);
+    margin-bottom: var(--cs-spacing-md);
+}
+
+.view-switcher-button {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-md);
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    border-radius: var(--cs-radius-sm);
+    cursor: pointer;
+    transition: var(--cs-transition-fast);
+    font-size: var(--cs-text-sm);
+}
+
+.view-switcher-button:hover {
+    background: var(--background-modifier-hover);
+}
+
+.view-switcher-button.active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+/* Week Grid View */
+.week-grid-container {
+    display: flex;
+    flex-direction: column;
+    height: 600px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-md);
+    overflow: hidden;
+}
+
+.week-header {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    background: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.time-label-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--cs-spacing-sm);
+    font-weight: 600;
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    border-right: 1px solid var(--background-modifier-border);
+}
+
+.week-day-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--cs-spacing-sm);
+    border-right: 1px solid var(--background-modifier-border);
+}
+
+.week-day-header:last-child {
+    border-right: none;
+}
+
+.day-name {
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.day-number {
+    font-size: var(--cs-text-md);
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.week-body {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    flex: 1;
+    overflow-y: auto;
+}
+
+.time-labels-col {
+    background: var(--background-secondary);
+    border-right: 1px solid var(--background-modifier-border);
+}
+
+.day-column {
+    border-right: 1px solid var(--background-modifier-border);
+    position: relative;
+}
+
+.day-column:last-child {
+    border-right: none;
+}
+
+.time-slot {
+    height: 40px;
+    border-top: 1px solid var(--background-modifier-border-faint);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+}
+
+.time-labels-col .time-slot {
+    justify-content: flex-end;
+    padding-right: var(--cs-spacing-sm);
+}
+
+.all-day-section {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    padding: var(--cs-spacing-xs);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.event-block {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    padding: 2px var(--cs-spacing-xs);
+    border-radius: var(--cs-radius-sm);
+    font-size: var(--cs-text-xs);
+    cursor: pointer;
+    transition: var(--cs-transition-fast);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-block:hover {
+    opacity: 0.8;
+}
+
+.event-block.task-event {
+    background: var(--text-error);
+}
+
+.event-block.note-event {
+    background: var(--text-success);
+}
+
+/* Agenda List View */
+.agenda-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-lg);
+    padding: var(--cs-spacing-md);
+}
+
+.agenda-day-header {
+    font-size: var(--cs-text-lg);
+    font-weight: 600;
+    color: var(--text-normal);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: var(--cs-spacing-xs);
+    margin-bottom: var(--cs-spacing-sm);
+}
+
+.agenda-item-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-sm);
+}
+
+.agenda-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-xs);
+    padding: var(--cs-spacing-sm);
+    background: var(--background-primary-alt);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-md);
+    transition: var(--cs-transition-fast);
+}
+
+.agenda-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.agenda-item.task-item {
+    border-left: 3px solid var(--text-error);
+}
+
+.agenda-item.note-item {
+    border-left: 3px solid var(--text-success);
+}
+
+.item-title {
+    font-weight: 500;
+    color: var(--text-normal);
+    font-size: var(--cs-text-base);
+}
+
+.item-meta {
+    display: flex;
+    gap: var(--cs-spacing-xs);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.item-type {
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.priority-badge {
+    font-size: var(--cs-text-xs);
+    padding: 1px var(--cs-spacing-xs);
+    border-radius: var(--cs-radius-sm);
+    font-weight: 500;
+}
+
+.priority-badge.priority-high {
+    background: var(--text-error);
+    color: var(--text-on-accent);
+}
+
+.priority-badge.priority-low {
+    background: var(--text-muted);
+    color: var(--text-on-accent);
+}
+
+.context-tag,
+.note-tag {
+    font-size: var(--cs-text-xs);
+    padding: 1px var(--cs-spacing-xs);
+    background: var(--background-modifier-form-field);
+    border-radius: var(--cs-radius-sm);
+    color: var(--text-muted);
+}
+
+.empty-agenda-message {
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: var(--cs-spacing-xl);
 }

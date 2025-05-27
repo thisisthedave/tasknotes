@@ -7,9 +7,17 @@ export const NOTES_VIEW_TYPE = 'chronosync-notes-view';
 export const EVENT_DATE_SELECTED = 'date-selected';
 export const EVENT_TAB_CHANGED = 'tab-changed';
 export const EVENT_DATA_CHANGED = 'data-changed';
+export const EVENT_TASK_UPDATED = 'task-updated';
 
 // Calendar colorization modes
 export type ColorizeMode = 'tasks' | 'notes' | 'daily';
+
+// Calendar display modes
+export type CalendarDisplayMode = 'month' | 'week' | 'agenda';
+
+// Task sorting and grouping types
+export type TaskSortKey = 'due' | 'priority' | 'title';
+export type TaskGroupKey = 'none' | 'priority' | 'context' | 'due';
 
 // Time and date related types
 export interface TimeInfo {
