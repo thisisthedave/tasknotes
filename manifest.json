@@ -1,7 +1,7 @@
 {
 	"id": "chronosync",
 	"name": "ChronoSync",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"minAppVersion": "1.0.0",
 	"description": "Comprehensive diary, task, note, and time management for Obsidian.",
 	"author": "Callum Alpass",
