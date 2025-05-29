@@ -1269,6 +1269,15 @@ button.processing::after {
     line-height: 1.2;
 }
 
+.task-completed-date {
+    color: var(--text-muted);
+    font-size: var(--cs-text-xs);
+    padding: 2px 6px;
+    background: var(--background-secondary);
+    border-radius: var(--cs-radius-sm);
+    white-space: nowrap;
+}
+
 
 /* Priority indicators - small colored badges */
 .task-priority-indicator {
@@ -2326,7 +2335,8 @@ button.processing::after {
 
 .context-tag,
 .note-tag,
-.due-date {
+.due-date,
+.completed-date {
     font-size: var(--cs-text-xs);
     padding: 1px var(--cs-spacing-xs);
     background: var(--background-modifier-form-field);
@@ -2338,6 +2348,13 @@ button.processing::after {
     background: var(--background-modifier-border);
     color: var(--text-accent);
     font-weight: 500;
+}
+
+.completed-date {
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    font-weight: 500;
+    opacity: 0.9;
 }
 
 .empty-agenda-message {

@@ -1133,6 +1133,14 @@ export class CalendarView extends ItemView {
                         });
                     }
                     
+                    // Show completed date for done tasks
+                    if (task.status === 'done' && task.completedDate && !task.recurrence) {
+                        meta.createSpan({ 
+                            cls: 'completed-date', 
+                            text: `Completed: ${format(new Date(task.completedDate), 'MMM d')}` 
+                        });
+                    }
+                    
                     // Add click handler to open task
                     item.addEventListener('click', () => {
                         const file = this.app.vault.getAbstractFileByPath(task.path);

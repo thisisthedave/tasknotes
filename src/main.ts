@@ -660,10 +660,30 @@ export default class ChronoSyncPlugin extends Plugin {
 			const updatedTask = { ...task } as Record<string, any>;
 			updatedTask[property] = value;
 			
+			// Special handling for status changes - update completedDate in local copy
+			if (property === 'status' && !task.recurrence) {
+				if (value === 'done') {
+					updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
+				} else if (value === 'open' || value === 'in-progress') {
+					updatedTask.completedDate = undefined;
+				}
+			}
+			
 			// Process the frontmatter
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				// Update the property
 				frontmatter[property] = value;
+				
+				// Special handling for status changes - update completedDate
+				if (property === 'status' && !task.recurrence) {
+					if (value === 'done') {
+						// Set completedDate to today when marking as done
+						frontmatter.completedDate = format(new Date(), 'yyyy-MM-dd');
+					} else if (value === 'open' || value === 'in-progress') {
+						// Clear completedDate when marking as open or in-progress
+						delete frontmatter.completedDate;
+					}
+				}
 			});
 			
 			// Show a notice (unless silent)

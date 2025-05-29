@@ -487,6 +487,15 @@ export class TaskListView extends ItemView {
                 text: effectiveStatus
             });
             
+            // Show completed date for non-recurring tasks that are done
+            if (!task.recurrence && task.status === 'done' && task.completedDate) {
+                const completedDateEl = taskMeta.createDiv({
+                    cls: 'task-completed-date',
+                    text: `Completed: ${format(new Date(task.completedDate), 'MMM d, yyyy')}`
+                });
+                completedDateEl.setAttribute('title', `Completed on ${format(new Date(task.completedDate), 'MMMM d, yyyy')}`);
+            }
+            
             // Create archive button in the metadata section (top right)
             const archiveButton = taskMeta.createEl('button', { 
                 cls: `archive-button-icon ${task.archived ? 'archived' : ''}`,

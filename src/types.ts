@@ -44,6 +44,7 @@ export interface TaskInfo {
 	contexts?: string[];
 	recurrence?: RecurrenceInfo;
 	complete_instances?: string[]; // Array of dates (YYYY-MM-DD) when recurring task was completed
+	completedDate?: string; // Date (YYYY-MM-DD) when task was marked as done
 }
 
 // Note types
@@ -93,6 +94,7 @@ export interface TaskFrontmatter {
 	contexts?: string[];
 	recurrence?: RecurrenceInfo;
 	complete_instances?: string[];
+	completedDate?: string;
 }
 
 export interface NoteFrontmatter {
