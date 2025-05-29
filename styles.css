@@ -1014,16 +1014,16 @@ button.processing::after {
 }
 
 .task-item {
-    padding: var(--cs-spacing-sm);
+    padding: var(--cs-spacing-md);
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--cs-radius-sm);
     display: flex;
     flex-direction: column;
-    gap: var(--cs-spacing-xs);
+    gap: var(--cs-spacing-sm);
     transition: all var(--cs-transition-fast);
     background-color: var(--background-primary);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    margin-bottom: var(--cs-spacing-xs);
+    margin-bottom: var(--cs-spacing-md);
 }
 
 .task-item:hover {

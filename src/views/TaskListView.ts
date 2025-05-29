@@ -342,9 +342,6 @@ export class TaskListView extends ItemView {
         
         // Store reference to the task list container for future updates
         this.taskListContainer = taskList;
-        
-        // Clear task elements map for new render
-        this.taskElements.clear();
     }
     
     // Helper method to render task items with grouping support
@@ -446,6 +443,7 @@ export class TaskListView extends ItemView {
             
             // Store reference to this task element for future updates
             taskItem.dataset.taskPath = task.path;
+            console.log(`Storing task element for path: "${task.path}"`);
             this.taskElements.set(task.path, taskItem);
             
             // Create header row (title and metadata)
@@ -685,6 +683,15 @@ export class TaskListView extends ItemView {
                     
                     // 1. Create a local copy of the task with the new status
                     const updatedTask = { ...task, status: newStatus };
+                    
+                    // Update completedDate for non-recurring tasks
+                    if (!task.recurrence) {
+                        if (newStatus === 'done') {
+                            updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
+                        } else if (newStatus === 'open' || newStatus === 'in-progress') {
+                            updatedTask.completedDate = undefined;
+                        }
+                    }
                     
                     // 2. Perform optimistic UI update
                     this.updateTaskElementInDOM(task.path, updatedTask);
@@ -1011,24 +1018,51 @@ export class TaskListView extends ItemView {
      * Update a specific task element in the DOM without full re-render
      */
     private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
+        console.log(`Looking for task element with path: "${taskPath}"`);
+        console.log(`Available task element paths:`, Array.from(this.taskElements.keys()));
+        
         const taskElement = this.taskElements.get(taskPath);
-        if (!taskElement) return;
+        if (!taskElement) {
+            console.warn(`Task element not found for path: ${taskPath}`);
+            console.log(`Task elements map size: ${this.taskElements.size}`);
+            return;
+        }
+        
+        console.log(`Updating task element for ${taskPath}, status: ${updatedTask.status}, priority: ${updatedTask.priority}`);
+        console.log('Task element classes:', taskElement.className);
+        console.log('Task element HTML:', taskElement.innerHTML.substring(0, 200) + '...');
         
         // Update task status badge
         const statusBadge = taskElement.querySelector('.task-status') as HTMLElement;
+        console.log('Status badge found:', !!statusBadge);
         if (statusBadge) {
             const effectiveStatus = updatedTask.recurrence 
                 ? getEffectiveTaskStatus(updatedTask, this.plugin.selectedDate)
                 : updatedTask.status;
             
+            console.log(`Updating status badge to: ${effectiveStatus}`);
+            // Format display text properly
+            let displayStatus = effectiveStatus;
+            if (effectiveStatus === 'in-progress') {
+                displayStatus = 'In Progress';
+            } else {
+                displayStatus = effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1);
+            }
+            
             statusBadge.className = `task-status task-status-${effectiveStatus.replace(/\s+/g, '-').toLowerCase()} ${updatedTask.recurrence ? 'recurring-status' : ''}`;
-            statusBadge.textContent = effectiveStatus;
+            statusBadge.textContent = displayStatus;
+        } else {
+            console.warn('Status badge not found in task element');
         }
         
         // Update priority indicator
         const priorityIndicator = taskElement.querySelector('.task-priority-indicator') as HTMLElement;
+        console.log('Priority indicator found:', !!priorityIndicator);
         if (priorityIndicator) {
+            console.log(`Updating priority indicator to: priority-${updatedTask.priority}`);
             priorityIndicator.className = `task-priority-indicator priority-${updatedTask.priority}`;
+        } else {
+            console.warn('Priority indicator not found in task element');
         }
         
         // Update archive status
@@ -1053,6 +1087,50 @@ export class TaskListView extends ItemView {
                     cls: 'task-archived-badge',
                     text: 'Archived'
                 });
+            }
+        }
+        
+        // Update completed date badge
+        const completedDateEl = taskElement.querySelector('.task-completed-date') as HTMLElement;
+        if (completedDateEl) {
+            if (!updatedTask.recurrence && updatedTask.status === 'done' && updatedTask.completedDate) {
+                completedDateEl.textContent = `${format(new Date(updatedTask.completedDate), 'MMM d')}`;
+                completedDateEl.style.display = 'block';
+            } else {
+                completedDateEl.style.display = 'none';
+            }
+        } else if (!updatedTask.recurrence && updatedTask.status === 'done' && updatedTask.completedDate) {
+            // Add completed date badge if it doesn't exist
+            const taskMeta = taskElement.querySelector('.task-item-metadata');
+            if (taskMeta) {
+                const completedDateEl = taskMeta.createDiv({
+                    cls: 'task-completed-date',
+                    text: `${format(new Date(updatedTask.completedDate), 'MMM d')}`
+                });
+                completedDateEl.setAttribute('title', `Completed on ${format(new Date(updatedTask.completedDate), 'MMMM d, yyyy')}`);
+            }
+        }
+        
+        // Update time metadata
+        const timeMetaContainer = taskElement.querySelector('.time-meta-compact') as HTMLElement;
+        if (timeMetaContainer) {
+            // Update existing time info
+            const estimateEl = timeMetaContainer.querySelector('.time-meta-estimate') as HTMLElement;
+            const spentEl = timeMetaContainer.querySelector('.time-meta-spent') as HTMLElement;
+            const progressDot = timeMetaContainer.querySelector('.progress-dot') as HTMLElement;
+            
+            if (estimateEl && updatedTask.timeEstimate) {
+                estimateEl.textContent = this.plugin.formatTime(updatedTask.timeEstimate);
+            }
+            
+            if (spentEl && updatedTask.timeSpent && updatedTask.timeSpent > 0) {
+                spentEl.textContent = this.plugin.formatTime(updatedTask.timeSpent);
+            }
+            
+            if (progressDot && updatedTask.timeEstimate && updatedTask.timeSpent) {
+                const progress = Math.min((updatedTask.timeSpent / updatedTask.timeEstimate) * 100, 100);
+                progressDot.className = `progress-dot ${progress > 100 ? 'over-estimate' : progress >= 100 ? 'complete' : 'in-progress'}`;
+                progressDot.setAttribute('title', `${Math.round(progress)}% complete`);
             }
         }
         
