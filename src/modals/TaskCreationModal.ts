@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import ChronoSyncPlugin from '../main';
 import { ensureFolderExists } from '../utils/helpers';
-import { CALENDAR_VIEW_TYPE, TaskFrontmatter } from '../types';
+import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo } from '../types';
 
 export class TaskCreationModal extends Modal {
 	plugin: ChronoSyncPlugin;
@@ -11,6 +11,7 @@ export class TaskCreationModal extends Modal {
 	details: string = '';
 	dueDate: string = '';
 	priority: 'low' | 'normal' | 'high' = 'normal';
+	status: 'open' | 'in-progress' | 'done' = 'open';
 	contexts: string = '';
 	tags: string = '';
 	recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' = 'none';
@@ -22,32 +23,146 @@ export class TaskCreationModal extends Modal {
 		super(app);
 		this.plugin = plugin;
 	}
+	
+	// Get existing contexts from task cache for autocomplete
+	async getExistingContexts(): Promise<string[]> {
+		try {
+			console.log('Fetching existing contexts...');
+			
+			// Use the actual task data from a current date to get real tasks
+			const currentDate = new Date();
+			const allTaskDates: TaskInfo[] = [];
+			
+			// Get tasks from multiple recent dates to build comprehensive list
+			for (let i = -30; i <= 30; i++) {
+				const checkDate = new Date(currentDate);
+				checkDate.setDate(currentDate.getDate() + i);
+				try {
+					const tasksForDate = await this.plugin.fileIndexer.getTaskInfoForDate(checkDate);
+					allTaskDates.push(...tasksForDate);
+				} catch (err) {
+					// Ignore errors for individual dates
+				}
+			}
+			
+			const contexts = new Set<string>();
+			allTaskDates.forEach(task => {
+				if (task && task.contexts) {
+					task.contexts.forEach((context: string) => contexts.add(context));
+				}
+			});
+			
+			const result = Array.from(contexts).sort();
+			console.log('Found contexts:', result);
+			return result;
+		} catch (error) {
+			console.warn('Could not fetch existing contexts:', error);
+			return [];
+		}
+	}
+	
+	// Get existing tags from task cache for autocomplete
+	async getExistingTags(): Promise<string[]> {
+		try {
+			console.log('Fetching existing tags...');
+			
+			// Use the actual task data from a current date to get real tasks
+			const currentDate = new Date();
+			const allTaskDates: TaskInfo[] = [];
+			
+			// Get tasks from multiple recent dates to build comprehensive list
+			for (let i = -30; i <= 30; i++) {
+				const checkDate = new Date(currentDate);
+				checkDate.setDate(currentDate.getDate() + i);
+				try {
+					const tasksForDate = await this.plugin.fileIndexer.getTaskInfoForDate(checkDate);
+					allTaskDates.push(...tasksForDate);
+				} catch (err) {
+					// Ignore errors for individual dates
+				}
+			}
+			
+			const tags = new Set<string>();
+			allTaskDates.forEach(task => {
+				if (task && task.tags) {
+					task.tags.forEach((tag: string) => {
+						// Skip the default task tag
+						if (tag !== this.plugin.settings.taskTag) {
+							tags.add(tag);
+						}
+					});
+				}
+			});
+			
+			const result = Array.from(tags).sort();
+			console.log('Found tags:', result);
+			return result;
+		} catch (error) {
+			console.warn('Could not fetch existing tags:', error);
+			return [];
+		}
+	}
   
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.addClass('task-creation-modal');
 		contentEl.createEl('h2', { text: 'Create new task' });
 		
-		// Title
+		// Title with character count
 		this.createFormGroup(contentEl, 'Title', (container) => {
-			const input = container.createEl('input', { type: 'text' });
-			input.addEventListener('input', (e) => {
-				this.title = (e.target as HTMLInputElement).value;
+			const inputContainer = container.createDiv({ cls: 'input-with-counter' });
+			const input = inputContainer.createEl('input', { 
+				type: 'text',
+				attr: { 
+					placeholder: 'Enter task title...',
+					maxlength: '200'
+				}
 			});
+			const counter = inputContainer.createDiv({ 
+				cls: 'character-counter',
+				text: '0/200'
+			});
+			
+			input.addEventListener('input', (e) => {
+				const value = (e.target as HTMLInputElement).value;
+				this.title = value;
+				counter.textContent = `${value.length}/200`;
+				
+				// Update counter color based on length
+				if (value.length > 180) {
+					counter.addClass('warning');
+				} else {
+					counter.removeClass('warning');
+				}
+			});
+			
+			// Auto-focus on the title field
+			setTimeout(() => input.focus(), 50);
 		});
 		
 		// Details
 		this.createFormGroup(contentEl, 'Details', (container) => {
-			const textarea = container.createEl('textarea');
-			textarea.rows = 3;
+			const textarea = container.createEl('textarea', {
+				attr: { 
+					placeholder: 'Optional details or description...',
+					rows: '3'
+				}
+			});
 			textarea.addEventListener('input', (e) => {
 				this.details = (e.target as HTMLTextAreaElement).value;
 			});
 		});
 		
-		// Due Date
+		// Due Date - pre-populate with selected date from calendar
 		this.createFormGroup(contentEl, 'Due date', (container) => {
 			const input = container.createEl('input', { type: 'date' });
+			
+			// Pre-populate with selected date from calendar or today
+			const selectedDate = this.plugin.selectedDate || new Date();
+			const dateString = format(selectedDate, 'yyyy-MM-dd');
+			input.value = dateString;
+			this.dueDate = dateString;
+			
 			input.addEventListener('change', (e) => {
 				this.dueDate = (e.target as HTMLInputElement).value;
 			});
@@ -76,19 +191,40 @@ export class TaskCreationModal extends Modal {
 			});
 		});
 		
-		// Contexts
-		this.createFormGroup(contentEl, 'Contexts (comma-separated)', (container) => {
-			const input = container.createEl('input', { type: 'text' });
-			input.addEventListener('input', (e) => {
-				this.contexts = (e.target as HTMLInputElement).value;
+		// Status
+		this.createFormGroup(contentEl, 'Status', (container) => {
+			const select = container.createEl('select');
+			
+			const statusOptions = [
+				{ value: 'open', text: 'Open' },
+				{ value: 'in-progress', text: 'In Progress' },
+				{ value: 'done', text: 'Done' }
+			];
+			
+			statusOptions.forEach(option => {
+				const optEl = select.createEl('option', { value: option.value, text: option.text });
+				if (option.value === this.plugin.settings.defaultTaskStatus) {
+					optEl.selected = true;
+					this.status = option.value as 'open' | 'in-progress' | 'done';
+				}
+			});
+			
+			select.addEventListener('change', (e) => {
+				this.status = (e.target as HTMLSelectElement).value as 'open' | 'in-progress' | 'done';
 			});
 		});
 		
-		// Tags
+		// Contexts with autocomplete
+		this.createFormGroup(contentEl, 'Contexts (comma-separated)', (container) => {
+			this.createAutocompleteInput(container, 'contexts', this.getExistingContexts.bind(this), (value) => {
+				this.contexts = value;
+			});
+		});
+		
+		// Tags with autocomplete
 		this.createFormGroup(contentEl, 'Tags (comma-separated)', (container) => {
-			const input = container.createEl('input', { type: 'text' });
-			input.addEventListener('input', (e) => {
-				this.tags = (e.target as HTMLInputElement).value;
+			this.createAutocompleteInput(container, 'tags', this.getExistingTags.bind(this), (value) => {
+				this.tags = value;
 			});
 		});
 		
@@ -130,6 +266,23 @@ export class TaskCreationModal extends Modal {
 		createButton.addEventListener('click', () => {
 			this.createTask();
 		});
+		
+		// Add keyboard navigation
+		contentEl.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				this.close();
+			} else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+				e.preventDefault();
+				this.createTask();
+			}
+		});
+		
+		// Set proper tab order
+		const focusableElements = contentEl.querySelectorAll('input, select, textarea, button');
+		focusableElements.forEach((el, index) => {
+			(el as HTMLElement).tabIndex = index + 1;
+		});
 	}
   
 	createFormGroup(container: HTMLElement, label: string, inputCallback: (container: HTMLElement) => void) {
@@ -137,6 +290,165 @@ export class TaskCreationModal extends Modal {
 		group.createEl('label', { text: label });
 		inputCallback(group);
 		return group;
+	}
+	
+	async createAutocompleteInput(
+		container: HTMLElement, 
+		fieldName: string, 
+		getSuggestionsFn: () => Promise<string[]>, 
+		onChangeFn: (value: string) => void
+	) {
+		const inputContainer = container.createDiv({ cls: 'autocomplete-container' });
+		const input = inputContainer.createEl('input', { 
+			type: 'text',
+			cls: 'autocomplete-input',
+			attr: { placeholder: 'Type to see suggestions...' }
+		});
+		
+		const suggestionsContainer = inputContainer.createDiv({ cls: 'autocomplete-suggestions' });
+		suggestionsContainer.style.display = 'none';
+		
+		let suggestions: string[] = [];
+		let selectedIndex = -1;
+		
+		// Load suggestions
+		try {
+			suggestions = await getSuggestionsFn();
+			console.log(`Loaded ${suggestions.length} suggestions for ${fieldName}:`, suggestions);
+			
+			// Add some fallback suggestions if none found
+			if (suggestions.length === 0) {
+				if (fieldName === 'contexts') {
+					suggestions = ['work', 'home', 'personal', 'urgent', 'project'];
+				} else if (fieldName === 'tags') {
+					suggestions = ['important', 'review', 'research', 'followup', 'idea'];
+				}
+				console.log(`Using fallback suggestions for ${fieldName}:`, suggestions);
+			}
+		} catch (error) {
+			console.warn(`Could not load suggestions for ${fieldName}:`, error);
+			// Provide fallback suggestions on error
+			if (fieldName === 'contexts') {
+				suggestions = ['work', 'home', 'personal', 'urgent'];
+			} else if (fieldName === 'tags') {
+				suggestions = ['important', 'review', 'research', 'followup'];
+			}
+		}
+		
+		// Handle input changes
+		input.addEventListener('input', (e) => {
+			const value = (e.target as HTMLInputElement).value;
+			onChangeFn(value);
+			
+			// Get the current word being typed (after last comma)
+			const parts = value.split(',');
+			const currentWord = parts[parts.length - 1].trim().toLowerCase();
+			
+			if (currentWord.length > 0) {
+				// Filter suggestions based on current word
+				const filteredSuggestions = suggestions.filter(suggestion => 
+					suggestion.toLowerCase().includes(currentWord) &&
+					!parts.slice(0, -1).map(p => p.trim()).includes(suggestion)
+				);
+				
+				console.log(`Filtering "${currentWord}" from ${suggestions.length} suggestions, found ${filteredSuggestions.length}:`, filteredSuggestions);
+				
+				this.showSuggestions(suggestionsContainer, filteredSuggestions, input, onChangeFn);
+				selectedIndex = -1;
+			} else {
+				this.hideSuggestions(suggestionsContainer);
+			}
+		});
+		
+		// Handle keyboard navigation
+		input.addEventListener('keydown', (e) => {
+			const suggestionElements = suggestionsContainer.querySelectorAll('.autocomplete-suggestion');
+			
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				selectedIndex = Math.min(selectedIndex + 1, suggestionElements.length - 1);
+				this.updateSelectedSuggestion(suggestionElements, selectedIndex);
+			} else if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				selectedIndex = Math.max(selectedIndex - 1, -1);
+				this.updateSelectedSuggestion(suggestionElements, selectedIndex);
+			} else if (e.key === 'Enter' && selectedIndex >= 0) {
+				e.preventDefault();
+				const selectedElement = suggestionElements[selectedIndex] as HTMLElement;
+				this.applySuggestion(input, selectedElement.textContent || '', onChangeFn);
+				this.hideSuggestions(suggestionsContainer);
+			} else if (e.key === 'Escape') {
+				this.hideSuggestions(suggestionsContainer);
+				selectedIndex = -1;
+			}
+		});
+		
+		// Hide suggestions when clicking outside
+		input.addEventListener('blur', () => {
+			// Small delay to allow clicking on suggestions
+			setTimeout(() => {
+				this.hideSuggestions(suggestionsContainer);
+			}, 150);
+		});
+	}
+	
+	showSuggestions(
+		container: HTMLElement, 
+		suggestions: string[], 
+		input: HTMLInputElement, 
+		onChangeFn: (value: string) => void
+	) {
+		container.empty();
+		
+		if (suggestions.length === 0) {
+			container.style.display = 'none';
+			return;
+		}
+		
+		suggestions.slice(0, 8).forEach((suggestion, index) => {
+			const suggestionEl = container.createDiv({ 
+				cls: 'autocomplete-suggestion',
+				text: suggestion
+			});
+			
+			suggestionEl.addEventListener('click', () => {
+				this.applySuggestion(input, suggestion, onChangeFn);
+				this.hideSuggestions(container);
+			});
+		});
+		
+		container.style.display = 'block';
+	}
+	
+	applySuggestion(input: HTMLInputElement, suggestion: string, onChangeFn: (value: string) => void) {
+		const currentValue = input.value;
+		const parts = currentValue.split(',');
+		
+		// Replace the last part with the suggestion
+		parts[parts.length - 1] = ' ' + suggestion;
+		
+		const newValue = parts.join(',');
+		input.value = newValue;
+		onChangeFn(newValue);
+		
+		// Set cursor to end
+		input.setSelectionRange(newValue.length, newValue.length);
+		input.focus();
+	}
+	
+	updateSelectedSuggestion(suggestions: NodeListOf<Element>, selectedIndex: number) {
+		suggestions.forEach((el, index) => {
+			if (index === selectedIndex) {
+				el.addClass('selected');
+			} else {
+				el.removeClass('selected');
+			}
+		});
+	}
+	
+	hideSuggestions(container: HTMLElement) {
+		container.style.display = 'none';
+		container.empty();
 	}
   
 	updateRecurrenceOptions(container: HTMLElement) {
@@ -336,10 +648,15 @@ export class TaskCreationModal extends Modal {
 				zettelid: taskId,
 				dateCreated: format(now, "yyyy-MM-dd'T'HH:mm:ss"),
 				dateModified: format(now, "yyyy-MM-dd'T'HH:mm:ss"),
-				status: this.plugin.settings.defaultTaskStatus,
+				status: this.status,
 				tags: tagsArray,
 				priority: this.priority,
 			};
+			
+			// Add completedDate if status is done
+			if (this.status === 'done') {
+				yaml.completedDate = format(now, 'yyyy-MM-dd');
+			}
 			
 			// Add optional fields
 			if (this.dueDate) {

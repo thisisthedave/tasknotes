@@ -1404,6 +1404,155 @@ button.processing::after {
     cursor: progress;
 }
 
+/* Task Creation Modal Improvements */
+.task-creation-modal .input-with-counter {
+    position: relative;
+}
+
+.task-creation-modal .character-counter {
+    position: absolute;
+    top: -1.2rem;
+    right: 0;
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.task-creation-modal .character-counter.warning {
+    color: var(--text-error);
+}
+
+.task-creation-modal .autocomplete-container {
+    position: relative;
+}
+
+.task-creation-modal .autocomplete-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-base);
+}
+
+.task-creation-modal .autocomplete-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-top: none;
+    border-radius: 0 0 var(--cs-radius-sm) var(--cs-radius-sm);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.task-creation-modal .autocomplete-suggestion {
+    padding: 0.5rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+    font-size: var(--cs-text-sm);
+    color: var(--text-normal);
+}
+
+.task-creation-modal .autocomplete-suggestion:hover,
+.task-creation-modal .autocomplete-suggestion.selected {
+    background: var(--background-modifier-hover);
+}
+
+.task-creation-modal .autocomplete-suggestion:last-child {
+    border-bottom: none;
+}
+
+.task-creation-modal .form-group {
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.task-creation-modal .form-group label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+}
+
+.task-creation-modal input,
+.task-creation-modal select,
+.task-creation-modal textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-base);
+    transition: border-color var(--cs-transition-fast);
+}
+
+.task-creation-modal input:focus,
+.task-creation-modal select:focus,
+.task-creation-modal textarea:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.task-creation-modal .button-container {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.task-creation-modal .create-button {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: var(--cs-radius-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--cs-transition-fast);
+}
+
+.task-creation-modal .create-button:hover {
+    background: var(--interactive-accent-hover);
+}
+
+.task-creation-modal .recurrence-helper-text {
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+.task-creation-modal .days-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.task-creation-modal .day-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: var(--cs-text-sm);
+}
+
+.task-creation-modal .day-checkbox {
+    width: auto !important;
+    margin: 0;
+}
+
 /* Unified Button Styles */
 .chronosync-button {
     padding: 0.35rem 0.7rem;
