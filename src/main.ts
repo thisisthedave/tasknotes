@@ -894,6 +894,13 @@ export default class ChronoSyncPlugin extends Plugin {
 				description: description || ''
 			};
 			
+			// Create a local modified copy of the task to update UI immediately
+			const updatedTask = { ...task };
+			if (!updatedTask.timeEntries) {
+				updatedTask.timeEntries = [];
+			}
+			updatedTask.timeEntries = [...updatedTask.timeEntries, newEntry];
+			
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				if (!frontmatter.timeEntries) {
 					frontmatter.timeEntries = [];
@@ -902,7 +909,16 @@ export default class ChronoSyncPlugin extends Plugin {
 			});
 			
 			new Notice('Time tracking started');
-			this.notifyDataChanged(task.path, true, true);
+			
+			// Update the cache with the modified task
+			if (this.fileIndexer) {
+				await this.fileIndexer.updateTaskInfoInCache(task.path, updatedTask);
+				await this.fileIndexer.rebuildIndex();
+				YAMLCache.clearCacheEntry(task.path);
+			}
+			
+			// Emit granular update event instead of full refresh
+			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask });
 		} catch (error) {
 			console.error('Error starting time tracking:', error);
 			new Notice('Failed to start time tracking');
@@ -931,6 +947,30 @@ export default class ChronoSyncPlugin extends Plugin {
 			const endTime = new Date(now);
 			const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // Convert to minutes
 			
+			// Create a local modified copy of the task to update UI immediately
+			const updatedTask = { ...task };
+			if (!updatedTask.timeEntries) {
+				updatedTask.timeEntries = [];
+			}
+			
+			// Update the time entry in our local copy
+			updatedTask.timeEntries = updatedTask.timeEntries.map(entry => {
+				if (entry.startTime === activeEntry.startTime && !entry.endTime) {
+					return {
+						...entry,
+						endTime: now,
+						duration: duration
+					};
+				}
+				return entry;
+			});
+			
+			// Calculate total time spent
+			const totalTime = updatedTask.timeEntries.reduce((total, entry) => {
+				return total + (entry.duration || 0);
+			}, 0);
+			updatedTask.timeSpent = totalTime;
+			
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				if (frontmatter.timeEntries) {
 					const entryToUpdate = frontmatter.timeEntries.find((entry: any) => 
@@ -954,7 +994,16 @@ export default class ChronoSyncPlugin extends Plugin {
 			const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 			
 			new Notice(`Time tracking stopped. Session: ${timeText}`);
-			this.notifyDataChanged(task.path, true, true);
+			
+			// Update the cache with the modified task
+			if (this.fileIndexer) {
+				await this.fileIndexer.updateTaskInfoInCache(task.path, updatedTask);
+				await this.fileIndexer.rebuildIndex();
+				YAMLCache.clearCacheEntry(task.path);
+			}
+			
+			// Emit granular update event instead of full refresh
+			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask });
 		} catch (error) {
 			console.error('Error stopping time tracking:', error);
 			new Notice('Failed to stop time tracking');

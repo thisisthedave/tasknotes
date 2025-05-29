@@ -1052,11 +1052,11 @@ button.processing::after {
     }
 }
 
-/* Task layout structure - more compact */
+/* Task layout structure - cleaner */
 .task-item {
     display: flex;
     flex-direction: column;
-    gap: var(--cs-spacing-xs);
+    gap: var(--cs-spacing-sm);
 }
 
 /* Header row with info and meta */
@@ -1078,17 +1078,33 @@ button.processing::after {
     min-width: 0; /* Allow text overflow */
 }
 
-/* Controls row - flexible layout */
-.task-controls {
+/* Task footer for due date and recurring controls */
+.task-footer {
     display: flex;
-    align-items: stretch;
-    gap: var(--cs-spacing-sm);
-    flex-wrap: wrap;
-    min-height: 32px;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--cs-spacing-md);
+    padding-top: var(--cs-spacing-xs);
+    border-top: 1px solid var(--background-modifier-border);
+    margin-top: var(--cs-spacing-xs);
 }
 
-.task-controls > * {
+.due-date-section {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
     flex: 1;
+}
+
+.due-date-label {
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.recurring-section {
+    display: flex;
+    align-items: center;
 }
 
 /* Task metadata display - more compact */
@@ -1124,7 +1140,25 @@ button.processing::after {
 }
 
 .task-due-date-input {
-    width: 100%;
+    flex: 1;
+    max-width: 140px;
+    font-size: var(--cs-text-xs);
+    padding: 2px 4px;
+    border-radius: var(--cs-radius-sm);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
+    transition: all var(--cs-transition-fast);
+    height: 20px;
+}
+
+.task-due-date-input:focus {
+    border-color: var(--interactive-accent);
+    outline: none;
+    background-color: var(--background-primary);
+}
+
+.task-due-date-input:hover {
+    border-color: var(--interactive-accent-hover);
 }
 
 .task-status-select:focus, 
@@ -1292,6 +1326,19 @@ button.processing::after {
     margin-right: 6px;
     flex-shrink: 0;
     border: 1px solid rgba(0, 0, 0, 0.1);
+    transition: all var(--cs-transition-fast);
+}
+
+.task-priority-indicator.clickable {
+    cursor: pointer;
+    padding: 2px;
+    width: 12px;
+    height: 12px;
+}
+
+.task-priority-indicator.clickable:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 8px currentColor;
 }
 
 .task-priority-indicator.priority-high {
@@ -1321,6 +1368,20 @@ button.processing::after {
     color: white;
     border: none;
     line-height: 1.2;
+    transition: all var(--cs-transition-fast);
+}
+
+.task-status.clickable {
+    cursor: pointer;
+}
+
+.task-status.clickable:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.task-status.clickable:active {
+    transform: translateY(0);
 }
 
 .task-status-open {
@@ -1366,38 +1427,41 @@ button.processing::after {
 }
 
 .task-toggle-button {
-    padding: 0.05rem 0.2rem;
+    padding: 2px 8px;
     border-radius: var(--cs-radius-sm);
     border: 1px solid var(--background-modifier-border);
     background: transparent;
     cursor: pointer;
-    width: 100%;
-    font-size: 0.6rem;
+    font-size: var(--cs-text-xs);
     margin: 0;
-    height: 22px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
     line-height: 1;
-    text-transform: none;
-    letter-spacing: 0;
-    opacity: 0.6;
-    transition: opacity 0.15s ease;
+    white-space: nowrap;
+    transition: all var(--cs-transition-fast);
 }
 
 .task-toggle-button.mark-complete {
-    color: var(--text-normal);
+    color: var(--text-muted);
+    border-color: var(--text-success);
+}
+
+.task-toggle-button.mark-complete:hover {
+    background: var(--text-success);
+    color: white;
 }
 
 .task-toggle-button.mark-incomplete {
-    color: var(--text-accent);
+    color: var(--text-success);
+    background: var(--background-modifier-success);
 }
 
-.task-toggle-button:hover {
+.task-toggle-button.mark-incomplete:hover {
     background: var(--background-secondary);
-    opacity: 0.8;
-    border-color: var(--background-modifier-border);
+    color: var(--text-normal);
 }
 
 .task-toggle-button.processing, 
