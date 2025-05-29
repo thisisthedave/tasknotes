@@ -45,6 +45,16 @@ export interface TaskInfo {
 	recurrence?: RecurrenceInfo;
 	complete_instances?: string[]; // Array of dates (YYYY-MM-DD) when recurring task was completed
 	completedDate?: string; // Date (YYYY-MM-DD) when task was marked as done
+	timeEstimate?: number; // Estimated time in minutes
+	timeSpent?: number; // Actual time spent in minutes
+	timeEntries?: TimeEntry[]; // Individual time tracking sessions
+}
+
+export interface TimeEntry {
+	startTime: string; // ISO timestamp
+	endTime?: string; // ISO timestamp, undefined if currently running
+	duration?: number; // Duration in minutes (calculated when session ends)
+	description?: string; // Optional description of what was worked on
 }
 
 // Note types
@@ -95,6 +105,9 @@ export interface TaskFrontmatter {
 	recurrence?: RecurrenceInfo;
 	complete_instances?: string[];
 	completedDate?: string;
+	timeEstimate?: number;
+	timeSpent?: number;
+	timeEntries?: TimeEntry[];
 }
 
 export interface NoteFrontmatter {

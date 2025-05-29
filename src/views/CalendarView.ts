@@ -1141,6 +1141,22 @@ export class CalendarView extends ItemView {
                         });
                     }
                     
+                    // Show time tracking info
+                    if (task.timeEstimate || task.timeSpent) {
+                        if (task.timeEstimate) {
+                            meta.createSpan({ 
+                                cls: 'time-estimate-agenda', 
+                                text: `Est: ${this.plugin.formatTime(task.timeEstimate)}` 
+                            });
+                        }
+                        if (task.timeSpent && task.timeSpent > 0) {
+                            meta.createSpan({ 
+                                cls: 'time-spent-agenda', 
+                                text: `Spent: ${this.plugin.formatTime(task.timeSpent)}` 
+                            });
+                        }
+                    }
+                    
                     // Add click handler to open task
                     item.addEventListener('click', () => {
                         const file = this.app.vault.getAbstractFileByPath(task.path);

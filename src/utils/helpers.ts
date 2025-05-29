@@ -186,7 +186,15 @@ export function extractTaskInfo(content: string, path: string): {
 		month_of_year?: number
 	},
 	complete_instances?: string[],
-	completedDate?: string
+	completedDate?: string,
+	timeEstimate?: number,
+	timeSpent?: number,
+	timeEntries?: {
+		startTime: string,
+		endTime?: string,
+		duration?: number,
+		description?: string
+	}[]
 } | null {
 	// Try to extract task info from frontmatter
 	if (content.startsWith('---')) {
@@ -231,7 +239,10 @@ export function extractTaskInfo(content: string, path: string): {
 					contexts: Array.isArray(contexts) ? [...contexts] : [],
 					recurrence,
 					complete_instances,
-					completedDate: yaml.completedDate
+					completedDate: yaml.completedDate,
+					timeEstimate: yaml.timeEstimate,
+					timeSpent: yaml.timeSpent,
+					timeEntries: yaml.timeEntries
 				};
 			}
 		}

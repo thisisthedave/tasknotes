@@ -869,4 +869,114 @@ export default class ChronoSyncPlugin extends Plugin {
 	openTaskCreationModal() {
 		new TaskCreationModal(this.app, this).open();
 	}
+	
+	/**
+	 * Starts a time tracking session for a task
+	 */
+	async startTimeTracking(task: TaskInfo, description?: string): Promise<void> {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(task.path);
+			if (!(file instanceof TFile)) {
+				new Notice(`Cannot find task file: ${task.path}`);
+				return;
+			}
+			
+			// Check if there's already an active session
+			const activeEntry = task.timeEntries?.find(entry => !entry.endTime);
+			if (activeEntry) {
+				new Notice('Time tracking is already active for this task');
+				return;
+			}
+			
+			const now = new Date().toISOString();
+			const newEntry = {
+				startTime: now,
+				description: description || ''
+			};
+			
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				if (!frontmatter.timeEntries) {
+					frontmatter.timeEntries = [];
+				}
+				frontmatter.timeEntries.push(newEntry);
+			});
+			
+			new Notice('Time tracking started');
+			this.notifyDataChanged(task.path, true, true);
+		} catch (error) {
+			console.error('Error starting time tracking:', error);
+			new Notice('Failed to start time tracking');
+		}
+	}
+	
+	/**
+	 * Stops the active time tracking session for a task
+	 */
+	async stopTimeTracking(task: TaskInfo): Promise<void> {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(task.path);
+			if (!(file instanceof TFile)) {
+				new Notice(`Cannot find task file: ${task.path}`);
+				return;
+			}
+			
+			const activeEntry = task.timeEntries?.find(entry => !entry.endTime);
+			if (!activeEntry) {
+				new Notice('No active time tracking session found');
+				return;
+			}
+			
+			const now = new Date().toISOString();
+			const startTime = new Date(activeEntry.startTime);
+			const endTime = new Date(now);
+			const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // Convert to minutes
+			
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				if (frontmatter.timeEntries) {
+					const entryToUpdate = frontmatter.timeEntries.find((entry: any) => 
+						entry.startTime === activeEntry.startTime && !entry.endTime
+					);
+					if (entryToUpdate) {
+						entryToUpdate.endTime = now;
+						entryToUpdate.duration = duration;
+					}
+					
+					// Update total time spent
+					const totalTime = frontmatter.timeEntries.reduce((total: number, entry: any) => {
+						return total + (entry.duration || 0);
+					}, 0);
+					frontmatter.timeSpent = totalTime;
+				}
+			});
+			
+			const hours = Math.floor(duration / 60);
+			const minutes = duration % 60;
+			const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+			
+			new Notice(`Time tracking stopped. Session: ${timeText}`);
+			this.notifyDataChanged(task.path, true, true);
+		} catch (error) {
+			console.error('Error stopping time tracking:', error);
+			new Notice('Failed to stop time tracking');
+		}
+	}
+	
+	/**
+	 * Gets the active time tracking session for a task
+	 */
+	getActiveTimeSession(task: TaskInfo) {
+		return task.timeEntries?.find(entry => !entry.endTime);
+	}
+	
+	/**
+	 * Formats time in minutes to a readable string
+	 */
+	formatTime(minutes: number): string {
+		if (minutes === 0) return '0m';
+		const hours = Math.floor(minutes / 60);
+		const mins = minutes % 60;
+		if (hours === 0) return `${mins}m`;
+		if (mins === 0) return `${hours}h`;
+		return `${hours}h ${mins}m`;
+	}
 }

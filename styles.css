@@ -1078,13 +1078,17 @@ button.processing::after {
     min-width: 0; /* Allow text overflow */
 }
 
-/* Controls row - denser layout */
+/* Controls row - flexible layout */
 .task-controls {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--cs-spacing-xs);
+    display: flex;
     align-items: stretch;
-    width: 100%;
+    gap: var(--cs-spacing-sm);
+    flex-wrap: wrap;
+    min-height: 32px;
+}
+
+.task-controls > * {
+    flex: 1;
 }
 
 /* Task metadata display - more compact */
@@ -1102,7 +1106,7 @@ button.processing::after {
     align-items: center;
 }
 
-/* Style task control elements - denser */
+/* Style task control elements - back to normal sizing */
 .task-status-select, 
 .task-priority-select,
 .task-due-date-input {
@@ -1551,6 +1555,99 @@ button.processing::after {
 .task-creation-modal .day-checkbox {
     width: auto !important;
     margin: 0;
+}
+
+.task-creation-modal .time-estimate-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.task-creation-modal .time-estimate-container input {
+    width: 80px;
+    flex-shrink: 0;
+}
+
+.task-creation-modal .time-unit-label {
+    font-size: var(--cs-text-sm);
+    color: var(--text-muted);
+}
+
+/* Compact Time Tracking in Metadata */
+.time-meta-compact {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--cs-text-xs);
+}
+
+.time-meta-estimate {
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 1px 4px;
+    background: var(--background-modifier-form-field);
+    border-radius: var(--cs-radius-sm);
+}
+
+.time-meta-spent {
+    color: var(--text-accent);
+    font-weight: 500;
+    padding: 1px 4px;
+    background: var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+}
+
+.progress-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.progress-dot.in-progress {
+    background: var(--interactive-accent);
+}
+
+.progress-dot.complete {
+    background: var(--text-success);
+}
+
+.progress-dot.over-estimate {
+    background: var(--text-error);
+}
+
+/* Simple Time Icon */
+.time-icon {
+    font-size: 10px;
+    cursor: pointer;
+    margin-right: 6px;
+    transition: all var(--cs-transition-fast);
+    user-select: none;
+}
+
+.time-icon.idle {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.time-icon.idle:hover {
+    color: var(--interactive-accent);
+    opacity: 1;
+    transform: scale(1.2);
+}
+
+.time-icon.tracking {
+    color: var(--text-error);
+    animation: pulse 2s infinite;
+}
+
+.time-icon.tracking:hover {
+    transform: scale(1.2);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 
 /* Unified Button Styles */
@@ -2504,6 +2601,24 @@ button.processing::after {
     color: var(--text-muted);
     font-weight: 500;
     opacity: 0.9;
+}
+
+.time-estimate-agenda,
+.time-spent-agenda {
+    font-size: var(--cs-text-xs);
+    padding: 1px var(--cs-spacing-xs);
+    border-radius: var(--cs-radius-sm);
+    font-weight: 500;
+}
+
+.time-estimate-agenda {
+    background: var(--background-modifier-form-field);
+    color: var(--text-muted);
+}
+
+.time-spent-agenda {
+    background: var(--background-modifier-border);
+    color: var(--text-accent);
 }
 
 .empty-agenda-message {

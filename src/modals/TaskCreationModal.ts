@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import ChronoSyncPlugin from '../main';
 import { ensureFolderExists } from '../utils/helpers';
-import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo } from '../types';
+import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo, TimeEntry } from '../types';
 
 export class TaskCreationModal extends Modal {
 	plugin: ChronoSyncPlugin;
@@ -14,6 +14,7 @@ export class TaskCreationModal extends Modal {
 	status: 'open' | 'in-progress' | 'done' = 'open';
 	contexts: string = '';
 	tags: string = '';
+	timeEstimate: number = 0;
 	recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' = 'none';
 	daysOfWeek: string[] = [];
 	dayOfMonth: string = '';
@@ -225,6 +226,41 @@ export class TaskCreationModal extends Modal {
 		this.createFormGroup(contentEl, 'Tags (comma-separated)', (container) => {
 			this.createAutocompleteInput(container, 'tags', this.getExistingTags.bind(this), (value) => {
 				this.tags = value;
+			});
+		});
+		
+		// Time Estimate
+		this.createFormGroup(contentEl, 'Time Estimate', (container) => {
+			const timeContainer = container.createDiv({ cls: 'time-estimate-container' });
+			const input = timeContainer.createEl('input', { 
+				type: 'number',
+				attr: { 
+					placeholder: '0',
+					min: '0',
+					step: '15'
+				}
+			});
+			const label = timeContainer.createSpan({ 
+				cls: 'time-unit-label',
+				text: 'minutes'
+			});
+			
+			input.addEventListener('input', (e) => {
+				const value = parseInt((e.target as HTMLInputElement).value) || 0;
+				this.timeEstimate = value;
+				
+				// Update label to show hours if >= 60 minutes
+				if (value >= 60) {
+					const hours = Math.floor(value / 60);
+					const minutes = value % 60;
+					if (minutes === 0) {
+						label.textContent = `minutes (${hours}h)`;
+					} else {
+						label.textContent = `minutes (${hours}h ${minutes}m)`;
+					}
+				} else {
+					label.textContent = 'minutes';
+				}
 			});
 		});
 		
@@ -665,6 +701,12 @@ export class TaskCreationModal extends Modal {
 			
 			if (contextsArray.length > 0) {
 				yaml.contexts = contextsArray;
+			}
+			
+			if (this.timeEstimate > 0) {
+				yaml.timeEstimate = this.timeEstimate;
+				yaml.timeSpent = 0;
+				yaml.timeEntries = [];
 			}
 			
 			// Add recurrence info if specified

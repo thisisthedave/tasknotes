@@ -462,6 +462,36 @@ export class TaskListView extends ItemView {
                 cls: `task-priority-indicator priority-${task.priority}`
             });
             
+            // Time tracking icon (for all tasks)
+            const activeSession = this.plugin.getActiveTimeSession(task);
+            const isTracking = !!activeSession;
+            
+            const timeIcon = titleContainer.createEl('span', {
+                cls: `time-icon ${isTracking ? 'tracking' : 'idle'}`,
+                attr: {
+                    'aria-label': isTracking ? 'Stop time tracking' : 'Start time tracking',
+                    'title': isTracking ? 'Stop time tracking' : 'Start time tracking'
+                }
+            });
+            
+            timeIcon.innerHTML = isTracking ? '⏸' : '▶';
+            
+            timeIcon.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                
+                try {
+                    if (isTracking) {
+                        await this.plugin.stopTimeTracking(task);
+                    } else {
+                        await this.plugin.startTimeTracking(task);
+                    }
+                    
+                    this.refresh();
+                } catch (error) {
+                    console.error('Error toggling time tracking:', error);
+                }
+            });
+            
             const titleEl = titleContainer.createDiv({ 
                 cls: 'task-item-title', 
                 text: task.title
@@ -487,11 +517,41 @@ export class TaskListView extends ItemView {
                 text: effectiveStatus
             });
             
+            // Time tracking info in metadata (compact display)
+            if (task.timeEstimate || task.timeSpent) {
+                const timeMetaContainer = taskMeta.createDiv({ cls: 'time-meta-compact' });
+                
+                if (task.timeEstimate) {
+                    timeMetaContainer.createSpan({ 
+                        cls: 'time-meta-estimate',
+                        text: this.plugin.formatTime(task.timeEstimate),
+                        attr: { title: `Estimated: ${this.plugin.formatTime(task.timeEstimate)}` }
+                    });
+                }
+                
+                if (task.timeSpent && task.timeSpent > 0) {
+                    timeMetaContainer.createSpan({ 
+                        cls: 'time-meta-spent',
+                        text: this.plugin.formatTime(task.timeSpent),
+                        attr: { title: `Time spent: ${this.plugin.formatTime(task.timeSpent)}` }
+                    });
+                    
+                    // Add small progress indicator if both are available
+                    if (task.timeEstimate && task.timeEstimate > 0) {
+                        const progress = Math.min((task.timeSpent / task.timeEstimate) * 100, 100);
+                        const progressDot = timeMetaContainer.createSpan({ 
+                            cls: `progress-dot ${progress > 100 ? 'over-estimate' : progress >= 100 ? 'complete' : 'in-progress'}`,
+                            attr: { title: `${Math.round(progress)}% complete` }
+                        });
+                    }
+                }
+            }
+            
             // Show completed date for non-recurring tasks that are done
             if (!task.recurrence && task.status === 'done' && task.completedDate) {
                 const completedDateEl = taskMeta.createDiv({
                     cls: 'task-completed-date',
-                    text: `Completed: ${format(new Date(task.completedDate), 'MMM d, yyyy')}`
+                    text: `${format(new Date(task.completedDate), 'MMM d')}`
                 });
                 completedDateEl.setAttribute('title', `Completed on ${format(new Date(task.completedDate), 'MMMM d, yyyy')}`);
             }
@@ -644,6 +704,7 @@ export class TaskListView extends ItemView {
                     }
                 });
             }
+            
             
             // Task priority dropdown (direct child of controls grid)
             const prioritySelect = taskControls.createEl('select', { 
