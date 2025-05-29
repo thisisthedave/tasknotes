@@ -1014,22 +1014,42 @@ button.processing::after {
 }
 
 .task-item {
-    padding: var(--cs-spacing-md);
+    padding: var(--cs-spacing-lg);
     border: 1px solid var(--background-modifier-border);
-    border-radius: var(--cs-radius-sm);
+    border-radius: var(--cs-radius-md);
     display: flex;
     flex-direction: column;
     gap: var(--cs-spacing-sm);
-    transition: all var(--cs-transition-fast);
+    transition: all var(--cs-transition-normal);
     background-color: var(--background-primary);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
     margin-bottom: var(--cs-spacing-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.task-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--interactive-accent), var(--interactive-accent-hover));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--cs-transition-normal);
 }
 
 .task-item:hover {
-    background-color: var(--background-modifier-hover);
-    transform: none;
-    box-shadow: none;
+    background-color: var(--background-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.12);
+    border-color: var(--background-modifier-border-hover);
+    transform: translateY(-1px);
+}
+
+.task-item:hover::before {
+    transform: scaleX(1);
 }
 
 /* Task update animation */
@@ -1084,9 +1104,15 @@ button.processing::after {
     justify-content: space-between;
     align-items: center;
     gap: var(--cs-spacing-md);
-    padding-top: var(--cs-spacing-xs);
+    padding-top: var(--cs-spacing-sm);
     border-top: 1px solid var(--background-modifier-border);
-    margin-top: var(--cs-spacing-xs);
+    margin-top: var(--cs-spacing-sm);
+    opacity: 0.8;
+    transition: opacity var(--cs-transition-fast);
+}
+
+.task-item:hover .task-footer {
+    opacity: 1;
 }
 
 .due-date-section {
@@ -1143,22 +1169,25 @@ button.processing::after {
     flex: 1;
     max-width: 140px;
     font-size: var(--cs-text-xs);
-    padding: 2px 4px;
+    padding: 4px 8px;
     border-radius: var(--cs-radius-sm);
     border: 1px solid var(--background-modifier-border);
     background-color: var(--background-secondary);
     transition: all var(--cs-transition-fast);
-    height: 20px;
+    height: 24px;
+    color: var(--text-normal);
 }
 
 .task-due-date-input:focus {
     border-color: var(--interactive-accent);
     outline: none;
     background-color: var(--background-primary);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
 }
 
 .task-due-date-input:hover {
     border-color: var(--interactive-accent-hover);
+    background-color: var(--background-modifier-hover);
 }
 
 .task-status-select:focus, 
@@ -1195,24 +1224,29 @@ button.processing::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--cs-radius-sm);
     background-color: transparent;
     color: var(--text-faint);
-    padding: 0;
+    padding: 2px;
     text-align: center;
     margin-left: var(--cs-spacing-xs);
     border: none;
+    opacity: 0;
+    transition: all var(--cs-transition-fast);
+}
+
+.task-item:hover .archive-button-icon {
     opacity: 0.6;
-    transition: opacity 0.15s ease;
 }
 
 .archive-button-icon:hover {
-    background-color: transparent;
+    background-color: var(--background-modifier-hover);
     cursor: pointer;
     opacity: 1;
     color: var(--text-normal);
+    transform: scale(1.1);
 }
 
 .archive-button-icon.archived {
@@ -1271,8 +1305,12 @@ button.processing::after {
 
 /* Highlight tasks due on the selected date */
 .task-item.task-due-today {
-    border-left: 2px solid var(--interactive-accent);
-    background-color: transparent;
+    border-left: 3px solid var(--interactive-accent);
+    background: linear-gradient(to right, rgba(var(--interactive-accent-rgb), 0.05), transparent);
+}
+
+.task-item.task-due-today::before {
+    background: var(--interactive-accent);
 }
 
 /* Task title container with priority indicator */
@@ -1285,13 +1323,19 @@ button.processing::after {
 
 .task-item-title {
     font-weight: 500;
-    font-size: var(--cs-text-sm);
-    line-height: 1.3;
+    font-size: var(--cs-text-base);
+    line-height: 1.4;
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     flex: 1;
+    color: var(--text-normal);
+    transition: color var(--cs-transition-fast);
+}
+
+.task-item:hover .task-item-title {
+    color: var(--text-accent);
 }
 
 .task-item-due.due-today {
@@ -1336,9 +1380,30 @@ button.processing::after {
     height: 12px;
 }
 
+.task-priority-indicator.clickable {
+    position: relative;
+}
+
+.task-priority-indicator.clickable::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity var(--cs-transition-fast);
+}
+
 .task-priority-indicator.clickable:hover {
-    transform: scale(1.2);
-    box-shadow: 0 0 8px currentColor;
+    transform: scale(1.3);
+    box-shadow: 0 0 12px currentColor;
+}
+
+.task-priority-indicator.clickable:hover::after {
+    opacity: 0.2;
 }
 
 .task-priority-indicator.priority-high {
@@ -1376,12 +1441,14 @@ button.processing::after {
 }
 
 .task-status.clickable:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    filter: brightness(1.1);
 }
 
 .task-status.clickable:active {
-    transform: translateY(0);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .task-status-open {
@@ -1410,14 +1477,20 @@ button.processing::after {
 
 /* Recurring task styles */
 .task-item.task-recurring {
-    border-left: 2px solid var(--color-cyan);
+    border-left: 3px solid var(--color-cyan);
+    background: linear-gradient(to right, rgba(var(--color-cyan-rgb), 0.05), transparent);
+}
+
+.task-item.task-recurring::before {
+    background: linear-gradient(90deg, var(--color-cyan), var(--color-cyan-hover));
 }
 
 .task-recurring-icon {
     color: var(--color-cyan);
     font-weight: normal;
-    margin-right: 4px;
-    opacity: 0.8;
+    margin-right: 6px;
+    opacity: 0.9;
+    font-size: 14px;
 }
 
 .recurring-status {
@@ -2304,9 +2377,14 @@ button.processing::after {
 }
 
 @keyframes pulse {
-    0% { opacity: 0.6; }
-    50% { opacity: 1; }
-    100% { opacity: 0.6; }
+    0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
 }
 
 /* Status Messages */
