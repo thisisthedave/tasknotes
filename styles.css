@@ -1041,6 +1041,19 @@ button.processing::after {
     transition: transform var(--cs-transition-normal);
 }
 
+/* Priority-based top borders */
+.task-item.priority-high::before {
+    background: linear-gradient(90deg, var(--text-error), #ff5757);
+}
+
+.task-item.priority-normal::before {
+    background: linear-gradient(90deg, var(--interactive-accent), var(--interactive-accent-hover));
+}
+
+.task-item.priority-low::before {
+    background: linear-gradient(90deg, var(--text-muted), #999999);
+}
+
 .task-item:hover {
     background-color: var(--background-primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.12);
@@ -1118,8 +1131,9 @@ button.processing::after {
 .due-date-section {
     display: flex;
     align-items: center;
-    gap: var(--cs-spacing-xs);
+    gap: var(--cs-spacing-sm);
     flex: 1;
+    flex-wrap: wrap;
 }
 
 .due-date-label {
@@ -1166,8 +1180,7 @@ button.processing::after {
 }
 
 .task-due-date-input {
-    flex: 1;
-    max-width: 140px;
+    max-width: 120px;
     font-size: var(--cs-text-xs);
     padding: 4px 8px;
     border-radius: var(--cs-radius-sm);
@@ -1421,46 +1434,79 @@ button.processing::after {
     box-shadow: 0 0 4px rgba(128, 128, 128, 0.2);
 }
 
-/* Status badges - styled like daily notes badge */
+/* Status badges - enhanced with gradients and glow effects */
 .task-status {
-    padding: 2px 6px;
-    border-radius: var(--cs-radius-sm);
+    padding: 3px 8px;
+    border-radius: var(--cs-radius-md);
     font-size: 0.7rem;
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.03em;
     flex-shrink: 0;
     color: white;
     border: none;
     line-height: 1.2;
-    transition: all var(--cs-transition-fast);
+    transition: all var(--cs-transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.task-status::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
 }
 
 .task-status.clickable {
     cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .task-status.clickable:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    filter: brightness(1.1);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+    filter: brightness(1.15) saturate(1.1);
+}
+
+.task-status.clickable:hover::before {
+    left: 100%;
 }
 
 .task-status.clickable:active {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 .task-status-open {
-    background: var(--text-error);
+    background: linear-gradient(135deg, var(--text-error), #ff6b6b);
+    box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
+}
+
+.task-status-open.clickable:hover {
+    box-shadow: 0 6px 12px rgba(255, 107, 107, 0.4);
 }
 
 .task-status-in-progress {
-    background: var(--text-warning);
+    background: linear-gradient(135deg, var(--text-warning), #ffa726);
+    box-shadow: 0 2px 4px rgba(255, 167, 38, 0.3);
+}
+
+.task-status-in-progress.clickable:hover {
+    box-shadow: 0 6px 12px rgba(255, 167, 38, 0.4);
 }
 
 .task-status-done {
-    background: var(--text-success);
+    background: linear-gradient(135deg, var(--text-success), #66bb6a);
+    box-shadow: 0 2px 4px rgba(102, 187, 106, 0.3);
+}
+
+.task-status-done.clickable:hover {
+    box-shadow: 0 6px 12px rgba(102, 187, 106, 0.4);
 }
 
 /* Recurring task status styling */

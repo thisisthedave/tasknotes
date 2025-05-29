@@ -438,7 +438,7 @@ export class TaskListView extends ItemView {
                 : task.status;
             
             const taskItem = container.createDiv({ 
-                cls: `task-item ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''} ${task.recurrence ? 'task-recurring' : ''} chronosync-card`
+                cls: `task-item priority-${task.priority} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''} ${task.recurrence ? 'task-recurring' : ''} chronosync-card`
             });
             
             // Store reference to this task element for future updates
@@ -548,57 +548,6 @@ export class TaskListView extends ItemView {
             // Create metadata section (right side)
             const taskMeta = taskHeader.createDiv({ cls: 'task-item-metadata' });
             
-            // Status badge - clickable for non-recurring tasks
-            const statusBadge = taskMeta.createEl('button', {
-                cls: `task-status task-status-${effectiveStatus.replace(/\s+/g, '-').toLowerCase()} ${task.recurrence ? 'recurring-status' : ''} ${!task.recurrence ? 'clickable' : ''}`,
-                text: effectiveStatus,
-                attr: {
-                    'aria-label': `Change status: ${effectiveStatus}`,
-                    'title': task.recurrence ? `Status for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}` : 'Click to change status',
-                    'type': 'button',
-                    'disabled': task.recurrence ? 'true' : null
-                }
-            });
-            
-            // Add click handler for status badge (non-recurring tasks only)
-            if (!task.recurrence) {
-                statusBadge.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    
-                    // Get fresh task data from cache
-                    const currentTask = this.getTaskFromCache(task.path) || task;
-                    
-                    // Cycle through statuses: open -> in-progress -> done -> open
-                    const statusCycle = ['open', 'in-progress', 'done'];
-                    const currentIndex = statusCycle.indexOf(currentTask.status.toLowerCase());
-                    const nextStatus = statusCycle[(currentIndex + 1) % statusCycle.length];
-                    
-                    const originalStatus = currentTask.status;
-                    const updatedTask = { ...currentTask, status: nextStatus };
-                    
-                    // Update completedDate
-                    if (nextStatus === 'done') {
-                        updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
-                    } else {
-                        updatedTask.completedDate = undefined;
-                    }
-                    
-                    // Optimistic UI update
-                    this.updateTaskElementInDOM(currentTask.path, updatedTask);
-                    this.updateTaskInCache(currentTask.path, updatedTask);
-                    
-                    try {
-                        await this.plugin.updateTaskProperty(currentTask, 'status', nextStatus);
-                    } catch(err) {
-                        // Revert on error
-                        const revertedTask = { ...currentTask, status: originalStatus };
-                        this.updateTaskElementInDOM(currentTask.path, revertedTask);
-                        this.updateTaskInCache(currentTask.path, revertedTask);
-                        console.error('Failed to update task status:', err);
-                    }
-                });
-            }
-            
             // Time tracking info in metadata (compact display)
             if (task.timeEstimate || task.timeSpent) {
                 const timeMetaContainer = taskMeta.createDiv({ cls: 'time-meta-compact' });
@@ -699,6 +648,57 @@ export class TaskListView extends ItemView {
                     'aria-label': `Due date for ${task.title}`
                 }
             });
+            
+            // Status badge - clickable for non-recurring tasks (in footer)
+            const statusBadge = dueDateSection.createEl('button', {
+                cls: `task-status task-status-${effectiveStatus.replace(/\s+/g, '-').toLowerCase()} ${task.recurrence ? 'recurring-status' : ''} ${!task.recurrence ? 'clickable' : ''}`,
+                text: effectiveStatus,
+                attr: {
+                    'aria-label': `Change status: ${effectiveStatus}`,
+                    'title': task.recurrence ? `Status for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}` : 'Click to change status',
+                    'type': 'button',
+                    'disabled': task.recurrence ? 'true' : null
+                }
+            });
+            
+            // Add click handler for status badge (non-recurring tasks only)
+            if (!task.recurrence) {
+                statusBadge.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    
+                    // Get fresh task data from cache
+                    const currentTask = this.getTaskFromCache(task.path) || task;
+                    
+                    // Cycle through statuses: open -> in-progress -> done -> open
+                    const statusCycle = ['open', 'in-progress', 'done'];
+                    const currentIndex = statusCycle.indexOf(currentTask.status.toLowerCase());
+                    const nextStatus = statusCycle[(currentIndex + 1) % statusCycle.length];
+                    
+                    const originalStatus = currentTask.status;
+                    const updatedTask = { ...currentTask, status: nextStatus };
+                    
+                    // Update completedDate
+                    if (nextStatus === 'done') {
+                        updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
+                    } else {
+                        updatedTask.completedDate = undefined;
+                    }
+                    
+                    // Optimistic UI update
+                    this.updateTaskElementInDOM(currentTask.path, updatedTask);
+                    this.updateTaskInCache(currentTask.path, updatedTask);
+                    
+                    try {
+                        await this.plugin.updateTaskProperty(currentTask, 'status', nextStatus);
+                    } catch(err) {
+                        // Revert on error
+                        const revertedTask = { ...currentTask, status: originalStatus };
+                        this.updateTaskElementInDOM(currentTask.path, revertedTask);
+                        this.updateTaskInCache(currentTask.path, revertedTask);
+                        console.error('Failed to update task status:', err);
+                    }
+                });
+            }
             
             // Set current due date if exists
             if (task.due) {
@@ -1135,7 +1135,7 @@ export class TaskListView extends ItemView {
             (updatedTask.recurrence && isRecurringTaskDueOn(updatedTask, this.plugin.selectedDate))
         );
         
-        taskElement.className = `task-item ${isDueOnSelectedDate ? 'task-due-today' : ''} ${updatedTask.archived ? 'task-archived' : ''} ${updatedTask.recurrence ? 'task-recurring' : ''} chronosync-card`;
+        taskElement.className = `task-item priority-${updatedTask.priority} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${updatedTask.archived ? 'task-archived' : ''} ${updatedTask.recurrence ? 'task-recurring' : ''} chronosync-card`;
         
         // Add visual feedback for the update
         taskElement.classList.add('task-updated');
