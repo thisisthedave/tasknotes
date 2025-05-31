@@ -70,7 +70,7 @@ button.processing::after {
 
 /* Accessibility - Focus Styles */
 .calendar-day:focus,
-.chronosync-tab:focus,
+.tasknotes-tab:focus,
 .task-toggle-button:focus,
 .calendar-nav button:focus,
 .add-task-button:focus,
@@ -101,7 +101,7 @@ button.processing::after {
 }
 
 /* Main container for all views - denser layout */
-.chronosync-container {
+.tasknotes-container {
     padding: var(--cs-spacing-sm);
     display: flex;
     flex-direction: column;
@@ -666,7 +666,7 @@ button.processing::after {
 }
 
 /* Main Content Area with Tabs */
-.chronosync-main-content {
+.tasknotes-main-content {
     border: 1px solid var(--background-modifier-border);
     border-radius: 6px;
     overflow: hidden;
@@ -676,13 +676,13 @@ button.processing::after {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.chronosync-tabs {
+.tasknotes-tabs {
     display: flex;
     background-color: var(--background-secondary);
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.chronosync-tab {
+.tasknotes-tab {
     padding: 0.5rem 1rem;
     cursor: pointer;
     background: none;
@@ -695,17 +695,17 @@ button.processing::after {
     text-align: center;
 }
 
-.chronosync-tab:hover {
+.tasknotes-tab:hover {
     background-color: var(--background-modifier-hover);
 }
 
-.chronosync-tab.active {
+.tasknotes-tab.active {
     background-color: var(--background-primary);
     color: var(--text-accent);
     font-weight: bold;
 }
 
-.chronosync-tab.active::after {
+.tasknotes-tab.active::after {
     content: '';
     position: absolute;
     bottom: 0;
@@ -716,7 +716,7 @@ button.processing::after {
     transition: transform 0.2s ease-in-out;
 }
 
-.chronosync-content-area {
+.tasknotes-content-area {
     padding: 1rem;
     background-color: var(--background-primary);
     flex-grow: 1;
@@ -923,7 +923,7 @@ button.processing::after {
 }
 
 /* Unified Card Styles - more compact and consistent */
-.chronosync-card {
+.tasknotes-card {
     padding: var(--cs-spacing-sm);
     border-radius: var(--cs-radius-sm);
     border: 1px solid var(--background-modifier-border);
@@ -932,13 +932,13 @@ button.processing::after {
     transition: all var(--cs-transition-fast);
 }
 
-.chronosync-card:hover {
+.tasknotes-card:hover {
     background-color: var(--background-modifier-hover);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.chronosync-card-header {
+.tasknotes-card-header {
     font-weight: 500;
     font-size: var(--cs-text-sm);
     margin-bottom: var(--cs-spacing-xs);
@@ -949,12 +949,12 @@ button.processing::after {
     align-items: center;
 }
 
-.chronosync-card-content {
+.tasknotes-card-content {
     color: var(--text-normal);
     font-size: var(--cs-text-sm);
 }
 
-.chronosync-card-footer {
+.tasknotes-card-footer {
     margin-top: var(--cs-spacing-xs);
     padding-top: var(--cs-spacing-xs);
     border-top: 1px solid var(--background-modifier-border);
@@ -1283,7 +1283,7 @@ button.processing::after {
 @media (pointer: coarse) {
     /* Improvements for touch interfaces */
     .calendar-day, 
-    .chronosync-tab, 
+    .tasknotes-tab, 
     .task-toggle-button,
     .refresh-tasks-button,
     .add-task-button,
@@ -1833,7 +1833,7 @@ button.processing::after {
 }
 
 /* Unified Button Styles */
-.chronosync-button {
+.tasknotes-button {
     padding: 0.35rem 0.7rem;
     border-radius: 4px;
     font-size: 0.9rem;
@@ -1846,41 +1846,41 @@ button.processing::after {
     transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
 }
 
-.chronosync-button:hover {
+.tasknotes-button:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
 }
 
-.chronosync-button:active {
+.tasknotes-button:active {
     transform: translateY(0);
     box-shadow: none;
 }
 
-.chronosync-button-primary {
+.tasknotes-button-primary {
     background-color: var(--interactive-accent);
     color: var(--text-on-accent);
 }
 
-.chronosync-button-primary:hover {
+.tasknotes-button-primary:hover {
     background-color: var(--interactive-accent-hover);
 }
 
-.chronosync-button-secondary {
+.tasknotes-button-secondary {
     background-color: var(--background-secondary);
     color: var(--text-normal);
     border: 1px solid var(--background-modifier-border);
 }
 
-.chronosync-button-secondary:hover {
+.tasknotes-button-secondary:hover {
     background-color: var(--background-secondary-alt);
 }
 
-.chronosync-button-small {
+.tasknotes-button-small {
     padding: 0.2rem 0.4rem;
     font-size: 0.8rem;
 }
 
-.chronosync-button-icon {
+.tasknotes-button-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2433,7 +2433,7 @@ button.processing::after {
 }
 
 /* Status Messages */
-.chronosync-status-message {
+.tasknotes-status-message {
     position: fixed;
     bottom: 20px;
     right: 20px;
@@ -2457,17 +2457,17 @@ button.processing::after {
     flex: 1;
 }
 
-.chronosync-status-success {
+.tasknotes-status-success {
     background-color: var(--background-modifier-success);
     color: var(--text-on-accent);
 }
 
-.chronosync-status-error {
+.tasknotes-status-error {
     background-color: var(--background-modifier-error);
     color: var(--text-on-accent);
 }
 
-.chronosync-status-warning {
+.tasknotes-status-warning {
     background-color: var(--background-modifier-error-hover);
     color: var(--text-normal);
 }
@@ -2479,7 +2479,7 @@ button.processing::after {
 
 /* Responsive adjustments - maintaining compact design */
 @media (max-width: 768px) {
-    .chronosync-container {
+    .tasknotes-container {
         padding: var(--cs-spacing-xs);
     }
     
@@ -2526,11 +2526,11 @@ button.processing::after {
         font-size: var(--cs-text-xs);
     }
     
-    .chronosync-tabs {
+    .tasknotes-tabs {
         flex-wrap: wrap;
     }
     
-    .chronosync-tab {
+    .tasknotes-tab {
         padding: var(--cs-spacing-sm);
         font-size: var(--cs-text-xs);
     }

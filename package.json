@@ -1,7 +1,7 @@
 {
-	"name": "chronosync",
+	"name": "tasknotes",
 	"version": "0.6.3",
-	"description": "Comprehensive diary, task, note, and time management for Obsidian",
+	"description": "Comprehensive task and note management with calendar integration for Obsidian",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

@@ -1,6 +1,6 @@
 import { Notice, TFile, ItemView, WorkspaceLeaf, normalizePath } from 'obsidian';
 import { format } from 'date-fns';
-import ChronoSyncPlugin from '../main';
+import TaskNotesPlugin from '../main';
 import { 
     CALENDAR_VIEW_TYPE, 
     EVENT_DATA_CHANGED,
@@ -22,14 +22,14 @@ export class CalendarView extends ItemView {
     // Static property to track initialization status for daily notes
     static dailyNotesInitialized: boolean = false;
     
-    plugin: ChronoSyncPlugin;
+    plugin: TaskNotesPlugin;
     displayMode: CalendarDisplayMode = 'month';
     colorizeMode: ColorizeMode = 'tasks';
     
     // Event listeners
     private listeners: (() => void)[] = [];
   
-    constructor(leaf: WorkspaceLeaf, plugin: ChronoSyncPlugin) {
+    constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
         this.plugin = plugin;
         
@@ -67,7 +67,7 @@ export class CalendarView extends ItemView {
         contentEl.empty();
         
         // Add a container for our view content
-        const container = contentEl.createDiv({ cls: 'chronosync-container calendar-view-container' });
+        const container = contentEl.createDiv({ cls: 'tasknotes-container calendar-view-container' });
         
         // Show loading indicator while loading initial data
         this.showLoadingIndicator();
@@ -348,7 +348,7 @@ export class CalendarView extends ItemView {
         this.showLoadingIndicator();
         
         try {
-            const container = this.contentEl.querySelector('.chronosync-container') as HTMLElement;
+            const container = this.contentEl.querySelector('.tasknotes-container') as HTMLElement;
             if (container) {
                 // Simply render the view and get fresh data from FileIndexer
                 this.renderView(container);
@@ -388,7 +388,7 @@ export class CalendarView extends ItemView {
     
     // Show a loading indicator while building cache
     private showLoadingIndicator() {
-        const container = this.contentEl.querySelector('.chronosync-container');
+        const container = this.contentEl.querySelector('.tasknotes-container');
         if (!container) return;
 
         // Check if indicator already exists
@@ -515,7 +515,7 @@ export class CalendarView extends ItemView {
         // Today button
         const todayButton = navContainer.createEl('button', { 
             text: 'Today', 
-            cls: 'today-button chronosync-button chronosync-button-primary',
+            cls: 'today-button tasknotes-button tasknotes-button-primary',
             attr: {
                 'aria-label': 'Go to today',
                 'title': 'Go to today (T key)'
@@ -1029,7 +1029,7 @@ export class CalendarView extends ItemView {
             // Show preview for the daily note only
             this.app.workspace.trigger('hover-link', {
                 event,
-                source: 'chronosync-calendar',
+source: 'tasknotes-calendar',
                 hoverParent: this,
                 targetEl: targetEl,
                 linktext: dailyNotePath,
@@ -1171,7 +1171,7 @@ export class CalendarView extends ItemView {
                         if (file) {
                             this.app.workspace.trigger('hover-link', {
                                 event,
-                                source: 'chronosync-agenda',
+                                source: 'tasknotes-agenda',
                                 hoverParent: this,
                                 targetEl: item,
                                 linktext: task.path,
@@ -1208,7 +1208,7 @@ export class CalendarView extends ItemView {
                         if (file) {
                             this.app.workspace.trigger('hover-link', {
                                 event,
-                                source: 'chronosync-agenda',
+                                source: 'tasknotes-agenda',
                                 hoverParent: this,
                                 targetEl: item,
                                 linktext: note.path,

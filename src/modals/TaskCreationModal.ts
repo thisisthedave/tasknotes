@@ -1,12 +1,12 @@
 import { App, Modal, Notice, TFile } from 'obsidian';
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
-import ChronoSyncPlugin from '../main';
+import TaskNotesPlugin from '../main';
 import { ensureFolderExists } from '../utils/helpers';
 import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo, TimeEntry } from '../types';
 
 export class TaskCreationModal extends Modal {
-	plugin: ChronoSyncPlugin;
+	plugin: TaskNotesPlugin;
 	title: string = '';
 	details: string = '';
 	dueDate: string = '';
@@ -20,7 +20,7 @@ export class TaskCreationModal extends Modal {
 	dayOfMonth: string = '';
 	monthOfYear: string = '';
   
-	constructor(app: App, plugin: ChronoSyncPlugin) {
+	constructor(app: App, plugin: TaskNotesPlugin) {
 		super(app);
 		this.plugin = plugin;
 	}

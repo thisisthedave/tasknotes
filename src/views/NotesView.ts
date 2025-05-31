@@ -1,6 +1,6 @@
 import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
 import { format } from 'date-fns';
-import ChronoSyncPlugin from '../main';
+import TaskNotesPlugin from '../main';
 import { 
     NOTES_VIEW_TYPE, 
     NoteInfo, 
@@ -9,7 +9,7 @@ import {
 } from '../types';
 
 export class NotesView extends ItemView {
-    plugin: ChronoSyncPlugin;
+    plugin: TaskNotesPlugin;
     
     // UI elements
     private loadingIndicator: HTMLElement | null = null;
@@ -25,7 +25,7 @@ export class NotesView extends ItemView {
     // Event listeners
     private listeners: (() => void)[] = [];
     
-    constructor(leaf: WorkspaceLeaf, plugin: ChronoSyncPlugin) {
+    constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
         this.plugin = plugin;
         
@@ -88,7 +88,7 @@ export class NotesView extends ItemView {
     }
     
     async render() {
-        const container = this.contentEl.createDiv({ cls: 'chronosync-container notes-view-container' });
+        const container = this.contentEl.createDiv({ cls: 'tasknotes-container notes-view-container' });
         
         // Create header with current date information
         this.createHeader(container);
@@ -110,7 +110,7 @@ export class NotesView extends ItemView {
         // Add refresh button
         const refreshButton = actionsContainer.createEl('button', { 
             text: 'Refresh', 
-            cls: 'refresh-notes-button chronosync-button chronosync-button-secondary',
+            cls: 'refresh-notes-button tasknotes-button tasknotes-button-secondary',
             attr: {
                 'aria-label': 'Refresh notes list',
                 'title': 'Refresh notes list'
@@ -162,10 +162,10 @@ export class NotesView extends ItemView {
             notes.forEach(note => {
                 const noteItem = document.createElement('div');
                 const isDailyNote = note.path.startsWith(this.plugin.settings.dailyNotesFolder);
-                noteItem.className = `note-item chronosync-card ${isDailyNote ? 'daily-note-item' : ''}`;
+                noteItem.className = `note-item tasknotes-card ${isDailyNote ? 'daily-note-item' : ''}`;
                 
                 const titleEl = document.createElement('div');
-                titleEl.className = 'note-item-title chronosync-card-header';
+                titleEl.className = 'note-item-title tasknotes-card-header';
                 
                 // Add indicator for daily notes
                 if (isDailyNote) {
@@ -180,7 +180,7 @@ export class NotesView extends ItemView {
                 noteItem.appendChild(titleEl);
                 
                 const contentContainer = document.createElement('div');
-                contentContainer.className = 'chronosync-card-content';
+                contentContainer.className = 'tasknotes-card-content';
                 
                 // Add created date if available
                 if (note.createdDate) {
@@ -198,7 +198,7 @@ export class NotesView extends ItemView {
                 // Add tags as footer
                 if (note.tags && note.tags.length > 0) {
                     const tagContainer = document.createElement('div');
-                    tagContainer.className = 'note-item-tags chronosync-card-footer';
+                    tagContainer.className = 'note-item-tags tasknotes-card-footer';
                     
                     note.tags.forEach(tag => {
                         const tagEl = document.createElement('span');
@@ -221,7 +221,7 @@ export class NotesView extends ItemView {
                     if (file) {
                         this.app.workspace.trigger('hover-link', {
                             event,
-                            source: 'chronosync-notes',
+                            source: 'tasknotes-notes',
                             hoverParent: this,
                             targetEl: noteItem,
                             linktext: note.path,

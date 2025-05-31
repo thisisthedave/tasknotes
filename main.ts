@@ -1,2 +1,2 @@
-import ChronoSyncPlugin from './src/main';
-export default ChronoSyncPlugin;
+import TaskNotesPlugin from './src/main';
+export default TaskNotesPlugin;

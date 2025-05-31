@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import ChronoSyncPlugin from '../main';
+import TaskNotesPlugin from '../main';
 
-export interface ChronoSyncSettings {
+export interface TaskNotesSettings {
 	dailyNotesFolder: string;
 	tasksFolder: string;  // Now just a default location for new tasks
 	taskTag: string;      // The tag that identifies tasks
@@ -15,9 +15,9 @@ export interface ChronoSyncSettings {
 	taskOrgFiltersCollapsed: boolean;  // Save collapse state of task organization filters
 }
 
-export const DEFAULT_SETTINGS: ChronoSyncSettings = {
-	dailyNotesFolder: 'ChronoSync/Daily',
-	tasksFolder: 'ChronoSync/Tasks',
+export const DEFAULT_SETTINGS: TaskNotesSettings = {
+	dailyNotesFolder: 'TaskNotes/Daily',
+	tasksFolder: 'TaskNotes/Tasks',
 	taskTag: 'task',
 	excludedFolders: '',  // Default to no excluded folders
 	defaultTaskPriority: 'normal',
@@ -29,10 +29,10 @@ export const DEFAULT_SETTINGS: ChronoSyncSettings = {
 	taskOrgFiltersCollapsed: false  // Default to expanded
 };
 
-export class ChronoSyncSettingTab extends PluginSettingTab {
-	plugin: ChronoSyncPlugin;
+export class TaskNotesSettingTab extends PluginSettingTab {
+	plugin: TaskNotesPlugin;
   
-	constructor(app: App, plugin: ChronoSyncPlugin) {
+	constructor(app: App, plugin: TaskNotesPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -46,7 +46,7 @@ export class ChronoSyncSettingTab extends PluginSettingTab {
 			.setName('Daily notes folder')
 			.setDesc('Folder where daily notes will be stored')
 			.addText(text => text
-				.setPlaceholder('ChronoSync/Daily')
+				.setPlaceholder('TaskNotes/Daily')
 				.setValue(this.plugin.settings.dailyNotesFolder)
 				.onChange(async (value) => {
 					this.plugin.settings.dailyNotesFolder = value;
@@ -57,7 +57,7 @@ export class ChronoSyncSettingTab extends PluginSettingTab {
 			.setName('Default tasks folder')
 			.setDesc('Default folder for new tasks (tasks are identified by tag, not folder)')
 			.addText(text => text
-				.setPlaceholder('ChronoSync/Tasks')
+				.setPlaceholder('TaskNotes/Tasks')
 				.setValue(this.plugin.settings.tasksFolder)
 				.onChange(async (value) => {
 					this.plugin.settings.tasksFolder = value;

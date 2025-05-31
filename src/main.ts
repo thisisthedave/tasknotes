@@ -2,9 +2,9 @@ import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath, Platform } from 'o
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import { 
-	ChronoSyncSettings, 
+	TaskNotesSettings, 
 	DEFAULT_SETTINGS, 
-	ChronoSyncSettingTab 
+	TaskNotesSettingTab 
 } from './settings/settings';
 import { 
 	CALENDAR_VIEW_TYPE, 
@@ -32,8 +32,8 @@ import { EventEmitter } from './utils/EventEmitter';
 import { FileIndexer } from './utils/FileIndexer';
 import { YAMLCache } from './utils/YAMLCache';
 
-export default class ChronoSyncPlugin extends Plugin {
-	settings: ChronoSyncSettings;
+export default class TaskNotesPlugin extends Plugin {
+	settings: TaskNotesSettings;
 	
 	// Shared state between views
 	selectedDate: Date = new Date();
@@ -70,17 +70,17 @@ export default class ChronoSyncPlugin extends Plugin {
 		);
 		
 		// Add ribbon icon
-		this.addRibbonIcon('calendar-days', 'ChronoSync', async () => {
+		this.addRibbonIcon('calendar-days', 'TaskNotes', async () => {
 			await this.activateLinkedViews();
 		});
 		
 		// Add ribbon icon for a side-by-side layout
-		this.addRibbonIcon('layout-grid', 'ChronoSync Grid Layout', async () => {
+		this.addRibbonIcon('layout-grid', 'TaskNotes Grid Layout', async () => {
 			await this.createGridLayout();
 		});
 		
 		// Add ribbon icon for a tabs layout
-		this.addRibbonIcon('layout-tabs', 'ChronoSync Tabs Layout', async () => {
+		this.addRibbonIcon('layout-tabs', 'TaskNotes Tabs Layout', async () => {
 			await this.createTabsLayout();
 		});
 
@@ -88,7 +88,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		this.addCommands();
 
 		// Add settings tab
-		this.addSettingTab(new ChronoSyncSettingTab(this.app, this));
+		this.addSettingTab(new TaskNotesSettingTab(this.app, this));
 	}
 	
 	// Methods for updating shared state and emitting events
@@ -216,7 +216,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		
 		this.addCommand({
 			id: 'open-grid-layout',
-			name: 'Open ChronoSync in grid layout',
+			name: 'Open TaskNotes in grid layout',
 			callback: async () => {
 				await this.createGridLayout();
 			}
@@ -224,7 +224,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		
 		this.addCommand({
 			id: 'open-tabs-layout',
-			name: 'Open ChronoSync in tabs layout',
+			name: 'Open TaskNotes in tabs layout',
 			callback: async () => {
 				await this.createTabsLayout();
 			}
@@ -275,30 +275,6 @@ export default class ChronoSyncPlugin extends Plugin {
 			}
 		});
 
-		// Daily note metadata commands
-		this.addCommand({
-			id: 'increment-pomodoros',
-			name: 'Increment daily pomodoros',
-			callback: async () => {
-				await this.incrementPomodoros();
-			}
-		});
-
-		this.addCommand({
-			id: 'toggle-workout',
-			name: 'Toggle daily workout',
-			callback: async () => {
-				await this.toggleDailyMetadata('workout');
-			}
-		});
-
-		this.addCommand({
-			id: 'toggle-meditate',
-			name: 'Toggle daily meditation',
-			callback: async () => {
-				await this.toggleDailyMetadata('meditate');
-			}
-		});
 	}
 
 	// Helper method to create or activate a view of specific type
@@ -397,7 +373,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		});
 		
 		// Group these leaves together for synchronized date selection
-		const groupName = 'chronosync-views';
+		const groupName = 'tasknotes-views';
 		calendarLeaf.setGroup(groupName);
 		tasksLeaf.setGroup(groupName);
 		notesLeaf.setGroup(groupName);
@@ -405,7 +381,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		// Make calendar the active view
 		workspace.setActiveLeaf(calendarLeaf, { focus: true });
 		
-		new Notice('ChronoSync views created. You can drag and rearrange these tabs as needed.');
+		new Notice('TaskNotes views created. You can drag and rearrange these tabs as needed.');
 	}
 	
 	/**
@@ -443,7 +419,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		});
 		
 		// Group these leaves together
-		const groupName = 'chronosync-grid';
+		const groupName = 'tasknotes-grid';
 		calendarLeaf.setGroup(groupName);
 		tasksLeaf.setGroup(groupName);
 		notesLeaf.setGroup(groupName);
@@ -452,7 +428,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		workspace.setActiveLeaf(calendarLeaf, { focus: true });
 		
 		// Show a notice to let the user know they can rearrange the tabs
-		new Notice('ChronoSync views created in grid layout. You can drag and rearrange these tabs freely.');
+		new Notice('TaskNotes views created in grid layout. You can drag and rearrange these tabs freely.');
 	}
 	
 	/**
@@ -494,7 +470,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		});
 		
 		// Group these views for synchronized date selection
-		const groupName = 'chronosync-tabs';
+		const groupName = 'tasknotes-tabs';
 		firstLeaf.setGroup(groupName);
 		secondLeaf.setGroup(groupName);
 		thirdLeaf.setGroup(groupName);
@@ -502,7 +478,7 @@ export default class ChronoSyncPlugin extends Plugin {
 		// Make the calendar view active 
 		workspace.setActiveLeaf(firstLeaf, { focus: true });
 		
-		new Notice('ChronoSync tabs created. You can now freely drag and rearrange these tabs.');
+		new Notice('TaskNotes tabs created. You can now freely drag and rearrange these tabs.');
 	}
 
 	getLeafOfType(viewType: string): WorkspaceLeaf | null {
@@ -563,49 +539,6 @@ export default class ChronoSyncPlugin extends Plugin {
 		}
 	}
 
-	async incrementPomodoros() {
-		await this.updateDailyNoteMetadata('pomodoros', (val) => {
-			const current = typeof val === 'number' ? val : 0;
-			return current + 1;
-		});
-	}
-
-	async toggleDailyMetadata(key: 'workout' | 'meditate') {
-		await this.updateDailyNoteMetadata(key, (val) => {
-			return typeof val === 'boolean' ? !val : true;
-		});
-	}
-
-	async updateDailyNoteMetadata(key: string, updateFn: (val: any) => any) {
-		// Get the current daily note file
-		const date = new Date();
-		const dailyNoteFileName = format(date, 'yyyy-MM-dd') + '.md';
-		const dailyNotePath = normalizePath(`${this.settings.dailyNotesFolder}/${dailyNoteFileName}`);
-		
-		// Check if the daily note exists, if not create it
-		const fileExists = await this.app.vault.adapter.exists(dailyNotePath);
-		
-		if (!fileExists) {
-			await this.navigateToCurrentDailyNote();
-		}
-		
-		// Get the file and update its metadata
-		const file = this.app.vault.getAbstractFileByPath(dailyNotePath);
-		if (file instanceof TFile) {
-			try {
-				// Process the frontmatter using FileManager.processFrontMatter for safer modification
-				await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-					frontmatter[key] = updateFn(frontmatter[key]);
-				});
-				
-				// Show notice
-				new Notice(`Updated ${key} in daily note`);
-			} catch (error) {
-				console.error('Error updating daily note metadata:', error);
-				new Notice('Error updating daily note metadata');
-			}
-		}
-	}
 
 	generateDailyNoteTemplate(date: Date): string {
 		const startTime = parseTime(this.settings.timeblockStartTime);

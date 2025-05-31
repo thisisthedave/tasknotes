@@ -1,12 +1,12 @@
-# ChronoSync for Obsidian
+# TaskNotes for Obsidian
 
-ChronoSync is a comprehensive diary, task, note, and time management plugin for Obsidian. It integrates calendar views, task management, daily notes, and timeblocking into a seamless workflow.
+TaskNotes is a comprehensive task and note management plugin for Obsidian with integrated calendar views, daily notes, and timeblocking.
 
-## Why ChronoSync?
+## Why TaskNotes?
 
-With the introduction of Obsidian's new Bases core plugin, structured YAML frontmatter has become a standard way to manage data in Obsidian. ChronoSync uses YAML metadata extensively to store task properties, daily note information, and time tracking data. This means all your tasks and notes remain as plain Markdown files with structured frontmatter that can be queried and viewed in Bases tables.
+With the introduction of Obsidian's new Bases core plugin, structured YAML frontmatter has become a standard way to manage data in Obsidian. TaskNotes uses YAML metadata extensively to store task properties, daily note information, and time tracking data. This means all your tasks and notes remain as plain Markdown files with structured frontmatter that can be queried and viewed in Bases tables.
 
-ChronoSync focuses on time-based organization and task management, storing all data as YAML properties. While Bases provides database views of your notes, ChronoSync handles the day-to-day workflow of creating tasks, tracking time, managing recurring items, and organizing your daily activities. The structured data ChronoSync creates can then be analyzed and visualized using Bases or other data query tools.
+TaskNotes focuses on time-based organization and task management, storing all data as YAML properties. While Bases provides database views of your notes, TaskNotes handles the day-to-day workflow of creating tasks, tracking time, managing recurring items, and organizing your daily activities. The structured data TaskNotes creates can then be analyzed and visualized using Bases or other data query tools.
 
 ## Features
 
@@ -20,15 +20,14 @@ ChronoSync focuses on time-based organization and task management, storing all d
 
 ### Calendar Integration
 - Month view with agenda display showing tasks and notes
-- Visual indicators for daily notes, due tasks, and daily metadata (pomodoros, workout, meditation)
+- Visual indicators for daily notes and due tasks
 - Keyboard navigation and date selection synchronized across all views
 - Color coding based on priority, note presence, or daily activities
 
 ### Daily Notes
 - Automatic creation with configurable templates
-- YAML frontmatter tracking: date, pomodoros, workout, meditation, important flag
+- YAML frontmatter tracking: date, tags, important flag
 - Timeblock tables with configurable intervals (15, 30, or 60 minutes)
-- Quick commands to update daily metadata without opening the note
 
 ### Time Management
 - Integrated time tracking for tasks with start/stop functionality
@@ -61,27 +60,27 @@ All data is stored as YAML frontmatter in Markdown files, making it:
 
 1. Open Obsidian Settings
 2. Go to Community Plugins and turn off Safe Mode
-3. Click Browse and search for "ChronoSync"
+3. Click Browse and search for "TaskNotes"
 4. Install the plugin and enable it
 
 ### Manual Installation
 
 1. Download the latest release from the GitHub releases page
-2. Extract the files to your Obsidian vault's plugins folder: `<vault>/.obsidian/plugins/chronosync/`
+2. Extract the files to your Obsidian vault's plugins folder: `<vault>/.obsidian/plugins/tasknotes/`
 3. Reload Obsidian
-4. Go to Settings > Community Plugins and enable "ChronoSync"
+4. Go to Settings > Community Plugins and enable "TaskNotes"
 
 ## Usage
 
 ### Getting Started
 
-1. After installation, click the calendar icon in the ribbon to open the ChronoSync dashboard
-2. Configure the plugin settings in Settings > ChronoSync
+1. After installation, click the calendar icon in the ribbon to open the TaskNotes dashboard
+2. Configure the plugin settings in Settings > TaskNotes
 3. Create your first task or navigate to today's daily note
 
 ### Task Management and Interaction
 
-ChronoSync provides intuitive controls to interact with your tasks directly from the task list view:
+TaskNotes provides intuitive controls to interact with your tasks directly from the task list view:
 
 - Change a task's status (Open, In Progress, Done) using the status dropdown
 - Adjust task priority (High, Normal, Low) using the priority dropdown
@@ -90,7 +89,7 @@ ChronoSync provides intuitive controls to interact with your tasks directly from
 
 ### Task Archiving
 
-ChronoSync allows you to archive tasks to keep your task list clean while preserving task history:
+TaskNotes allows you to archive tasks to keep your task list clean while preserving task history:
 
 - To archive a task, click the "Archive" button in the task controls
 - Archived tasks are tagged with the "archive" tag in their YAML frontmatter
@@ -100,25 +99,20 @@ ChronoSync allows you to archive tasks to keep your task list clean while preser
 
 ### Commands
 
-ChronoSync adds several commands to Obsidian's command palette:
+TaskNotes adds several commands to Obsidian's command palette:
 
-- **Open Dashboard/Calendar View**: Opens the main ChronoSync dashboard
+- **Open Dashboard/Calendar View**: Opens the main TaskNotes dashboard
 - **Create New Task**: Opens a modal to create a new task
 - **Go to Today's Note**: Navigates to or creates today's daily note
-- **Open Home Note**: Navigates to or creates your home note
-- **Increment Daily Pomodoros**: Adds 1 to the pomodoro count in today's note
-- **Toggle Daily Workout**: Toggles the workout flag in today's note
-- **Toggle Daily Meditation**: Toggles the meditation flag in today's note
-- **Toggle Daily Important Flag**: Toggles the important flag in today's note
 
 ### Folder Structure
 
-ChronoSync uses the following folder structure by default (configurable in settings):
+TaskNotes uses the following folder structure by default (configurable in settings):
 
-- `ChronoSync/Daily/`: Daily notes (YYYY-MM-DD.md)
-- `ChronoSync/Tasks/`: Task files
-- `ChronoSync/Notes/`: General notes
-- `ChronoSync/Home.md`: Home note
+- `TaskNotes/Daily/`: Daily notes (YYYY-MM-DD.md)
+- `TaskNotes/Tasks/`: Task files
+- `TaskNotes/Notes/`: General notes
+- `TaskNotes/Home.md`: Home note
 
 ## YAML Structure Examples
 
@@ -145,9 +139,6 @@ timeEntries:
 ### Daily Note
 ```yaml
 date: "2024-01-15"
-pomodoros: 6
-workout: true
-meditate: true
 tags: ["daily"]
 important: false
 ```

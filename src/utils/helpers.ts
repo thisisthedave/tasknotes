@@ -142,9 +142,6 @@ export function generateDailyNoteTemplate(date: Date, timeblockStartTime: TimeIn
 	// Create the YAML frontmatter
 	const yaml = {
 		date: dateStr,
-		pomodoros: 0,
-		workout: false,
-		meditate: false,
 		tags: ['daily']
 	};
 	

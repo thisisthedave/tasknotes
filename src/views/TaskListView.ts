@@ -1,6 +1,6 @@
 import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
 import { format } from 'date-fns';
-import ChronoSyncPlugin from '../main';
+import TaskNotesPlugin from '../main';
 import { 
     TASK_LIST_VIEW_TYPE, 
     TaskInfo, 
@@ -17,7 +17,7 @@ import {
 } from '../utils/helpers';
 
 export class TaskListView extends ItemView {
-    plugin: ChronoSyncPlugin;
+    plugin: TaskNotesPlugin;
     
     // UI elements
     private taskListContainer: HTMLElement | null = null;
@@ -45,7 +45,7 @@ export class TaskListView extends ItemView {
     // Event listeners
     private listeners: (() => void)[] = [];
     
-    constructor(leaf: WorkspaceLeaf, plugin: ChronoSyncPlugin) {
+    constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
         this.plugin = plugin;
         
@@ -117,7 +117,7 @@ export class TaskListView extends ItemView {
     }
     
     async render() {
-        const container = this.contentEl.createDiv({ cls: 'chronosync-container task-list-view-container' });
+        const container = this.contentEl.createDiv({ cls: 'tasknotes-container task-list-view-container' });
         
         // Create header with current date information
         this.createHeader(container);
@@ -138,7 +138,7 @@ export class TaskListView extends ItemView {
         
         const addTaskButton = actionsContainer.createEl('button', { 
             text: 'New Task', 
-            cls: 'add-task-button chronosync-button chronosync-button-primary',
+            cls: 'add-task-button tasknotes-button tasknotes-button-primary',
             attr: {
                 'aria-label': 'Create new task',
                 'title': 'Create new task'
@@ -180,7 +180,7 @@ export class TaskListView extends ItemView {
         // Refresh button in primary row
         const refreshButton = primaryFiltersRow.createEl('button', { 
             text: 'Refresh', 
-            cls: 'refresh-tasks-button chronosync-button chronosync-button-secondary',
+            cls: 'refresh-tasks-button tasknotes-button tasknotes-button-secondary',
             attr: {
                 'aria-label': 'Refresh task list',
                 'title': 'Refresh task list'
@@ -438,7 +438,7 @@ export class TaskListView extends ItemView {
                 : task.status;
             
             const taskItem = container.createDiv({ 
-                cls: `task-item priority-${task.priority} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''} ${task.recurrence ? 'task-recurring' : ''} chronosync-card`
+                cls: `task-item priority-${task.priority} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''} ${task.recurrence ? 'task-recurring' : ''} tasknotes-card`
             });
             
             // Store reference to this task element for future updates
@@ -446,7 +446,7 @@ export class TaskListView extends ItemView {
             this.taskElements.set(task.path, taskItem);
             
             // Create header row (title and metadata)
-            const taskHeader = taskItem.createDiv({ cls: 'task-header chronosync-card-header' });
+            const taskHeader = taskItem.createDiv({ cls: 'task-header tasknotes-card-header' });
             
             // Create info section (left side)
             const taskInfo = taskHeader.createDiv({ cls: 'task-info' });
@@ -801,7 +801,7 @@ export class TaskListView extends ItemView {
                 if (file) {
                     this.app.workspace.trigger('hover-link', {
                         event,
-                        source: 'chronosync-tasks',
+                        source: 'tasknotes-tasks',
                         hoverParent: this,
                         targetEl: taskInfo,
                         linktext: task.path,
@@ -1135,7 +1135,7 @@ export class TaskListView extends ItemView {
             (updatedTask.recurrence && isRecurringTaskDueOn(updatedTask, this.plugin.selectedDate))
         );
         
-        taskElement.className = `task-item priority-${updatedTask.priority} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${updatedTask.archived ? 'task-archived' : ''} ${updatedTask.recurrence ? 'task-recurring' : ''} chronosync-card`;
+        taskElement.className = `task-item priority-${updatedTask.priority} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${updatedTask.archived ? 'task-archived' : ''} ${updatedTask.recurrence ? 'task-recurring' : ''} tasknotes-card`;
         
         // Add visual feedback for the update
         taskElement.classList.add('task-updated');

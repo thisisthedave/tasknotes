@@ -1,7 +1,7 @@
 // View types
-export const CALENDAR_VIEW_TYPE = 'chronosync-calendar-view';
-export const TASK_LIST_VIEW_TYPE = 'chronosync-task-list-view';
-export const NOTES_VIEW_TYPE = 'chronosync-notes-view';
+export const CALENDAR_VIEW_TYPE = 'tasknotes-calendar-view';
+export const TASK_LIST_VIEW_TYPE = 'tasknotes-task-list-view';
+export const NOTES_VIEW_TYPE = 'tasknotes-notes-view';
 
 // Event types
 export const EVENT_DATE_SELECTED = 'date-selected';
@@ -85,9 +85,6 @@ export interface IndexedFile {
 // YAML Frontmatter types
 export interface DailyNoteFrontmatter {
 	date?: string;
-	pomodoros?: number;
-	workout?: boolean;
-	meditate?: boolean;
 	tags?: string[];
 	important?: boolean;
 }
