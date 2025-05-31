@@ -2,32 +2,58 @@
 
 ChronoSync is a comprehensive diary, task, note, and time management plugin for Obsidian. It integrates calendar views, task management, daily notes, and timeblocking into a seamless workflow.
 
+## Why ChronoSync?
+
+With the introduction of Obsidian's new Bases core plugin, structured YAML frontmatter has become a standard way to manage data in Obsidian. ChronoSync uses YAML metadata extensively to store task properties, daily note information, and time tracking data. This means all your tasks and notes remain as plain Markdown files with structured frontmatter that can be queried and viewed in Bases tables.
+
+ChronoSync focuses on time-based organization and task management, storing all data as YAML properties. While Bases provides database views of your notes, ChronoSync handles the day-to-day workflow of creating tasks, tracking time, managing recurring items, and organizing your daily activities. The structured data ChronoSync creates can then be analyzed and visualized using Bases or other data query tools.
+
 ## Features
 
-- **Enhanced Daily Notes**
-  - Automatic creation and navigation to daily notes
-  - YAML frontmatter for daily metadata (pomodoros, workout, meditate, tags, important)
-  - Integrated timeblock section within daily notes
+### Task Management
+- Tasks stored as individual Markdown files with YAML frontmatter
+- Task properties include: title, status, priority, due date, contexts, tags, time estimates, and time tracking data
+- Support for recurring tasks (daily, weekly, monthly, yearly) with completion instance tracking
+- Built-in time tracking with multiple sessions per task
+- Archive functionality using tags to hide completed tasks while preserving history
+- Task filtering by status, context, due date, and grouping options
 
-- **Advanced Task Management**
-  - Tasks as individual Markdown notes with rich YAML frontmatter
-  - Task properties: title, due date, priority, status, contexts, tags, recurrence, details
-  - Dedicated task views and filtering
-  - Archive functionality to hide completed tasks while preserving them in the database
+### Calendar Integration
+- Month view with agenda display showing tasks and notes
+- Visual indicators for daily notes, due tasks, and daily metadata (pomodoros, workout, meditation)
+- Keyboard navigation and date selection synchronized across all views
+- Color coding based on priority, note presence, or daily activities
 
-- **Calendar Views**
-  - Month, Week, and Year views integrated into the Obsidian workspace
-  - Visual cues on calendar dates for entries, due tasks, and metadata
-  - Easy navigation to daily notes
+### Daily Notes
+- Automatic creation with configurable templates
+- YAML frontmatter tracking: date, pomodoros, workout, meditation, important flag
+- Timeblock tables with configurable intervals (15, 30, or 60 minutes)
+- Quick commands to update daily metadata without opening the note
 
-- **Timeblocking**
-  - Structured timeblock tables in daily notes
-  - Easy creation and editing of timeblocks
-  - Configurable time intervals and ranges
+### Time Management
+- Integrated time tracking for tasks with start/stop functionality
+- Time entries stored in YAML with timestamps and durations
+- Time estimates vs actual time spent comparison
+- Multiple tracking sessions per task with descriptions
 
-- **Flexible Layouts**
-  - Side-by-side view (Calendar/List on one side, File Preview/Editor on the other)
-  - Tabbed interface for switching between tasks, notes, and timeblocks
+### Views and Layouts
+- **Grid Layout**: Side-by-side views with calendar/list on one side, file preview on the other
+- **Tabs Layout**: All views (Calendar, Tasks, Notes) as switchable tabs
+- **Popout Windows**: Desktop support for detaching views into separate windows
+- Synchronized date selection across all views
+
+### Notes Organization
+- Separate notes view for non-task files
+- Date-based filtering to show notes created on specific days
+- Configurable folder exclusions
+- Integration with calendar for date-specific note viewing
+
+### Data Structure
+All data is stored as YAML frontmatter in Markdown files, making it:
+- Compatible with Obsidian's Bases plugin for database views
+- Searchable and queryable using Dataview or similar tools
+- Portable and future-proof as plain text files
+- Version control friendly
 
 ## Installation
 
@@ -94,6 +120,49 @@ ChronoSync uses the following folder structure by default (configurable in setti
 - `ChronoSync/Notes/`: General notes
 - `ChronoSync/Home.md`: Home note
 
+## YAML Structure Examples
+
+### Task File
+```yaml
+title: "Complete project documentation"
+zettelid: "20240115a8f3"
+dateCreated: "2024-01-15T10:30:00"
+dateModified: "2024-01-15T14:45:00"
+status: "in-progress"
+due: "2024-01-20"
+tags: ["task", "documentation"]
+priority: "high"
+contexts: ["work", "writing"]
+timeEstimate: 120
+timeSpent: 45
+timeEntries:
+  - startTime: "2024-01-15T10:30:00"
+    endTime: "2024-01-15T11:15:00"
+    duration: 45
+    description: "Initial outline"
+```
+
+### Daily Note
+```yaml
+date: "2024-01-15"
+pomodoros: 6
+workout: true
+meditate: true
+tags: ["daily"]
+important: false
+```
+
+### Recurring Task
+```yaml
+title: "Weekly team meeting"
+status: "open"
+tags: ["task", "meetings"]
+recurrence:
+  frequency: "weekly"
+  days_of_week: ["mon"]
+complete_instances: ["2024-01-08", "2024-01-15"]
+```
+
 ## Configuration
 
 In the plugin settings, you can configure:
@@ -101,7 +170,11 @@ In the plugin settings, you can configure:
 - Folder paths for daily notes, tasks, and general notes
 - Default task properties (priority, status)
 - Timeblock settings (start/end times, interval)
-- Indexing options
+- Task identification tag (default: "task")
+- Archive tag (default: "archive")
+- Excluded folders for notes view
+- Layout preferences
+- Indexing options and cache settings
 
 ## Development
 
