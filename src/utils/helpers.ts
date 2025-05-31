@@ -113,30 +113,9 @@ export function updateYamlFrontmatter<T = any>(content: string, key: string, upd
 }
 
 /**
- * Generates a timeblock table based on start/end times and interval
- */
-export function generateTimeblockTable(startTime: TimeInfo, endTime: TimeInfo, intervalMinutes: number): string {
-	if (!startTime || !endTime) return '';
-
-	let table = '| Time | Activity |\n| ---- | -------- |\n';
-	
-	const startMinutes = startTime.hours * 60 + startTime.minutes;
-	const endMinutes = endTime.hours * 60 + endTime.minutes;
-	
-	for (let minutes = startMinutes; minutes <= endMinutes; minutes += intervalMinutes) {
-		const hours = Math.floor(minutes / 60);
-		const mins = minutes % 60;
-		const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-		table += `| ${timeStr} | |\n`;
-	}
-	
-	return table;
-}
-
-/**
  * Generates a daily note template
  */
-export function generateDailyNoteTemplate(date: Date, timeblockStartTime: TimeInfo, timeblockEndTime: TimeInfo, intervalMinutes: number, addTimeblock: boolean): string {
+export function generateDailyNoteTemplate(date: Date): string {
 	const dateStr = format(date, 'yyyy-MM-dd');
 	
 	// Create the YAML frontmatter
@@ -145,12 +124,7 @@ export function generateDailyNoteTemplate(date: Date, timeblockStartTime: TimeIn
 		tags: ['daily']
 	};
 	
-	let content = `---\n${YAML.stringify(yaml)}---\n\n# ${format(date, 'eeee, MMMM do, yyyy')}\n\n## Notes\n\n`;
-	
-	// Add timeblock table if configured
-	if (addTimeblock) {
-		content += `\n## Timeblock\n\n${generateTimeblockTable(timeblockStartTime, timeblockEndTime, parseInt(intervalMinutes.toString()))}`;
-	}
+	const content = `---\n${YAML.stringify(yaml)}---\n\n# ${format(date, 'eeee, MMMM do, yyyy')}\n\n## Notes\n\n`;
 	
 	return content;
 }
@@ -396,16 +370,3 @@ export function extractNoteInfo(content: string, path: string, file?: TFile): {t
 	return { title, tags, path, createdDate, lastModified };
 }
 
-/**
- * Extracts timeblock content from a daily note
- */
-export function extractTimeblockContent(content: string): string | null {
-	// Check if the content has a timeblock section
-	const timeblockMatch = content.match(/## Timeblock\s*\n([^#]*)/);
-	
-	if (timeblockMatch && timeblockMatch[1]) {
-		return timeblockMatch[1].trim();
-	}
-	
-	return null;
-}

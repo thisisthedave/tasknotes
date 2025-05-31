@@ -8,10 +8,6 @@ export interface TaskNotesSettings {
 	excludedFolders: string;  // Comma-separated list of folders to exclude from Notes tab
 	defaultTaskPriority: 'low' | 'normal' | 'high';
 	defaultTaskStatus: 'open' | 'in-progress' | 'done';
-	timeblockStartTime: string;
-	timeblockEndTime: string;
-	timeblockInterval: '30' | '60';
-	autoAddTimeblock: boolean;
 	taskOrgFiltersCollapsed: boolean;  // Save collapse state of task organization filters
 }
 
@@ -22,10 +18,6 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	excludedFolders: '',  // Default to no excluded folders
 	defaultTaskPriority: 'normal',
 	defaultTaskStatus: 'open',
-	timeblockStartTime: '05:00',
-	timeblockEndTime: '23:30',
-	timeblockInterval: '30',
-	autoAddTimeblock: true,
 	taskOrgFiltersCollapsed: false  // Default to expanded
 };
 
@@ -112,53 +104,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.defaultTaskStatus)
 				.onChange(async (value: any) => {
 					this.plugin.settings.defaultTaskStatus = value;
-					await this.plugin.saveSettings();
-				}));
-		
-		// Timeblock Settings
-		new Setting(containerEl).setName('Timeblocks').setHeading();
-		
-		new Setting(containerEl)
-			.setName('Default timeblock start time')
-			.setDesc('Start time for timeblock table (HH:MM format)')
-			.addText(text => text
-				.setPlaceholder('05:00')
-				.setValue(this.plugin.settings.timeblockStartTime)
-				.onChange(async (value) => {
-					this.plugin.settings.timeblockStartTime = value;
-					await this.plugin.saveSettings();
-				}));
-		
-		new Setting(containerEl)
-			.setName('Default timeblock end time')
-			.setDesc('End time for timeblock table (HH:MM format)')
-			.addText(text => text
-				.setPlaceholder('23:30')
-				.setValue(this.plugin.settings.timeblockEndTime)
-				.onChange(async (value) => {
-					this.plugin.settings.timeblockEndTime = value;
-					await this.plugin.saveSettings();
-				}));
-		
-		new Setting(containerEl)
-			.setName('Timeblock interval')
-			.setDesc('Interval between timeblock entries')
-			.addDropdown(dropdown => dropdown
-				.addOption('30', '30 minutes')
-				.addOption('60', '1 hour')
-				.setValue(this.plugin.settings.timeblockInterval)
-				.onChange(async (value: any) => {
-					this.plugin.settings.timeblockInterval = value;
-					await this.plugin.saveSettings();
-				}));
-		
-		new Setting(containerEl)
-			.setName('Auto-add timeblock')
-			.setDesc('Automatically add timeblock table to new daily notes')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.autoAddTimeblock)
-				.onChange(async (value) => {
-					this.plugin.settings.autoAddTimeblock = value;
 					await this.plugin.saveSettings();
 				}));
 	}

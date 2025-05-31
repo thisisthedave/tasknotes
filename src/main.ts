@@ -10,6 +10,7 @@ import {
 	CALENDAR_VIEW_TYPE, 
 	NOTES_VIEW_TYPE, 
 	TASK_LIST_VIEW_TYPE,
+	AGENDA_VIEW_TYPE,
 	TimeInfo,
 	TaskInfo,
 	EVENT_DATE_SELECTED,
@@ -20,11 +21,11 @@ import {
 import { CalendarView } from './views/CalendarView';
 import { TaskListView } from './views/TaskListView';
 import { NotesView } from './views/NotesView';
+import { AgendaView } from './views/AgendaView';
 import { TaskCreationModal } from './modals/TaskCreationModal';
 import { 
 	ensureFolderExists, 
 	generateDailyNoteTemplate,
-	parseTime,
 	updateYamlFrontmatter,
 	extractTaskInfo
 } from './utils/helpers';
@@ -67,6 +68,10 @@ export default class TaskNotesPlugin extends Plugin {
 		this.registerView(
 			NOTES_VIEW_TYPE,
 			(leaf) => new NotesView(leaf, this)
+		);
+		this.registerView(
+			AGENDA_VIEW_TYPE,
+			(leaf) => new AgendaView(leaf, this)
 		);
 		
 		// Add ribbon icon
@@ -145,6 +150,7 @@ export default class TaskNotesPlugin extends Plugin {
 		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
 		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
 		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
+		workspace.detachLeavesOfType(AGENDA_VIEW_TYPE);
 		
 		// Clean up the file indexer
 		if (this.fileIndexer) {
@@ -207,6 +213,14 @@ export default class TaskNotesPlugin extends Plugin {
 		});
 		
 		this.addCommand({
+			id: 'open-agenda-view',
+			name: 'Open agenda view',
+			callback: async () => {
+				await this.activateAgendaView();
+			}
+		});
+		
+		this.addCommand({
 			id: 'open-linked-views',
 			name: 'Open calendar with task view',
 			callback: async () => {
@@ -253,6 +267,14 @@ export default class TaskNotesPlugin extends Plugin {
 				name: 'Open notes in new window',
 				callback: async () => {
 					await this.openViewInPopout(NOTES_VIEW_TYPE);
+				}
+			});
+			
+			this.addCommand({
+				id: 'open-agenda-popout',
+				name: 'Open agenda in new window',
+				callback: async () => {
+					await this.openViewInPopout(AGENDA_VIEW_TYPE);
 				}
 			});
 		}
@@ -315,6 +337,10 @@ export default class TaskNotesPlugin extends Plugin {
 		return this.activateView(NOTES_VIEW_TYPE);
 	}
 	
+	async activateAgendaView() {
+		return this.activateView(AGENDA_VIEW_TYPE);
+	}
+	
 	// Open a view in a popout window
 	async openViewInPopout(viewType: string) {
 		const { workspace } = this.app;
@@ -352,6 +378,7 @@ export default class TaskNotesPlugin extends Plugin {
 		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
 		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
 		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
+		workspace.detachLeavesOfType(AGENDA_VIEW_TYPE);
 		
 		// Create a calendar view
 		const calendarLeaf = workspace.getLeaf('tab');
@@ -372,11 +399,18 @@ export default class TaskNotesPlugin extends Plugin {
 			type: NOTES_VIEW_TYPE
 		});
 		
+		// Create an agenda view in a new tab
+		const agendaLeaf = workspace.getLeaf('tab');
+		await agendaLeaf.setViewState({
+			type: AGENDA_VIEW_TYPE
+		});
+		
 		// Group these leaves together for synchronized date selection
 		const groupName = 'tasknotes-views';
 		calendarLeaf.setGroup(groupName);
 		tasksLeaf.setGroup(groupName);
 		notesLeaf.setGroup(groupName);
+		agendaLeaf.setGroup(groupName);
 		
 		// Make calendar the active view
 		workspace.setActiveLeaf(calendarLeaf, { focus: true });
@@ -541,44 +575,7 @@ export default class TaskNotesPlugin extends Plugin {
 
 
 	generateDailyNoteTemplate(date: Date): string {
-		const startTime = parseTime(this.settings.timeblockStartTime);
-		const endTime = parseTime(this.settings.timeblockEndTime);
-		const intervalMinutes = parseInt(this.settings.timeblockInterval);
-		
-		if (!startTime || !endTime) {
-			return 'Error: Invalid timeblock settings';
-		}
-		
-		return generateDailyNoteTemplate(
-			date,
-			startTime,
-			endTime,
-			intervalMinutes,
-			this.settings.autoAddTimeblock
-		);
-	}
-
-	generateTimeblockTable(): string {
-		// Create a timeblock table based on settings
-		const startTime = parseTime(this.settings.timeblockStartTime);
-		const endTime = parseTime(this.settings.timeblockEndTime);
-		const intervalMinutes = parseInt(this.settings.timeblockInterval);
-		
-		if (!startTime || !endTime) return '';
-
-		let table = '| Time | Activity |\n| ---- | -------- |\n';
-		
-		const startMinutes = startTime.hours * 60 + startTime.minutes;
-		const endMinutes = endTime.hours * 60 + endTime.minutes;
-		
-		for (let minutes = startMinutes; minutes <= endMinutes; minutes += intervalMinutes) {
-			const hours = Math.floor(minutes / 60);
-			const mins = minutes % 60;
-			const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-			table += `| ${timeStr} | |\n`;
-		}
-		
-		return table;
+		return generateDailyNoteTemplate(date);
 	}
 
 	async updateTaskProperty(task: TaskInfo, property: string, value: any, options: { silent?: boolean } = {}): Promise<void> {

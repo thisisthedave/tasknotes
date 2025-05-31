@@ -1,6 +1,6 @@
 # TaskNotes for Obsidian
 
-TaskNotes is a comprehensive task and note management plugin for Obsidian with integrated calendar views, daily notes, and timeblocking.
+TaskNotes is a comprehensive task and note management plugin for Obsidian with integrated calendar views and daily notes.
 
 ## Why TaskNotes?
 
@@ -27,7 +27,6 @@ TaskNotes focuses on time-based organization and task management, storing all da
 ### Daily Notes
 - Automatic creation with configurable templates
 - YAML frontmatter tracking: date, tags, important flag
-- Timeblock tables with configurable intervals (15, 30, or 60 minutes)
 
 ### Time Management
 - Integrated time tracking for tasks with start/stop functionality
@@ -160,12 +159,9 @@ In the plugin settings, you can configure:
 
 - Folder paths for daily notes, tasks, and general notes
 - Default task properties (priority, status)
-- Timeblock settings (start/end times, interval)
 - Task identification tag (default: "task")
 - Archive tag (default: "archive")
 - Excluded folders for notes view
-- Layout preferences
-- Indexing options and cache settings
 
 ## Development
 

@@ -8,7 +8,6 @@ import {
     NoteInfo, 
     TimeInfo,
     ColorizeMode,
-    CalendarDisplayMode
 } from '../types';
 import { 
     extractNoteInfo, 
@@ -23,7 +22,6 @@ export class CalendarView extends ItemView {
     static dailyNotesInitialized: boolean = false;
     
     plugin: TaskNotesPlugin;
-    displayMode: CalendarDisplayMode = 'month';
     colorizeMode: ColorizeMode = 'tasks';
     
     // Event listeners
@@ -89,17 +87,9 @@ export class CalendarView extends ItemView {
         // Create the calendar UI
         this.createCalendarControls(container);
         
-        // Route to appropriate view based on display mode
-        switch (this.displayMode) {
-            case 'agenda':
-                this.renderAgendaList(container);
-                break;
-            case 'month':
-            default:
-                this.createCalendarGrid(container);
-                this.colorizeCalendar();
-                break;
-        }
+        // Create the calendar grid
+        this.createCalendarGrid(container);
+        this.colorizeCalendar();
     }
     
     colorizeCalendar() {
@@ -120,27 +110,20 @@ export class CalendarView extends ItemView {
         const currentDate = new Date(this.plugin.selectedDate);
         const date = new Date(currentDate);
         
-        if (this.displayMode === 'agenda') {
-            // Go to previous week (7 days) - always requires full refresh for agenda view
-            date.setDate(date.getDate() - 7);
-            this.plugin.setSelectedDate(date);
+        // Go to previous month
+        date.setMonth(date.getMonth() - 1);
+        this.plugin.setSelectedDate(date);
+        
+        // Check if we're changing months - if so, we need a full refresh
+        if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
+            // Force daily notes cache rebuild for the new month
+            if (this.colorizeMode === 'daily') {
+                this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+            }
             await this.refresh();
         } else {
-            // Month view - go to previous month
-            date.setMonth(date.getMonth() - 1);
-            this.plugin.setSelectedDate(date);
-            
-            // Check if we're changing months - if so, we need a full refresh
-            if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
-                // Force daily notes cache rebuild for the new month (only needed for month view)
-                if (this.colorizeMode === 'daily') {
-                    this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
-                }
-                await this.refresh();
-            } else {
-                // Same month, just update selected date
-                this.updateSelectedDate(date);
-            }
+            // Same month, just update selected date
+            this.updateSelectedDate(date);
         }
     }
     
@@ -148,27 +131,20 @@ export class CalendarView extends ItemView {
         const currentDate = new Date(this.plugin.selectedDate);
         const date = new Date(currentDate);
         
-        if (this.displayMode === 'agenda') {
-            // Go to next week (7 days) - always requires full refresh for agenda view
-            date.setDate(date.getDate() + 7);
-            this.plugin.setSelectedDate(date);
+        // Go to next month
+        date.setMonth(date.getMonth() + 1);
+        this.plugin.setSelectedDate(date);
+        
+        // Check if we're changing months - if so, we need a full refresh
+        if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
+            // Force daily notes cache rebuild for the new month
+            if (this.colorizeMode === 'daily') {
+                this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+            }
             await this.refresh();
         } else {
-            // Month view - go to next month
-            date.setMonth(date.getMonth() + 1);
-            this.plugin.setSelectedDate(date);
-            
-            // Check if we're changing months - if so, we need a full refresh
-            if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
-                // Force daily notes cache rebuild for the new month (only needed for month view)
-                if (this.colorizeMode === 'daily') {
-                    this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
-                }
-                await this.refresh();
-            } else {
-                // Same month, just update selected date
-                this.updateSelectedDate(date);
-            }
+            // Same month, just update selected date
+            this.updateSelectedDate(date);
         }
     }
     
@@ -177,13 +153,12 @@ export class CalendarView extends ItemView {
         const today = new Date();
         this.plugin.setSelectedDate(today);
         
-        // Check if we're changing months/views - if so, we need a full refresh
-        if (this.displayMode === 'agenda' || 
-            currentDate.getMonth() !== today.getMonth() || 
+        // Check if we're changing months - if so, we need a full refresh
+        if (currentDate.getMonth() !== today.getMonth() || 
             currentDate.getFullYear() !== today.getFullYear()) {
             
-            // Force daily notes cache rebuild for the current month (only for month view)
-            if (this.colorizeMode === 'daily' && this.displayMode === 'month') {
+            // Force daily notes cache rebuild for the current month
+            if (this.colorizeMode === 'daily') {
                 this.plugin.fileIndexer.rebuildDailyNotesCache(today.getFullYear(), today.getMonth());
             }
             
@@ -411,35 +386,6 @@ export class CalendarView extends ItemView {
     createCalendarControls(container: HTMLElement) {
         const controlsContainer = container.createDiv({ cls: 'calendar-controls' });
         
-        // Add view switcher buttons
-        const viewSwitcherContainer = controlsContainer.createDiv({ cls: 'view-switcher-container' });
-        
-        const viewModes = [
-            { value: 'month', text: 'Month' },
-            { value: 'agenda', text: 'Agenda' }
-        ];
-        
-        viewModes.forEach(mode => {
-            const button = viewSwitcherContainer.createEl('button', { 
-                text: mode.text, 
-                cls: `view-switcher-button${this.displayMode === mode.value ? ' active' : ''}` 
-            });
-            
-            button.addEventListener('click', () => {
-                // Remove active class from all buttons
-                viewSwitcherContainer.querySelectorAll('.view-switcher-button').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                
-                // Add active class to clicked button
-                button.classList.add('active');
-                
-                // Update display mode and refresh
-                this.displayMode = mode.value as CalendarDisplayMode;
-                this.refresh();
-            });
-        });
-        
         // Add month navigation
         const navContainer = controlsContainer.createDiv({ cls: 'calendar-nav' });
         
@@ -464,53 +410,51 @@ export class CalendarView extends ItemView {
         nextButton.setAttribute('title', 'Next period (Right arrow or L key)');
         
         const currentPeriod = monthNavigationGroup.createEl('span', { 
-            text: this.getCurrentPeriodText(), 
+            text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
             cls: 'current-period' 
         });
         
-        // Add colorize mode selector (only show for month view)
-        if (this.displayMode === 'month') {
-            const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
-            const colorizeLabel = colorizeContainer.createEl('span', { text: 'Show: ', cls: 'colorize-mode-label' });
-            
-            const colorizeSelect = colorizeContainer.createEl('select', { 
-                cls: 'colorize-mode-select',
-                attr: {
-                    'title': 'Change view (use keys 1, 2, 3 to switch)',
-                    'aria-label': 'Change calendar view (use keys 1, 2, 3 to switch)'
-                }
+        // Add colorize mode selector
+        const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
+        const colorizeLabel = colorizeContainer.createEl('span', { text: 'Show: ', cls: 'colorize-mode-label' });
+        
+        const colorizeSelect = colorizeContainer.createEl('select', { 
+            cls: 'colorize-mode-select',
+            attr: {
+                'title': 'Change view (use keys 1, 2, 3 to switch)',
+                'aria-label': 'Change calendar view (use keys 1, 2, 3 to switch)'
+            }
+        });
+        
+        // Add colorize mode options with keyboard shortcuts
+        const modes = [
+            { value: 'tasks', text: 'Tasks (1)' },
+            { value: 'notes', text: 'Notes (2)' },
+            { value: 'daily', text: 'Daily Notes (3)' }
+        ];
+        
+        modes.forEach(mode => {
+            const option = colorizeSelect.createEl('option', { 
+                value: mode.value, 
+                text: mode.text 
             });
             
-            // Add colorize mode options with keyboard shortcuts
-            const modes = [
-                { value: 'tasks', text: 'Tasks (1)' },
-                { value: 'notes', text: 'Notes (2)' },
-                { value: 'daily', text: 'Daily Notes (3)' }
-            ];
-            
-            modes.forEach(mode => {
-                const option = colorizeSelect.createEl('option', { 
-                    value: mode.value, 
-                    text: mode.text 
-                });
-                
-                if (mode.value === this.colorizeMode) {
-                    option.selected = true;
-                }
-            });
-            
-            // Add change event listener
-            colorizeSelect.addEventListener('change', async () => {
-                const newMode = colorizeSelect.value as ColorizeMode;
-                // Show loading indicator while changing modes
-                this.showLoadingIndicator();
-                try {
-                    await this.setColorizeMode(newMode);
-                } finally {
-                    this.hideLoadingIndicator();
-                }
-            });
-        }
+            if (mode.value === this.colorizeMode) {
+                option.selected = true;
+            }
+        });
+        
+        // Add change event listener
+        colorizeSelect.addEventListener('change', async () => {
+            const newMode = colorizeSelect.value as ColorizeMode;
+            // Show loading indicator while changing modes
+            this.showLoadingIndicator();
+            try {
+                await this.setColorizeMode(newMode);
+            } finally {
+                this.hideLoadingIndicator();
+            }
+        });
         
         // Today button
         const todayButton = navContainer.createEl('button', { 
@@ -1045,185 +989,4 @@ source: 'tasknotes-calendar',
         return normalizePath(`${this.plugin.settings.dailyNotesFolder}/${dateStr}.md`);
     }
     
-    // Helper method to get current period text based on display mode
-    private getCurrentPeriodText(): string {
-        switch (this.displayMode) {
-            case 'agenda':
-                const agendaStart = this.plugin.selectedDate;
-                const agendaEnd = new Date(agendaStart);
-                agendaEnd.setDate(agendaStart.getDate() + 6);
-                return `${format(agendaStart, 'MMM d')} - ${format(agendaEnd, 'MMM d, yyyy')}`;
-            case 'month':
-            default:
-                return format(this.plugin.selectedDate, 'MMMM yyyy');
-        }
-    }
-    
-    // Render agenda list view
-    private async renderAgendaList(container: HTMLElement): Promise<void> {
-        const agendaContainer = container.createDiv({ cls: 'agenda-list-container' });
-        
-        // Get next 7 days starting from selected date
-        const agendaDates: Date[] = [];
-        for (let i = 0; i < 7; i++) {
-            const date = new Date(this.plugin.selectedDate);
-            date.setDate(this.plugin.selectedDate.getDate() + i);
-            agendaDates.push(date);
-        }
-        
-        // Fetch data for all days concurrently
-        const dataPromises = agendaDates.map(async date => {
-            const [tasks, notes] = await Promise.all([
-                this.plugin.fileIndexer.getTaskInfoForDate(date),
-                this.plugin.fileIndexer.getNotesForDate(date)
-            ]);
-            return { date, tasks, notes };
-        });
-        
-        const agendaData = await Promise.all(dataPromises);
-        
-        // Render each day that has items
-        agendaData.forEach(dayData => {
-            // Filter items for this specific date
-            const dateStr = format(dayData.date, 'yyyy-MM-dd');
-            
-            const tasksForThisDate = dayData.tasks.filter(task => {
-                // For recurring tasks, only show if they're due on this specific date according to recurrence rules
-                if (task.recurrence) {
-                    return isRecurringTaskDueOn(task, dayData.date);
-                }
-                // For non-recurring tasks, show if due date matches
-                return task.due === dateStr;
-            });
-            
-            const notesForThisDate = dayData.notes.filter(note => {
-                // For notes, we check if they were created on this date
-                // The getNotesForDate method should already be filtering by creation date
-                return true; // Assuming getNotesForDate already filters correctly
-            });
-            
-            const hasItems = tasksForThisDate.length > 0 || notesForThisDate.length > 0;
-            
-            if (hasItems) {
-                // Create day header
-                const dayHeader = agendaContainer.createDiv({ cls: 'agenda-day-header' });
-                dayHeader.textContent = format(dayData.date, 'EEEE, MMMM d');
-                
-                // Create item list
-                const itemList = agendaContainer.createDiv({ cls: 'agenda-item-list' });
-                
-                // Add tasks
-                tasksForThisDate.forEach(task => {
-                    const item = itemList.createDiv({ cls: 'agenda-item task-item' });
-                    const title = item.createDiv({ cls: 'item-title', text: task.title });
-                    const meta = item.createDiv({ cls: 'item-meta' });
-                    meta.createSpan({ cls: 'item-type', text: 'Task' });
-                    
-                    if (task.due) {
-                        meta.createSpan({ cls: 'due-date', text: `Due: ${task.due}` });
-                    }
-                    
-                    if (task.priority && task.priority !== 'normal') {
-                        meta.createSpan({ cls: `priority-badge priority-${task.priority}`, text: task.priority });
-                    }
-                    
-                    if (task.contexts && task.contexts.length > 0) {
-                        task.contexts.forEach(context => {
-                            meta.createSpan({ cls: 'context-tag', text: `@${context}` });
-                        });
-                    }
-                    
-                    // Show completed date for done tasks
-                    if (task.status === 'done' && task.completedDate && !task.recurrence) {
-                        meta.createSpan({ 
-                            cls: 'completed-date', 
-                            text: `Completed: ${format(new Date(task.completedDate), 'MMM d')}` 
-                        });
-                    }
-                    
-                    // Show time tracking info
-                    if (task.timeEstimate || task.timeSpent) {
-                        if (task.timeEstimate) {
-                            meta.createSpan({ 
-                                cls: 'time-estimate-agenda', 
-                                text: `Est: ${this.plugin.formatTime(task.timeEstimate)}` 
-                            });
-                        }
-                        if (task.timeSpent && task.timeSpent > 0) {
-                            meta.createSpan({ 
-                                cls: 'time-spent-agenda', 
-                                text: `Spent: ${this.plugin.formatTime(task.timeSpent)}` 
-                            });
-                        }
-                    }
-                    
-                    // Add click handler to open task
-                    item.addEventListener('click', () => {
-                        const file = this.app.vault.getAbstractFileByPath(task.path);
-                        if (file instanceof TFile) {
-                            this.app.workspace.getLeaf(false).openFile(file);
-                        }
-                    });
-                    
-                    // Add hover preview functionality for tasks
-                    item.addEventListener('mouseover', (event) => {
-                        const file = this.app.vault.getAbstractFileByPath(task.path);
-                        if (file) {
-                            this.app.workspace.trigger('hover-link', {
-                                event,
-                                source: 'tasknotes-agenda',
-                                hoverParent: this,
-                                targetEl: item,
-                                linktext: task.path,
-                                sourcePath: task.path
-                            });
-                        }
-                    });
-                });
-                
-                // Add notes
-                notesForThisDate.forEach(note => {
-                    const item = itemList.createDiv({ cls: 'agenda-item note-item' });
-                    const title = item.createDiv({ cls: 'item-title', text: note.title });
-                    const meta = item.createDiv({ cls: 'item-meta' });
-                    meta.createSpan({ cls: 'item-type', text: 'Note' });
-                    
-                    if (note.tags && note.tags.length > 0) {
-                        note.tags.slice(0, 3).forEach(tag => {
-                            meta.createSpan({ cls: 'note-tag', text: `#${tag}` });
-                        });
-                    }
-                    
-                    // Add click handler to open note
-                    item.addEventListener('click', () => {
-                        const file = this.app.vault.getAbstractFileByPath(note.path);
-                        if (file instanceof TFile) {
-                            this.app.workspace.getLeaf(false).openFile(file);
-                        }
-                    });
-                    
-                    // Add hover preview functionality for notes
-                    item.addEventListener('mouseover', (event) => {
-                        const file = this.app.vault.getAbstractFileByPath(note.path);
-                        if (file) {
-                            this.app.workspace.trigger('hover-link', {
-                                event,
-                                source: 'tasknotes-agenda',
-                                hoverParent: this,
-                                targetEl: item,
-                                linktext: note.path,
-                                sourcePath: note.path
-                            });
-                        }
-                    });
-                });
-            }
-        });
-        
-        // If no items found
-        if (agendaContainer.children.length === 0) {
-            const emptyMessage = agendaContainer.createDiv({ cls: 'empty-agenda-message' });
-            emptyMessage.textContent = 'No tasks or notes found for the next 7 days.';
-        }
-    }
 }
