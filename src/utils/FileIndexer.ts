@@ -235,8 +235,8 @@ export class FileIndexer {
                         
                         if (taskInfo) {
                             // Cache the result in the index
-                            indexedFile.cachedInfo = taskInfo;
-                            return taskInfo;
+                            indexedFile.cachedInfo = taskInfo as TaskInfo;
+                            return taskInfo as TaskInfo;
                         }
                     } catch (e) {
                         console.error(`Error processing task file ${indexedFile.path}:`, e);
@@ -248,7 +248,7 @@ export class FileIndexer {
             
             // Add valid results to the final array
             batchResults.forEach(task => {
-                if (task) result.push(task);
+                if (task) result.push(task as TaskInfo);
             });
         }
         

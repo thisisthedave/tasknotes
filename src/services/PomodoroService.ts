@@ -1,0 +1,474 @@
+import { Notice, TFile } from 'obsidian';
+import { format } from 'date-fns';
+import TaskNotesPlugin from '../main';
+import { 
+    PomodoroSession, 
+    PomodoroState, 
+    EVENT_POMODORO_START, 
+    EVENT_POMODORO_COMPLETE, 
+    EVENT_POMODORO_INTERRUPT, 
+    EVENT_POMODORO_TICK,
+    TaskInfo,
+    TimeEntry
+} from '../types';
+import { ensureFolderExists } from '../utils/helpers';
+
+export class PomodoroService {
+    private plugin: TaskNotesPlugin;
+    private timerInterval: NodeJS.Timeout | null = null;
+    private state: PomodoroState;
+    private stateFile = 'pomodoro-state.json';
+
+    constructor(plugin: TaskNotesPlugin) {
+        this.plugin = plugin;
+        this.state = {
+            isRunning: false,
+            timeRemaining: plugin.settings.pomodoroWorkDuration * 60, // Default work duration in seconds
+            pomodorosCompleted: 0,
+            currentStreak: 0,
+            totalMinutesToday: 0
+        };
+    }
+
+    async initialize() {
+        await this.loadState();
+        
+        // Resume timer if it was running
+        if (this.state.isRunning && this.state.currentSession) {
+            this.resumeTimer();
+        }
+    }
+
+    async loadState() {
+        try {
+            const data = await this.plugin.loadData();
+            if (data?.pomodoroState) {
+                this.state = data.pomodoroState;
+                
+                // Reset daily counter if it's a new day
+                const today = format(new Date(), 'yyyy-MM-dd');
+                const lastDate = data.lastPomodoroDate;
+                if (lastDate !== today) {
+                    this.state.pomodorosCompleted = 0;
+                    this.state.currentStreak = 0;
+                    this.state.totalMinutesToday = 0;
+                }
+                
+                // If no active session, reset timer to default duration
+                if (!this.state.currentSession) {
+                    this.state.timeRemaining = this.plugin.settings.pomodoroWorkDuration * 60;
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load pomodoro state:', error);
+        }
+    }
+
+    async saveState() {
+        try {
+            const data = await this.plugin.loadData() || {};
+            data.pomodoroState = this.state;
+            data.lastPomodoroDate = format(new Date(), 'yyyy-MM-dd');
+            await this.plugin.saveData(data);
+        } catch (error) {
+            console.error('Failed to save pomodoro state:', error);
+        }
+    }
+
+    async startPomodoro(task?: TaskInfo) {
+        if (this.state.isRunning) {
+            new Notice('A pomodoro is already running');
+            return;
+        }
+
+        const session: PomodoroSession = {
+            id: Date.now().toString(),
+            taskPath: task?.path,
+            startTime: new Date().toISOString(),
+            duration: this.plugin.settings.pomodoroWorkDuration,
+            type: 'work',
+            completed: false
+        };
+
+        this.state.currentSession = session;
+        this.state.isRunning = true;
+        this.state.timeRemaining = session.duration * 60; // Convert to seconds
+
+        await this.saveState();
+        this.startTimer();
+        
+        this.plugin.emitter.emit(EVENT_POMODORO_START, { session, task });
+        new Notice(`Pomodoro started${task ? ` for: ${task.title}` : ''}`);
+    }
+
+    async startBreak(isLongBreak: boolean = false) {
+        if (this.state.isRunning) {
+            new Notice('A timer is already running');
+            return;
+        }
+
+        const duration = isLongBreak 
+            ? this.plugin.settings.pomodoroLongBreakDuration 
+            : this.plugin.settings.pomodoroShortBreakDuration;
+
+        const session: PomodoroSession = {
+            id: Date.now().toString(),
+            startTime: new Date().toISOString(),
+            duration: duration,
+            type: isLongBreak ? 'long-break' : 'short-break',
+            completed: false
+        };
+
+        this.state.currentSession = session;
+        this.state.isRunning = true;
+        this.state.timeRemaining = session.duration * 60;
+
+        await this.saveState();
+        this.startTimer();
+        
+        new Notice(`${isLongBreak ? 'Long' : 'Short'} break started`);
+    }
+
+    async pausePomodoro() {
+        if (!this.state.isRunning || !this.timerInterval) {
+            return;
+        }
+
+        this.stopTimer();
+        this.state.isRunning = false;
+        await this.saveState();
+        
+        // Emit event to update UI
+        this.plugin.emitter.emit(EVENT_POMODORO_TICK, { 
+            timeRemaining: this.state.timeRemaining,
+            session: this.state.currentSession 
+        });
+        
+        new Notice('Pomodoro paused');
+    }
+
+    async resumePomodoro() {
+        if (this.state.isRunning || !this.state.currentSession) {
+            return;
+        }
+
+        this.state.isRunning = true;
+        await this.saveState();
+        this.startTimer();
+        
+        // Emit event to update UI
+        this.plugin.emitter.emit(EVENT_POMODORO_TICK, { 
+            timeRemaining: this.state.timeRemaining,
+            session: this.state.currentSession 
+        });
+        
+        new Notice('Pomodoro resumed');
+    }
+
+    async stopPomodoro() {
+        if (!this.state.currentSession) {
+            return;
+        }
+
+        const wasRunning = this.state.isRunning;
+        this.stopTimer();
+
+        if (this.state.currentSession) {
+            this.state.currentSession.interrupted = true;
+            this.state.currentSession.endTime = new Date().toISOString();
+        }
+
+        this.plugin.emitter.emit(EVENT_POMODORO_INTERRUPT, { session: this.state.currentSession });
+
+        this.state.currentSession = undefined;
+        this.state.isRunning = false;
+        this.state.timeRemaining = this.plugin.settings.pomodoroWorkDuration * 60; // Reset to default work duration
+        
+        await this.saveState();
+        
+        // Emit tick event to update UI with reset timer
+        this.plugin.emitter.emit(EVENT_POMODORO_TICK, { 
+            timeRemaining: this.state.timeRemaining,
+            session: this.state.currentSession 
+        });
+        
+        if (wasRunning) {
+            new Notice('Pomodoro stopped and reset');
+        }
+    }
+
+    private startTimer() {
+        this.stopTimer(); // Clear any existing timer
+        
+        this.timerInterval = setInterval(async () => {
+            this.state.timeRemaining--;
+            
+            // Emit tick event for UI updates
+            this.plugin.emitter.emit(EVENT_POMODORO_TICK, { 
+                timeRemaining: this.state.timeRemaining,
+                session: this.state.currentSession 
+            });
+
+            if (this.state.timeRemaining <= 0) {
+                await this.completePomodoro();
+            }
+        }, 1000); // Update every second
+    }
+
+    private stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+
+    private resumeTimer() {
+        // Calculate time elapsed since last save
+        if (this.state.currentSession && this.state.currentSession.startTime) {
+            const elapsed = Math.floor((Date.now() - new Date(this.state.currentSession.startTime).getTime()) / 1000);
+            const totalDuration = this.state.currentSession.duration * 60;
+            this.state.timeRemaining = Math.max(0, totalDuration - elapsed);
+            
+            if (this.state.timeRemaining > 0) {
+                this.startTimer();
+            } else {
+                // Timer would have completed while app was closed
+                this.completePomodoro();
+            }
+        }
+    }
+
+    private async completePomodoro() {
+        this.stopTimer();
+        
+        if (!this.state.currentSession) {
+            return;
+        }
+
+        const session = this.state.currentSession;
+        session.completed = true;
+        session.endTime = new Date().toISOString();
+
+        // Update counters for work sessions
+        if (session.type === 'work') {
+            this.state.pomodorosCompleted++;
+            this.state.currentStreak++;
+            this.state.totalMinutesToday += session.duration; // Add actual duration
+            
+            // Track time on task if applicable
+            if (session.taskPath) {
+                await this.trackTimeOnTask(session);
+            }
+
+            // Update daily note with pomodoro count
+            await this.updateDailyNotePomodoros();
+        }
+
+        // Determine next session
+        const shouldTakeLongBreak = session.type === 'work' && 
+            this.state.currentStreak % this.plugin.settings.pomodoroLongBreakInterval === 0;
+
+        // Emit completion event
+        this.plugin.emitter.emit(EVENT_POMODORO_COMPLETE, { 
+            session, 
+            nextType: session.type === 'work' 
+                ? (shouldTakeLongBreak ? 'long-break' : 'short-break')
+                : 'work'
+        });
+
+        // Show notification
+        if (this.plugin.settings.pomodoroNotifications) {
+            const message = session.type === 'work' 
+                ? `Pomodoro completed! Time for a ${shouldTakeLongBreak ? 'long' : 'short'} break.`
+                : 'Break completed! Ready for the next pomodoro?';
+            new Notice(message);
+        }
+
+        // Play sound if enabled
+        if (this.plugin.settings.pomodoroSoundEnabled) {
+            this.playCompletionSound();
+        }
+
+        // Clear current session
+        this.state.currentSession = undefined;
+        this.state.isRunning = false;
+        this.state.timeRemaining = 0;
+        
+        await this.saveState();
+
+        // Auto-start next session if configured
+        if (session.type === 'work' && this.plugin.settings.pomodoroAutoStartBreaks) {
+            setTimeout(() => this.startBreak(shouldTakeLongBreak), 1000);
+        } else if (session.type !== 'work' && this.plugin.settings.pomodoroAutoStartWork) {
+            setTimeout(() => this.startPomodoro(), 1000);
+        }
+    }
+
+    private async trackTimeOnTask(session: PomodoroSession) {
+        if (!session.taskPath) return;
+
+        const file = this.plugin.app.vault.getAbstractFileByPath(session.taskPath);
+        if (!(file instanceof TFile)) return;
+
+        try {
+            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                // Initialize time tracking fields if needed
+                if (!frontmatter.timeSpent) {
+                    frontmatter.timeSpent = 0;
+                }
+                if (!frontmatter.timeEntries) {
+                    frontmatter.timeEntries = [];
+                }
+
+                // Add the pomodoro duration (in minutes)
+                frontmatter.timeSpent += session.duration;
+
+                // Create time entry
+                const entry = {
+                    start: session.startTime,
+                    end: session.endTime!,
+                    duration: session.duration
+                };
+                frontmatter.timeEntries.push(entry);
+
+                // Update modified date
+                frontmatter.dateModified = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
+            });
+
+            // Emit task update event
+            this.plugin.emitter.emit('task-updated', { path: session.taskPath });
+        } catch (error) {
+            console.error('Failed to track time on task:', error);
+        }
+    }
+
+    private async updateDailyNotePomodoros() {
+        try {
+            const dailyNotePath = `${this.plugin.settings.dailyNotesFolder}/${format(new Date(), 'yyyy-MM-dd')}.md`;
+            console.log('Updating daily note pomodoros:', dailyNotePath);
+            let file = this.plugin.app.vault.getAbstractFileByPath(dailyNotePath);
+            
+            if (!(file instanceof TFile)) {
+                console.log('Daily note does not exist, creating:', dailyNotePath);
+                // Ensure the daily notes folder exists
+                await ensureFolderExists(this.plugin.app.vault, this.plugin.settings.dailyNotesFolder);
+                
+                const content = `---\ndate: ${format(new Date(), 'yyyy-MM-dd')}\npomodoros: 1\n---\n\n# ${format(new Date(), 'EEEE, MMMM d, yyyy')}\n\n## Pomodoros Completed: 1\n`;
+                
+                try {
+                    file = await this.plugin.app.vault.create(dailyNotePath, content);
+                    console.log('Created daily note with 1 pomodoro');
+                } catch (createError: any) {
+                    if (createError.message.includes('File already exists')) {
+                        // File was created between our check and create attempt
+                        console.log('Daily note was created by another process, updating existing file');
+                        file = this.plugin.app.vault.getAbstractFileByPath(dailyNotePath);
+                        if (file instanceof TFile) {
+                            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                                const oldCount = frontmatter.pomodoros || 0;
+                                if (!frontmatter.pomodoros) {
+                                    frontmatter.pomodoros = 0;
+                                }
+                                frontmatter.pomodoros++;
+                                console.log(`Updated pomodoro count from ${oldCount} to ${frontmatter.pomodoros}`);
+                            });
+                        }
+                    } else {
+                        throw createError;
+                    }
+                }
+            } else {
+                console.log('Daily note exists, updating pomodoro count');
+                // Update existing daily note
+                await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                    const oldCount = frontmatter.pomodoros || 0;
+                    if (!frontmatter.pomodoros) {
+                        frontmatter.pomodoros = 0;
+                    }
+                    frontmatter.pomodoros++;
+                    console.log(`Updated pomodoro count from ${oldCount} to ${frontmatter.pomodoros}`);
+                });
+            }
+        } catch (error) {
+            console.error('Failed to update daily note pomodoros:', error);
+        }
+    }
+
+    private playCompletionSound() {
+        // Create a simple beep sound
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        const volume = this.plugin.settings.pomodoroSoundVolume / 100;
+        gainNode.gain.value = volume * 0.3; // Scale down for comfortable listening
+        
+        oscillator.frequency.value = 800; // Frequency in Hz
+        oscillator.type = 'sine';
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1); // 100ms beep
+        
+        // Second beep
+        setTimeout(() => {
+            const osc2 = audioContext.createOscillator();
+            osc2.connect(gainNode);
+            osc2.frequency.value = 1000;
+            osc2.type = 'sine';
+            osc2.start();
+            osc2.stop(audioContext.currentTime + 0.1);
+        }, 150);
+    }
+
+    // Public getters
+    getState(): PomodoroState {
+        return { ...this.state };
+    }
+
+    isRunning(): boolean {
+        return this.state.isRunning;
+    }
+
+    getCurrentSession(): PomodoroSession | undefined {
+        return this.state.currentSession;
+    }
+
+    getTimeRemaining(): number {
+        return this.state.timeRemaining;
+    }
+
+    getPomodorosCompleted(): number {
+        return this.state.pomodorosCompleted;
+    }
+
+    getCurrentStreak(): number {
+        return this.state.currentStreak;
+    }
+
+    getTotalMinutesToday(): number {
+        return this.state.totalMinutesToday;
+    }
+
+    async assignTaskToCurrentSession(task?: TaskInfo) {
+        if (!this.state.currentSession) {
+            return;
+        }
+
+        // Update the current session's task
+        this.state.currentSession.taskPath = task?.path;
+        await this.saveState();
+
+        // Emit tick event to update UI
+        this.plugin.emitter.emit(EVENT_POMODORO_TICK, { 
+            timeRemaining: this.state.timeRemaining,
+            session: this.state.currentSession 
+        });
+    }
+
+    cleanup() {
+        this.stopTimer();
+    }
+}

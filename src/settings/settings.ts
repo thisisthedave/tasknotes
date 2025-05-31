@@ -9,6 +9,16 @@ export interface TaskNotesSettings {
 	defaultTaskPriority: 'low' | 'normal' | 'high';
 	defaultTaskStatus: 'open' | 'in-progress' | 'done';
 	taskOrgFiltersCollapsed: boolean;  // Save collapse state of task organization filters
+	// Pomodoro settings
+	pomodoroWorkDuration: number; // minutes
+	pomodoroShortBreakDuration: number; // minutes
+	pomodoroLongBreakDuration: number; // minutes
+	pomodoroLongBreakInterval: number; // after X pomodoros
+	pomodoroAutoStartBreaks: boolean;
+	pomodoroAutoStartWork: boolean;
+	pomodoroNotifications: boolean;
+	pomodoroSoundEnabled: boolean;
+	pomodoroSoundVolume: number; // 0-100
 }
 
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
@@ -18,7 +28,17 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	excludedFolders: '',  // Default to no excluded folders
 	defaultTaskPriority: 'normal',
 	defaultTaskStatus: 'open',
-	taskOrgFiltersCollapsed: false  // Default to expanded
+	taskOrgFiltersCollapsed: false,  // Default to expanded
+	// Pomodoro defaults
+	pomodoroWorkDuration: 25,
+	pomodoroShortBreakDuration: 5,
+	pomodoroLongBreakDuration: 15,
+	pomodoroLongBreakInterval: 4,
+	pomodoroAutoStartBreaks: true,
+	pomodoroAutoStartWork: false,
+	pomodoroNotifications: true,
+	pomodoroSoundEnabled: true,
+	pomodoroSoundVolume: 50
 };
 
 export class TaskNotesSettingTab extends PluginSettingTab {
@@ -104,6 +124,117 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.defaultTaskStatus)
 				.onChange(async (value: any) => {
 					this.plugin.settings.defaultTaskStatus = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Pomodoro Settings
+		new Setting(containerEl).setName('Pomodoro Timer').setHeading();
+
+		new Setting(containerEl)
+			.setName('Work duration')
+			.setDesc('Duration of work intervals in minutes')
+			.addText(text => text
+				.setPlaceholder('25')
+				.setValue(this.plugin.settings.pomodoroWorkDuration.toString())
+				.onChange(async (value) => {
+					const num = parseInt(value);
+					if (!isNaN(num) && num > 0) {
+						this.plugin.settings.pomodoroWorkDuration = num;
+						await this.plugin.saveSettings();
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Short break duration')
+			.setDesc('Duration of short breaks in minutes')
+			.addText(text => text
+				.setPlaceholder('5')
+				.setValue(this.plugin.settings.pomodoroShortBreakDuration.toString())
+				.onChange(async (value) => {
+					const num = parseInt(value);
+					if (!isNaN(num) && num > 0) {
+						this.plugin.settings.pomodoroShortBreakDuration = num;
+						await this.plugin.saveSettings();
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Long break duration')
+			.setDesc('Duration of long breaks in minutes')
+			.addText(text => text
+				.setPlaceholder('15')
+				.setValue(this.plugin.settings.pomodoroLongBreakDuration.toString())
+				.onChange(async (value) => {
+					const num = parseInt(value);
+					if (!isNaN(num) && num > 0) {
+						this.plugin.settings.pomodoroLongBreakDuration = num;
+						await this.plugin.saveSettings();
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Long break interval')
+			.setDesc('Take a long break after this many pomodoros')
+			.addText(text => text
+				.setPlaceholder('4')
+				.setValue(this.plugin.settings.pomodoroLongBreakInterval.toString())
+				.onChange(async (value) => {
+					const num = parseInt(value);
+					if (!isNaN(num) && num > 0) {
+						this.plugin.settings.pomodoroLongBreakInterval = num;
+						await this.plugin.saveSettings();
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Auto-start breaks')
+			.setDesc('Automatically start break timer after work session')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.pomodoroAutoStartBreaks)
+				.onChange(async (value) => {
+					this.plugin.settings.pomodoroAutoStartBreaks = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Auto-start work')
+			.setDesc('Automatically start work timer after break')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.pomodoroAutoStartWork)
+				.onChange(async (value) => {
+					this.plugin.settings.pomodoroAutoStartWork = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Enable notifications')
+			.setDesc('Show notifications when pomodoro sessions complete')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.pomodoroNotifications)
+				.onChange(async (value) => {
+					this.plugin.settings.pomodoroNotifications = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Enable sound')
+			.setDesc('Play sound when pomodoro sessions complete')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.pomodoroSoundEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.pomodoroSoundEnabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Sound volume')
+			.setDesc('Volume for completion sounds (0-100)')
+			.addSlider(slider => slider
+				.setLimits(0, 100, 5)
+				.setValue(this.plugin.settings.pomodoroSoundVolume)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.pomodoroSoundVolume = value;
 					await this.plugin.saveSettings();
 				}));
 	}

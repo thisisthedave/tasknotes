@@ -11,8 +11,10 @@ import {
 	NOTES_VIEW_TYPE, 
 	TASK_LIST_VIEW_TYPE,
 	AGENDA_VIEW_TYPE,
+	POMODORO_VIEW_TYPE,
 	TimeInfo,
 	TaskInfo,
+	TimeEntry,
 	EVENT_DATE_SELECTED,
 	EVENT_TAB_CHANGED,
 	EVENT_DATA_CHANGED,
@@ -22,7 +24,9 @@ import { CalendarView } from './views/CalendarView';
 import { TaskListView } from './views/TaskListView';
 import { NotesView } from './views/NotesView';
 import { AgendaView } from './views/AgendaView';
+import { PomodoroView } from './views/PomodoroView';
 import { TaskCreationModal } from './modals/TaskCreationModal';
+import { PomodoroService } from './services/PomodoroService';
 import { 
 	ensureFolderExists, 
 	generateDailyNoteTemplate,
@@ -45,6 +49,9 @@ export default class TaskNotesPlugin extends Plugin {
 	// File indexer for efficient file access
 	fileIndexer: FileIndexer;
 	
+	// Pomodoro service
+	pomodoroService: PomodoroService;
+	
 	async onload() {
 		await this.loadSettings();
 		
@@ -55,6 +62,10 @@ export default class TaskNotesPlugin extends Plugin {
 			this.settings.excludedFolders,
 			this.settings.dailyNotesFolder
 		);
+		
+		// Initialize Pomodoro service
+		this.pomodoroService = new PomodoroService(this);
+		await this.pomodoroService.initialize();
 
 		// Register view types
 		this.registerView(
@@ -72,6 +83,10 @@ export default class TaskNotesPlugin extends Plugin {
 		this.registerView(
 			AGENDA_VIEW_TYPE,
 			(leaf) => new AgendaView(leaf, this)
+		);
+		this.registerView(
+			POMODORO_VIEW_TYPE,
+			(leaf) => new PomodoroView(leaf, this)
 		);
 		
 		// Add ribbon icon
@@ -143,6 +158,11 @@ export default class TaskNotesPlugin extends Plugin {
 	}
 
 	onunload() {
+		// Clean up Pomodoro service
+		if (this.pomodoroService) {
+			this.pomodoroService.cleanup();
+		}
+		
 		// Properly detach all the views created by this plugin
 		const { workspace } = this.app;
 		
@@ -221,6 +241,14 @@ export default class TaskNotesPlugin extends Plugin {
 		});
 		
 		this.addCommand({
+			id: 'open-pomodoro-view',
+			name: 'Open Pomodoro timer',
+			callback: async () => {
+				await this.activatePomodoroView();
+			}
+		});
+		
+		this.addCommand({
 			id: 'open-linked-views',
 			name: 'Open calendar with task view',
 			callback: async () => {
@@ -277,6 +305,14 @@ export default class TaskNotesPlugin extends Plugin {
 					await this.openViewInPopout(AGENDA_VIEW_TYPE);
 				}
 			});
+			
+			this.addCommand({
+				id: 'open-pomodoro-popout',
+				name: 'Open Pomodoro timer in new window',
+				callback: async () => {
+					await this.openViewInPopout(POMODORO_VIEW_TYPE);
+				}
+			});
 		}
 
 		// Task commands
@@ -294,6 +330,36 @@ export default class TaskNotesPlugin extends Plugin {
 			name: 'Go to today\'s note',
 			callback: async () => {
 				await this.navigateToCurrentDailyNote();
+			}
+		});
+		
+		// Pomodoro commands
+		this.addCommand({
+			id: 'start-pomodoro',
+			name: 'Start Pomodoro timer',
+			callback: async () => {
+				await this.pomodoroService.startPomodoro();
+			}
+		});
+		
+		this.addCommand({
+			id: 'stop-pomodoro',
+			name: 'Stop Pomodoro timer',
+			callback: async () => {
+				await this.pomodoroService.stopPomodoro();
+			}
+		});
+		
+		this.addCommand({
+			id: 'pause-pomodoro',
+			name: 'Pause/Resume Pomodoro timer',
+			callback: async () => {
+				const state = this.pomodoroService.getState();
+				if (state.isRunning) {
+					await this.pomodoroService.pausePomodoro();
+				} else if (state.currentSession) {
+					await this.pomodoroService.resumePomodoro();
+				}
 			}
 		});
 
@@ -341,6 +407,10 @@ export default class TaskNotesPlugin extends Plugin {
 		return this.activateView(AGENDA_VIEW_TYPE);
 	}
 	
+	async activatePomodoroView() {
+		return this.activateView(POMODORO_VIEW_TYPE);
+	}
+	
 	// Open a view in a popout window
 	async openViewInPopout(viewType: string) {
 		const { workspace } = this.app;
@@ -379,6 +449,7 @@ export default class TaskNotesPlugin extends Plugin {
 		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
 		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
 		workspace.detachLeavesOfType(AGENDA_VIEW_TYPE);
+		workspace.detachLeavesOfType(POMODORO_VIEW_TYPE);
 		
 		// Create a calendar view
 		const calendarLeaf = workspace.getLeaf('tab');
@@ -781,7 +852,7 @@ export default class TaskNotesPlugin extends Plugin {
 				const taskInfo = extractTaskInfo(content, task.path);
 				
 				// Find and update this file in the index
-				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo);
+				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo as TaskInfo);
 				
 				// Clear the YAML cache for this file
 				YAMLCache.clearCacheEntry(task.path);
@@ -812,15 +883,15 @@ export default class TaskNotesPlugin extends Plugin {
 			}
 			
 			// Check if there's already an active session
-			const activeEntry = task.timeEntries?.find(entry => !entry.endTime);
+			const activeEntry = task.timeEntries?.find(entry => !entry.end);
 			if (activeEntry) {
 				new Notice('Time tracking is already active for this task');
 				return;
 			}
 			
 			const now = new Date().toISOString();
-			const newEntry = {
-				startTime: now,
+			const newEntry: TimeEntry = {
+				start: now,
 				description: description || ''
 			};
 			
@@ -866,14 +937,14 @@ export default class TaskNotesPlugin extends Plugin {
 				return;
 			}
 			
-			const activeEntry = task.timeEntries?.find(entry => !entry.endTime);
+			const activeEntry = task.timeEntries?.find(entry => !entry.end);
 			if (!activeEntry) {
 				new Notice('No active time tracking session found');
 				return;
 			}
 			
 			const now = new Date().toISOString();
-			const startTime = new Date(activeEntry.startTime);
+			const startTime = new Date(activeEntry.start);
 			const endTime = new Date(now);
 			const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // Convert to minutes
 			
@@ -885,10 +956,10 @@ export default class TaskNotesPlugin extends Plugin {
 			
 			// Update the time entry in our local copy
 			updatedTask.timeEntries = updatedTask.timeEntries.map(entry => {
-				if (entry.startTime === activeEntry.startTime && !entry.endTime) {
+				if (entry.start === activeEntry.start && !entry.end) {
 					return {
 						...entry,
-						endTime: now,
+						end: now,
 						duration: duration
 					};
 				}
@@ -904,10 +975,10 @@ export default class TaskNotesPlugin extends Plugin {
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				if (frontmatter.timeEntries) {
 					const entryToUpdate = frontmatter.timeEntries.find((entry: any) => 
-						entry.startTime === activeEntry.startTime && !entry.endTime
+						entry.start === activeEntry.start && !entry.end
 					);
 					if (entryToUpdate) {
-						entryToUpdate.endTime = now;
+						entryToUpdate.end = now;
 						entryToUpdate.duration = duration;
 					}
 					
@@ -944,7 +1015,7 @@ export default class TaskNotesPlugin extends Plugin {
 	 * Gets the active time tracking session for a task
 	 */
 	getActiveTimeSession(task: TaskInfo) {
-		return task.timeEntries?.find(entry => !entry.endTime);
+		return task.timeEntries?.find(entry => !entry.end);
 	}
 	
 	/**

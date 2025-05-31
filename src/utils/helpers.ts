@@ -213,7 +213,12 @@ export function extractTaskInfo(content: string, path: string): {
 					completedDate: yaml.completedDate,
 					timeEstimate: yaml.timeEstimate,
 					timeSpent: yaml.timeSpent,
-					timeEntries: yaml.timeEntries
+					timeEntries: yaml.timeEntries?.map((entry: any) => ({
+						start: entry.start || entry.startTime,
+						end: entry.end || entry.endTime,
+						duration: entry.duration,
+						description: entry.description
+					}))
 				};
 			}
 		}

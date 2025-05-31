@@ -529,6 +529,7 @@ export class TaskListView extends ItemView {
                 }
             });
             
+            
             const titleEl = titleContainer.createDiv({ 
                 cls: 'task-item-title', 
                 text: task.title

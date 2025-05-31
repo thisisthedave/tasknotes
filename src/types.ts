@@ -3,12 +3,17 @@ export const CALENDAR_VIEW_TYPE = 'tasknotes-calendar-view';
 export const TASK_LIST_VIEW_TYPE = 'tasknotes-task-list-view';
 export const NOTES_VIEW_TYPE = 'tasknotes-notes-view';
 export const AGENDA_VIEW_TYPE = 'tasknotes-agenda-view';
+export const POMODORO_VIEW_TYPE = 'tasknotes-pomodoro-view';
 
 // Event types
 export const EVENT_DATE_SELECTED = 'date-selected';
 export const EVENT_TAB_CHANGED = 'tab-changed';
 export const EVENT_DATA_CHANGED = 'data-changed';
 export const EVENT_TASK_UPDATED = 'task-updated';
+export const EVENT_POMODORO_START = 'pomodoro-start';
+export const EVENT_POMODORO_COMPLETE = 'pomodoro-complete';
+export const EVENT_POMODORO_INTERRUPT = 'pomodoro-interrupt';
+export const EVENT_POMODORO_TICK = 'pomodoro-tick';
 
 // Calendar colorization modes
 export type ColorizeMode = 'tasks' | 'notes' | 'daily';
@@ -52,8 +57,8 @@ export interface TaskInfo {
 }
 
 export interface TimeEntry {
-	startTime: string; // ISO timestamp
-	endTime?: string; // ISO timestamp, undefined if currently running
+	start: string; // ISO timestamp
+	end?: string; // ISO timestamp, undefined if currently running
 	duration?: number; // Duration in minutes (calculated when session ends)
 	description?: string; // Optional description of what was worked on
 }
@@ -121,4 +126,25 @@ export interface FileEventHandlers {
 	delete?: (file: any) => void;
 	rename?: (file: any, oldPath: string) => void;
 	create?: (file: any) => void;
+}
+
+// Pomodoro types
+export interface PomodoroSession {
+	id: string;
+	taskPath?: string; // optional, can run timer without task
+	startTime: string; // ISO datetime
+	endTime?: string; // ISO datetime when completed
+	duration: number; // planned duration in minutes
+	type: 'work' | 'short-break' | 'long-break';
+	completed: boolean;
+	interrupted?: boolean;
+}
+
+export interface PomodoroState {
+	isRunning: boolean;
+	currentSession?: PomodoroSession;
+	timeRemaining: number; // seconds
+	pomodorosCompleted: number; // today's count
+	currentStreak: number; // consecutive pomodoros
+	totalMinutesToday: number; // total focused minutes today
 }
