@@ -28,7 +28,7 @@ export class TaskCreationModal extends Modal {
 	// Get existing contexts from task cache for autocomplete
 	async getExistingContexts(): Promise<string[]> {
 		try {
-			console.log('Fetching existing contexts...');
+			// Fetching existing contexts
 			
 			// Use the actual task data from a current date to get real tasks
 			const currentDate = new Date();
@@ -54,10 +54,10 @@ export class TaskCreationModal extends Modal {
 			});
 			
 			const result = Array.from(contexts).sort();
-			console.log('Found contexts:', result);
+			// Found contexts
 			return result;
 		} catch (error) {
-			console.warn('Could not fetch existing contexts:', error);
+			// Could not fetch existing contexts
 			return [];
 		}
 	}
@@ -65,7 +65,7 @@ export class TaskCreationModal extends Modal {
 	// Get existing tags from task cache for autocomplete
 	async getExistingTags(): Promise<string[]> {
 		try {
-			console.log('Fetching existing tags...');
+			// Fetching existing tags
 			
 			// Use the actual task data from a current date to get real tasks
 			const currentDate = new Date();
@@ -96,10 +96,10 @@ export class TaskCreationModal extends Modal {
 			});
 			
 			const result = Array.from(tags).sort();
-			console.log('Found tags:', result);
+			// Found tags
 			return result;
 		} catch (error) {
-			console.warn('Could not fetch existing tags:', error);
+			// Could not fetch existing tags
 			return [];
 		}
 	}
@@ -198,7 +198,7 @@ export class TaskCreationModal extends Modal {
 			
 			const statusOptions = [
 				{ value: 'open', text: 'Open' },
-				{ value: 'in-progress', text: 'In Progress' },
+				{ value: 'in-progress', text: 'In progress' },
 				{ value: 'done', text: 'Done' }
 			];
 			
@@ -230,7 +230,7 @@ export class TaskCreationModal extends Modal {
 		});
 		
 		// Time Estimate
-		this.createFormGroup(contentEl, 'Time Estimate', (container) => {
+		this.createFormGroup(contentEl, 'Time estimate', (container) => {
 			const timeContainer = container.createDiv({ cls: 'time-estimate-container' });
 			const input = timeContainer.createEl('input', { 
 				type: 'number',
@@ -288,7 +288,7 @@ export class TaskCreationModal extends Modal {
 		
 		// The recurrence options container (will be populated based on recurrence selection)
 		const recurrenceOptions = contentEl.createDiv({ cls: 'recurrence-options' });
-		(recurrenceOptions as HTMLElement).style.display = 'none';
+		recurrenceOptions.addClass('is-hidden');
 		
 		// Buttons
 		const buttonContainer = contentEl.createDiv({ cls: 'button-container' });
@@ -342,7 +342,7 @@ export class TaskCreationModal extends Modal {
 		});
 		
 		const suggestionsContainer = inputContainer.createDiv({ cls: 'autocomplete-suggestions' });
-		suggestionsContainer.style.display = 'none';
+		suggestionsContainer.addClass('is-hidden');
 		
 		let suggestions: string[] = [];
 		let selectedIndex = -1;
@@ -350,7 +350,7 @@ export class TaskCreationModal extends Modal {
 		// Load suggestions
 		try {
 			suggestions = await getSuggestionsFn();
-			console.log(`Loaded ${suggestions.length} suggestions for ${fieldName}:`, suggestions);
+			// Loaded suggestions for fieldName
 			
 			// Add some fallback suggestions if none found
 			if (suggestions.length === 0) {
@@ -359,10 +359,10 @@ export class TaskCreationModal extends Modal {
 				} else if (fieldName === 'tags') {
 					suggestions = ['important', 'review', 'research', 'followup', 'idea'];
 				}
-				console.log(`Using fallback suggestions for ${fieldName}:`, suggestions);
+				// Using fallback suggestions for fieldName
 			}
 		} catch (error) {
-			console.warn(`Could not load suggestions for ${fieldName}:`, error);
+			// Could not load suggestions for fieldName
 			// Provide fallback suggestions on error
 			if (fieldName === 'contexts') {
 				suggestions = ['work', 'home', 'personal', 'urgent'];
@@ -387,7 +387,7 @@ export class TaskCreationModal extends Modal {
 					!parts.slice(0, -1).map(p => p.trim()).includes(suggestion)
 				);
 				
-				console.log(`Filtering "${currentWord}" from ${suggestions.length} suggestions, found ${filteredSuggestions.length}:`, filteredSuggestions);
+				// Filtering currentWord from suggestions
 				
 				this.showSuggestions(suggestionsContainer, filteredSuggestions, input, onChangeFn);
 				selectedIndex = -1;
@@ -437,7 +437,7 @@ export class TaskCreationModal extends Modal {
 		container.empty();
 		
 		if (suggestions.length === 0) {
-			container.style.display = 'none';
+			container.addClass('is-hidden');
 			return;
 		}
 		
@@ -453,7 +453,7 @@ export class TaskCreationModal extends Modal {
 			});
 		});
 		
-		container.style.display = 'block';
+		container.removeClass('is-hidden');
 	}
 	
 	applySuggestion(input: HTMLInputElement, suggestion: string, onChangeFn: (value: string) => void) {
@@ -483,7 +483,7 @@ export class TaskCreationModal extends Modal {
 	}
 	
 	hideSuggestions(container: HTMLElement) {
-		container.style.display = 'none';
+		container.addClass('is-hidden');
 		container.empty();
 	}
   
@@ -492,7 +492,7 @@ export class TaskCreationModal extends Modal {
 		if (!optionsContainer) return;
 		
 		optionsContainer.empty();
-		(optionsContainer as HTMLElement).style.display = 'block';
+		optionsContainer.removeClass('is-hidden');
 		
 		if (this.recurrence === 'weekly') {
 			this.createDaysOfWeekSelector(optionsContainer as HTMLElement);
@@ -501,7 +501,7 @@ export class TaskCreationModal extends Modal {
 		} else if (this.recurrence === 'yearly') {
 			this.createYearlySelector(optionsContainer as HTMLElement);
 		} else {
-			(optionsContainer as HTMLElement).style.display = 'none';
+			optionsContainer.addClass('is-hidden');
 		}
 	}
   

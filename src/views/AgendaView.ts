@@ -782,7 +782,7 @@ export class AgendaView extends ItemView {
     }
     
     private isThisViewActive(): boolean {
-        const activeLeaf = this.app.workspace.activeLeaf;
-        return activeLeaf !== null && activeLeaf.view === this;
+        const activeView = this.app.workspace.getActiveViewOfType(AgendaView);
+        return activeView === this;
     }
 }

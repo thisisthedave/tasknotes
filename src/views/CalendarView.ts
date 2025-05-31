@@ -288,8 +288,8 @@ export class CalendarView extends ItemView {
      * Helper to check if this view is currently the active one
      */
     private isThisViewActive(): boolean {
-        const activeLeaf = this.app.workspace.activeLeaf;
-        return activeLeaf !== null && activeLeaf.view === this;
+        const activeView = this.app.workspace.getActiveViewOfType(CalendarView);
+        return activeView === this;
     }
     
     /**
@@ -400,14 +400,14 @@ export class CalendarView extends ItemView {
             this.navigateToPreviousPeriod();
         });
         prevButton.setAttribute('aria-label', 'Previous period');
-        prevButton.setAttribute('title', 'Previous period (Left arrow or H key)');
+        prevButton.setAttribute('title', 'Previous period (left arrow or h key)');
         
         const nextButton = navButtons.createEl('button', { text: '›', cls: 'nav-arrow-button' });
         nextButton.addEventListener('click', () => {
             this.navigateToNextPeriod();
         });
         nextButton.setAttribute('aria-label', 'Next period');
-        nextButton.setAttribute('title', 'Next period (Right arrow or L key)');
+        nextButton.setAttribute('title', 'Next period (right arrow or l key)');
         
         const currentPeriod = monthNavigationGroup.createEl('span', { 
             text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
@@ -430,7 +430,7 @@ export class CalendarView extends ItemView {
         const modes = [
             { value: 'tasks', text: 'Tasks (1)' },
             { value: 'notes', text: 'Notes (2)' },
-            { value: 'daily', text: 'Daily Notes (3)' }
+            { value: 'daily', text: 'Daily notes (3)' }
         ];
         
         modes.forEach(mode => {

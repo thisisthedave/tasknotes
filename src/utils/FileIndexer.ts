@@ -502,7 +502,7 @@ export class FileIndexer {
         const normalizedDailyNotesPath = this.dailyNotesPath.replace(/^\/+|\/+$/g, '');
         
         // Log for debugging
-        console.debug(`Looking for daily notes in path: ${normalizedDailyNotesPath}`);
+        // Looking for daily notes in path
         
         // Try both with and without leading slash to be safe
         let dailyNotesFolder = this.vault.getAbstractFileByPath(normalizedDailyNotesPath);
@@ -511,7 +511,7 @@ export class FileIndexer {
         }
         
         if (dailyNotesFolder) {
-            console.debug(`Found daily notes folder: ${dailyNotesFolder.path}`);
+            // Found daily notes folder
             
             // Get all markdown files and filter for daily notes with the correct path and naming pattern
             const dailyNoteFiles = this.vault.getMarkdownFiles().filter(file => {
@@ -528,14 +528,14 @@ export class FileIndexer {
                 return isInDailyNotesFolder && hasCorrectFormat;
             });
             
-            console.debug(`Found ${dailyNoteFiles.length} potential daily note files`);
+            // Found potential daily note files
             
             dailyNoteFiles.forEach(file => {
                 const dateStr = file.basename;
                 try {
                     const fileDate = new Date(dateStr);
                     if (fileDate.getFullYear() === year && fileDate.getMonth() === month) {
-                        console.debug(`Adding daily note for ${dateStr}`);
+                        // Adding daily note for dateStr
                         dailyNotesSet.add(dateStr);
                     }
                 } catch (e) {
@@ -543,7 +543,7 @@ export class FileIndexer {
                 }
             });
         } else {
-            console.debug(`Could not find daily notes folder at: ${normalizedDailyNotesPath}`);
+            // Could not find daily notes folder
         }
         
         // Update the cache
@@ -593,7 +593,7 @@ export class FileIndexer {
                 
                 // Clear this month's cache to force a rebuild
                 this.calendarCache.delete(monthKey);
-                console.debug(`Cleared calendar cache for ${monthKey} because daily note was updated`);
+                // Cleared calendar cache for monthKey because daily note was updated
             } catch (e) {
                 console.error(`Error processing daily note date for cache invalidation: ${file instanceof TFile ? file.basename : path}`, e);
                 // If we can't parse the date, clear the entire calendar cache to be safe
@@ -616,14 +616,14 @@ export class FileIndexer {
         // Get fresh calendar data for this month with forced refresh
         const calendarData = await this.getCalendarData(year, month, true);
         
-        console.debug(`Rebuilt daily notes cache for ${year}-${month+1}, found ${calendarData.dailyNotes.size} daily notes`);
+        // Rebuilt daily notes cache
         
         return calendarData.dailyNotes;
     }
     
     // Force a complete rebuild of the index
     public async rebuildIndex() {
-        console.debug('Rebuilding file index and cache...');
+        // Rebuilding file index and cache
         
         // Set lastIndexed to 0 to force a rebuild
         if (this.fileIndex) {
@@ -643,7 +643,7 @@ export class FileIndexer {
         // Get a fresh index
         await this.getIndex(true);
         
-        console.debug('Index and cache rebuilt successfully');
+        // Index and cache rebuilt successfully
     }
     
     // Update a task's info in the cache without reloading all tasks

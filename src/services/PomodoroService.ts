@@ -345,11 +345,11 @@ export class PomodoroService {
     private async updateDailyNotePomodoros() {
         try {
             const dailyNotePath = `${this.plugin.settings.dailyNotesFolder}/${format(new Date(), 'yyyy-MM-dd')}.md`;
-            console.log('Updating daily note pomodoros:', dailyNotePath);
+            // Updating daily note pomodoros
             let file = this.plugin.app.vault.getAbstractFileByPath(dailyNotePath);
             
             if (!(file instanceof TFile)) {
-                console.log('Daily note does not exist, creating:', dailyNotePath);
+                // Daily note does not exist, creating
                 // Ensure the daily notes folder exists
                 await ensureFolderExists(this.plugin.app.vault, this.plugin.settings.dailyNotesFolder);
                 
@@ -357,11 +357,11 @@ export class PomodoroService {
                 
                 try {
                     file = await this.plugin.app.vault.create(dailyNotePath, content);
-                    console.log('Created daily note with 1 pomodoro');
+                    // Created daily note with 1 pomodoro
                 } catch (createError: any) {
                     if (createError.message.includes('File already exists')) {
                         // File was created between our check and create attempt
-                        console.log('Daily note was created by another process, updating existing file');
+                        // Daily note was created by another process, updating existing file
                         file = this.plugin.app.vault.getAbstractFileByPath(dailyNotePath);
                         if (file instanceof TFile) {
                             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
@@ -370,7 +370,7 @@ export class PomodoroService {
                                     frontmatter.pomodoros = 0;
                                 }
                                 frontmatter.pomodoros++;
-                                console.log(`Updated pomodoro count from ${oldCount} to ${frontmatter.pomodoros}`);
+                                // Updated pomodoro count
                             });
                         }
                     } else {
@@ -378,7 +378,7 @@ export class PomodoroService {
                     }
                 }
             } else {
-                console.log('Daily note exists, updating pomodoro count');
+                // Daily note exists, updating pomodoro count
                 // Update existing daily note
                 await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                     const oldCount = frontmatter.pomodoros || 0;
@@ -386,7 +386,7 @@ export class PomodoroService {
                         frontmatter.pomodoros = 0;
                     }
                     frontmatter.pomodoros++;
-                    console.log(`Updated pomodoro count from ${oldCount} to ${frontmatter.pomodoros}`);
+                    // Updated pomodoro count
                 });
             }
         } catch (error) {

@@ -135,7 +135,7 @@ export class NotesView extends ItemView {
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading notes...</div>
         `;
-        this.loadingIndicator.style.display = 'none';
+        this.loadingIndicator.addClass('is-hidden');
         
         // Show loading state
         this.isNotesLoading = true;
@@ -245,9 +245,9 @@ export class NotesView extends ItemView {
         if (!this.loadingIndicator) return;
         
         if (this.isNotesLoading) {
-            this.loadingIndicator.style.display = 'flex';
+            this.loadingIndicator.removeClass('is-hidden');
         } else {
-            this.loadingIndicator.style.display = 'none';
+            this.loadingIndicator.addClass('is-hidden');
         }
     }
     

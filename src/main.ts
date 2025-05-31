@@ -90,17 +90,17 @@ export default class TaskNotesPlugin extends Plugin {
 		);
 		
 		// Add ribbon icon
-		this.addRibbonIcon('calendar-days', 'TaskNotes', async () => {
+		this.addRibbonIcon('calendar-days', 'Open calendar', async () => {
 			await this.activateLinkedViews();
 		});
 		
 		// Add ribbon icon for a side-by-side layout
-		this.addRibbonIcon('layout-grid', 'TaskNotes Grid Layout', async () => {
+		this.addRibbonIcon('layout-grid', 'Open grid layout', async () => {
 			await this.createGridLayout();
 		});
 		
 		// Add ribbon icon for a tabs layout
-		this.addRibbonIcon('layout-tabs', 'TaskNotes Tabs Layout', async () => {
+		this.addRibbonIcon('layout-tabs', 'Open tabs layout', async () => {
 			await this.createTabsLayout();
 		});
 
@@ -162,15 +162,6 @@ export default class TaskNotesPlugin extends Plugin {
 		if (this.pomodoroService) {
 			this.pomodoroService.cleanup();
 		}
-		
-		// Properly detach all the views created by this plugin
-		const { workspace } = this.app;
-		
-		// Detach all leaves of the view types we registered
-		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
-		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
-		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
-		workspace.detachLeavesOfType(AGENDA_VIEW_TYPE);
 		
 		// Clean up the file indexer
 		if (this.fileIndexer) {
@@ -242,7 +233,7 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		this.addCommand({
 			id: 'open-pomodoro-view',
-			name: 'Open Pomodoro timer',
+			name: 'Open pomodoro timer',
 			callback: async () => {
 				await this.activatePomodoroView();
 			}
@@ -258,7 +249,7 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		this.addCommand({
 			id: 'open-grid-layout',
-			name: 'Open TaskNotes in grid layout',
+			name: 'Open in grid layout',
 			callback: async () => {
 				await this.createGridLayout();
 			}
@@ -266,7 +257,7 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		this.addCommand({
 			id: 'open-tabs-layout',
-			name: 'Open TaskNotes in tabs layout',
+			name: 'Open in tabs layout',
 			callback: async () => {
 				await this.createTabsLayout();
 			}
@@ -308,7 +299,7 @@ export default class TaskNotesPlugin extends Plugin {
 			
 			this.addCommand({
 				id: 'open-pomodoro-popout',
-				name: 'Open Pomodoro timer in new window',
+				name: 'Open pomodoro timer in new window',
 				callback: async () => {
 					await this.openViewInPopout(POMODORO_VIEW_TYPE);
 				}
@@ -336,7 +327,7 @@ export default class TaskNotesPlugin extends Plugin {
 		// Pomodoro commands
 		this.addCommand({
 			id: 'start-pomodoro',
-			name: 'Start Pomodoro timer',
+			name: 'Start pomodoro timer',
 			callback: async () => {
 				await this.pomodoroService.startPomodoro();
 			}
@@ -344,7 +335,7 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		this.addCommand({
 			id: 'stop-pomodoro',
-			name: 'Stop Pomodoro timer',
+			name: 'Stop pomodoro timer',
 			callback: async () => {
 				await this.pomodoroService.stopPomodoro();
 			}
@@ -352,7 +343,7 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		this.addCommand({
 			id: 'pause-pomodoro',
-			name: 'Pause/Resume Pomodoro timer',
+			name: 'Pause/resume pomodoro timer',
 			callback: async () => {
 				const state = this.pomodoroService.getState();
 				if (state.isRunning) {
@@ -486,7 +477,7 @@ export default class TaskNotesPlugin extends Plugin {
 		// Make calendar the active view
 		workspace.setActiveLeaf(calendarLeaf, { focus: true });
 		
-		new Notice('TaskNotes views created. You can drag and rearrange these tabs as needed.');
+		new Notice('Views created. You can drag and rearrange these tabs as needed.');
 	}
 	
 	/**
@@ -533,7 +524,7 @@ export default class TaskNotesPlugin extends Plugin {
 		workspace.setActiveLeaf(calendarLeaf, { focus: true });
 		
 		// Show a notice to let the user know they can rearrange the tabs
-		new Notice('TaskNotes views created in grid layout. You can drag and rearrange these tabs freely.');
+		new Notice('Views created in grid layout. You can drag and rearrange these tabs freely.');
 	}
 	
 	/**
@@ -583,7 +574,7 @@ export default class TaskNotesPlugin extends Plugin {
 		// Make the calendar view active 
 		workspace.setActiveLeaf(firstLeaf, { focus: true });
 		
-		new Notice('TaskNotes tabs created. You can now freely drag and rearrange these tabs.');
+		new Notice('Tabs created. You can now freely drag and rearrange these tabs.');
 	}
 
 	getLeafOfType(viewType: string): WorkspaceLeaf | null {
@@ -606,10 +597,10 @@ export default class TaskNotesPlugin extends Plugin {
 		const dailyNotePath = normalizePath(`${this.settings.dailyNotesFolder}/${dailyNoteFileName}`);
 		
 		// Check if the daily note exists, if not create it
-		const fileExists = await this.app.vault.adapter.exists(dailyNotePath);
+		const file = this.app.vault.getAbstractFileByPath(dailyNotePath);
 		let noteWasCreated = false;
 		
-		if (!fileExists) {
+		if (!file) {
 			// Create the daily notes folder if it doesn't exist
 			await ensureFolderExists(this.app.vault, this.settings.dailyNotesFolder);
 			
@@ -620,9 +611,9 @@ export default class TaskNotesPlugin extends Plugin {
 		}
 		
 		// Open the daily note
-		const file = this.app.vault.getAbstractFileByPath(dailyNotePath);
-		if (file instanceof TFile) {
-			await this.app.workspace.getLeaf(false).openFile(file);
+		const dailyNoteFile = this.app.vault.getAbstractFileByPath(dailyNotePath);
+		if (dailyNoteFile instanceof TFile) {
+			await this.app.workspace.getLeaf(false).openFile(dailyNoteFile);
 			
 			// If we created a new daily note, force a rebuild of the calendar cache
 			// for this month to ensure it shows up immediately in the calendar view

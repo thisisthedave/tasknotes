@@ -1,4 +1,4 @@
-/* ChronoSync Plugin Styles */
+/* TaskNotes Plugin Styles */
 
 /* Design System Variables */
 :root {
@@ -46,6 +46,11 @@
 /* Button click feedback */
 button:active:not(:disabled) {
     transform: scale(0.98);
+}
+
+/* Utility Classes */
+.is-hidden {
+    display: none !important;
 }
 
 /* Processing state for buttons */

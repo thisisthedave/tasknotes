@@ -88,7 +88,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				}));
 		
 		// Task Settings
-		new Setting(containerEl).setName('Tasks').setHeading();
+		new Setting(containerEl).setName('Task defaults').setHeading();
 		
 		new Setting(containerEl)
 			.setName('Task tag')
@@ -119,7 +119,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			.setDesc('Default status for new tasks')
 			.addDropdown(dropdown => dropdown
 				.addOption('open', 'Open')
-				.addOption('in-progress', 'In Progress')
+				.addOption('in-progress', 'In progress')
 				.addOption('done', 'Done')
 				.setValue(this.plugin.settings.defaultTaskStatus)
 				.onChange(async (value: any) => {
@@ -128,7 +128,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				}));
 
 		// Pomodoro Settings
-		new Setting(containerEl).setName('Pomodoro Timer').setHeading();
+		new Setting(containerEl).setName('Pomodoro timer').setHeading();
 
 		new Setting(containerEl)
 			.setName('Work duration')

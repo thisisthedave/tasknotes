@@ -101,7 +101,7 @@ export class PomodoroView extends ItemView {
         
         // Header
         const header = container.createDiv({ cls: 'pomodoro-header' });
-        header.createEl('h2', { text: 'Pomodoro Timer' });
+        header.createEl('h2', { text: 'Pomodoro timer' });
         
         // Timer display
         const timerSection = container.createDiv({ cls: 'pomodoro-timer-section' });
@@ -154,35 +154,35 @@ export class PomodoroView extends ItemView {
             text: 'Pause', 
             cls: 'pomodoro-button pomodoro-pause-button'
         });
-        this.pauseButton.style.display = 'none';
+        this.pauseButton.addClass('is-hidden');
         
         this.stopButton = controls.createEl('button', { 
             text: 'Stop', 
             cls: 'pomodoro-button pomodoro-stop-button'
         });
-        this.stopButton.style.display = 'none';
+        this.stopButton.addClass('is-hidden');
         
         // Quick actions
         const quickActions = container.createDiv({ cls: 'pomodoro-quick-actions' });
         
         const workButton = quickActions.createEl('button', {
-            text: 'Start Work',
+            text: 'Start work',
             cls: 'pomodoro-quick-button'
         });
         
         const shortBreakButton = quickActions.createEl('button', {
-            text: 'Short Break',
+            text: 'Short break',
             cls: 'pomodoro-quick-button'
         });
         
         const longBreakButton = quickActions.createEl('button', {
-            text: 'Long Break',
+            text: 'Long break',
             cls: 'pomodoro-quick-button'
         });
         
         // Statistics
         const statsSection = container.createDiv({ cls: 'pomodoro-stats-section' });
-        statsSection.createEl('h3', { text: 'Today\'s Progress' });
+        statsSection.createEl('h3', { text: 'Today\'s progress' });
         this.statsDisplay = statsSection.createDiv({ cls: 'pomodoro-stats' });
         
         // Create stat elements and cache references
@@ -275,7 +275,7 @@ export class PomodoroView extends ItemView {
                     const dayTasks = await this.plugin.fileIndexer.getTaskInfoForDate(date);
                     tasks.push(...dayTasks);
                 } catch (error) {
-                    console.error(`Error getting tasks for ${date}:`, error);
+                    // Error getting tasks for date
                 }
             }
             
@@ -319,7 +319,7 @@ export class PomodoroView extends ItemView {
         if (this.statusDisplay) {
             if (state.isRunning && state.currentSession) {
                 const typeText = state.currentSession.type === 'work' ? 'Working' : 
-                               state.currentSession.type === 'short-break' ? 'Short Break' : 'Long Break';
+                               state.currentSession.type === 'short-break' ? 'Short break' : 'Long break';
                 this.statusDisplay.textContent = typeText;
                 this.statusDisplay.className = `pomodoro-status pomodoro-status-${state.currentSession.type}`;
             } else {
@@ -359,21 +359,21 @@ export class PomodoroView extends ItemView {
         // Update button visibility
         if (this.startButton && this.pauseButton && this.stopButton) {
             if (state.isRunning) {
-                this.startButton.style.display = 'none';
-                this.pauseButton.style.display = 'block';
-                this.stopButton.style.display = 'block';
+                this.startButton.addClass('is-hidden');
+                this.pauseButton.removeClass('is-hidden');
+                this.stopButton.removeClass('is-hidden');
             } else if (state.currentSession) {
                 // Paused
-                this.startButton.style.display = 'block';
+                this.startButton.removeClass('is-hidden');
                 this.startButton.textContent = 'Resume';
-                this.pauseButton.style.display = 'none';
-                this.stopButton.style.display = 'block';
+                this.pauseButton.addClass('is-hidden');
+                this.stopButton.removeClass('is-hidden');
             } else {
                 // Idle
-                this.startButton.style.display = 'block';
+                this.startButton.removeClass('is-hidden');
                 this.startButton.textContent = 'Start';
-                this.pauseButton.style.display = 'none';
-                this.stopButton.style.display = 'none';
+                this.pauseButton.addClass('is-hidden');
+                this.stopButton.addClass('is-hidden');
             }
         }
         

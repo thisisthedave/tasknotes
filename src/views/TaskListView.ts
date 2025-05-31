@@ -137,7 +137,7 @@ export class TaskListView extends ItemView {
         const actionsContainer = headerContainer.createDiv({ cls: 'detail-view-actions' });
         
         const addTaskButton = actionsContainer.createEl('button', { 
-            text: 'New Task', 
+            text: 'New task', 
             cls: 'add-task-button tasknotes-button tasknotes-button-primary',
             attr: {
                 'aria-label': 'Create new task',
@@ -192,7 +192,7 @@ export class TaskListView extends ItemView {
         
         // Apply saved collapse state
         if (this.plugin.settings.taskOrgFiltersCollapsed) {
-            organizationFiltersRow.style.display = 'none';
+            organizationFiltersRow.addClass('is-hidden');
             toggleOrgButton.setAttribute('aria-expanded', 'false');
             toggleOrgButton.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 14l5-5 5 5z"></path></svg>';
         }
@@ -202,7 +202,7 @@ export class TaskListView extends ItemView {
         statusFilter.createEl('span', { text: 'Status: ' });
         const statusSelect = statusFilter.createEl('select', { cls: 'status-select' });
         
-        const statuses = ['All', 'Open', 'In Progress', 'Done', 'Archived'];
+        const statuses = ['All', 'Open', 'In progress', 'Done', 'Archived'];
         statuses.forEach(status => {
             const option = statusSelect.createEl('option', { value: status.toLowerCase(), text: status });
         });
@@ -218,7 +218,7 @@ export class TaskListView extends ItemView {
             cls: 'context-dropdown-button'
         });
         const contextMenu = contextDropdown.createDiv({ cls: 'context-dropdown-menu' });
-        contextMenu.style.display = 'none';
+        contextMenu.addClass('is-hidden');
         
         // Grouping filter
         const groupFilter = organizationFiltersRow.createDiv({ cls: 'filter-group' });
@@ -229,7 +229,7 @@ export class TaskListView extends ItemView {
             { value: 'none', text: 'None' },
             { value: 'priority', text: 'Priority' },
             { value: 'context', text: 'Context' },
-            { value: 'due', text: 'Due Date' }
+            { value: 'due', text: 'Due date' }
         ];
         groupOptions.forEach(option => {
             const optionEl = groupSelect.createEl('option', { value: option.value, text: option.text });
@@ -244,7 +244,7 @@ export class TaskListView extends ItemView {
         const sortSelect = sortFilter.createEl('select', { cls: 'sort-select' });
         
         const sortOptions = [
-            { value: 'due', text: 'Due Date' },
+            { value: 'due', text: 'Due date' },
             { value: 'priority', text: 'Priority' },
             { value: 'title', text: 'Title' }
         ];
@@ -262,28 +262,36 @@ export class TaskListView extends ItemView {
         // Toggle dropdown menu
         contextButton.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isVisible = contextMenu.style.display !== 'none';
-            contextMenu.style.display = isVisible ? 'none' : 'block';
+            const isHidden = contextMenu.hasClass('is-hidden');
+            if (isHidden) {
+                contextMenu.removeClass('is-hidden');
+            } else {
+                contextMenu.addClass('is-hidden');
+            }
         });
         
         // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
             if (!contextDropdown.contains(e.target as Node)) {
-                contextMenu.style.display = 'none';
+                contextMenu.addClass('is-hidden');
             }
         });
         
         // Toggle filters visibility
         toggleOrgButton.addEventListener('click', async () => {
-            const isExpanded = organizationFiltersRow.style.display !== 'none';
-            organizationFiltersRow.style.display = isExpanded ? 'none' : 'flex';
-            toggleOrgButton.setAttribute('aria-expanded', (!isExpanded).toString());
-            toggleOrgButton.innerHTML = isExpanded 
-                ? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 14l5-5 5 5z"></path></svg>'
-                : '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 10l5 5 5-5z"></path></svg>';
+            const isHidden = organizationFiltersRow.hasClass('is-hidden');
+            if (isHidden) {
+                organizationFiltersRow.removeClass('is-hidden');
+            } else {
+                organizationFiltersRow.addClass('is-hidden');
+            }
+            toggleOrgButton.setAttribute('aria-expanded', isHidden.toString());
+            toggleOrgButton.innerHTML = isHidden 
+                ? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 10l5 5 5-5z"></path></svg>'
+                : '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 14l5-5 5 5z"></path></svg>';
             
             // Save the collapse state
-            this.plugin.settings.taskOrgFiltersCollapsed = isExpanded;
+            this.plugin.settings.taskOrgFiltersCollapsed = !isHidden;
             await this.plugin.saveSettings();
         });
         
@@ -306,7 +314,7 @@ export class TaskListView extends ItemView {
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading tasks...</div>
         `;
-        this.loadingIndicator.style.display = 'none';
+        this.loadingIndicator.addClass('is-hidden');
         
         // Show loading state if we're fetching data
         this.isTasksLoading = true;
@@ -404,13 +412,13 @@ export class TaskListView extends ItemView {
     private formatGroupName(groupName: string): string {
         switch (groupName) {
             case 'high':
-                return 'High Priority';
+                return 'High priority';
             case 'normal':
-                return 'Normal Priority';
+                return 'Normal priority';
             case 'low':
-                return 'Low Priority';
+                return 'Low priority';
             case 'all':
-                return 'All Tasks';
+                return 'All tasks';
             default:
                 return groupName;
         }
@@ -820,9 +828,9 @@ export class TaskListView extends ItemView {
         if (!this.loadingIndicator) return;
         
         if (this.isTasksLoading) {
-            this.loadingIndicator.style.display = 'flex';
+            this.loadingIndicator.removeClass('is-hidden');
         } else {
-            this.loadingIndicator.style.display = 'none';
+            this.loadingIndicator.addClass('is-hidden');
         }
     }
     
@@ -1019,7 +1027,7 @@ export class TaskListView extends ItemView {
     private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
         const taskElement = this.taskElements.get(taskPath);
         if (!taskElement) {
-            console.warn(`Task element not found for path: ${taskPath}`);
+            // Task element not found for path
             return;
         }
         
@@ -1033,7 +1041,7 @@ export class TaskListView extends ItemView {
             // Format display text properly
             let displayStatus = effectiveStatus;
             if (effectiveStatus === 'in-progress') {
-                displayStatus = 'In Progress';
+                displayStatus = 'In progress';
             } else {
                 displayStatus = effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1);
             }
@@ -1061,7 +1069,11 @@ export class TaskListView extends ItemView {
         // Update archived badge visibility
         const archivedBadge = taskElement.querySelector('.task-archived-badge') as HTMLElement;
         if (archivedBadge) {
-            archivedBadge.style.display = updatedTask.archived ? 'block' : 'none';
+            if (updatedTask.archived) {
+                archivedBadge.classList.remove('is-hidden');
+            } else {
+                archivedBadge.classList.add('is-hidden');
+            }
         } else if (updatedTask.archived) {
             // Add archived badge if it doesn't exist
             const taskMeta = taskElement.querySelector('.task-item-metadata');
@@ -1078,9 +1090,9 @@ export class TaskListView extends ItemView {
         if (completedDateEl) {
             if (!updatedTask.recurrence && updatedTask.status === 'done' && updatedTask.completedDate) {
                 completedDateEl.textContent = `${format(new Date(updatedTask.completedDate), 'MMM d')}`;
-                completedDateEl.style.display = 'block';
+                completedDateEl.classList.remove('is-hidden');
             } else {
-                completedDateEl.style.display = 'none';
+                completedDateEl.classList.add('is-hidden');
             }
         } else if (!updatedTask.recurrence && updatedTask.status === 'done' && updatedTask.completedDate) {
             // Add completed date badge if it doesn't exist
@@ -1212,13 +1224,13 @@ export class TaskListView extends ItemView {
             
             // Add groups in order they should appear
             if (recurringTasks.length > 0) {
-                grouped.set('Recurring Tasks', recurringTasks);
+                grouped.set('Recurring tasks', recurringTasks);
             }
             if (dueTodayTasks.length > 0) {
-                grouped.set('Due Today', dueTodayTasks);
+                grouped.set('Due today', dueTodayTasks);
             }
             if (otherTasks.length > 0) {
-                grouped.set('Other Tasks', otherTasks);
+                grouped.set('Other tasks', otherTasks);
             }
             
             return grouped;
@@ -1246,7 +1258,7 @@ export class TaskListView extends ItemView {
                         });
                         return; // Skip the default grouping below
                     } else {
-                        groupKey = 'No Context';
+                        groupKey = 'No context';
                     }
                     break;
                 
@@ -1267,7 +1279,7 @@ export class TaskListView extends ItemView {
                             groupKey = 'Later';
                         }
                     } else {
-                        groupKey = 'No Due Date';
+                        groupKey = 'No due date';
                     }
                     break;
                 
