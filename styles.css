@@ -1118,7 +1118,6 @@ button.processing::after {
     align-items: center;
     gap: var(--cs-spacing-md);
     padding-top: var(--cs-spacing-sm);
-    border-top: 1px solid var(--background-modifier-border);
     margin-top: var(--cs-spacing-sm);
     opacity: 0.8;
     transition: opacity var(--cs-transition-fast);
