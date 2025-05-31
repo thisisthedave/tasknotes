@@ -1338,9 +1338,9 @@ button.processing::after {
     font-size: var(--cs-text-base);
     line-height: 1.4;
     margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
     flex: 1;
     color: var(--text-normal);
     transition: color var(--cs-transition-fast);
