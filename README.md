@@ -4,7 +4,7 @@ TaskNotes is a comprehensive task and note management plugin for Obsidian with i
 
 ## Why TaskNotes?
 
-With the introduction of Obsidian's new Bases core plugin, structured YAML frontmatter has become a standard way to manage data in Obsidian. TaskNotes uses YAML metadata extensively to store task properties, daily note information, and time tracking data. This means all your tasks and notes remain as plain Markdown files with structured frontmatter that can be queried and viewed in Bases tables.
+With the introduction of Obsidian's new Bases core plugin, structured YAML frontmatter has become a more attractive way to manage data in Obsidian. TaskNotes uses YAML metadata extensively to store task properties, daily note information, and time tracking data. This means all your tasks and notes remain as plain Markdown files with structured frontmatter that can be queried and viewed in Bases tables.
 
 TaskNotes focuses on time-based organization and task management, storing all data as YAML properties. While Bases provides database views of your notes, TaskNotes handles the day-to-day workflow of creating tasks, tracking time, managing recurring items, and organizing your daily activities. The structured data TaskNotes creates can then be analyzed and visualized using Bases or other data query tools.
 
@@ -12,6 +12,7 @@ TaskNotes focuses on time-based organization and task management, storing all da
 
 ### Task Management
 - Tasks stored as individual Markdown files with YAML frontmatter
+- Flexible filename formats: task title, zettelkasten ID, timestamp, or custom templates with live preview
 - Task properties include: title, status, priority, due date, contexts, tags, time estimates, and time tracking data
 - Support for recurring tasks (daily, weekly, monthly, yearly) with completion instance tracking
 - Built-in time tracking with multiple sessions per task
@@ -25,14 +26,24 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - Color coding based on priority, note presence, or daily activities
 
 ### Daily Notes
-- Automatic creation with configurable templates
+- Automatic creation with configurable custom templates
+- Template support for Obsidian variables ({{title}}, {{date}}, {{date:format}}, etc.)
 - YAML frontmatter tracking: date, tags, important flag
+- Click calendar dates to create or navigate to daily notes
 
 ### Time Management
 - Integrated time tracking for tasks with start/stop functionality
 - Time entries stored in YAML with timestamps and durations
 - Time estimates vs actual time spent comparison
 - Multiple tracking sessions per task with descriptions
+
+### Pomodoro Timer
+- Built-in Pomodoro timer with configurable work/break intervals
+- Task selection using Obsidian's native fuzzy search modal
+- Persistent task selection across sessions
+- Visual timer with progress indication and completion sounds
+- Automatic break scheduling with customizable patterns
+- Integration with task time tracking
 
 ### Views and Layouts
 - **Grid Layout**: Side-by-side views with calendar/list on one side, file preview on the other
@@ -103,6 +114,7 @@ TaskNotes adds several commands to Obsidian's command palette:
 - **Open Dashboard/Calendar View**: Opens the main TaskNotes dashboard
 - **Create New Task**: Opens a modal to create a new task
 - **Go to Today's Note**: Navigates to or creates today's daily note
+- **Start Pomodoro Timer**: Starts the Pomodoro timer (with task selection if none selected)
 
 ### Folder Structure
 
@@ -118,7 +130,6 @@ TaskNotes uses the following folder structure by default (configurable in settin
 ### Task File
 ```yaml
 title: "Complete project documentation"
-zettelid: "20240115a8f3"
 dateCreated: "2024-01-15T10:30:00"
 dateModified: "2024-01-15T14:45:00"
 status: "in-progress"
@@ -142,6 +153,27 @@ tags: ["daily"]
 important: false
 ```
 
+### Daily Note Template Example
+```markdown
+---
+title: {{title}} Diary Entry
+date: {{title}}
+tags: [daily]
+week: "[[{{date:gggg-[W]ww}}]]"
+---
+
+# {{title}}
+
+## Goals for {{date:dddd}}
+- 
+
+## Notes
+- 
+
+## Reflections
+- 
+```
+
 ### Recurring Task
 ```yaml
 title: "Weekly team meeting"
@@ -157,11 +189,25 @@ complete_instances: ["2024-01-08", "2024-01-15"]
 
 In the plugin settings, you can configure:
 
+### General Settings
 - Folder paths for daily notes, tasks, and general notes
+- Daily note template file path with Obsidian variable support
 - Default task properties (priority, status)
 - Task identification tag (default: "task")
-- Archive tag (default: "archive")
 - Excluded folders for notes view
+
+### Task Filename Settings
+- Filename format: Task title, Zettelkasten ID (YYMMDD + base36), timestamp, or custom template
+- Custom filename template with variables like {title}, {date}, {priority}, etc.
+- Live preview of generated filenames
+
+### Pomodoro Settings
+- Work duration (default: 25 minutes)
+- Short break duration (default: 5 minutes)
+- Long break duration (default: 15 minutes)
+- Long break interval (default: every 4 pomodoros)
+- Auto-start breaks and work sessions
+- Sound notifications and volume control
 
 ## Development
 
@@ -185,7 +231,3 @@ In the plugin settings, you can configure:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Acknowledgments
-
-- Inspired by `diary-tui` by Callum Alpass
-- Built with the [Obsidian API](https://github.com/obsidianmd/obsidian-api)
