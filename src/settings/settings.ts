@@ -9,6 +9,9 @@ export interface TaskNotesSettings {
 	defaultTaskPriority: 'low' | 'normal' | 'high';
 	defaultTaskStatus: 'open' | 'in-progress' | 'done';
 	taskOrgFiltersCollapsed: boolean;  // Save collapse state of task organization filters
+	// Task filename settings
+	taskFilenameFormat: 'title' | 'zettel' | 'timestamp' | 'custom';
+	customFilenameTemplate: string; // Template for custom format
 	// Pomodoro settings
 	pomodoroWorkDuration: number; // minutes
 	pomodoroShortBreakDuration: number; // minutes
@@ -29,6 +32,9 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	defaultTaskPriority: 'normal',
 	defaultTaskStatus: 'open',
 	taskOrgFiltersCollapsed: false,  // Default to expanded
+	// Task filename defaults
+	taskFilenameFormat: 'zettel',  // Keep existing behavior as default
+	customFilenameTemplate: '{title}',  // Simple title template
 	// Pomodoro defaults
 	pomodoroWorkDuration: 25,
 	pomodoroShortBreakDuration: 5,
@@ -126,6 +132,39 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					this.plugin.settings.defaultTaskStatus = value;
 					await this.plugin.saveSettings();
 				}));
+
+		// Task Filename Settings
+		new Setting(containerEl).setName('Task filenames').setHeading();
+
+		new Setting(containerEl)
+			.setName('Filename format')
+			.setDesc('How task filenames should be generated')
+			.addDropdown(dropdown => dropdown
+				.addOption('title', 'Task title')
+				.addOption('zettel', 'Zettelkasten format (YYMMDD + base36 seconds)')
+				.addOption('timestamp', 'Full timestamp (YYYY-MM-DD-HHMMSS)')
+				.addOption('custom', 'Custom template')
+				.setValue(this.plugin.settings.taskFilenameFormat)
+				.onChange(async (value: any) => {
+					this.plugin.settings.taskFilenameFormat = value;
+					await this.plugin.saveSettings();
+					this.updateCustomTemplateVisibility();
+				}));
+
+		const customTemplateSetting = new Setting(containerEl)
+			.setName('Custom filename template')
+			.setDesc('Template for custom filenames. Available variables: {title}, {date}, {time}, {priority}, {status}, {timestamp}, {year}, {month}, {day}, {hour}, {minute}, {second}')
+			.addText(text => text
+				.setPlaceholder('{date}-{title}')
+				.setValue(this.plugin.settings.customFilenameTemplate)
+				.onChange(async (value) => {
+					this.plugin.settings.customFilenameTemplate = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Store reference for visibility toggle
+		(this as any).customTemplateSetting = customTemplateSetting;
+		this.updateCustomTemplateVisibility();
 
 		// Pomodoro Settings
 		new Setting(containerEl).setName('Pomodoro timer').setHeading();
@@ -237,5 +276,16 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					this.plugin.settings.pomodoroSoundVolume = value;
 					await this.plugin.saveSettings();
 				}));
+	}
+
+	private updateCustomTemplateVisibility() {
+		const customSetting = (this as any).customTemplateSetting as Setting;
+		if (customSetting) {
+			if (this.plugin.settings.taskFilenameFormat === 'custom') {
+				customSetting.settingEl.style.display = '';
+			} else {
+				customSetting.settingEl.style.display = 'none';
+			}
+		}
 	}
 }

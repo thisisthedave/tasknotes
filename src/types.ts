@@ -97,7 +97,6 @@ export interface DailyNoteFrontmatter {
 
 export interface TaskFrontmatter {
 	title: string;
-	zettelid: string;
 	dateCreated: string;
 	dateModified: string;
 	status: 'open' | 'in-progress' | 'done';

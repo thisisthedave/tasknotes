@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import TaskNotesPlugin from '../main';
 import { ensureFolderExists } from '../utils/helpers';
+import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
 import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo, TimeEntry } from '../types';
 
 export class TaskCreationModal extends Modal {
@@ -19,6 +20,9 @@ export class TaskCreationModal extends Modal {
 	daysOfWeek: string[] = [];
 	dayOfMonth: string = '';
 	monthOfYear: string = '';
+	
+	// UI elements for filename preview
+	private filenamePreview: HTMLElement | null = null;
   
 	constructor(app: App, plugin: TaskNotesPlugin) {
 		super(app);
@@ -135,10 +139,21 @@ export class TaskCreationModal extends Modal {
 				} else {
 					counter.removeClass('warning');
 				}
+				
+				// Update filename preview
+				this.updateFilenamePreview();
 			});
 			
 			// Auto-focus on the title field
 			setTimeout(() => input.focus(), 50);
+		});
+		
+		// Filename preview
+		this.createFormGroup(contentEl, 'Filename preview', (container) => {
+			this.filenamePreview = container.createDiv({ 
+				cls: 'filename-preview',
+				text: 'Enter a title to see filename preview...'
+			});
 		});
 		
 		// Details
@@ -189,6 +204,7 @@ export class TaskCreationModal extends Modal {
 			
 			select.addEventListener('change', (e) => {
 				this.priority = (e.target as HTMLSelectElement).value as 'low' | 'normal' | 'high';
+				this.updateFilenamePreview();
 			});
 		});
 		
@@ -212,6 +228,7 @@ export class TaskCreationModal extends Modal {
 			
 			select.addEventListener('change', (e) => {
 				this.status = (e.target as HTMLSelectElement).value as 'open' | 'in-progress' | 'done';
+				this.updateFilenamePreview();
 			});
 		});
 		
@@ -648,17 +665,29 @@ export class TaskCreationModal extends Modal {
 		}
 		
 		try {
-			// Generate unique ID for the task
+			// Generate filename based on settings
 			const now = new Date();
-			const datePart = format(now, 'yyyyMMdd');
-			const randomPart = Math.random().toString(36).substring(2, 5);
-			const taskId = `${datePart}${randomPart}`;
+			const filenameContext: FilenameContext = {
+				title: this.title,
+				priority: this.priority,
+				status: this.status,
+				date: now
+			};
+			
+			const baseFilename = generateTaskFilename(filenameContext, this.plugin.settings);
 			
 			// Ensure the tasks folder exists
 			await ensureFolderExists(this.app.vault, this.plugin.settings.tasksFolder);
 			
+			// Generate unique filename to avoid conflicts
+			const uniqueFilename = await generateUniqueFilename(
+				baseFilename,
+				this.plugin.settings.tasksFolder,
+				this.app.vault
+			);
+			
 			// Create the task file
-			const taskFilePath = `${this.plugin.settings.tasksFolder}/${taskId}.md`;
+			const taskFilePath = `${this.plugin.settings.tasksFolder}/${uniqueFilename}.md`;
 			
 			// Prepare tags (always include the configured task tag)
 			let tagsArray = [this.plugin.settings.taskTag];
@@ -681,7 +710,6 @@ export class TaskCreationModal extends Modal {
 			// Create the YAML frontmatter
 			const yaml: Partial<TaskFrontmatter> = {
 				title: this.title,
-				zettelid: taskId,
 				dateCreated: format(now, "yyyy-MM-dd'T'HH:mm:ss"),
 				dateModified: format(now, "yyyy-MM-dd'T'HH:mm:ss"),
 				status: this.status,
@@ -754,6 +782,32 @@ export class TaskCreationModal extends Modal {
 		}
 	}
   
+	private updateFilenamePreview() {
+		if (!this.filenamePreview) return;
+		
+		if (!this.title || !this.title.trim()) {
+			this.filenamePreview.textContent = 'Enter a title to see filename preview...';
+			this.filenamePreview.className = 'filename-preview';
+			return;
+		}
+		
+		try {
+			const filenameContext: FilenameContext = {
+				title: this.title,
+				priority: this.priority,
+				status: this.status,
+				date: new Date()
+			};
+			
+			const filename = generateTaskFilename(filenameContext, this.plugin.settings);
+			this.filenamePreview.textContent = `${filename}.md`;
+			this.filenamePreview.className = 'filename-preview filename-preview-valid';
+		} catch (error) {
+			this.filenamePreview.textContent = 'Error generating filename preview';
+			this.filenamePreview.className = 'filename-preview filename-preview-error';
+		}
+	}
+
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
