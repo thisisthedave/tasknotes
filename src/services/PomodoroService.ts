@@ -37,6 +37,14 @@ export class PomodoroService {
         if (this.state.isRunning && this.state.currentSession) {
             this.resumeTimer();
         }
+        
+        // Listen for visibility changes to handle app suspension/resume
+        this.plugin.registerDomEvent(document, 'visibilitychange', () => {
+            if (!document.hidden && this.state.isRunning && this.state.currentSession) {
+                // App became visible again, check if timer needs adjustment
+                this.resumeTimer();
+            }
+        });
     }
 
     async loadState() {
@@ -45,6 +53,12 @@ export class PomodoroService {
             if (data?.pomodoroState) {
                 this.state = data.pomodoroState;
                 
+                // Validate loaded state
+                this.state.pomodorosCompleted = Math.max(0, this.state.pomodorosCompleted || 0);
+                this.state.currentStreak = Math.max(0, this.state.currentStreak || 0);
+                this.state.totalMinutesToday = Math.max(0, this.state.totalMinutesToday || 0);
+                this.state.timeRemaining = Math.max(0, this.state.timeRemaining || 0);
+                
                 // Reset daily counter if it's a new day
                 const today = format(new Date(), 'yyyy-MM-dd');
                 const lastDate = data.lastPomodoroDate;
@@ -52,6 +66,26 @@ export class PomodoroService {
                     this.state.pomodorosCompleted = 0;
                     this.state.currentStreak = 0;
                     this.state.totalMinutesToday = 0;
+                    // Clear any stale session from previous day
+                    if (this.state.currentSession) {
+                        this.state.currentSession = undefined;
+                        this.state.isRunning = false;
+                    }
+                }
+                
+                // Validate current session
+                if (this.state.currentSession) {
+                    // Check if session is stale (older than 24 hours)
+                    const sessionStart = new Date(this.state.currentSession.startTime).getTime();
+                    const now = Date.now();
+                    const hoursSinceStart = (now - sessionStart) / (1000 * 60 * 60);
+                    
+                    if (hoursSinceStart > 24) {
+                        // Session is too old, clear it
+                        this.state.currentSession = undefined;
+                        this.state.isRunning = false;
+                        this.state.timeRemaining = this.plugin.settings.pomodoroWorkDuration * 60;
+                    }
                 }
                 
                 // If no active session, reset timer to default duration
@@ -61,6 +95,14 @@ export class PomodoroService {
             }
         } catch (error) {
             console.error('Failed to load pomodoro state:', error);
+            // Reset to clean state on error
+            this.state = {
+                isRunning: false,
+                timeRemaining: this.plugin.settings.pomodoroWorkDuration * 60,
+                pomodorosCompleted: 0,
+                currentStreak: 0,
+                totalMinutesToday: 0
+            };
         }
     }
 
@@ -80,12 +122,21 @@ export class PomodoroService {
             new Notice('A pomodoro is already running');
             return;
         }
+        
+        // Check if there's a paused session that should be resumed instead
+        if (this.state.currentSession && !this.state.isRunning) {
+            new Notice('Resume the current session instead of starting a new one');
+            return;
+        }
+        
+        // Validate duration settings
+        const duration = Math.max(1, Math.min(120, this.plugin.settings.pomodoroWorkDuration));
 
         const session: PomodoroSession = {
             id: Date.now().toString(),
             taskPath: task?.path,
             startTime: new Date().toISOString(),
-            duration: this.plugin.settings.pomodoroWorkDuration,
+            duration: duration,
             type: 'work',
             completed: false
         };
@@ -106,10 +157,17 @@ export class PomodoroService {
             new Notice('A timer is already running');
             return;
         }
+        
+        // Check if there's a paused session
+        if (this.state.currentSession && !this.state.isRunning) {
+            new Notice('Resume the current session instead of starting a new one');
+            return;
+        }
 
+        // Validate duration settings
         const duration = isLongBreak 
-            ? this.plugin.settings.pomodoroLongBreakDuration 
-            : this.plugin.settings.pomodoroShortBreakDuration;
+            ? Math.max(1, Math.min(60, this.plugin.settings.pomodoroLongBreakDuration))
+            : Math.max(1, Math.min(30, this.plugin.settings.pomodoroShortBreakDuration));
 
         const session: PomodoroSession = {
             id: Date.now().toString(),
@@ -200,14 +258,28 @@ export class PomodoroService {
     private startTimer() {
         this.stopTimer(); // Clear any existing timer
         
+        // Save state immediately when timer starts
+        this.saveState().catch(error => {
+            console.error('Failed to save state when starting timer:', error);
+        });
+        
         this.timerInterval = setInterval(async () => {
-            this.state.timeRemaining--;
-            
-            // Emit tick event for UI updates
-            this.plugin.emitter.emit(EVENT_POMODORO_TICK, { 
-                timeRemaining: this.state.timeRemaining,
-                session: this.state.currentSession 
-            });
+            if (this.state.timeRemaining > 0) {
+                this.state.timeRemaining--;
+                
+                // Emit tick event for UI updates
+                this.plugin.emitter.emit(EVENT_POMODORO_TICK, { 
+                    timeRemaining: this.state.timeRemaining,
+                    session: this.state.currentSession 
+                });
+                
+                // Save state periodically (every 10 seconds) to persist progress
+                if (this.state.timeRemaining % 10 === 0) {
+                    this.saveState().catch(error => {
+                        console.error('Failed to save periodic state:', error);
+                    });
+                }
+            }
 
             if (this.state.timeRemaining <= 0) {
                 await this.completePomodoro();
@@ -225,13 +297,32 @@ export class PomodoroService {
     private resumeTimer() {
         // Calculate time elapsed since last save
         if (this.state.currentSession && this.state.currentSession.startTime) {
-            const elapsed = Math.floor((Date.now() - new Date(this.state.currentSession.startTime).getTime()) / 1000);
-            const totalDuration = this.state.currentSession.duration * 60;
-            this.state.timeRemaining = Math.max(0, totalDuration - elapsed);
+            const startTime = new Date(this.state.currentSession.startTime).getTime();
+            const now = Date.now();
             
-            if (this.state.timeRemaining > 0) {
-                this.startTimer();
+            // Check for invalid start time (future dates)
+            if (startTime > now) {
+                // Reset session if start time is in the future
+                this.stopPomodoro();
+                return;
+            }
+            
+            const elapsed = Math.floor((now - startTime) / 1000);
+            const totalDuration = this.state.currentSession.duration * 60;
+            
+            // Account for paused time by using actual time remaining from state
+            // rather than calculating from start time when session was paused
+            if (!this.state.isRunning && this.state.timeRemaining > 0) {
+                // Session was paused, use stored time remaining
+                this.state.timeRemaining = Math.min(this.state.timeRemaining, totalDuration);
             } else {
+                // Session was running, calculate based on elapsed time
+                this.state.timeRemaining = Math.max(0, totalDuration - elapsed);
+            }
+            
+            if (this.state.timeRemaining > 0 && this.state.isRunning) {
+                this.startTimer();
+            } else if (this.state.timeRemaining <= 0) {
                 // Timer would have completed while app was closed
                 this.completePomodoro();
             }
@@ -365,8 +456,7 @@ export class PomodoroService {
                         file = this.plugin.app.vault.getAbstractFileByPath(dailyNotePath);
                         if (file instanceof TFile) {
                             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                                const oldCount = frontmatter.pomodoros || 0;
-                                if (!frontmatter.pomodoros) {
+                                if (!frontmatter.pomodoros || typeof frontmatter.pomodoros !== 'number') {
                                     frontmatter.pomodoros = 0;
                                 }
                                 frontmatter.pomodoros++;
@@ -395,32 +485,45 @@ export class PomodoroService {
     }
 
     private playCompletionSound() {
-        // Create a simple beep sound
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        const volume = this.plugin.settings.pomodoroSoundVolume / 100;
-        gainNode.gain.value = volume * 0.3; // Scale down for comfortable listening
-        
-        oscillator.frequency.value = 800; // Frequency in Hz
-        oscillator.type = 'sine';
-        
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.1); // 100ms beep
-        
-        // Second beep
-        setTimeout(() => {
-            const osc2 = audioContext.createOscillator();
-            osc2.connect(gainNode);
-            osc2.frequency.value = 1000;
-            osc2.type = 'sine';
-            osc2.start();
-            osc2.stop(audioContext.currentTime + 0.1);
-        }, 150);
+        try {
+            // Create a simple beep sound
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            const volume = Math.max(0, Math.min(1, this.plugin.settings.pomodoroSoundVolume / 100));
+            gainNode.gain.value = volume * 0.3; // Scale down for comfortable listening
+            
+            oscillator.frequency.value = 800; // Frequency in Hz
+            oscillator.type = 'sine';
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.1); // 100ms beep
+            
+            // Second beep
+            setTimeout(() => {
+                try {
+                    const osc2 = audioContext.createOscillator();
+                    osc2.connect(gainNode);
+                    osc2.frequency.value = 1000;
+                    osc2.type = 'sine';
+                    osc2.start();
+                    osc2.stop(audioContext.currentTime + 0.1);
+                } catch (error) {
+                    console.error('Failed to play second beep:', error);
+                }
+            }, 150);
+            
+            // Clean up audio context after sounds complete
+            setTimeout(() => {
+                audioContext.close().catch(() => {});
+            }, 300);
+        } catch (error) {
+            console.error('Failed to play completion sound:', error);
+        }
     }
 
     // Public getters
@@ -470,5 +573,9 @@ export class PomodoroService {
 
     cleanup() {
         this.stopTimer();
+        // Save final state before cleanup
+        this.saveState().catch(error => {
+            console.error('Failed to save final state:', error);
+        });
     }
 }

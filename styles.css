@@ -53,6 +53,22 @@ button:active:not(:disabled) {
     display: none !important;
 }
 
+.is-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Pomodoro timer warning state */
+.pomodoro-timer-warning {
+    color: var(--text-warning) !important;
+    animation: pulse-warning 1s infinite;
+}
+
+@keyframes pulse-warning {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
 /* Processing state for buttons */
 button.processing {
     opacity: 0.7;

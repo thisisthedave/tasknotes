@@ -89,7 +89,14 @@ export class PomodoroView extends ItemView {
         // Remove event listeners
         this.listeners.forEach(unsubscribe => unsubscribe());
         
-        // Clear cached references
+        // Clear cached references to prevent memory leaks
+        this.timerDisplay = null;
+        this.statusDisplay = null;
+        this.startButton = null;
+        this.pauseButton = null;
+        this.stopButton = null;
+        this.taskDisplay = null;
+        this.statsDisplay = null;
         this.taskSelectElement = null;
         this.statElements = { pomodoros: null, streak: null, minutes: null };
         
@@ -200,25 +207,33 @@ export class PomodoroView extends ItemView {
         
         // Add event listeners
         this.startButton.addEventListener('click', async () => {
-            const state = this.plugin.pomodoroService.getState();
-            if (state.currentSession && !state.isRunning) {
-                this.plugin.pomodoroService.resumePomodoro();
-            } else {
-                // Get selected task if any
-                const selectedTaskPath = this.taskSelectElement!.value;
-                let selectedTask = undefined;
-                
-                if (selectedTaskPath) {
-                    try {
-                        // Get task info from the file indexer
-                        const tasks = await this.plugin.fileIndexer.getTaskInfoForDate(new Date());
-                        selectedTask = tasks.find(task => task.path === selectedTaskPath);
-                    } catch (error) {
-                        console.error('Error getting selected task:', error);
+            // Prevent double clicks
+            if (this.startButton!.hasClass('is-loading')) return;
+            this.startButton!.addClass('is-loading');
+            
+            try {
+                const state = this.plugin.pomodoroService.getState();
+                if (state.currentSession && !state.isRunning) {
+                    await this.plugin.pomodoroService.resumePomodoro();
+                } else {
+                    // Get selected task if any
+                    const selectedTaskPath = this.taskSelectElement?.value || '';
+                    let selectedTask = undefined;
+                    
+                    if (selectedTaskPath) {
+                        try {
+                            // Get task info from the file indexer
+                            const tasks = await this.plugin.fileIndexer.getTaskInfoForDate(new Date());
+                            selectedTask = tasks.find(task => task.path === selectedTaskPath);
+                        } catch (error) {
+                            console.error('Error getting selected task:', error);
+                        }
                     }
+                    
+                    await this.plugin.pomodoroService.startPomodoro(selectedTask);
                 }
-                
-                this.plugin.pomodoroService.startPomodoro(selectedTask);
+            } finally {
+                this.startButton!.removeClass('is-loading');
             }
         });
         
@@ -258,6 +273,10 @@ export class PomodoroView extends ItemView {
         // Initial display update
         this.updateDisplay();
         this.updateStats();
+        
+        // Update initial timer based on current state
+        const state = this.plugin.pomodoroService.getState();
+        this.updateTimer(state.timeRemaining);
     }
     
     private async populateTaskDropdown(taskSelect: HTMLSelectElement) {
@@ -382,9 +401,18 @@ export class PomodoroView extends ItemView {
     
     private updateTimer(seconds: number) {
         if (this.timerDisplay) {
-            const minutes = Math.floor(seconds / 60);
-            const secs = seconds % 60;
+            // Ensure seconds is valid
+            const validSeconds = Math.max(0, Math.floor(seconds));
+            const minutes = Math.floor(validSeconds / 60);
+            const secs = validSeconds % 60;
             this.timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            
+            // Update timer color based on time remaining
+            if (validSeconds <= 60 && validSeconds > 0) {
+                this.timerDisplay.addClass('pomodoro-timer-warning');
+            } else {
+                this.timerDisplay.removeClass('pomodoro-timer-warning');
+            }
         }
     }
     
