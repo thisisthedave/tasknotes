@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     POMODORO_VIEW_TYPE,
@@ -9,6 +9,7 @@ import {
     PomodoroSession,
     TaskInfo
 } from '../types';
+import { TaskSelectorModal } from '../modals/TaskSelectorModal';
 
 export class PomodoroView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -21,7 +22,8 @@ export class PomodoroView extends ItemView {
     private stopButton: HTMLButtonElement | null = null;
     private taskDisplay: HTMLElement | null = null;
     private statsDisplay: HTMLElement | null = null;
-    private taskSelectElement: HTMLSelectElement | null = null;
+    private taskSelectButton: HTMLButtonElement | null = null;
+    private currentSelectedTask: TaskInfo | null = null;
     
     // Cache stat elements to avoid innerHTML
     private statElements: {
@@ -97,7 +99,8 @@ export class PomodoroView extends ItemView {
         this.stopButton = null;
         this.taskDisplay = null;
         this.statsDisplay = null;
-        this.taskSelectElement = null;
+        this.taskSelectButton = null;
+        this.currentSelectedTask = null;
         this.statElements = { pomodoros: null, streak: null, minutes: null };
         
         this.contentEl.empty();
@@ -122,32 +125,30 @@ export class PomodoroView extends ItemView {
         const taskSelectorSection = container.createDiv({ cls: 'pomodoro-task-selector' });
         taskSelectorSection.createEl('label', { text: 'Select task (optional):' });
         
-        this.taskSelectElement = taskSelectorSection.createEl('select', { cls: 'pomodoro-task-select' });
-        this.taskSelectElement.createEl('option', { value: '', text: 'No task selected' });
+        const taskSelectorContainer = taskSelectorSection.createDiv({ cls: 'pomodoro-task-selector-container' });
         
-        // Load tasks into dropdown
-        this.populateTaskDropdown(this.taskSelectElement);
-        
-        // Add change handler for task selector
-        this.taskSelectElement.addEventListener('change', async () => {
-            const state = this.plugin.pomodoroService.getState();
-            if (state.currentSession && state.currentSession.type === 'work') {
-                // Allow changing task assignment during work sessions
-                const selectedTaskPath = this.taskSelectElement!.value;
-                let selectedTask = undefined;
-                
-                if (selectedTaskPath) {
-                    try {
-                        const tasks = await this.plugin.fileIndexer.getTaskInfoForDate(new Date());
-                        selectedTask = tasks.find(task => task.path === selectedTaskPath);
-                    } catch (error) {
-                        console.error('Error getting selected task:', error);
-                    }
-                }
-                
-                await this.plugin.pomodoroService.assignTaskToCurrentSession(selectedTask);
-            }
+        this.taskSelectButton = taskSelectorContainer.createEl('button', { 
+            cls: 'pomodoro-task-select-button',
+            text: 'Choose task...'
         });
+        
+        // Add click handler for task selector button
+        this.taskSelectButton.addEventListener('click', async () => {
+            await this.openTaskSelector();
+        });
+        
+        // Add clear button
+        const clearButton = taskSelectorContainer.createEl('button', {
+            cls: 'pomodoro-task-clear-button',
+            text: 'Clear'
+        });
+        
+        clearButton.addEventListener('click', async () => {
+            await this.selectTask(null);
+        });
+        
+        // Load and restore last selected task
+        this.restoreLastSelectedTask();
         
         // Control buttons
         const controls = container.createDiv({ cls: 'pomodoro-controls' });
@@ -216,21 +217,7 @@ export class PomodoroView extends ItemView {
                 if (state.currentSession && !state.isRunning) {
                     await this.plugin.pomodoroService.resumePomodoro();
                 } else {
-                    // Get selected task if any
-                    const selectedTaskPath = this.taskSelectElement?.value || '';
-                    let selectedTask = undefined;
-                    
-                    if (selectedTaskPath) {
-                        try {
-                            // Get task info from the file indexer
-                            const tasks = await this.plugin.fileIndexer.getTaskInfoForDate(new Date());
-                            selectedTask = tasks.find(task => task.path === selectedTaskPath);
-                        } catch (error) {
-                            console.error('Error getting selected task:', error);
-                        }
-                    }
-                    
-                    await this.plugin.pomodoroService.startPomodoro(selectedTask);
+                    await this.plugin.pomodoroService.startPomodoro(this.currentSelectedTask || undefined);
                 }
             } finally {
                 this.startButton!.removeClass('is-loading');
@@ -246,20 +233,7 @@ export class PomodoroView extends ItemView {
         });
         
         workButton.addEventListener('click', async () => {
-            // Get selected task if any
-            const selectedTaskPath = this.taskSelectElement!.value;
-            let selectedTask = undefined;
-            
-            if (selectedTaskPath) {
-                try {
-                    const tasks = await this.plugin.fileIndexer.getTaskInfoForDate(new Date());
-                    selectedTask = tasks.find(task => task.path === selectedTaskPath);
-                } catch (error) {
-                    console.error('Error getting selected task:', error);
-                }
-            }
-            
-            this.plugin.pomodoroService.startPomodoro(selectedTask);
+            await this.plugin.pomodoroService.startPomodoro(this.currentSelectedTask || undefined);
         });
         
         shortBreakButton.addEventListener('click', () => {
@@ -279,7 +253,7 @@ export class PomodoroView extends ItemView {
         this.updateTimer(state.timeRemaining);
     }
     
-    private async populateTaskDropdown(taskSelect: HTMLSelectElement) {
+    private async openTaskSelector() {
         try {
             // Get tasks for today and the next few days
             const today = new Date();
@@ -298,33 +272,119 @@ export class PomodoroView extends ItemView {
                 }
             }
             
-            // Remove duplicates and filter out completed/archived tasks
-            const uniqueTasks = tasks
-                .filter((task, index, arr) => 
-                    arr.findIndex(t => t.path === task.path) === index &&
-                    task.status !== 'done' && 
-                    !task.archived
-                )
-                .sort((a, b) => {
-                    // Sort by due date first, then by title
-                    if (a.due && b.due) {
-                        return a.due.localeCompare(b.due);
-                    }
-                    if (a.due && !b.due) return -1;
-                    if (!a.due && b.due) return 1;
-                    return a.title.localeCompare(b.title);
-                });
+            // Remove duplicates
+            const uniqueTasks = tasks.filter((task, index, arr) => 
+                arr.findIndex(t => t.path === task.path) === index
+            );
             
-            // Add tasks to dropdown
-            uniqueTasks.forEach(task => {
-                const option = taskSelect.createEl('option', {
-                    value: task.path,
-                    text: task.title + (task.due ? ` (due ${task.due})` : '')
-                });
+            if (uniqueTasks.length === 0) {
+                new Notice('No tasks found. Create some tasks first.');
+                return;
+            }
+            
+            // Open task selector modal
+            const modal = new TaskSelectorModal(this.app, uniqueTasks, (selectedTask) => {
+                this.selectTask(selectedTask);
             });
             
+            modal.open();
+            
         } catch (error) {
-            console.error('Error populating task dropdown:', error);
+            console.error('Error opening task selector:', error);
+            new Notice('Failed to load tasks');
+        }
+    }
+    
+    private async selectTask(task: TaskInfo | null) {
+        this.currentSelectedTask = task;
+        
+        // Update button text
+        if (this.taskSelectButton) {
+            if (task) {
+                const displayText = task.title.length > 30 
+                    ? task.title.substring(0, 27) + '...' 
+                    : task.title;
+                this.taskSelectButton.textContent = displayText;
+                this.taskSelectButton.title = task.title; // Full title in tooltip
+                this.taskSelectButton.removeClass('pomodoro-no-task');
+            } else {
+                this.taskSelectButton.textContent = 'Choose task...';
+                this.taskSelectButton.title = '';
+                this.taskSelectButton.addClass('pomodoro-no-task');
+            }
+        }
+        
+        // Save selection for persistence
+        await this.plugin.pomodoroService.saveLastSelectedTask(task?.path);
+        
+        // If there's a current work session, update its task assignment
+        const state = this.plugin.pomodoroService.getState();
+        if (state.currentSession && state.currentSession.type === 'work') {
+            await this.plugin.pomodoroService.assignTaskToCurrentSession(task || undefined);
+        }
+    }
+    
+    private async restoreLastSelectedTask() {
+        try {
+            const lastTaskPath = await this.plugin.pomodoroService.getLastSelectedTaskPath();
+            if (lastTaskPath) {
+                // Try to find the task by path
+                const today = new Date();
+                
+                // Search in tasks from the last week to today and next week
+                for (let i = -7; i <= 7; i++) {
+                    const date = new Date(today);
+                    date.setDate(today.getDate() + i);
+                    
+                    try {
+                        const dayTasks = await this.plugin.fileIndexer.getTaskInfoForDate(date);
+                        const task = dayTasks.find(t => t.path === lastTaskPath);
+                        
+                        if (task && task.status !== 'done' && !task.archived) {
+                            await this.selectTask(task);
+                            return;
+                        }
+                    } catch (error) {
+                        // Continue searching
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error restoring last selected task:', error);
+        }
+    }
+    
+    private async updateTaskButtonFromPath(taskPath: string) {
+        try {
+            // Try to get task info for display
+            const today = new Date();
+            
+            for (let i = -7; i <= 7; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+                
+                try {
+                    const dayTasks = await this.plugin.fileIndexer.getTaskInfoForDate(date);
+                    const task = dayTasks.find(t => t.path === taskPath);
+                    
+                    if (task) {
+                        this.currentSelectedTask = task;
+                        if (this.taskSelectButton) {
+                            const displayText = task.title.length > 30 
+                                ? task.title.substring(0, 27) + '...' 
+                                : task.title;
+                            this.taskSelectButton.textContent = displayText;
+                            this.taskSelectButton.title = task.title;
+                            this.taskSelectButton.removeClass('pomodoro-no-task');
+                        }
+                        return;
+                    }
+                } catch (error) {
+                    // Continue searching
+                }
+            }
+        } catch (error) {
+            console.error('Error updating task button from path:', error);
         }
     }
     
@@ -370,9 +430,12 @@ export class PomodoroView extends ItemView {
             }
         }
         
-        // Update task selector dropdown to reflect current session
-        if (this.taskSelectElement && state.currentSession) {
-            this.taskSelectElement.value = state.currentSession.taskPath || '';
+        // Update task selector button to reflect current session
+        if (this.taskSelectButton) {
+            if (state.currentSession?.taskPath && !this.currentSelectedTask) {
+                // Try to get the task info for display
+                this.updateTaskButtonFromPath(state.currentSession.taskPath);
+            }
         }
         
         // Update button visibility

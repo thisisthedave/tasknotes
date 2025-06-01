@@ -69,6 +69,128 @@ button:active:not(:disabled) {
     50% { opacity: 0.7; }
 }
 
+/* Task Selector Modal Styles */
+.task-suggestion {
+    padding: var(--cs-spacing-sm);
+    border-radius: var(--cs-radius-sm);
+    border-left: 3px solid transparent;
+}
+
+.task-suggestion-title {
+    margin-bottom: var(--cs-spacing-xs);
+}
+
+.task-title {
+    font-weight: 500;
+    color: var(--text-normal);
+}
+
+.task-title.task-priority-high {
+    color: var(--text-error);
+    border-left-color: var(--text-error);
+}
+
+.task-title.task-priority-low {
+    color: var(--text-muted);
+}
+
+.task-suggestion-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-sm);
+    font-size: var(--cs-text-sm);
+    color: var(--text-muted);
+}
+
+.task-due-date {
+    padding: 2px var(--cs-spacing-xs);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-modifier-border);
+}
+
+.task-due-date.task-overdue {
+    background: var(--background-modifier-error);
+    color: var(--text-on-accent);
+}
+
+.task-due-date.task-due-today {
+    background: var(--background-modifier-success);
+    color: var(--text-on-accent);
+}
+
+.task-contexts {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+}
+
+.task-context-tag {
+    padding: 1px var(--cs-spacing-xs);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-secondary);
+    font-size: var(--cs-text-xs);
+}
+
+.task-status {
+    padding: 2px var(--cs-spacing-xs);
+    border-radius: var(--cs-radius-sm);
+    font-size: var(--cs-text-xs);
+    text-transform: capitalize;
+}
+
+.task-status-in-progress {
+    background: var(--color-blue);
+    color: var(--text-on-accent);
+}
+
+/* Pomodoro Task Selector Styles */
+.pomodoro-task-selector-container {
+    display: flex;
+    gap: var(--cs-spacing-sm);
+    align-items: center;
+    margin-top: var(--cs-spacing-xs);
+}
+
+.pomodoro-task-select-button {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    padding: var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: border-color var(--cs-transition-fast);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pomodoro-task-select-button:hover {
+    border-color: var(--interactive-accent);
+}
+
+.pomodoro-task-select-button.pomodoro-no-task {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.pomodoro-task-clear-button {
+    padding: var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+}
+
+.pomodoro-task-clear-button:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
 /* Processing state for buttons */
 button.processing {
     opacity: 0.7;

@@ -1,0 +1,129 @@
+import { App, FuzzySuggestModal, Notice, FuzzyMatch } from 'obsidian';
+import { TaskInfo } from '../types';
+
+export class TaskSelectorModal extends FuzzySuggestModal<TaskInfo> {
+    private tasks: TaskInfo[];
+    private onChooseTask: (task: TaskInfo | null) => void;
+
+    constructor(app: App, tasks: TaskInfo[], onChooseTask: (task: TaskInfo | null) => void) {
+        super(app);
+        this.tasks = tasks;
+        this.onChooseTask = onChooseTask;
+        
+        this.setPlaceholder('Type to search for a task...');
+        this.setInstructions([
+            { command: '↑↓', purpose: 'to navigate' },
+            { command: '↵', purpose: 'to select' },
+            { command: 'esc', purpose: 'to dismiss' },
+        ]);
+    }
+
+    getItems(): TaskInfo[] {
+        // Filter out completed and archived tasks, sort by due date and priority
+        return this.tasks
+            .filter(task => task.status !== 'done' && !task.archived)
+            .sort((a, b) => {
+                // Sort by due date first (tasks with due dates come first)
+                if (a.due && !b.due) return -1;
+                if (!a.due && b.due) return 1;
+                if (a.due && b.due) {
+                    const dateCompare = a.due.localeCompare(b.due);
+                    if (dateCompare !== 0) return dateCompare;
+                }
+                
+                // Then by priority (high -> normal -> low)
+                const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
+                const aPriority = priorityOrder[a.priority] ?? 1;
+                const bPriority = priorityOrder[b.priority] ?? 1;
+                if (aPriority !== bPriority) return aPriority - bPriority;
+                
+                // Finally by title
+                return a.title.localeCompare(b.title);
+            });
+    }
+
+    getItemText(task: TaskInfo): string {
+        // Include title, due date, and priority in searchable text
+        let text = task.title;
+        if (task.due) {
+            text += ` ${task.due}`;
+        }
+        if (task.priority !== 'normal') {
+            text += ` ${task.priority}`;
+        }
+        if (task.contexts && task.contexts.length > 0) {
+            text += ` ${task.contexts.join(' ')}`;
+        }
+        return text;
+    }
+
+    renderSuggestion(item: FuzzyMatch<TaskInfo>, el: HTMLElement) {
+        const task = item.item;
+        const container = el.createDiv({ cls: 'task-suggestion' });
+        
+        // Title with priority indicator
+        const titleDiv = container.createDiv({ cls: 'task-suggestion-title' });
+        const priorityClass = task.priority !== 'normal' ? `task-priority-${task.priority}` : '';
+        titleDiv.createSpan({ 
+            cls: `task-title ${priorityClass}`,
+            text: task.title 
+        });
+        
+        // Metadata line
+        const metaDiv = container.createDiv({ cls: 'task-suggestion-meta' });
+        
+        // Due date
+        if (task.due) {
+            const dueDate = new Date(task.due);
+            const today = new Date();
+            const isOverdue = dueDate < today;
+            const isToday = dueDate.toDateString() === today.toDateString();
+            
+            let dueDateText = task.due;
+            let dueDateClass = 'task-due-date';
+            
+            if (isOverdue) {
+                dueDateText = `Overdue (${task.due})`;
+                dueDateClass += ' task-overdue';
+            } else if (isToday) {
+                dueDateText = 'Due today';
+                dueDateClass += ' task-due-today';
+            }
+            
+            metaDiv.createSpan({ 
+                cls: dueDateClass,
+                text: dueDateText 
+            });
+        }
+        
+        // Contexts
+        if (task.contexts && task.contexts.length > 0) {
+            const contextsSpan = metaDiv.createSpan({ cls: 'task-contexts' });
+            task.contexts.forEach((context, index) => {
+                if (index > 0) contextsSpan.createSpan({ text: ', ' });
+                contextsSpan.createSpan({ 
+                    cls: 'task-context-tag',
+                    text: context 
+                });
+            });
+        }
+        
+        // Status
+        if (task.status !== 'open') {
+            metaDiv.createSpan({ 
+                cls: `task-status task-status-${task.status}`,
+                text: task.status 
+            });
+        }
+    }
+
+    onChooseItem(item: TaskInfo, evt: MouseEvent | KeyboardEvent) {
+        this.onChooseTask(item);
+    }
+
+    onClose() {
+        super.onClose();
+        // If user closed without selecting, call callback with null
+        // Note: This will be called even after selection, but the callback should handle that gracefully
+    }
+}

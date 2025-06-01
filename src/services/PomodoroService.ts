@@ -117,6 +117,26 @@ export class PomodoroService {
         }
     }
 
+    async saveLastSelectedTask(taskPath: string | undefined) {
+        try {
+            const data = await this.plugin.loadData() || {};
+            data.lastSelectedTaskPath = taskPath;
+            await this.plugin.saveData(data);
+        } catch (error) {
+            console.error('Failed to save last selected task:', error);
+        }
+    }
+
+    async getLastSelectedTaskPath(): Promise<string | undefined> {
+        try {
+            const data = await this.plugin.loadData();
+            return data?.lastSelectedTaskPath;
+        } catch (error) {
+            console.error('Failed to load last selected task:', error);
+            return undefined;
+        }
+    }
+
     async startPomodoro(task?: TaskInfo) {
         if (this.state.isRunning) {
             new Notice('A pomodoro is already running');
