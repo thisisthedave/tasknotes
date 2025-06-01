@@ -9,14 +9,15 @@ const INDEX_TTL = 5 * 60 * 1000; // 5 minutes TTL for index
 export class FileIndexer {
     private vault: Vault;
     private fileIndex: FileIndex | null = null;
-    private taskTag: string;
-    private excludedFolders: string[];
+    public taskTag: string;
+    public excludedFolders: string[];
     private dailyNotesPath: string;
+    private dailyNoteTemplatePath: string;
     
     // Store event handlers for cleanup
     private eventHandlers: FileEventHandlers = {};
 
-    constructor(vault: Vault, taskTag: string, excludedFolders: string = '', dailyNotesPath: string = '') {
+    constructor(vault: Vault, taskTag: string, excludedFolders: string = '', dailyNotesPath: string = '', dailyNoteTemplatePath: string = '') {
         this.vault = vault;
         this.taskTag = taskTag;
         this.excludedFolders = excludedFolders 
@@ -25,9 +26,17 @@ export class FileIndexer {
         
         // Normalize daily notes path by removing leading/trailing slashes
         this.dailyNotesPath = dailyNotesPath.replace(/^\/+|\/+$/g, '');
+        this.dailyNoteTemplatePath = dailyNoteTemplatePath;
         
         // Register event listeners for file changes
         this.registerFileEvents();
+    }
+
+    /**
+     * Update the daily note template path (used when settings change)
+     */
+    updateDailyNoteTemplatePath(newPath: string) {
+        this.dailyNoteTemplatePath = newPath;
     }
 
     private registerFileEvents() {
@@ -111,6 +120,11 @@ export class FileIndexer {
     }
 
     private isExcluded(path: string): boolean {
+        // Exclude template file from indexing
+        if (this.dailyNoteTemplatePath && path === this.dailyNoteTemplatePath) {
+            return true;
+        }
+        
         return this.excludedFolders.some(folder => 
             folder && path.startsWith(folder)
         );

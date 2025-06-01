@@ -9,6 +9,8 @@ export interface TaskNotesSettings {
 	defaultTaskPriority: 'low' | 'normal' | 'high';
 	defaultTaskStatus: 'open' | 'in-progress' | 'done';
 	taskOrgFiltersCollapsed: boolean;  // Save collapse state of task organization filters
+	// Daily note settings
+	dailyNoteTemplate: string; // Path to template file for daily notes
 	// Task filename settings
 	taskFilenameFormat: 'title' | 'zettel' | 'timestamp' | 'custom';
 	customFilenameTemplate: string; // Template for custom format
@@ -32,6 +34,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	defaultTaskPriority: 'normal',
 	defaultTaskStatus: 'open',
 	taskOrgFiltersCollapsed: false,  // Default to expanded
+	// Daily note defaults
+	dailyNoteTemplate: '',  // Empty = use built-in template
 	// Task filename defaults
 	taskFilenameFormat: 'zettel',  // Keep existing behavior as default
 	customFilenameTemplate: '{title}',  // Simple title template
@@ -90,6 +94,17 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.excludedFolders)
 				.onChange(async (value) => {
 					this.plugin.settings.excludedFolders = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Daily note template')
+			.setDesc('Path to template file for daily notes (leave empty to use built-in template). Supports Obsidian template variables like {{title}}, {{date}}, {{date:format}}, {{time}}, etc.')
+			.addText(text => text
+				.setPlaceholder('Templates/Daily Note Template.md')
+				.setValue(this.plugin.settings.dailyNoteTemplate)
+				.onChange(async (value) => {
+					this.plugin.settings.dailyNoteTemplate = value;
 					await this.plugin.saveSettings();
 				}));
 		

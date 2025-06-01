@@ -60,7 +60,8 @@ export default class TaskNotesPlugin extends Plugin {
 			this.app.vault, 
 			this.settings.taskTag,
 			this.settings.excludedFolders,
-			this.settings.dailyNotesFolder
+			this.settings.dailyNotesFolder,
+			this.settings.dailyNoteTemplate
 		);
 		
 		// Initialize Pomodoro service
@@ -181,16 +182,26 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		// Update the file indexer with new settings if relevant
 		if (this.fileIndexer) {
-			// Properly destroy the old indexer first
-			this.fileIndexer.destroy();
+			// Update template path without recreating the entire indexer
+			this.fileIndexer.updateDailyNoteTemplatePath(this.settings.dailyNoteTemplate);
 			
-			// Create a new indexer with updated settings
-			this.fileIndexer = new FileIndexer(
-				this.app.vault, 
-				this.settings.taskTag,
-				this.settings.excludedFolders,
-				this.settings.dailyNotesFolder
-			);
+			// Only recreate indexer if core settings changed
+			const coreSettingsChanged = this.fileIndexer.taskTag !== this.settings.taskTag || 
+				this.fileIndexer.excludedFolders.join(',') !== this.settings.excludedFolders;
+			
+			if (coreSettingsChanged) {
+				// Properly destroy the old indexer first
+				this.fileIndexer.destroy();
+				
+				// Create a new indexer with updated settings
+				this.fileIndexer = new FileIndexer(
+					this.app.vault, 
+					this.settings.taskTag,
+					this.settings.excludedFolders,
+					this.settings.dailyNotesFolder,
+					this.settings.dailyNoteTemplate
+				);
+			}
 		}
 		
 		// If settings have changed, notify views to refresh their data
@@ -605,7 +616,7 @@ export default class TaskNotesPlugin extends Plugin {
 			await ensureFolderExists(this.app.vault, this.settings.dailyNotesFolder);
 			
 			// Create daily note with default content
-			const content = this.generateDailyNoteTemplate(date);
+			const content = await this.generateDailyNoteTemplate(date);
 			await this.app.vault.create(dailyNotePath, content);
 			noteWasCreated = true;
 		}
@@ -636,9 +647,35 @@ export default class TaskNotesPlugin extends Plugin {
 	}
 
 
-	generateDailyNoteTemplate(date: Date): string {
-		return generateDailyNoteTemplate(date);
+async generateDailyNoteTemplate(date: Date): Promise<string> {
+	// Check if a custom template is specified
+	if (this.settings.dailyNoteTemplate && this.settings.dailyNoteTemplate.trim()) {
+		try {
+			// Normalize the template path and ensure it has .md extension
+			let templatePath = normalizePath(this.settings.dailyNoteTemplate.trim());
+			if (!templatePath.endsWith('.md')) {
+				templatePath += '.md';
+			}
+			
+			// Try to load the template file
+			const templateFile = this.app.vault.getAbstractFileByPath(templatePath);
+			if (templateFile instanceof TFile) {
+				const templateContent = await this.app.vault.read(templateFile);
+				return generateDailyNoteTemplate(date, templateContent);
+			} else {
+				// Template file not found, show notice and use default
+				new Notice(`Daily note template not found: ${templatePath}`);
+			}
+		} catch (error) {
+			// Error reading template, show notice and use default
+			console.error('Error reading daily note template:', error);
+			new Notice(`Error reading daily note template: ${this.settings.dailyNoteTemplate}`);
+		}
 	}
+	
+	// Use default template
+	return generateDailyNoteTemplate(date);
+}
 
 	async updateTaskProperty(task: TaskInfo, property: string, value: any, options: { silent?: boolean } = {}): Promise<void> {
 		try {
