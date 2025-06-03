@@ -8,7 +8,7 @@ import {
     TaskInfo, 
     NoteInfo,
 } from '../types';
-import { isRecurringTaskDueOn } from '../utils/helpers';
+import { isRecurringTaskDueOn, calculateTotalTimeSpent } from '../utils/helpers';
 
 export class AgendaView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -418,16 +418,17 @@ export class AgendaView extends ItemView {
         }
         
         // Time tracking
-        if (task.timeEstimate || task.timeSpent) {
+        const timeSpent = calculateTotalTimeSpent(task.timeEntries || []);
+        if (task.timeEstimate || timeSpent > 0) {
             const timeContainer = meta.createSpan({ cls: 'time-info' });
             
-            if (task.timeSpent && task.timeSpent > 0) {
+            if (timeSpent > 0) {
                 const progress = task.timeEstimate ? 
-                    Math.round((task.timeSpent / task.timeEstimate) * 100) : 0;
+                    Math.round((timeSpent / task.timeEstimate) * 100) : 0;
                 
                 timeContainer.createSpan({ 
                     cls: 'time-spent', 
-                    text: this.plugin.formatTime(task.timeSpent)
+                    text: this.plugin.formatTime(timeSpent)
                 });
                 
                 if (task.timeEstimate) {

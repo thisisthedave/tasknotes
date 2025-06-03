@@ -23,7 +23,7 @@ export type CalendarDisplayMode = 'month' | 'agenda';
 
 // Task sorting and grouping types
 export type TaskSortKey = 'due' | 'priority' | 'title';
-export type TaskGroupKey = 'none' | 'priority' | 'context' | 'due';
+export type TaskGroupKey = 'none' | 'priority' | 'context' | 'due' | 'status';
 
 // Time and date related types
 export interface TimeInfo {
@@ -52,14 +52,12 @@ export interface TaskInfo {
 	complete_instances?: string[]; // Array of dates (YYYY-MM-DD) when recurring task was completed
 	completedDate?: string; // Date (YYYY-MM-DD) when task was marked as done
 	timeEstimate?: number; // Estimated time in minutes
-	timeSpent?: number; // Actual time spent in minutes
 	timeEntries?: TimeEntry[]; // Individual time tracking sessions
 }
 
 export interface TimeEntry {
-	start: string; // ISO timestamp
-	end?: string; // ISO timestamp, undefined if currently running
-	duration?: number; // Duration in minutes (calculated when session ends)
+	startTime: string; // ISO timestamp
+	endTime?: string; // ISO timestamp, undefined if currently running
 	description?: string; // Optional description of what was worked on
 }
 
@@ -108,7 +106,6 @@ export interface TaskFrontmatter {
 	complete_instances?: string[];
 	completedDate?: string;
 	timeEstimate?: number;
-	timeSpent?: number;
 	timeEntries?: TimeEntry[];
 }
 
@@ -156,7 +153,6 @@ export interface FieldMapping {
 	due: string;
 	contexts: string;
 	timeEstimate: string;
-	timeSpent: string;
 	completedDate: string;
 	dateCreated: string;
 	dateModified: string;

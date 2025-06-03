@@ -13,7 +13,8 @@ import {
 import { 
     isTaskOverdue,
     isRecurringTaskDueOn,
-    getEffectiveTaskStatus 
+    getEffectiveTaskStatus,
+    calculateTotalTimeSpent
 } from '../utils/helpers';
 
 export class TaskListView extends ItemView {
@@ -252,7 +253,8 @@ export class TaskListView extends ItemView {
             { value: 'none', text: 'None' },
             { value: 'priority', text: 'Priority' },
             { value: 'context', text: 'Context' },
-            { value: 'due', text: 'Due date' }
+            { value: 'due', text: 'Due date' },
+            { value: 'status', text: 'Status' }
         ];
         groupOptions.forEach(option => {
             const optionEl = groupSelect.createEl('option', { value: option.value, text: option.text });
@@ -642,7 +644,8 @@ export class TaskListView extends ItemView {
             const taskMeta = taskHeader.createDiv({ cls: 'task-item-metadata' });
             
             // Time tracking info in metadata (compact display)
-            if (task.timeEstimate || task.timeSpent) {
+            const timeSpent = calculateTotalTimeSpent(task.timeEntries || []);
+            if (task.timeEstimate || timeSpent > 0) {
                 const timeMetaContainer = taskMeta.createDiv({ cls: 'time-meta-compact' });
                 
                 if (task.timeEstimate) {
@@ -653,16 +656,16 @@ export class TaskListView extends ItemView {
                     });
                 }
                 
-                if (task.timeSpent && task.timeSpent > 0) {
+                if (timeSpent > 0) {
                     timeMetaContainer.createSpan({ 
                         cls: 'time-meta-spent',
-                        text: this.plugin.formatTime(task.timeSpent),
-                        attr: { title: `Time spent: ${this.plugin.formatTime(task.timeSpent)}` }
+                        text: this.plugin.formatTime(timeSpent),
+                        attr: { title: `Time spent: ${this.plugin.formatTime(timeSpent)}` }
                     });
                     
                     // Add small progress indicator if both are available
                     if (task.timeEstimate && task.timeEstimate > 0) {
-                        const progress = Math.min((task.timeSpent / task.timeEstimate) * 100, 100);
+                        const progress = Math.min((timeSpent / task.timeEstimate) * 100, 100);
                         const progressDot = timeMetaContainer.createSpan({ 
                             cls: `progress-dot ${progress > 100 ? 'over-estimate' : progress >= 100 ? 'complete' : 'in-progress'}`,
                             attr: { title: `${Math.round(progress)}% complete` }
@@ -1212,6 +1215,9 @@ export class TaskListView extends ItemView {
         // Update time metadata
         const timeMetaContainer = taskElement.querySelector('.time-meta-compact') as HTMLElement;
         if (timeMetaContainer) {
+            // Calculate time spent dynamically
+            const timeSpent = calculateTotalTimeSpent(updatedTask.timeEntries || []);
+            
             // Update existing time info
             const estimateEl = timeMetaContainer.querySelector('.time-meta-estimate') as HTMLElement;
             const spentEl = timeMetaContainer.querySelector('.time-meta-spent') as HTMLElement;
@@ -1221,12 +1227,12 @@ export class TaskListView extends ItemView {
                 estimateEl.textContent = this.plugin.formatTime(updatedTask.timeEstimate);
             }
             
-            if (spentEl && updatedTask.timeSpent && updatedTask.timeSpent > 0) {
-                spentEl.textContent = this.plugin.formatTime(updatedTask.timeSpent);
+            if (spentEl && timeSpent > 0) {
+                spentEl.textContent = this.plugin.formatTime(timeSpent);
             }
             
-            if (progressDot && updatedTask.timeEstimate && updatedTask.timeSpent) {
-                const progress = Math.min((updatedTask.timeSpent / updatedTask.timeEstimate) * 100, 100);
+            if (progressDot && updatedTask.timeEstimate && timeSpent > 0) {
+                const progress = Math.min((timeSpent / updatedTask.timeEstimate) * 100, 100);
                 progressDot.className = `progress-dot ${progress > 100 ? 'over-estimate' : progress >= 100 ? 'complete' : 'in-progress'}`;
                 progressDot.setAttribute('title', `${Math.round(progress)}% complete`);
             }
@@ -1388,6 +1394,10 @@ export class TaskListView extends ItemView {
                     }
                     break;
                 
+                case 'status':
+                    groupKey = task.status || 'open';
+                    break;
+                
                 default:
                     groupKey = 'all';
                     break;
@@ -1409,15 +1419,33 @@ export class TaskListView extends ItemView {
         const selectedStatus = statusSelect.value;
         const allTasks = await this.getTasksForView(true); // Force refresh to get latest data
 
+        // Get the current archive tag from field mapping
+        const archiveTag = this.plugin.fieldMapper.getMapping().archiveTag;
+
+        // Helper function to determine if a task is archived
+        const isTaskArchived = (task: TaskInfo): boolean => {
+            // Check the archived property first
+            if (task.archived === true) {
+                return true;
+            }
+            
+            // Also check if the archive tag is present in the tags array (redundant check for robustness)
+            if (task.tags && Array.isArray(task.tags) && task.tags.includes(archiveTag)) {
+                return true;
+            }
+            
+            return false;
+        };
+
         // Apply status filtering logic
         let filteredTasks: TaskInfo[] = [];
         
         if (selectedStatus === 'archived') {
             // Show only archived tasks
-            filteredTasks = allTasks.filter(task => task.archived);
+            filteredTasks = allTasks.filter(task => isTaskArchived(task));
         } else {
             // For other statuses, exclude archived tasks unless specifically requested
-            const nonArchivedTasks = allTasks.filter(task => !task.archived);
+            const nonArchivedTasks = allTasks.filter(task => !isTaskArchived(task));
             
             if (selectedStatus === 'all') {
                 filteredTasks = nonArchivedTasks;

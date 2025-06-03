@@ -424,23 +424,20 @@ export class PomodoroService {
         try {
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 // Initialize time tracking fields if needed
-                if (!frontmatter.timeSpent) {
-                    frontmatter.timeSpent = 0;
-                }
                 if (!frontmatter.timeEntries) {
                     frontmatter.timeEntries = [];
                 }
 
-                // Add the pomodoro duration (in minutes)
-                frontmatter.timeSpent += session.duration;
-
-                // Create time entry
+                // Create time entry with new format
                 const entry = {
-                    start: session.startTime,
-                    end: session.endTime!,
-                    duration: session.duration
+                    startTime: session.startTime,
+                    endTime: session.endTime!,
+                    description: 'Pomodoro session'
                 };
                 frontmatter.timeEntries.push(entry);
+
+                // Remove old timeSpent field if it exists
+                delete frontmatter.timeSpent;
 
                 // Update modified date
                 frontmatter.dateModified = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");

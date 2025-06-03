@@ -32,7 +32,10 @@ import {
 	generateDailyNoteTemplate,
 	updateYamlFrontmatter,
 	extractTaskInfo,
-	updateTaskProperty
+	updateTaskProperty,
+	formatTime,
+	calculateTotalTimeSpent,
+	getActiveTimeEntry
 } from './utils/helpers';
 import { EventEmitter } from './utils/EventEmitter';
 import { FileIndexer } from './utils/FileIndexer';
@@ -955,7 +958,7 @@ private injectCustomStyles(): void {
 			}
 			
 			// Check if there's already an active session
-			const activeEntry = task.timeEntries?.find(entry => !entry.end);
+			const activeEntry = task.timeEntries?.find(entry => !entry.endTime);
 			if (activeEntry) {
 				new Notice('Time tracking is already active for this task');
 				return;
@@ -963,7 +966,7 @@ private injectCustomStyles(): void {
 			
 			const now = new Date().toISOString();
 			const newEntry: TimeEntry = {
-				start: now,
+				startTime: now,
 				description: description || ''
 			};
 			
@@ -1009,16 +1012,13 @@ private injectCustomStyles(): void {
 				return;
 			}
 			
-			const activeEntry = task.timeEntries?.find(entry => !entry.end);
+			const activeEntry = task.timeEntries?.find(entry => !entry.endTime);
 			if (!activeEntry) {
 				new Notice('No active time tracking session found');
 				return;
 			}
 			
 			const now = new Date().toISOString();
-			const startTime = new Date(activeEntry.start);
-			const endTime = new Date(now);
-			const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // Convert to minutes
 			
 			// Create a local modified copy of the task to update UI immediately
 			const updatedTask = { ...task };
@@ -1028,45 +1028,37 @@ private injectCustomStyles(): void {
 			
 			// Update the time entry in our local copy
 			updatedTask.timeEntries = updatedTask.timeEntries.map(entry => {
-				if (entry.start === activeEntry.start && !entry.end) {
+				if (entry.startTime === activeEntry.startTime && !entry.endTime) {
 					return {
 						...entry,
-						end: now,
-						duration: duration
+						endTime: now
 					};
 				}
 				return entry;
 			});
 			
-			// Calculate total time spent
-			const totalTime = updatedTask.timeEntries.reduce((total, entry) => {
-				return total + (entry.duration || 0);
-			}, 0);
-			updatedTask.timeSpent = totalTime;
 			
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				if (frontmatter.timeEntries) {
 					const entryToUpdate = frontmatter.timeEntries.find((entry: any) => 
-						entry.start === activeEntry.start && !entry.end
+						(entry.start || entry.startTime) === activeEntry.startTime && !(entry.end || entry.endTime)
 					);
 					if (entryToUpdate) {
-						entryToUpdate.end = now;
-						entryToUpdate.duration = duration;
+						// Support both old and new field names for compatibility
+						if (entryToUpdate.start) {
+							entryToUpdate.end = now;
+							delete entryToUpdate.start; // Remove old field
+							entryToUpdate.startTime = activeEntry.startTime; // Add new field
+						} else {
+							entryToUpdate.endTime = now;
+						}
+						// Remove duration if it exists (old format)
+						delete entryToUpdate.duration;
 					}
-					
-					// Update total time spent
-					const totalTime = frontmatter.timeEntries.reduce((total: number, entry: any) => {
-						return total + (entry.duration || 0);
-					}, 0);
-					frontmatter.timeSpent = totalTime;
 				}
 			});
 			
-			const hours = Math.floor(duration / 60);
-			const minutes = duration % 60;
-			const timeText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-			
-			new Notice(`Time tracking stopped. Session: ${timeText}`);
+			new Notice('Time tracking stopped');
 			
 			// Update the cache with the modified task
 			if (this.fileIndexer) {
@@ -1087,18 +1079,13 @@ private injectCustomStyles(): void {
 	 * Gets the active time tracking session for a task
 	 */
 	getActiveTimeSession(task: TaskInfo) {
-		return task.timeEntries?.find(entry => !entry.end);
+		return getActiveTimeEntry(task.timeEntries || []);
 	}
 	
 	/**
 	 * Formats time in minutes to a readable string
 	 */
 	formatTime(minutes: number): string {
-		if (minutes === 0) return '0m';
-		const hours = Math.floor(minutes / 60);
-		const mins = minutes % 60;
-		if (hours === 0) return `${mins}m`;
-		if (mins === 0) return `${hours}h`;
-		return `${hours}h ${mins}m`;
+		return formatTime(minutes);
 	}
 }

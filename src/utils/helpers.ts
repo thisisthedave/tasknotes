@@ -1,6 +1,6 @@
 import { normalizePath, TFile, Vault } from 'obsidian';
 import { format } from 'date-fns';
-import { TimeInfo, TaskInfo } from '../types';
+import { TimeInfo, TaskInfo, TimeEntry } from '../types';
 import * as YAML from 'yaml';
 import { YAMLCache } from './YAMLCache';
 import { FieldMapper } from '../services/FieldMapper';
@@ -45,6 +45,83 @@ export async function ensureFolderExists(vault: Vault, folderPath: string): Prom
 		console.error('Error creating folder structure:', error);
 		throw new Error(`Failed to create folder: ${folderPath}`);
 	}
+}
+
+/**
+ * Calculate duration in minutes between two ISO timestamp strings
+ */
+export function calculateDuration(startTime: string, endTime: string): number {
+	try {
+		const start = new Date(startTime);
+		const end = new Date(endTime);
+		
+		// Validate dates
+		if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+			console.error('Invalid timestamps for duration calculation:', { startTime, endTime });
+			return 0;
+		}
+		
+		// Ensure end is after start
+		if (end <= start) {
+			console.error('End time is not after start time:', { startTime, endTime });
+			return 0;
+		}
+		
+		// Calculate duration in minutes
+		const durationMs = end.getTime() - start.getTime();
+		const durationMinutes = Math.round(durationMs / (1000 * 60));
+		
+		return Math.max(0, durationMinutes); // Ensure non-negative
+	} catch (error) {
+		console.error('Error calculating duration:', error, { startTime, endTime });
+		return 0;
+	}
+}
+
+/**
+ * Calculate total time spent for a task from its time entries
+ */
+export function calculateTotalTimeSpent(timeEntries: TimeEntry[]): number {
+	if (!timeEntries || !Array.isArray(timeEntries)) {
+		return 0;
+	}
+	
+	return timeEntries.reduce((total, entry) => {
+		// Skip entries without both start and end times
+		if (!entry.startTime || !entry.endTime) {
+			return total;
+		}
+		
+		const duration = calculateDuration(entry.startTime, entry.endTime);
+		return total + duration;
+	}, 0);
+}
+
+/**
+ * Get the active (running) time entry for a task
+ */
+export function getActiveTimeEntry(timeEntries: TimeEntry[]): TimeEntry | null {
+	if (!timeEntries || !Array.isArray(timeEntries)) {
+		return null;
+	}
+	
+	return timeEntries.find(entry => entry.startTime && !entry.endTime) || null;
+}
+
+/**
+ * Format time in minutes to a readable string (e.g., "1h 30m", "45m")
+ */
+export function formatTime(minutes: number): string {
+	if (!minutes || minutes === 0 || isNaN(minutes)) {
+		return '0m';
+	}
+	
+	const hours = Math.floor(minutes / 60);
+	const mins = minutes % 60;
+	
+	if (hours === 0) return `${mins}m`;
+	if (mins === 0) return `${hours}h`;
+	return `${hours}h ${mins}m`;
 }
 
 /**
@@ -336,8 +413,7 @@ export function extractTaskInfo(
 						complete_instances: mappedTask.complete_instances,
 						completedDate: mappedTask.completedDate,
 						timeEstimate: mappedTask.timeEstimate,
-						timeSpent: mappedTask.timeSpent,
-						timeEntries: mappedTask.timeEntries
+												timeEntries: mappedTask.timeEntries
 					};
 					
 					return taskInfo;
@@ -379,12 +455,10 @@ export function extractTaskInfo(
 						complete_instances,
 						completedDate: yaml.completedDate,
 						timeEstimate: yaml.timeEstimate,
-						timeSpent: yaml.timeSpent,
 						timeEntries: yaml.timeEntries?.map((entry: any) => ({
-							start: entry.start || entry.startTime,
-							end: entry.end || entry.endTime,
-							duration: entry.duration,
-							description: entry.description
+							startTime: entry.start || entry.startTime,
+							endTime: entry.end || entry.endTime,
+														description: entry.description
 						}))
 					};
 				}

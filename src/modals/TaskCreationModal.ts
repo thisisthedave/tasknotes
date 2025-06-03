@@ -738,7 +738,6 @@ export class TaskCreationModal extends Modal {
 			
 			if (this.timeEstimate > 0) {
 				taskInfo.timeEstimate = this.timeEstimate;
-				taskInfo.timeSpent = 0;
 				taskInfo.timeEntries = [];
 			}
 			
