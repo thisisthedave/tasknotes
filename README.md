@@ -180,11 +180,9 @@ tags: ["task", "documentation"]
 priority: "high"
 contexts: ["work", "writing"]
 timeEstimate: 120
-timeSpent: 45
 timeEntries:
   - startTime: "2024-01-15T10:30:00"
     endTime: "2024-01-15T11:15:00"
-    duration: 45
     description: "Initial outline"
 ```
 
