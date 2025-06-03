@@ -166,7 +166,8 @@ export class TaskListView extends ItemView {
                 'aria-expanded': 'true'
             }
         });
-        toggleOrgButton.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 10l5 5 5-5z"></path></svg>';
+        const downArrowIcon = this.createSVGIcon('0 0 24 24', 16, 16, 'M7 10l5 5 5-5z');
+        toggleOrgButton.appendChild(downArrowIcon);
         
         // Add label next to toggle
         const toggleLabel = primaryFiltersRow.createEl('span', {
@@ -194,7 +195,9 @@ export class TaskListView extends ItemView {
         if (this.plugin.settings.taskOrgFiltersCollapsed) {
             organizationFiltersRow.addClass('is-hidden');
             toggleOrgButton.setAttribute('aria-expanded', 'false');
-            toggleOrgButton.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 14l5-5 5 5z"></path></svg>';
+            toggleOrgButton.empty();
+            const upArrowIcon = this.createSVGIcon('0 0 24 24', 16, 16, 'M7 14l5-5 5 5z');
+            toggleOrgButton.appendChild(upArrowIcon);
         }
         
         // Status filter (moved to collapsible section)
@@ -291,10 +294,16 @@ export class TaskListView extends ItemView {
         });
         
         // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
+        const documentClickHandler = (e: Event) => {
             if (!contextDropdown.contains(e.target as Node)) {
                 contextMenu.addClass('is-hidden');
             }
+        };
+        document.addEventListener('click', documentClickHandler);
+        
+        // Track for cleanup
+        this.listeners.push(() => {
+            document.removeEventListener('click', documentClickHandler);
         });
         
         // Toggle filters visibility
@@ -306,9 +315,11 @@ export class TaskListView extends ItemView {
                 organizationFiltersRow.addClass('is-hidden');
             }
             toggleOrgButton.setAttribute('aria-expanded', isHidden.toString());
-            toggleOrgButton.innerHTML = isHidden 
-                ? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 10l5 5 5-5z"></path></svg>'
-                : '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 14l5-5 5 5z"></path></svg>';
+            toggleOrgButton.empty();
+            const arrowIcon = isHidden 
+                ? this.createSVGIcon('0 0 24 24', 16, 16, 'M7 10l5 5 5-5z')
+                : this.createSVGIcon('0 0 24 24', 16, 16, 'M7 14l5-5 5 5z');
+            toggleOrgButton.appendChild(arrowIcon);
             
             // Save the collapse state
             this.plugin.settings.taskOrgFiltersCollapsed = !isHidden;
@@ -330,10 +341,8 @@ export class TaskListView extends ItemView {
         
         // Add loading indicator
         this.loadingIndicator = taskList.createDiv({ cls: 'loading-indicator' });
-        this.loadingIndicator.innerHTML = `
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading tasks...</div>
-        `;
+        this.loadingIndicator.createDiv({ cls: 'loading-spinner' });
+        this.loadingIndicator.createDiv({ cls: 'loading-text', text: 'Loading tasks...' });
         this.loadingIndicator.addClass('is-hidden');
         
         // Show loading state if we're fetching data
@@ -431,6 +440,33 @@ export class TaskListView extends ItemView {
      */
     private getSafeCSSClass(prefix: string, value: string): string {
         return `${prefix}-${value.replace(/[^a-zA-Z0-9-]/g, '-')}`;
+    }
+    
+    /**
+     * Create SVG icon element safely without innerHTML
+     */
+    private createSVGIcon(viewBox: string, width: number, height: number, pathData: string): SVGElement {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', viewBox);
+        svg.setAttribute('width', width.toString());
+        svg.setAttribute('height', height.toString());
+        
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('fill', 'currentColor');
+        path.setAttribute('d', pathData);
+        
+        svg.appendChild(path);
+        return svg;
+    }
+    
+    /**
+     * Create archive/unarchive icon
+     */
+    private createArchiveIcon(isArchived: boolean): SVGElement {
+        const unarchiveIcon = 'M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z';
+        const archiveIcon = 'M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.81-1h12l.94 1H5.12z';
+        
+        return this.createSVGIcon('0 0 24 24', 16, 16, isArchived ? unarchiveIcon : archiveIcon);
     }
     
     /**
@@ -562,7 +598,7 @@ export class TaskListView extends ItemView {
                 }
             });
             
-            timeIcon.innerHTML = isTracking ? '⏸' : '▶';
+            timeIcon.textContent = isTracking ? '⏸' : '▶';
             
             timeIcon.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -654,9 +690,8 @@ export class TaskListView extends ItemView {
             });
             
             // Add icon based on archive status
-            archiveButton.innerHTML = task.archived 
-                ? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>'
-                : '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>';
+            const archiveIcon = this.createArchiveIcon(task.archived);
+            archiveButton.appendChild(archiveIcon);
             
             // Add event listener for archive toggle
             archiveButton.addEventListener('click', async (e) => {
@@ -724,7 +759,7 @@ export class TaskListView extends ItemView {
             
             // Apply custom status color
             if (statusConfig) {
-                statusBadge.style.backgroundColor = statusConfig.color;
+                statusBadge.style.setProperty('background', statusConfig.color, 'important');
             }
             
             // Add click handler for status badge (non-recurring tasks only)
@@ -1103,7 +1138,7 @@ export class TaskListView extends ItemView {
             
             // Apply custom status color
             if (statusConfig) {
-                statusBadge.style.backgroundColor = statusConfig.color;
+                statusBadge.style.setProperty('background', statusConfig.color, 'important');
             }
         }
         
@@ -1129,9 +1164,9 @@ export class TaskListView extends ItemView {
         if (archiveButton) {
             archiveButton.className = `archive-button-icon ${updatedTask.archived ? 'archived' : ''}`;
             archiveButton.title = updatedTask.archived ? 'Unarchive this task' : 'Archive this task';
-            archiveButton.innerHTML = updatedTask.archived 
-                ? '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>'
-                : '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.81-1h12l.94 1H5.12z"></path></svg>';
+            archiveButton.empty();
+            const updatedArchiveIcon = this.createArchiveIcon(updatedTask.archived);
+            archiveButton.appendChild(updatedArchiveIcon);
         }
         
         // Update archived badge visibility
@@ -1204,7 +1239,7 @@ export class TaskListView extends ItemView {
             const isTracking = !!activeSession;
             
             timeIcon.className = `time-icon ${isTracking ? 'tracking' : 'idle'}`;
-            timeIcon.innerHTML = isTracking ? '⏸' : '▶';
+            timeIcon.textContent = isTracking ? '⏸' : '▶';
             timeIcon.setAttribute('aria-label', isTracking ? 'Stop time tracking' : 'Start time tracking');
             timeIcon.setAttribute('title', isTracking ? 'Stop time tracking' : 'Start time tracking');
         }

@@ -721,6 +721,7 @@ export class FileIndexer {
         // Clear all caches
         this.fileIndex = null;
         this.calendarCache.clear();
+        YAMLCache.clearCache(); // Clear global YAML cache
         
         // Clear event handlers object
         this.eventHandlers = {};

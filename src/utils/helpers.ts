@@ -324,7 +324,7 @@ export function extractTaskInfo(
 					
 					// Ensure required fields have defaults
 					const taskInfo: TaskInfo = {
-						title: mappedTask.title || 'Untitled Task',
+						title: mappedTask.title || 'Untitled task',
 						status: mappedTask.status || 'open',
 						priority: mappedTask.priority || 'normal',
 						due: mappedTask.due,
@@ -367,7 +367,7 @@ export function extractTaskInfo(
 					const contexts = yaml.contexts || [];
 					
 					return {
-						title: yaml.title || 'Untitled Task',
+						title: yaml.title || 'Untitled task',
 						status: yaml.status || 'open',
 						priority: yaml.priority || 'normal',
 						due: yaml.due,

@@ -204,7 +204,7 @@ export class PriorityManager {
         return {
             id,
             value: 'new-priority',
-            label: 'New Priority',
+            label: 'New priority',
             color: '#808080',
             weight
         };

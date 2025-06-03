@@ -131,10 +131,8 @@ export class NotesView extends ItemView {
         
         // Add loading indicator
         this.loadingIndicator = notesList.createDiv({ cls: 'loading-indicator' });
-        this.loadingIndicator.innerHTML = `
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading notes...</div>
-        `;
+        this.loadingIndicator.createDiv({ cls: 'loading-spinner' });
+        this.loadingIndicator.createDiv({ cls: 'loading-text', text: 'Loading notes...' });
         this.loadingIndicator.addClass('is-hidden');
         
         // Show loading state

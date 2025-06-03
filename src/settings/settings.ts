@@ -147,12 +147,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		
 		// Create tab navigation
 		const tabNav = containerEl.createDiv('settings-tab-nav');
-		tabNav.style.display = 'flex';
-		tabNav.style.borderBottom = '1px solid var(--background-modifier-border)';
-		tabNav.style.marginBottom = '20px';
 		
 		const tabs = [
-			{ id: 'general', name: 'General' },
+			{ id: 'general', name: 'Basic setup' },
 			{ id: 'field-mapping', name: 'Field mapping' },
 			{ id: 'statuses', name: 'Statuses' },
 			{ id: 'priorities', name: 'Priorities' },
@@ -166,13 +163,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				cls: this.activeTab === tab.id ? 'settings-tab-button active' : 'settings-tab-button'
 			});
 			
-			tabButton.style.padding = '8px 16px';
-			tabButton.style.border = 'none';
-			tabButton.style.background = this.activeTab === tab.id ? 'var(--interactive-accent)' : 'transparent';
-			tabButton.style.color = this.activeTab === tab.id ? 'var(--text-on-accent)' : 'var(--text-normal)';
-			tabButton.style.cursor = 'pointer';
-			tabButton.style.borderRadius = '4px 4px 0 0';
-			
 			tabButton.addEventListener('click', () => {
 				this.switchTab(tab.id);
 			});
@@ -184,7 +174,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		// Create all tab content containers
 		tabs.forEach(tab => {
 			const tabContent = tabContentsEl.createDiv('settings-tab-content');
-			tabContent.style.display = this.activeTab === tab.id ? 'block' : 'none';
+			if (this.activeTab === tab.id) {
+				tabContent.addClass('active');
+			}
 			this.tabContents[tab.id] = tabContent;
 		});
 		
@@ -329,15 +321,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const container = this.tabContents['field-mapping'];
 		
 		// Warning message
-		const warning = container.createDiv();
-		warning.style.padding = '12px';
-		warning.style.marginBottom = '20px';
-		warning.style.backgroundColor = 'var(--background-modifier-warning)';
-		warning.style.borderRadius = '4px';
-		warning.innerHTML = `
-			<strong>⚠️ Warning:</strong> TaskNotes will read AND write using these property names. 
-			Changing these after creating tasks may cause inconsistencies.
-		`;
+		const warning = container.createDiv('settings-warning');
+		const warningIcon = warning.createEl('strong', { text: '⚠️ Warning:' });
+		warning.createSpan({ text: ' TaskNotes will read AND write using these property names. Changing these after creating tasks may cause inconsistencies.' });
 		
 		container.createEl('h3', { text: 'Field mapping' });
 		container.createEl('p', { 
@@ -345,9 +331,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		});
 		
 		// Create mapping table
-		const table = container.createEl('table');
-		table.style.width = '100%';
-		table.style.borderCollapse = 'collapse';
+		const table = container.createEl('table', { cls: 'settings-table' });
 		
 		const header = table.createEl('tr');
 		header.createEl('th', { text: 'TaskNotes field' });
@@ -371,20 +355,14 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		fieldMappings.forEach(([field, label]) => {
 			const row = table.createEl('tr');
 			const labelCell = row.createEl('td');
-			labelCell.style.padding = '8px';
-			labelCell.style.borderBottom = '1px solid var(--background-modifier-border)';
 			labelCell.textContent = label;
 			
 			const inputCell = row.createEl('td');
-			inputCell.style.padding = '8px';
-			inputCell.style.borderBottom = '1px solid var(--background-modifier-border)';
 			
 			const input = inputCell.createEl('input', {
 				type: 'text',
 				value: this.plugin.settings.fieldMapping[field]
 			});
-			input.style.width = '100%';
-			input.style.padding = '4px';
 			
 			input.addEventListener('change', async () => {
 				this.plugin.settings.fieldMapping[field] = input.value;
@@ -409,14 +387,13 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 	private renderStatusesTab(): void {
 		const container = this.tabContents['statuses'];
 		
-		container.createEl('h3', { text: 'Task Statuses' });
+		container.createEl('h3', { text: 'Task statuses' });
 		container.createEl('p', { 
 			text: 'Define the statuses available for your tasks. The order determines the cycling sequence.'
 		});
 		
 		// Status list
-		const statusList = container.createDiv();
-		statusList.style.marginBottom = '20px';
+		const statusList = container.createDiv('settings-list');
 		
 		this.renderStatusList(statusList);
 		
@@ -424,7 +401,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName('Add new status')
 			.addButton(button => button
-				.setButtonText('Add Status')
+				.setButtonText('Add status')
 				.onClick(async () => {
 					const newStatus = StatusManager.createDefaultStatus(this.plugin.settings.customStatuses);
 					this.plugin.settings.customStatuses.push(newStatus);
@@ -439,72 +416,48 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const sortedStatuses = [...this.plugin.settings.customStatuses].sort((a, b) => a.order - b.order);
 		
 		sortedStatuses.forEach((status, index) => {
-			const statusRow = container.createDiv();
-			statusRow.style.display = 'flex';
-			statusRow.style.alignItems = 'center';
-			statusRow.style.marginBottom = '12px';
-			statusRow.style.padding = '12px';
-			statusRow.style.border = '1px solid var(--background-modifier-border)';
-			statusRow.style.borderRadius = '4px';
+			const statusRow = container.createDiv('settings-item-row');
 			
 			// Color indicator
-			const colorIndicator = statusRow.createDiv();
-			colorIndicator.style.width = '20px';
-			colorIndicator.style.height = '20px';
-			colorIndicator.style.borderRadius = '50%';
-			colorIndicator.style.backgroundColor = status.color;
-			colorIndicator.style.marginRight = '12px';
-			colorIndicator.style.flexShrink = '0';
+			const colorIndicator = statusRow.createDiv('settings-color-indicator');
+			colorIndicator.style.backgroundColor = status.color; // Keep this - user color
 			
 			// Status value input
 			const valueInput = statusRow.createEl('input', {
 				type: 'text',
-				value: status.value
+				value: status.value,
+				cls: 'settings-input value-input'
 			});
-			valueInput.style.marginRight = '12px';
-			valueInput.style.width = '120px';
 			
 			// Status label input
 			const labelInput = statusRow.createEl('input', {
 				type: 'text',
-				value: status.label
+				value: status.label,
+				cls: 'settings-input label-input'
 			});
-			labelInput.style.marginRight = '12px';
-			labelInput.style.width = '120px';
 			
 			// Color input
 			const colorInput = statusRow.createEl('input', {
 				type: 'color',
-				value: status.color
+				value: status.color,
+				cls: 'settings-input color-input'
 			});
-			colorInput.style.marginRight = '12px';
-			colorInput.style.width = '40px';
 			
 			// Completed checkbox
-			const completedLabel = statusRow.createEl('label');
-			completedLabel.style.marginRight = '12px';
-			completedLabel.style.display = 'flex';
-			completedLabel.style.alignItems = 'center';
+			const completedLabel = statusRow.createEl('label', { cls: 'settings-checkbox-label' });
 			
 			const completedCheckbox = completedLabel.createEl('input', {
 				type: 'checkbox'
 			});
 			completedCheckbox.checked = status.isCompleted;
-			completedCheckbox.style.marginRight = '4px';
 			
 			completedLabel.createSpan({ text: 'Completed' });
 			
 			// Delete button
 			const deleteButton = statusRow.createEl('button', {
-				text: 'Delete'
+				text: 'Delete',
+				cls: 'settings-delete-button'
 			});
-			deleteButton.style.marginLeft = 'auto';
-			deleteButton.style.backgroundColor = 'var(--interactive-accent-rgb)';
-			deleteButton.style.color = 'var(--text-on-accent)';
-			deleteButton.style.border = 'none';
-			deleteButton.style.padding = '4px 8px';
-			deleteButton.style.borderRadius = '4px';
-			deleteButton.style.cursor = 'pointer';
 			
 			// Event listeners
 			const updateStatus = async () => {
@@ -546,8 +499,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		});
 		
 		// Priority list
-		const priorityList = container.createDiv();
-		priorityList.style.marginBottom = '20px';
+		const priorityList = container.createDiv('settings-list');
 		
 		this.renderPriorityList(priorityList);
 		
@@ -555,7 +507,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName('Add new priority')
 			.addButton(button => button
-				.setButtonText('Add Priority')
+				.setButtonText('Add priority')
 				.onClick(async () => {
 					const newPriority = PriorityManager.createDefaultPriority(this.plugin.settings.customPriorities);
 					this.plugin.settings.customPriorities.push(newPriority);
@@ -570,66 +522,45 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const sortedPriorities = [...this.plugin.settings.customPriorities].sort((a, b) => b.weight - a.weight);
 		
 		sortedPriorities.forEach((priority, index) => {
-			const priorityRow = container.createDiv();
-			priorityRow.style.display = 'flex';
-			priorityRow.style.alignItems = 'center';
-			priorityRow.style.marginBottom = '12px';
-			priorityRow.style.padding = '12px';
-			priorityRow.style.border = '1px solid var(--background-modifier-border)';
-			priorityRow.style.borderRadius = '4px';
+			const priorityRow = container.createDiv('settings-item-row');
 			
 			// Color indicator
-			const colorIndicator = priorityRow.createDiv();
-			colorIndicator.style.width = '20px';
-			colorIndicator.style.height = '20px';
-			colorIndicator.style.borderRadius = '50%';
-			colorIndicator.style.backgroundColor = priority.color;
-			colorIndicator.style.marginRight = '12px';
-			colorIndicator.style.flexShrink = '0';
+			const colorIndicator = priorityRow.createDiv('settings-color-indicator');
+			colorIndicator.style.backgroundColor = priority.color; // Keep this - user color
 			
 			// Priority value input
 			const valueInput = priorityRow.createEl('input', {
 				type: 'text',
-				value: priority.value
+				value: priority.value,
+				cls: 'settings-input value-input'
 			});
-			valueInput.style.marginRight = '12px';
-			valueInput.style.width = '120px';
 			
 			// Priority label input
 			const labelInput = priorityRow.createEl('input', {
 				type: 'text',
-				value: priority.label
+				value: priority.label,
+				cls: 'settings-input label-input'
 			});
-			labelInput.style.marginRight = '12px';
-			labelInput.style.width = '120px';
 			
 			// Color input
 			const colorInput = priorityRow.createEl('input', {
 				type: 'color',
-				value: priority.color
+				value: priority.color,
+				cls: 'settings-input color-input'
 			});
-			colorInput.style.marginRight = '12px';
-			colorInput.style.width = '40px';
 			
 			// Weight input
 			const weightInput = priorityRow.createEl('input', {
 				type: 'number',
-				value: priority.weight.toString()
+				value: priority.weight.toString(),
+				cls: 'settings-input weight-input'
 			});
-			weightInput.style.marginRight = '12px';
-			weightInput.style.width = '80px';
 			
 			// Delete button
 			const deleteButton = priorityRow.createEl('button', {
-				text: 'Delete'
+				text: 'Delete',
+				cls: 'settings-delete-button'
 			});
-			deleteButton.style.marginLeft = 'auto';
-			deleteButton.style.backgroundColor = 'var(--interactive-accent-rgb)';
-			deleteButton.style.color = 'var(--text-on-accent)';
-			deleteButton.style.border = 'none';
-			deleteButton.style.padding = '4px 8px';
-			deleteButton.style.borderRadius = '4px';
-			deleteButton.style.cursor = 'pointer';
 			
 			// Event listeners
 			const updatePriority = async () => {

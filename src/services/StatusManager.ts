@@ -170,7 +170,7 @@ export class StatusManager {
         return {
             id,
             value: 'new-status',
-            label: 'New Status',
+            label: 'New status',
             color: '#808080',
             isCompleted: false,
             order

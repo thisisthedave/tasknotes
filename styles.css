@@ -2947,6 +2947,132 @@ button.processing::after {
     text-transform: uppercase;
 }
 
+/* Settings tab styling */
+.settings-tab-nav {
+    display: flex;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 20px;
+}
+
+.settings-tab-button {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    transition: all var(--cs-transition-fast);
+}
+
+.settings-tab-button.active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.settings-tab-button:hover:not(.active) {
+    background: var(--background-modifier-hover);
+}
+
+.settings-tab-content {
+    display: none;
+}
+
+.settings-tab-content.active {
+    display: block;
+}
+
+/* Settings warning box */
+.settings-warning {
+    padding: 12px;
+    margin-bottom: 20px;
+    background-color: var(--background-modifier-warning);
+    border-radius: 4px;
+    border: 1px solid var(--color-orange);
+}
+
+/* Settings table */
+.settings-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.settings-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.settings-table input {
+    width: 100%;
+    padding: 4px;
+}
+
+/* Status/Priority lists */
+.settings-list {
+    margin-bottom: 20px;
+}
+
+.settings-item-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+.settings-color-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.settings-input {
+    margin-right: 12px;
+}
+
+.settings-input.value-input {
+    width: 120px;
+}
+
+.settings-input.label-input {
+    width: 120px;
+}
+
+.settings-input.color-input {
+    width: 40px;
+}
+
+.settings-input.weight-input {
+    width: 80px;
+}
+
+.settings-checkbox-label {
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.settings-checkbox-label input {
+    margin-right: 4px;
+}
+
+.settings-delete-button {
+    margin-left: auto;
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+}
+
+.settings-delete-button:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
 .priority-badge {
     font-size: var(--cs-text-xs);
     padding: 1px var(--cs-spacing-xs);

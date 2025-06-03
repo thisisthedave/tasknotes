@@ -371,7 +371,7 @@ export class CalendarView extends ItemView {
 
         const indicator = document.createElement('div');
         indicator.className = 'cache-loading-indicator';
-        indicator.innerHTML = 'Loading calendar data...';
+        indicator.textContent = 'Loading calendar data...';
         container.prepend(indicator);
     }
 
@@ -887,7 +887,6 @@ export class CalendarView extends ItemView {
         let dailyNotesCache: Set<string>;
         
         if (!CalendarView.dailyNotesInitialized) {
-            console.debug('First call to colorizeCalendarForDailyNotes, forcing cache rebuild');
             // Use the targeted rebuild method instead of rebuilding the entire index
             dailyNotesCache = await this.plugin.fileIndexer.rebuildDailyNotesCache(currentYear, currentMonth);
             CalendarView.dailyNotesInitialized = true;
@@ -897,11 +896,6 @@ export class CalendarView extends ItemView {
             dailyNotesCache = calendarData.dailyNotes;
         }
         
-        // Log the number of daily notes found for debugging
-        console.debug(`Found ${dailyNotesCache.size} daily notes for ${currentYear}-${currentMonth+1}`);
-        if (dailyNotesCache.size > 0) {
-            console.debug('Daily notes:', Array.from(dailyNotesCache));
-        }
         
         // Find all calendar days
         const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
