@@ -57,6 +57,13 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - Configurable folder exclusions
 - Integration with calendar for date-specific note viewing
 
+### Customization System
+- **Field Mapping**: Customize YAML property names to match your existing workflow
+- **Custom Statuses**: Create unlimited task statuses with custom labels, colors, and completion behavior
+- **Custom Priorities**: Define priority levels with weight-based sorting and custom colors
+- **Tabbed Settings**: Organized settings interface for easy configuration
+- **Backward Compatibility**: Default settings match existing TaskNotes behavior
+
 ### Data Structure
 All data is stored as YAML frontmatter in Markdown files, making it:
 - Compatible with Obsidian's Bases plugin for database views
@@ -92,10 +99,11 @@ All data is stored as YAML frontmatter in Markdown files, making it:
 
 TaskNotes provides intuitive controls to interact with your tasks directly from the task list view:
 
-- Change a task's status (Open, In Progress, Done) using the status dropdown
-- Adjust task priority (High, Normal, Low) using the priority dropdown
+- Change a task's status using clickable status badges (cycles through your custom statuses)
+- Adjust task priority using clickable priority indicators (cycles through your custom priorities)
 - Set or change due dates using the date picker
 - Click on a task's title to open it for detailed editing
+- All statuses and priorities are fully customizable with your own labels and colors
 
 ### Task Archiving
 
@@ -124,6 +132,40 @@ TaskNotes uses the following folder structure by default (configurable in settin
 - `TaskNotes/Tasks/`: Task files
 - `TaskNotes/Notes/`: General notes
 - `TaskNotes/Home.md`: Home note
+
+## Customization Guide
+
+### Customizing Field Names
+
+If you're migrating from another task management system or have existing notes with different property names, you can customize which YAML properties TaskNotes uses:
+
+1. Go to Settings > TaskNotes > Field Mapping
+2. Update any property names to match your existing structure
+3. TaskNotes will read and write using your custom property names
+
+**Example**: Change "priority" to "importance" if your existing notes use that property name.
+
+### Creating Custom Statuses
+
+TaskNotes allows you to define your own task statuses beyond the default Open/In Progress/Done:
+
+1. Go to Settings > TaskNotes > Statuses
+2. Click "Add status" to create new statuses
+3. Configure the internal value, display label, color, and completion behavior
+4. Reorder statuses to control the cycling sequence when clicking status badges
+
+**Example custom statuses**: Waiting, Blocked, Review, Cancelled, Delegated
+
+### Setting Up Custom Priorities
+
+Create priority levels that match your workflow:
+
+1. Go to Settings > TaskNotes > Priorities  
+2. Click "Add priority" to create new priority levels
+3. Set the weight (higher numbers = higher priority), label, and color
+4. TaskNotes will sort tasks by priority weight automatically
+
+**Example priorities**: Critical (weight: 5), High (3), Normal (2), Low (1), Someday (0)
 
 ## YAML Structure Examples
 
@@ -187,21 +229,54 @@ complete_instances: ["2024-01-08", "2024-01-15"]
 
 ## Configuration
 
-In the plugin settings, you can configure:
+TaskNotes provides extensive customization options through a tabbed settings interface:
 
-### General Settings
-- Folder paths for daily notes, tasks, and general notes
-- Daily note template file path with Obsidian variable support
-- Default task properties (priority, status)
+### Basic Setup
+- Default tasks folder for new tasks (tasks are identified by tag, not folder)
 - Task identification tag (default: "task")
 - Excluded folders for notes view
+- Default task status and priority for new tasks
+- Task filename format: Task title, Zettelkasten ID, timestamp, or custom template
+- Custom filename template with variables and live preview
 
-### Task Filename Settings
-- Filename format: Task title, Zettelkasten ID (YYMMDD + base36), timestamp, or custom template
-- Custom filename template with variables like {title}, {date}, {priority}, etc.
-- Live preview of generated filenames
+### Field Mapping
+Configure which frontmatter properties TaskNotes uses for each field. This allows you to customize property names to match your existing workflow:
 
-### Pomodoro Settings
+- **Title**: Property name for task titles (default: "title")
+- **Status**: Property name for task status (default: "status") 
+- **Priority**: Property name for task priority (default: "priority")
+- **Due date**: Property name for due dates (default: "due")
+- **Contexts**: Property name for contexts/tags (default: "contexts")
+- **Time tracking**: Properties for time estimates and tracking
+- **Archive tag**: Property name for archived tasks (default: "archived")
+
+**Warning**: TaskNotes reads and writes using these property names. Changing them after creating tasks may cause inconsistencies.
+
+### Custom Statuses
+Define custom task statuses with full control over labels, colors, and completion behavior:
+
+- Create unlimited custom statuses
+- Set display labels different from internal values
+- Configure custom colors for visual distinction
+- Mark statuses as "completed" to control task completion behavior
+- Define the cycling order when clicking status badges
+- Delete or modify existing statuses (minimum 2 required)
+
+### Custom Priorities  
+Define custom priority levels with weight-based sorting:
+
+- Create unlimited priority levels
+- Set display labels and internal values
+- Configure custom colors for priority indicators
+- Set numeric weights to control sorting order (higher weight = higher priority)
+- Delete or modify existing priorities (minimum 1 required)
+
+### Daily Notes
+- Daily notes folder configuration
+- Custom template file path with Obsidian variable support ({{title}}, {{date}}, {{time}}, etc.)
+- Leave template empty to use built-in default
+
+### Pomodoro Timer
 - Work duration (default: 25 minutes)
 - Short break duration (default: 5 minutes)
 - Long break duration (default: 15 minutes)
