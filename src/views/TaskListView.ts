@@ -202,9 +202,29 @@ export class TaskListView extends ItemView {
         statusFilter.createEl('span', { text: 'Status: ' });
         const statusSelect = statusFilter.createEl('select', { cls: 'status-select' });
         
-        const statuses = ['All', 'Open', 'In progress', 'Done', 'Archived'];
-        statuses.forEach(status => {
-            const option = statusSelect.createEl('option', { value: status.toLowerCase(), text: status });
+        // Create status options from custom statuses
+        const statusOptions = ['All', 'Open (All non-completed)', 'Archived'];
+        
+        // Add custom statuses
+        this.plugin.statusManager.getAllStatuses().forEach(status => {
+            statusOptions.splice(-1, 0, status.label); // Insert before 'Archived'
+        });
+        
+        statusOptions.forEach(statusText => {
+            let value: string;
+            if (statusText === 'All') {
+                value = 'all';
+            } else if (statusText === 'Open (All non-completed)') {
+                value = 'open';
+            } else if (statusText === 'Archived') {
+                value = 'archived';
+            } else {
+                // Find the status config that matches this label
+                const statusConfig = this.plugin.statusManager.getAllStatuses().find(s => s.label === statusText);
+                value = statusConfig ? statusConfig.value : statusText.toLowerCase();
+            }
+            
+            const option = statusSelect.createEl('option', { value, text: statusText });
         });
         
         // Context filter (moved to collapsible section)
@@ -407,16 +427,29 @@ export class TaskListView extends ItemView {
     }
     
     /**
+     * Generate a safe CSS class name from a value
+     */
+    private getSafeCSSClass(prefix: string, value: string): string {
+        return `${prefix}-${value.replace(/[^a-zA-Z0-9-]/g, '-')}`;
+    }
+    
+    /**
      * Format group name for display
      */
     private formatGroupName(groupName: string): string {
+        // Check if it's a priority value
+        const priorityConfig = this.plugin.priorityManager.getPriorityConfig(groupName);
+        if (priorityConfig) {
+            return `${priorityConfig.label} priority`;
+        }
+        
+        // Check if it's a status value  
+        const statusConfig = this.plugin.statusManager.getStatusConfig(groupName);
+        if (statusConfig) {
+            return statusConfig.label;
+        }
+        
         switch (groupName) {
-            case 'high':
-                return 'High priority';
-            case 'normal':
-                return 'Normal priority';
-            case 'low':
-                return 'Low priority';
             case 'all':
                 return 'All tasks';
             default:
@@ -445,13 +478,23 @@ export class TaskListView extends ItemView {
                 ? getEffectiveTaskStatus(task, this.plugin.selectedDate)
                 : task.status;
             
+            const priorityClass = this.getSafeCSSClass('priority', task.priority);
             const taskItem = container.createDiv({ 
-                cls: `task-item priority-${task.priority} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''} ${task.recurrence ? 'task-recurring' : ''} tasknotes-card`
+                cls: `task-item ${priorityClass} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''} ${task.recurrence ? 'task-recurring' : ''} tasknotes-card`
             });
             
             // Store reference to this task element for future updates
             taskItem.dataset.taskPath = task.path;
             this.taskElements.set(task.path, taskItem);
+            
+            // Get priority configuration for styling and interactions
+            const priorityConfig = this.plugin.priorityManager.getPriorityConfig(task.priority);
+            
+            // Apply priority color for hover border styling
+            if (priorityConfig) {
+                taskItem.dataset.priorityColor = priorityConfig.color;
+                taskItem.style.setProperty('--current-priority-color', priorityConfig.color);
+            }
             
             // Create header row (title and metadata)
             const taskHeader = taskItem.createDiv({ cls: 'task-header tasknotes-card-header' });
@@ -463,14 +506,21 @@ export class TaskListView extends ItemView {
             const titleContainer = taskInfo.createDiv({ cls: 'task-title-container' });
             
             // Priority indicator - clickable
+            const priorityLabel = priorityConfig?.label || task.priority;
+            
             const priorityIndicator = titleContainer.createEl('button', { 
-                cls: `task-priority-indicator priority-${task.priority} clickable`,
+                cls: `task-priority-indicator ${priorityClass} clickable`,
                 attr: {
-                    'aria-label': `Priority: ${task.priority}. Click to change`,
+                    'aria-label': `Priority: ${priorityLabel}. Click to change`,
                     'title': 'Click to change priority',
                     'type': 'button'
                 }
             });
+            
+            // Apply custom priority color
+            if (priorityConfig) {
+                priorityIndicator.style.backgroundColor = priorityConfig.color;
+            }
             
             // Add click handler for priority indicator
             priorityIndicator.addEventListener('click', async (e) => {
@@ -479,13 +529,11 @@ export class TaskListView extends ItemView {
                 // Get fresh task data from cache
                 const currentTask = this.getTaskFromCache(task.path) || task;
                 
-                // Cycle through priorities: high -> normal -> low -> high
-                const priorityCycle = ['high', 'normal', 'low'];
-                const currentIndex = priorityCycle.indexOf(currentTask.priority);
-                const nextPriority = priorityCycle[(currentIndex + 1) % priorityCycle.length];
+                // Use PriorityManager to get next priority
+                const nextPriority = this.plugin.priorityManager.getNextPriority(currentTask.priority);
                 
                 const originalPriority = currentTask.priority;
-                const updatedTask = { ...currentTask, priority: nextPriority as 'low' | 'normal' | 'high' };
+                const updatedTask = { ...currentTask, priority: nextPriority };
                 
                 // Optimistic UI update
                 this.updateTaskElementInDOM(currentTask.path, updatedTask);
@@ -659,16 +707,25 @@ export class TaskListView extends ItemView {
             });
             
             // Status badge - clickable for non-recurring tasks (in footer)
+            const statusClass = this.getSafeCSSClass('task-status', effectiveStatus);
+            const statusConfig = this.plugin.statusManager.getStatusConfig(effectiveStatus);
+            const statusLabel = statusConfig?.label || effectiveStatus;
+            
             const statusBadge = dueDateSection.createEl('button', {
-                cls: `task-status task-status-${effectiveStatus.replace(/\s+/g, '-').toLowerCase()} ${task.recurrence ? 'recurring-status' : ''} ${!task.recurrence ? 'clickable' : ''}`,
-                text: effectiveStatus,
+                cls: `task-status ${statusClass} ${task.recurrence ? 'recurring-status' : ''} ${!task.recurrence ? 'clickable' : ''}`,
+                text: statusLabel,
                 attr: {
-                    'aria-label': `Change status: ${effectiveStatus}`,
+                    'aria-label': `Change status: ${statusLabel}`,
                     'title': task.recurrence ? `Status for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}` : 'Click to change status',
                     'type': 'button',
                     'disabled': task.recurrence ? 'true' : null
                 }
             });
+            
+            // Apply custom status color
+            if (statusConfig) {
+                statusBadge.style.backgroundColor = statusConfig.color;
+            }
             
             // Add click handler for status badge (non-recurring tasks only)
             if (!task.recurrence) {
@@ -678,16 +735,14 @@ export class TaskListView extends ItemView {
                     // Get fresh task data from cache
                     const currentTask = this.getTaskFromCache(task.path) || task;
                     
-                    // Cycle through statuses: open -> in-progress -> done -> open
-                    const statusCycle = ['open', 'in-progress', 'done'];
-                    const currentIndex = statusCycle.indexOf(currentTask.status.toLowerCase());
-                    const nextStatus = statusCycle[(currentIndex + 1) % statusCycle.length];
+                    // Use StatusManager to get next status
+                    const nextStatus = this.plugin.statusManager.getNextStatus(currentTask.status);
                     
                     const originalStatus = currentTask.status;
                     const updatedTask = { ...currentTask, status: nextStatus };
                     
-                    // Update completedDate
-                    if (nextStatus === 'done') {
+                    // Update completedDate based on whether new status is completed
+                    if (this.plugin.statusManager.isCompletedStatus(nextStatus)) {
                         updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
                     } else {
                         updatedTask.completedDate = undefined;
@@ -744,12 +799,13 @@ export class TaskListView extends ItemView {
             if (task.recurrence) {
                 const recurringSection = taskFooter.createDiv({ cls: 'recurring-section' });
                 
+                const isCompleted = this.plugin.statusManager.isCompletedStatus(effectiveStatus);
                 const toggleButton = recurringSection.createEl('button', { 
-                    cls: `task-toggle-button ${effectiveStatus === 'done' ? 'mark-incomplete' : 'mark-complete'}`,
-                    text: effectiveStatus === 'done' ? 'Mark incomplete' : 'Mark complete',
+                    cls: `task-toggle-button ${isCompleted ? 'mark-incomplete' : 'mark-complete'}`,
+                    text: isCompleted ? 'Mark incomplete' : 'Mark complete',
                     attr: {
-                        'aria-label': `${effectiveStatus === 'done' ? 'Mark task incomplete' : 'Mark task complete'} for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}`,
-                        'aria-pressed': (effectiveStatus === 'done').toString()
+                        'aria-label': `${isCompleted ? 'Mark task incomplete' : 'Mark task complete'} for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}`,
+                        'aria-pressed': isCompleted.toString()
                     }
                 });
                 
@@ -766,7 +822,7 @@ export class TaskListView extends ItemView {
                         : currentTask.status;
                     
                     try {
-                        const currentlyComplete = currentEffectiveStatus === 'done';
+                        const currentlyComplete = this.plugin.statusManager.isCompletedStatus(currentEffectiveStatus);
                         const newComplete = !currentlyComplete;
                         
                         const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
@@ -841,8 +897,8 @@ export class TaskListView extends ItemView {
         // Sort with tasks due on selected date first, then by normal sort criteria
         tasks.sort((a, b) => {
             // First, put completed tasks at the bottom
-            const aIsDone = a.status.toLowerCase() === 'done';
-            const bIsDone = b.status.toLowerCase() === 'done';
+            const aIsDone = this.plugin.statusManager.isCompletedStatus(a.status);
+            const bIsDone = this.plugin.statusManager.isCompletedStatus(b.status);
             
             if (aIsDone && !bIsDone) return 1;
             if (!aIsDone && bIsDone) return -1;
@@ -863,9 +919,8 @@ export class TaskListView extends ItemView {
             if (a.due && !b.due) return -1;
             if (!a.due && b.due) return 1;
             
-            // Then sort by priority
-            const priorityOrder = { high: 0, normal: 1, low: 2 };
-            return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
+            // Then sort by priority using PriorityManager
+            return this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
         });
     }
     
@@ -902,9 +957,8 @@ export class TaskListView extends ItemView {
                 if (a.due && !b.due) return -1;
                 if (!a.due && b.due) return 1;
                 
-                // Then sort by priority
-                const priorityOrder = { high: 0, normal: 1, low: 2 };
-                return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
+                // Then sort by priority using PriorityManager
+                return this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
             });
             
             // Update cache and timestamp - we need a fresh cache 
@@ -940,8 +994,10 @@ export class TaskListView extends ItemView {
         
         tasks.forEach(task => {
             if (task.contexts) {
-                task.contexts.forEach(context => {
-                    if (context.trim()) {
+                // Ensure contexts is always treated as an array
+                const contextsArray = Array.isArray(task.contexts) ? task.contexts : [task.contexts];
+                contextsArray.forEach(context => {
+                    if (typeof context === 'string' && context.trim()) {
                         contextsSet.add(context.trim());
                     }
                 });
@@ -1038,22 +1094,34 @@ export class TaskListView extends ItemView {
                 ? getEffectiveTaskStatus(updatedTask, this.plugin.selectedDate)
                 : updatedTask.status;
             
-            // Format display text properly
-            let displayStatus = effectiveStatus;
-            if (effectiveStatus === 'in-progress') {
-                displayStatus = 'In progress';
-            } else {
-                displayStatus = effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1);
-            }
+            const statusClass = this.getSafeCSSClass('task-status', effectiveStatus);
+            const statusConfig = this.plugin.statusManager.getStatusConfig(effectiveStatus);
+            const statusLabel = statusConfig?.label || effectiveStatus;
             
-            statusBadge.className = `task-status task-status-${effectiveStatus.replace(/\s+/g, '-').toLowerCase()} ${updatedTask.recurrence ? 'recurring-status' : ''} ${!updatedTask.recurrence ? 'clickable' : ''}`;
-            statusBadge.textContent = displayStatus;
+            statusBadge.className = `task-status ${statusClass} ${updatedTask.recurrence ? 'recurring-status' : ''} ${!updatedTask.recurrence ? 'clickable' : ''}`;
+            statusBadge.textContent = statusLabel;
+            
+            // Apply custom status color
+            if (statusConfig) {
+                statusBadge.style.backgroundColor = statusConfig.color;
+            }
         }
         
         // Update priority indicator
         const priorityIndicator = taskElement.querySelector('.task-priority-indicator') as HTMLElement;
         if (priorityIndicator) {
-            priorityIndicator.className = `task-priority-indicator priority-${updatedTask.priority} clickable`;
+            const priorityClass = this.getSafeCSSClass('priority', updatedTask.priority);
+            const priorityConfig = this.plugin.priorityManager.getPriorityConfig(updatedTask.priority);
+            priorityIndicator.className = `task-priority-indicator ${priorityClass} clickable`;
+            
+            // Apply custom priority color
+            if (priorityConfig) {
+                priorityIndicator.style.backgroundColor = priorityConfig.color;
+                
+                // Update hover border styling on the task item
+                taskElement.dataset.priorityColor = priorityConfig.color;
+                taskElement.style.setProperty('--current-priority-color', priorityConfig.color);
+            }
         }
         
         // Update archive status
@@ -1148,7 +1216,8 @@ export class TaskListView extends ItemView {
             (updatedTask.recurrence && isRecurringTaskDueOn(updatedTask, this.plugin.selectedDate))
         );
         
-        taskElement.className = `task-item priority-${updatedTask.priority} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${updatedTask.archived ? 'task-archived' : ''} ${updatedTask.recurrence ? 'task-recurring' : ''} tasknotes-card`;
+        const priorityClass = this.getSafeCSSClass('priority', updatedTask.priority);
+        taskElement.className = `task-item ${priorityClass} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${updatedTask.archived ? 'task-archived' : ''} ${updatedTask.recurrence ? 'task-recurring' : ''} tasknotes-card`;
         
         // Add visual feedback for the update
         taskElement.classList.add('task-updated');
@@ -1185,10 +1254,7 @@ export class TaskListView extends ItemView {
         const sortedTasks = [...tasks].sort((a, b) => {
             switch (this.sortKey) {
                 case 'priority':
-                    const priorityOrder = { high: 0, normal: 1, low: 2 };
-                    const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 1;
-                    const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 1;
-                    return aPriority - bPriority;
+                    return this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
                 
                 case 'title':
                     return a.title.localeCompare(b.title);
@@ -1248,13 +1314,17 @@ export class TaskListView extends ItemView {
                 
                 case 'context':
                     if (task.contexts && task.contexts.length > 0) {
+                        // Ensure contexts is an array
+                        const contextsArray = Array.isArray(task.contexts) ? task.contexts : [task.contexts];
                         // For tasks with multiple contexts, create separate entries
-                        task.contexts.forEach(context => {
-                            const contextKey = context.trim();
-                            if (!grouped.has(contextKey)) {
-                                grouped.set(contextKey, []);
+                        contextsArray.forEach(context => {
+                            if (typeof context === 'string') {
+                                const contextKey = context.trim();
+                                if (!grouped.has(contextKey)) {
+                                    grouped.set(contextKey, []);
+                                }
+                                grouped.get(contextKey)!.push(task);
                             }
-                            grouped.get(contextKey)!.push(task);
                         });
                         return; // Skip the default grouping below
                     } else {
@@ -1316,9 +1386,15 @@ export class TaskListView extends ItemView {
             
             if (selectedStatus === 'all') {
                 filteredTasks = nonArchivedTasks;
-            } else {
+            } else if (selectedStatus === 'open') {
+                // Show all non-completed tasks
                 filteredTasks = nonArchivedTasks.filter(task => 
-                    task.status.toLowerCase() === selectedStatus
+                    !this.plugin.statusManager.isCompletedStatus(task.status)
+                );
+            } else {
+                // Show tasks with specific status value
+                filteredTasks = nonArchivedTasks.filter(task => 
+                    task.status === selectedStatus
                 );
             }
         }
@@ -1330,9 +1406,12 @@ export class TaskListView extends ItemView {
                     return false; // Task has no contexts, exclude it
                 }
                 
+                // Ensure contexts is an array
+                const contextsArray = Array.isArray(task.contexts) ? task.contexts : [task.contexts];
+                
                 // Check if task has any of the selected contexts
-                return task.contexts.some(context => 
-                    this.selectedContexts.has(context.trim())
+                return contextsArray.some(context => 
+                    typeof context === 'string' && this.selectedContexts.has(context.trim())
                 );
             });
         }

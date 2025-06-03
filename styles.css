@@ -1253,6 +1253,11 @@ button.processing::after {
     transform: scaleX(1);
 }
 
+/* Priority-based top border on hover - for custom priority colors */
+.task-item[data-priority-color]:hover {
+    border-top: 3px solid var(--current-priority-color, var(--interactive-accent));
+}
+
 /* Task update animation */
 .task-item.task-updated {
     animation: taskUpdate 1.5s ease;

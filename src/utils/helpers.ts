@@ -1,8 +1,9 @@
 import { normalizePath, TFile, Vault } from 'obsidian';
 import { format } from 'date-fns';
-import { TimeInfo } from '../types';
+import { TimeInfo, TaskInfo } from '../types';
 import * as YAML from 'yaml';
 import { YAMLCache } from './YAMLCache';
+import { FieldMapper } from '../services/FieldMapper';
 
 /**
  * Creates a debounced version of a function
@@ -104,6 +105,66 @@ export function updateYamlFrontmatter<T = any>(content: string, key: string, upd
 	
 	// Update the key
 	yamlObj[key] = updateFn(yamlObj[key] as T | undefined);
+	
+	// Stringify the frontmatter
+	const updatedFrontmatter = YAML.stringify(yamlObj);
+	
+	// Return the updated content
+	return `---\n${updatedFrontmatter}---${restOfContent}`;
+}
+
+/**
+ * Updates task properties in content using field mapping
+ */
+export function updateTaskProperty(
+	content: string, 
+	propertyUpdates: Partial<TaskInfo>, 
+	fieldMapper?: FieldMapper
+): string {
+	// Check if the content has YAML frontmatter
+	if (!content.startsWith('---')) {
+		// If not, create new frontmatter
+		const yamlObj: Record<string, any> = {};
+		
+		if (fieldMapper) {
+			// Use field mapper to create frontmatter
+			const mappedFrontmatter = fieldMapper.mapToFrontmatter(propertyUpdates);
+			Object.assign(yamlObj, mappedFrontmatter);
+		} else {
+			// Use legacy field names
+			Object.assign(yamlObj, propertyUpdates);
+		}
+		
+		const yamlStr = YAML.stringify(yamlObj);
+		return `---\n${yamlStr}---\n\n${content}`;
+	}
+	
+	// Find the end of the frontmatter
+	const endOfFrontmatter = content.indexOf('---', 3);
+	if (endOfFrontmatter === -1) return content;
+	
+	// Extract the frontmatter
+	const frontmatter = content.substring(3, endOfFrontmatter);
+	const restOfContent = content.substring(endOfFrontmatter + 3); // Skip the closing ---
+	
+	// Parse the frontmatter
+	let yamlObj: Record<string, any> = {};
+	try {
+		yamlObj = YAML.parse(frontmatter) || {};
+	} catch (e) {
+		console.error('Error parsing YAML frontmatter:', e);
+		return content;
+	}
+	
+	// Update properties
+	if (fieldMapper) {
+		// Use field mapper to update properties
+		const mappedUpdates = fieldMapper.mapToFrontmatter(propertyUpdates);
+		Object.assign(yamlObj, mappedUpdates);
+	} else {
+		// Use legacy field names
+		Object.assign(yamlObj, propertyUpdates);
+	}
 	
 	// Stringify the frontmatter
 	const updatedFrontmatter = YAML.stringify(yamlObj);
@@ -242,34 +303,13 @@ export function isSameDay(date1: Date, date2: Date): boolean {
 }
 
 /**
- * Extracts task information from a task file's content
+ * Extracts task information from a task file's content using field mapping
  */
-export function extractTaskInfo(content: string, path: string): { 
-	title: string, 
-	status: string, 
-	priority: string, 
-	due?: string, 
+export function extractTaskInfo(
+	content: string, 
 	path: string, 
-	archived: boolean, 
-	tags?: string[],
-	contexts?: string[],
-	recurrence?: {
-		frequency: 'daily' | 'weekly' | 'monthly' | 'yearly',
-		days_of_week?: string[],
-		day_of_month?: number,
-		month_of_year?: number
-	},
-	complete_instances?: string[],
-	completedDate?: string,
-	timeEstimate?: number,
-	timeSpent?: number,
-	timeEntries?: {
-		startTime: string,
-		endTime?: string,
-		duration?: number,
-		description?: string
-	}[]
-} | null {
+	fieldMapper?: FieldMapper
+): TaskInfo | null {
 	// Try to extract task info from frontmatter
 	if (content.startsWith('---')) {
 		const endOfFrontmatter = content.indexOf('---', 3);
@@ -278,51 +318,76 @@ export function extractTaskInfo(content: string, path: string): {
 			const yaml = YAMLCache.extractFrontmatter(content, path);
 			
 			if (yaml) {
-				// Check if task has archive tag
-				const tags = yaml.tags || [];
-				const archived = Array.isArray(tags) && tags.includes('archive');
-				
-				// Extract recurrence info if present
-				let recurrence = undefined;
-				if (yaml.recurrence && typeof yaml.recurrence === 'object') {
-					recurrence = {
-						frequency: yaml.recurrence.frequency,
-						days_of_week: yaml.recurrence.days_of_week,
-						day_of_month: yaml.recurrence.day_of_month,
-						month_of_year: yaml.recurrence.month_of_year
+				if (fieldMapper) {
+					// Use field mapper to extract task info
+					const mappedTask = fieldMapper.mapFromFrontmatter(yaml, path);
+					
+					// Ensure required fields have defaults
+					const taskInfo: TaskInfo = {
+						title: mappedTask.title || 'Untitled Task',
+						status: mappedTask.status || 'open',
+						priority: mappedTask.priority || 'normal',
+						due: mappedTask.due,
+						path,
+						archived: mappedTask.archived || false,
+						tags: mappedTask.tags || [],
+						contexts: mappedTask.contexts || [],
+						recurrence: mappedTask.recurrence,
+						complete_instances: mappedTask.complete_instances,
+						completedDate: mappedTask.completedDate,
+						timeEstimate: mappedTask.timeEstimate,
+						timeSpent: mappedTask.timeSpent,
+						timeEntries: mappedTask.timeEntries
+					};
+					
+					return taskInfo;
+				} else {
+					// Fallback to legacy field names for backward compatibility
+					const tags = yaml.tags || [];
+					const archived = Array.isArray(tags) && tags.includes('archived');
+					
+					// Extract recurrence info if present
+					let recurrence = undefined;
+					if (yaml.recurrence && typeof yaml.recurrence === 'object') {
+						recurrence = {
+							frequency: yaml.recurrence.frequency,
+							days_of_week: yaml.recurrence.days_of_week,
+							day_of_month: yaml.recurrence.day_of_month,
+							month_of_year: yaml.recurrence.month_of_year
+						};
+					}
+					
+					// Extract complete_instances array if present
+					let complete_instances = undefined;
+					if (yaml.complete_instances && Array.isArray(yaml.complete_instances)) {
+						complete_instances = yaml.complete_instances;
+					}
+					
+					// Extract contexts
+					const contexts = yaml.contexts || [];
+					
+					return {
+						title: yaml.title || 'Untitled Task',
+						status: yaml.status || 'open',
+						priority: yaml.priority || 'normal',
+						due: yaml.due,
+						path,
+						archived,
+						tags: Array.isArray(tags) ? [...tags] : [],
+						contexts: Array.isArray(contexts) ? [...contexts] : [],
+						recurrence,
+						complete_instances,
+						completedDate: yaml.completedDate,
+						timeEstimate: yaml.timeEstimate,
+						timeSpent: yaml.timeSpent,
+						timeEntries: yaml.timeEntries?.map((entry: any) => ({
+							start: entry.start || entry.startTime,
+							end: entry.end || entry.endTime,
+							duration: entry.duration,
+							description: entry.description
+						}))
 					};
 				}
-				
-				// Extract complete_instances array if present
-				let complete_instances = undefined;
-				if (yaml.complete_instances && Array.isArray(yaml.complete_instances)) {
-					complete_instances = yaml.complete_instances;
-				}
-				
-				// Extract contexts
-				const contexts = yaml.contexts || [];
-				
-				return {
-					title: yaml.title || 'Untitled Task',
-					status: yaml.status || 'open',
-					priority: yaml.priority || 'normal',
-					due: yaml.due,
-					path,
-					archived,
-					tags: Array.isArray(tags) ? [...tags] : [],
-					contexts: Array.isArray(contexts) ? [...contexts] : [],
-					recurrence,
-					complete_instances,
-					completedDate: yaml.completedDate,
-					timeEstimate: yaml.timeEstimate,
-					timeSpent: yaml.timeSpent,
-					timeEntries: yaml.timeEntries?.map((entry: any) => ({
-						start: entry.start || entry.startTime,
-						end: entry.end || entry.endTime,
-						duration: entry.duration,
-						description: entry.description
-					}))
-				};
 			}
 		}
 	}

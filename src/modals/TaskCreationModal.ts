@@ -11,8 +11,8 @@ export class TaskCreationModal extends Modal {
 	title: string = '';
 	details: string = '';
 	dueDate: string = '';
-	priority: 'low' | 'normal' | 'high' = 'normal';
-	status: 'open' | 'in-progress' | 'done' = 'open';
+	priority: string = 'normal';
+	status: string = 'open';
 	contexts: string = '';
 	tags: string = '';
 	timeEstimate: number = 0;
@@ -188,22 +188,22 @@ export class TaskCreationModal extends Modal {
 		this.createFormGroup(contentEl, 'Priority', (container) => {
 			const select = container.createEl('select');
 			
-			const options = [
-				{ value: 'low', text: 'Low' },
-				{ value: 'normal', text: 'Normal' },
-				{ value: 'high', text: 'High' }
-			];
+			// Get custom priorities ordered by weight (highest first)
+			const priorities = this.plugin.priorityManager.getPrioritiesByWeight();
 			
-			options.forEach(option => {
-				const optEl = select.createEl('option', { value: option.value, text: option.text });
-				if (option.value === this.plugin.settings.defaultTaskPriority) {
+			priorities.forEach(priorityConfig => {
+				const optEl = select.createEl('option', { 
+					value: priorityConfig.value, 
+					text: priorityConfig.label 
+				});
+				if (priorityConfig.value === this.plugin.settings.defaultTaskPriority) {
 					optEl.selected = true;
-					this.priority = option.value as 'low' | 'normal' | 'high';
+					this.priority = priorityConfig.value;
 				}
 			});
 			
 			select.addEventListener('change', (e) => {
-				this.priority = (e.target as HTMLSelectElement).value as 'low' | 'normal' | 'high';
+				this.priority = (e.target as HTMLSelectElement).value;
 				this.updateFilenamePreview();
 			});
 		});
@@ -212,22 +212,22 @@ export class TaskCreationModal extends Modal {
 		this.createFormGroup(contentEl, 'Status', (container) => {
 			const select = container.createEl('select');
 			
-			const statusOptions = [
-				{ value: 'open', text: 'Open' },
-				{ value: 'in-progress', text: 'In progress' },
-				{ value: 'done', text: 'Done' }
-			];
+			// Get custom statuses ordered by their order field
+			const statuses = this.plugin.statusManager.getStatusesByOrder();
 			
-			statusOptions.forEach(option => {
-				const optEl = select.createEl('option', { value: option.value, text: option.text });
-				if (option.value === this.plugin.settings.defaultTaskStatus) {
+			statuses.forEach(statusConfig => {
+				const optEl = select.createEl('option', { 
+					value: statusConfig.value, 
+					text: statusConfig.label 
+				});
+				if (statusConfig.value === this.plugin.settings.defaultTaskStatus) {
 					optEl.selected = true;
-					this.status = option.value as 'open' | 'in-progress' | 'done';
+					this.status = statusConfig.value;
 				}
 			});
 			
 			select.addEventListener('change', (e) => {
-				this.status = (e.target as HTMLSelectElement).value as 'open' | 'in-progress' | 'done';
+				this.status = (e.target as HTMLSelectElement).value;
 				this.updateFilenamePreview();
 			});
 		});
@@ -707,64 +707,81 @@ export class TaskCreationModal extends Modal {
 					.filter(context => context.length > 0);
 			}
 			
-			// Create the YAML frontmatter
-			const yaml: Partial<TaskFrontmatter> = {
+			// Create task info object
+			const taskInfo: Partial<TaskInfo> = {
 				title: this.title,
-				dateCreated: format(now, "yyyy-MM-dd'T'HH:mm:ss"),
-				dateModified: format(now, "yyyy-MM-dd'T'HH:mm:ss"),
 				status: this.status,
-				tags: tagsArray,
 				priority: this.priority,
+				tags: tagsArray,
 			};
 			
-			// Add completedDate if status is done
-			if (this.status === 'done') {
-				yaml.completedDate = format(now, 'yyyy-MM-dd');
+			// Add completedDate if status is completed
+			if (this.plugin.statusManager.isCompletedStatus(this.status)) {
+				taskInfo.completedDate = format(now, 'yyyy-MM-dd');
 			}
 			
-			// Add optional fields
+			// Use field mapper to create the YAML frontmatter
+			const yaml = this.plugin.fieldMapper.mapToFrontmatter(taskInfo);
+			
+			// Add standard fields that aren't mapped
+			yaml.dateCreated = format(now, "yyyy-MM-dd'T'HH:mm:ss");
+			yaml.dateModified = format(now, "yyyy-MM-dd'T'HH:mm:ss");
+			
+			// Add optional fields through field mapping
 			if (this.dueDate) {
-				yaml.due = this.dueDate;
+				taskInfo.due = this.dueDate;
 			}
 			
 			if (contextsArray.length > 0) {
-				yaml.contexts = contextsArray;
+				taskInfo.contexts = contextsArray;
 			}
 			
 			if (this.timeEstimate > 0) {
-				yaml.timeEstimate = this.timeEstimate;
-				yaml.timeSpent = 0;
-				yaml.timeEntries = [];
+				taskInfo.timeEstimate = this.timeEstimate;
+				taskInfo.timeSpent = 0;
+				taskInfo.timeEntries = [];
 			}
+			
+			// Re-map with additional fields
+			const finalYaml = this.plugin.fieldMapper.mapToFrontmatter(taskInfo);
+			
+			// Preserve standard fields
+			finalYaml.dateCreated = yaml.dateCreated;
+			finalYaml.dateModified = yaml.dateModified;
 			
 			// Add recurrence info if specified
 			if (this.recurrence !== 'none') {
-				yaml.recurrence = {
+				taskInfo.recurrence = {
 					frequency: this.recurrence
 				};
 				
 				if (this.recurrence === 'weekly' && this.daysOfWeek.length > 0) {
-					yaml.recurrence.days_of_week = this.daysOfWeek;
+					taskInfo.recurrence.days_of_week = this.daysOfWeek;
 				}
 				
 				if (this.recurrence === 'monthly' && this.dayOfMonth) {
-					yaml.recurrence.day_of_month = parseInt(this.dayOfMonth);
+					taskInfo.recurrence.day_of_month = parseInt(this.dayOfMonth);
 				}
 				
 				if (this.recurrence === 'yearly') {
 					if (this.dayOfMonth) {
-						yaml.recurrence.day_of_month = parseInt(this.dayOfMonth);
+						taskInfo.recurrence.day_of_month = parseInt(this.dayOfMonth);
 					}
 					if (this.monthOfYear) {
-						yaml.recurrence.month_of_year = parseInt(this.monthOfYear);
+						taskInfo.recurrence.month_of_year = parseInt(this.monthOfYear);
 					}
 				}
 				
-				yaml.complete_instances = [];
+				taskInfo.complete_instances = [];
 			}
 			
+			// Create final YAML with all fields mapped
+			const completeYaml = this.plugin.fieldMapper.mapToFrontmatter(taskInfo);
+			completeYaml.dateCreated = format(now, "yyyy-MM-dd'T'HH:mm:ss");
+			completeYaml.dateModified = format(now, "yyyy-MM-dd'T'HH:mm:ss");
+			
 			// Prepare the file content
-			const content = `---\n${YAML.stringify(yaml)}---\n\n# ${this.title}\n\n${this.details}`;
+			const content = `---\n${YAML.stringify(completeYaml)}---\n\n# ${this.title}\n\n${this.details}`;
 			
 			// Create the file
 			await this.app.vault.create(taskFilePath, content);

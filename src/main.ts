@@ -31,11 +31,15 @@ import {
 	ensureFolderExists, 
 	generateDailyNoteTemplate,
 	updateYamlFrontmatter,
-	extractTaskInfo
+	extractTaskInfo,
+	updateTaskProperty
 } from './utils/helpers';
 import { EventEmitter } from './utils/EventEmitter';
 import { FileIndexer } from './utils/FileIndexer';
 import { YAMLCache } from './utils/YAMLCache';
+import { FieldMapper } from './services/FieldMapper';
+import { StatusManager } from './services/StatusManager';
+import { PriorityManager } from './services/PriorityManager';
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -52,8 +56,18 @@ export default class TaskNotesPlugin extends Plugin {
 	// Pomodoro service
 	pomodoroService: PomodoroService;
 	
+	// Customization services
+	fieldMapper: FieldMapper;
+	statusManager: StatusManager;
+	priorityManager: PriorityManager;
+	
 	async onload() {
 		await this.loadSettings();
+		
+		// Initialize customization services
+		this.fieldMapper = new FieldMapper(this.settings.fieldMapping);
+		this.statusManager = new StatusManager(this.settings.customStatuses);
+		this.priorityManager = new PriorityManager(this.settings.customPriorities);
 		
 		// Initialize the file indexer
 		this.fileIndexer = new FileIndexer(
@@ -61,12 +75,16 @@ export default class TaskNotesPlugin extends Plugin {
 			this.settings.taskTag,
 			this.settings.excludedFolders,
 			this.settings.dailyNotesFolder,
-			this.settings.dailyNoteTemplate
+			this.settings.dailyNoteTemplate,
+			this.fieldMapper
 		);
 		
 		// Initialize Pomodoro service
 		this.pomodoroService = new PomodoroService(this);
 		await this.pomodoroService.initialize();
+		
+		// Inject dynamic styles for custom statuses and priorities
+		this.injectCustomStyles();
 
 		// Register view types
 		this.registerView(
@@ -180,10 +198,22 @@ export default class TaskNotesPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 		
+		// Update customization services with new settings
+		if (this.fieldMapper) {
+			this.fieldMapper.updateMapping(this.settings.fieldMapping);
+		}
+		if (this.statusManager) {
+			this.statusManager.updateStatuses(this.settings.customStatuses);
+		}
+		if (this.priorityManager) {
+			this.priorityManager.updatePriorities(this.settings.customPriorities);
+		}
+		
 		// Update the file indexer with new settings if relevant
 		if (this.fileIndexer) {
-			// Update template path without recreating the entire indexer
+			// Update template path and field mapper without recreating the entire indexer
 			this.fileIndexer.updateDailyNoteTemplatePath(this.settings.dailyNoteTemplate);
+			this.fileIndexer.updateFieldMapper(this.fieldMapper);
 			
 			// Only recreate indexer if core settings changed
 			const coreSettingsChanged = this.fileIndexer.taskTag !== this.settings.taskTag || 
@@ -199,10 +229,14 @@ export default class TaskNotesPlugin extends Plugin {
 					this.settings.taskTag,
 					this.settings.excludedFolders,
 					this.settings.dailyNotesFolder,
-					this.settings.dailyNoteTemplate
+					this.settings.dailyNoteTemplate,
+					this.fieldMapper
 				);
 			}
 		}
+		
+		// Update custom styles
+		this.injectCustomStyles();
 		
 		// If settings have changed, notify views to refresh their data
 		this.notifyDataChanged();
@@ -677,6 +711,32 @@ async generateDailyNoteTemplate(date: Date): Promise<string> {
 	return generateDailyNoteTemplate(date);
 }
 
+/**
+ * Inject dynamic CSS for custom statuses and priorities
+ */
+private injectCustomStyles(): void {
+	// Remove existing custom styles
+	const existingStyle = document.getElementById('tasknotes-custom-styles');
+	if (existingStyle) {
+		existingStyle.remove();
+	}
+	
+	// Generate new styles
+	const statusStyles = this.statusManager.getStatusStyles();
+	const priorityStyles = this.priorityManager.getPriorityStyles();
+	
+	// Create style element
+	const styleEl = document.createElement('style');
+	styleEl.id = 'tasknotes-custom-styles';
+	styleEl.textContent = `
+		${statusStyles}
+		${priorityStyles}
+	`;
+	
+	// Inject into document head
+	document.head.appendChild(styleEl);
+}
+
 	async updateTaskProperty(task: TaskInfo, property: string, value: any, options: { silent?: boolean } = {}): Promise<void> {
 		try {
 			const file = this.app.vault.getAbstractFileByPath(task.path);
@@ -691,29 +751,30 @@ async generateDailyNoteTemplate(date: Date): Promise<string> {
 			
 			// Special handling for status changes - update completedDate in local copy
 			if (property === 'status' && !task.recurrence) {
-				if (value === 'done') {
+				if (this.statusManager.isCompletedStatus(value)) {
 					updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
-				} else if (value === 'open' || value === 'in-progress') {
+				} else {
 					updatedTask.completedDate = undefined;
 				}
 			}
 			
-			// Process the frontmatter
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				// Update the property
-				frontmatter[property] = value;
-				
-				// Special handling for status changes - update completedDate
-				if (property === 'status' && !task.recurrence) {
-					if (value === 'done') {
-						// Set completedDate to today when marking as done
-						frontmatter.completedDate = format(new Date(), 'yyyy-MM-dd');
-					} else if (value === 'open' || value === 'in-progress') {
-						// Clear completedDate when marking as open or in-progress
-						delete frontmatter.completedDate;
-					}
+			// Read current content and use field mapping to update
+			const content = await this.app.vault.read(file);
+			const propertyUpdates: Partial<TaskInfo> = {};
+			(propertyUpdates as any)[property] = value;
+			
+			// Special handling for status changes - update completedDate
+			if (property === 'status' && !task.recurrence) {
+				if (this.statusManager.isCompletedStatus(value)) {
+					propertyUpdates.completedDate = format(new Date(), 'yyyy-MM-dd');
+				} else {
+					propertyUpdates.completedDate = undefined;
 				}
-			});
+			}
+			
+			// Use field mapping to update the content
+			const updatedContent = updateTaskProperty(content, propertyUpdates, this.fieldMapper);
+			await this.app.vault.modify(file, updatedContent);
 			
 			// Show a notice (unless silent)
 			if (!options.silent) {
@@ -756,7 +817,7 @@ async generateDailyNoteTemplate(date: Date): Promise<string> {
 		try {
 			if (!task.recurrence) {
 				// Not a recurring task - do regular status toggle
-				const newStatus = task.status === 'done' ? 'open' : 'done';
+				const newStatus = this.statusManager.getNextStatus(task.status);
 				await this.updateTaskProperty(task, 'status', newStatus);
 				return;
 			}
@@ -844,40 +905,23 @@ async generateDailyNoteTemplate(date: Date): Promise<string> {
 			const updatedTask = { ...task };
 			updatedTask.archived = !task.archived;
 			
-			// Process the frontmatter
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				// Make sure tags array exists
-				if (!frontmatter.tags) {
-					frontmatter.tags = [];
-				}
-				
-				// Convert to array if it's not already
-				if (!Array.isArray(frontmatter.tags)) {
-					frontmatter.tags = [frontmatter.tags];
-				}
-				
-				// Toggle archive tag
-				if (task.archived) {
-					// Remove archive tag
-					frontmatter.tags = frontmatter.tags.filter(
-						(tag: string) => tag !== 'archive'
-					);
-				} else {
-					// Add archive tag if not present
-					if (!frontmatter.tags.includes('archive')) {
-						frontmatter.tags.push('archive');
-					}
-				}
-			});
+			// Read current content and use field mapping to update
+			const content = await this.app.vault.read(file);
+			const propertyUpdates: Partial<TaskInfo> = {
+				archived: !task.archived
+			};
+			
+			// Use field mapping to update the content
+			const updatedContent = updateTaskProperty(content, propertyUpdates, this.fieldMapper);
+			await this.app.vault.modify(file, updatedContent);
 			
 			// Show a notice
 			new Notice(task.archived ? 'Task unarchived' : 'Task archived');
 			
 			// Add the updated task to the file indexer's cache
 			if (this.fileIndexer) {
-				// Read the file to get the most up-to-date content
-				const content = await this.app.vault.cachedRead(file);
-				const taskInfo = extractTaskInfo(content, task.path);
+				// Use the updated task info with field mapping
+				const taskInfo = extractTaskInfo(updatedContent, task.path, this.fieldMapper);
 				
 				// Find and update this file in the index
 				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo as TaskInfo);

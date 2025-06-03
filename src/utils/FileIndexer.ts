@@ -1,6 +1,7 @@
 import { TFile, Vault } from 'obsidian';
 import { FileIndex, IndexedFile, TaskInfo, NoteInfo, FileEventHandlers } from '../types';
 import { extractNoteInfo, extractTaskInfo, debounce } from './helpers';
+import { FieldMapper } from '../services/FieldMapper';
 import * as YAML from 'yaml';
 import { YAMLCache } from './YAMLCache';
 
@@ -13,11 +14,12 @@ export class FileIndexer {
     public excludedFolders: string[];
     private dailyNotesPath: string;
     private dailyNoteTemplatePath: string;
+    private fieldMapper: FieldMapper | null = null;
     
     // Store event handlers for cleanup
     private eventHandlers: FileEventHandlers = {};
 
-    constructor(vault: Vault, taskTag: string, excludedFolders: string = '', dailyNotesPath: string = '', dailyNoteTemplatePath: string = '') {
+    constructor(vault: Vault, taskTag: string, excludedFolders: string = '', dailyNotesPath: string = '', dailyNoteTemplatePath: string = '', fieldMapper?: FieldMapper) {
         this.vault = vault;
         this.taskTag = taskTag;
         this.excludedFolders = excludedFolders 
@@ -27,6 +29,7 @@ export class FileIndexer {
         // Normalize daily notes path by removing leading/trailing slashes
         this.dailyNotesPath = dailyNotesPath.replace(/^\/+|\/+$/g, '');
         this.dailyNoteTemplatePath = dailyNoteTemplatePath;
+        this.fieldMapper = fieldMapper || null;
         
         // Register event listeners for file changes
         this.registerFileEvents();
@@ -37,6 +40,13 @@ export class FileIndexer {
      */
     updateDailyNoteTemplatePath(newPath: string) {
         this.dailyNoteTemplatePath = newPath;
+    }
+
+    /**
+     * Update the field mapper (used when settings change)
+     */
+    updateFieldMapper(fieldMapper: FieldMapper) {
+        this.fieldMapper = fieldMapper;
     }
 
     private registerFileEvents() {
@@ -245,7 +255,7 @@ export class FileIndexer {
                         
                         // Use cachedRead for better performance
                         const content = await this.vault.cachedRead(file);
-                        const taskInfo = extractTaskInfo(content, indexedFile.path);
+                        const taskInfo = extractTaskInfo(content, indexedFile.path, this.fieldMapper || undefined);
                         
                         if (taskInfo) {
                             // Cache the result in the index
@@ -471,7 +481,7 @@ export class FileIndexer {
                         if (!(fileObj instanceof TFile)) return null;
                         
                         const content = await this.vault.cachedRead(fileObj);
-                        return extractTaskInfo(content, file.path);
+                        return extractTaskInfo(content, file.path, this.fieldMapper || undefined);
                     } else {
                         return file.cachedInfo as TaskInfo;
                     }

@@ -147,3 +147,56 @@ export interface PomodoroState {
 	currentStreak: number; // consecutive pomodoros
 	totalMinutesToday: number; // total focused minutes today
 }
+
+// Field mapping and customization types
+export interface FieldMapping {
+	title: string;
+	status: string;
+	priority: string;
+	due: string;
+	contexts: string;
+	timeEstimate: string;
+	timeSpent: string;
+	completedDate: string;
+	dateCreated: string;
+	dateModified: string;
+	recurrence: string;
+	archiveTag: string;  // For the archive tag in the tags array
+}
+
+export interface StatusConfig {
+	id: string;           // Unique identifier
+	value: string;        // What gets written to YAML
+	label: string;        // What displays in UI
+	color: string;        // Hex color for UI elements
+	isCompleted: boolean; // Whether this counts as "done"
+	order: number;        // Sort order (for cycling)
+}
+
+export interface PriorityConfig {
+	id: string;          // Unique identifier
+	value: string;       // What gets written to YAML
+	label: string;       // What displays in UI
+	color: string;       // Hex color for indicators
+	weight: number;      // For sorting (higher = more important)
+}
+
+// Template configuration for quick setup
+export interface Template {
+	id: string;
+	name: string;
+	description: string;
+	config: {
+		fieldMapping: Partial<FieldMapping>;
+		customStatuses: StatusConfig[];
+		customPriorities: PriorityConfig[];
+	};
+}
+
+// Configuration export/import
+export interface ExportedConfig {
+	version: string;
+	fieldMapping: FieldMapping;
+	customStatuses: StatusConfig[];
+	customPriorities: PriorityConfig[];
+}

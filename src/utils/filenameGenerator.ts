@@ -4,8 +4,8 @@ import { TaskNotesSettings } from '../settings/settings';
 
 export interface FilenameContext {
     title: string;
-    priority: 'low' | 'normal' | 'high';
-    status: 'open' | 'in-progress' | 'done';
+    priority: string;
+    status: string;
     date?: Date;
 }
 

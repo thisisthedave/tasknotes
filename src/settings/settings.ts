@@ -1,13 +1,16 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import TaskNotesPlugin from '../main';
+import { FieldMapping, StatusConfig, PriorityConfig } from '../types';
+import { StatusManager } from '../services/StatusManager';
+import { PriorityManager } from '../services/PriorityManager';
 
 export interface TaskNotesSettings {
 	dailyNotesFolder: string;
 	tasksFolder: string;  // Now just a default location for new tasks
 	taskTag: string;      // The tag that identifies tasks
 	excludedFolders: string;  // Comma-separated list of folders to exclude from Notes tab
-	defaultTaskPriority: 'low' | 'normal' | 'high';
-	defaultTaskStatus: 'open' | 'in-progress' | 'done';
+	defaultTaskPriority: string;  // Changed to string to support custom priorities
+	defaultTaskStatus: string;    // Changed to string to support custom statuses
 	taskOrgFiltersCollapsed: boolean;  // Save collapse state of task organization filters
 	// Daily note settings
 	dailyNoteTemplate: string; // Path to template file for daily notes
@@ -24,7 +27,80 @@ export interface TaskNotesSettings {
 	pomodoroNotifications: boolean;
 	pomodoroSoundEnabled: boolean;
 	pomodoroSoundVolume: number; // 0-100
+	// Customization settings
+	fieldMapping: FieldMapping;
+	customStatuses: StatusConfig[];
+	customPriorities: PriorityConfig[];
 }
+
+// Default field mapping maintains backward compatibility
+export const DEFAULT_FIELD_MAPPING: FieldMapping = {
+	title: 'title',
+	status: 'status',
+	priority: 'priority',
+	due: 'due',
+	contexts: 'contexts',
+	timeEstimate: 'timeEstimate',
+	timeSpent: 'timeSpent',
+	completedDate: 'completedDate',
+	dateCreated: 'dateCreated',
+	dateModified: 'dateModified',
+	recurrence: 'recurrence',
+	archiveTag: 'archived'
+};
+
+// Default status configuration matches current hardcoded behavior
+export const DEFAULT_STATUSES: StatusConfig[] = [
+	{
+		id: 'open',
+		value: 'open',
+		label: 'Open',
+		color: '#808080',
+		isCompleted: false,
+		order: 1
+	},
+	{
+		id: 'in-progress',
+		value: 'in-progress',
+		label: 'In progress',
+		color: '#0066cc',
+		isCompleted: false,
+		order: 2
+	},
+	{
+		id: 'done',
+		value: 'done',
+		label: 'Done',
+		color: '#00aa00',
+		isCompleted: true,
+		order: 3
+	}
+];
+
+// Default priority configuration matches current hardcoded behavior
+export const DEFAULT_PRIORITIES: PriorityConfig[] = [
+	{
+		id: 'low',
+		value: 'low',
+		label: 'Low',
+		color: '#00aa00',
+		weight: 1
+	},
+	{
+		id: 'normal',
+		value: 'normal',
+		label: 'Normal',
+		color: '#ffaa00',
+		weight: 2
+	},
+	{
+		id: 'high',
+		value: 'high',
+		label: 'High',
+		color: '#ff0000',
+		weight: 3
+	}
+];
 
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	dailyNotesFolder: 'TaskNotes/Daily',
@@ -48,11 +124,17 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	pomodoroAutoStartWork: false,
 	pomodoroNotifications: true,
 	pomodoroSoundEnabled: true,
-	pomodoroSoundVolume: 50
+	pomodoroSoundVolume: 50,
+	// Customization defaults
+	fieldMapping: DEFAULT_FIELD_MAPPING,
+	customStatuses: DEFAULT_STATUSES,
+	customPriorities: DEFAULT_PRIORITIES
 };
 
 export class TaskNotesSettingTab extends PluginSettingTab {
 	plugin: TaskNotesPlugin;
+	private activeTab: string = 'general';
+	private tabContents: Record<string, HTMLElement> = {};
   
 	constructor(app: App, plugin: TaskNotesPlugin) {
 		super(app, plugin);
@@ -63,19 +145,87 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 		
-		// General Settings
-		new Setting(containerEl)
-			.setName('Daily notes folder')
-			.setDesc('Folder where daily notes will be stored')
-			.addText(text => text
-				.setPlaceholder('TaskNotes/Daily')
-				.setValue(this.plugin.settings.dailyNotesFolder)
-				.onChange(async (value) => {
-					this.plugin.settings.dailyNotesFolder = value;
-					await this.plugin.saveSettings();
-				}));
+		// Create tab navigation
+		const tabNav = containerEl.createDiv('settings-tab-nav');
+		tabNav.style.display = 'flex';
+		tabNav.style.borderBottom = '1px solid var(--background-modifier-border)';
+		tabNav.style.marginBottom = '20px';
 		
-		new Setting(containerEl)
+		const tabs = [
+			{ id: 'general', name: 'General' },
+			{ id: 'field-mapping', name: 'Field mapping' },
+			{ id: 'statuses', name: 'Statuses' },
+			{ id: 'priorities', name: 'Priorities' },
+			{ id: 'daily-notes', name: 'Daily notes' },
+			{ id: 'pomodoro', name: 'Pomodoro' }
+		];
+		
+		tabs.forEach(tab => {
+			const tabButton = tabNav.createEl('button', {
+				text: tab.name,
+				cls: this.activeTab === tab.id ? 'settings-tab-button active' : 'settings-tab-button'
+			});
+			
+			tabButton.style.padding = '8px 16px';
+			tabButton.style.border = 'none';
+			tabButton.style.background = this.activeTab === tab.id ? 'var(--interactive-accent)' : 'transparent';
+			tabButton.style.color = this.activeTab === tab.id ? 'var(--text-on-accent)' : 'var(--text-normal)';
+			tabButton.style.cursor = 'pointer';
+			tabButton.style.borderRadius = '4px 4px 0 0';
+			
+			tabButton.addEventListener('click', () => {
+				this.switchTab(tab.id);
+			});
+		});
+		
+		// Create tab content containers
+		const tabContentsEl = containerEl.createDiv('settings-tab-contents');
+		
+		// Create all tab content containers
+		tabs.forEach(tab => {
+			const tabContent = tabContentsEl.createDiv('settings-tab-content');
+			tabContent.style.display = this.activeTab === tab.id ? 'block' : 'none';
+			this.tabContents[tab.id] = tabContent;
+		});
+		
+		this.renderActiveTab();
+	}
+	
+	private switchTab(tabId: string): void {
+		this.activeTab = tabId;
+		this.display(); // Re-render the entire settings tab
+	}
+	
+	private renderActiveTab(): void {
+		// Clear current tab content
+		Object.values(this.tabContents).forEach(content => content.empty());
+		
+		switch (this.activeTab) {
+			case 'general':
+				this.renderGeneralTab();
+				break;
+			case 'field-mapping':
+				this.renderFieldMappingTab();
+				break;
+			case 'statuses':
+				this.renderStatusesTab();
+				break;
+			case 'priorities':
+				this.renderPrioritiesTab();
+				break;
+			case 'daily-notes':
+				this.renderDailyNotesTab();
+				break;
+			case 'pomodoro':
+				this.renderPomodoroTab();
+				break;
+		}
+	}
+	
+	private renderGeneralTab(): void {
+		const container = this.tabContents['general'];
+		
+		new Setting(container)
 			.setName('Default tasks folder')
 			.setDesc('Default folder for new tasks (tasks are identified by tag, not folder)')
 			.addText(text => text
@@ -86,32 +236,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		
-		new Setting(containerEl)
-			.setName('Excluded folders')
-			.setDesc('Comma-separated list of folder paths to exclude from Notes tab (e.g., "Templates,Archive,Attachments")')
-			.addText(text => text
-				.setPlaceholder('Templates,Archive')
-				.setValue(this.plugin.settings.excludedFolders)
-				.onChange(async (value) => {
-					this.plugin.settings.excludedFolders = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Daily note template')
-			.setDesc('Path to template file for daily notes (leave empty to use built-in template). Supports Obsidian template variables like {{title}}, {{date}}, {{date:format}}, {{time}}, etc.')
-			.addText(text => text
-				.setPlaceholder('Templates/Daily Note Template.md')
-				.setValue(this.plugin.settings.dailyNoteTemplate)
-				.onChange(async (value) => {
-					this.plugin.settings.dailyNoteTemplate = value;
-					await this.plugin.saveSettings();
-				}));
-		
-		// Task Settings
-		new Setting(containerEl).setName('Task defaults').setHeading();
-		
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Task tag')
 			.setDesc('Tag that identifies notes as tasks (without #)')
 			.addText(text => text
@@ -122,36 +247,56 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		
-		new Setting(containerEl)
-			.setName('Default task priority')
-			.setDesc('Default priority for new tasks')
-			.addDropdown(dropdown => dropdown
-				.addOption('low', 'Low')
-				.addOption('normal', 'Normal')
-				.addOption('high', 'High')
-				.setValue(this.plugin.settings.defaultTaskPriority)
-				.onChange(async (value: any) => {
-					this.plugin.settings.defaultTaskPriority = value;
+		new Setting(container)
+			.setName('Excluded folders')
+			.setDesc('Comma-separated list of folder paths to exclude from Notes tab')
+			.addText(text => text
+				.setPlaceholder('Templates,Archive')
+				.setValue(this.plugin.settings.excludedFolders)
+				.onChange(async (value) => {
+					this.plugin.settings.excludedFolders = value;
 					await this.plugin.saveSettings();
 				}));
 		
-		new Setting(containerEl)
+		// Task defaults section
+		new Setting(container).setName('Task defaults').setHeading();
+		
+		new Setting(container)
 			.setName('Default task status')
 			.setDesc('Default status for new tasks')
-			.addDropdown(dropdown => dropdown
-				.addOption('open', 'Open')
-				.addOption('in-progress', 'In progress')
-				.addOption('done', 'Done')
-				.setValue(this.plugin.settings.defaultTaskStatus)
-				.onChange(async (value: any) => {
-					this.plugin.settings.defaultTaskStatus = value;
-					await this.plugin.saveSettings();
-				}));
+			.addDropdown(dropdown => {
+				// Populate with custom statuses
+				this.plugin.settings.customStatuses.forEach(status => {
+					dropdown.addOption(status.value, status.label);
+				});
+				return dropdown
+					.setValue(this.plugin.settings.defaultTaskStatus)
+					.onChange(async (value: any) => {
+						this.plugin.settings.defaultTaskStatus = value;
+						await this.plugin.saveSettings();
+					});
+			});
+		
+		new Setting(container)
+			.setName('Default task priority')
+			.setDesc('Default priority for new tasks')
+			.addDropdown(dropdown => {
+				// Populate with custom priorities
+				this.plugin.settings.customPriorities.forEach(priority => {
+					dropdown.addOption(priority.value, priority.label);
+				});
+				return dropdown
+					.setValue(this.plugin.settings.defaultTaskPriority)
+					.onChange(async (value: any) => {
+						this.plugin.settings.defaultTaskPriority = value;
+						await this.plugin.saveSettings();
+					});
+			});
+		
+		// Task filename settings
+		new Setting(container).setName('Task filenames').setHeading();
 
-		// Task Filename Settings
-		new Setting(containerEl).setName('Task filenames').setHeading();
-
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Filename format')
 			.setDesc('How task filenames should be generated')
 			.addDropdown(dropdown => dropdown
@@ -163,28 +308,390 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.onChange(async (value: any) => {
 					this.plugin.settings.taskFilenameFormat = value;
 					await this.plugin.saveSettings();
-					this.updateCustomTemplateVisibility();
+					this.renderActiveTab(); // Re-render to update visibility
 				}));
 
-		const customTemplateSetting = new Setting(containerEl)
-			.setName('Custom filename template')
-			.setDesc('Template for custom filenames. Available variables: {title}, {date}, {time}, {priority}, {status}, {timestamp}, {year}, {month}, {day}, {hour}, {minute}, {second}')
+		if (this.plugin.settings.taskFilenameFormat === 'custom') {
+			new Setting(container)
+				.setName('Custom filename template')
+				.setDesc('Template for custom filenames. Available variables: {title}, {date}, {time}, {priority}, {status}, {timestamp}, etc.')
+				.addText(text => text
+					.setPlaceholder('{date}-{title}')
+					.setValue(this.plugin.settings.customFilenameTemplate)
+					.onChange(async (value) => {
+						this.plugin.settings.customFilenameTemplate = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+	}
+	
+	private renderFieldMappingTab(): void {
+		const container = this.tabContents['field-mapping'];
+		
+		// Warning message
+		const warning = container.createDiv();
+		warning.style.padding = '12px';
+		warning.style.marginBottom = '20px';
+		warning.style.backgroundColor = 'var(--background-modifier-warning)';
+		warning.style.borderRadius = '4px';
+		warning.innerHTML = `
+			<strong>⚠️ Warning:</strong> TaskNotes will read AND write using these property names. 
+			Changing these after creating tasks may cause inconsistencies.
+		`;
+		
+		container.createEl('h3', { text: 'Field mapping' });
+		container.createEl('p', { 
+			text: 'Configure which frontmatter properties TaskNotes should use for each field.'
+		});
+		
+		// Create mapping table
+		const table = container.createEl('table');
+		table.style.width = '100%';
+		table.style.borderCollapse = 'collapse';
+		
+		const header = table.createEl('tr');
+		header.createEl('th', { text: 'TaskNotes field' });
+		header.createEl('th', { text: 'Your property name' });
+		
+		const fieldMappings: Array<[keyof FieldMapping, string]> = [
+			['title', 'Title'],
+			['status', 'Status'],
+			['priority', 'Priority'],
+			['due', 'Due date'],
+			['contexts', 'Contexts'],
+			['timeEstimate', 'Time estimate'],
+			['timeSpent', 'Time spent'],
+			['completedDate', 'Completed date'],
+			['dateCreated', 'Created date'],
+			['dateModified', 'Modified date'],
+			['recurrence', 'Recurrence'],
+			['archiveTag', 'Archive tag']
+		];
+		
+		fieldMappings.forEach(([field, label]) => {
+			const row = table.createEl('tr');
+			const labelCell = row.createEl('td');
+			labelCell.style.padding = '8px';
+			labelCell.style.borderBottom = '1px solid var(--background-modifier-border)';
+			labelCell.textContent = label;
+			
+			const inputCell = row.createEl('td');
+			inputCell.style.padding = '8px';
+			inputCell.style.borderBottom = '1px solid var(--background-modifier-border)';
+			
+			const input = inputCell.createEl('input', {
+				type: 'text',
+				value: this.plugin.settings.fieldMapping[field]
+			});
+			input.style.width = '100%';
+			input.style.padding = '4px';
+			
+			input.addEventListener('change', async () => {
+				this.plugin.settings.fieldMapping[field] = input.value;
+				await this.plugin.saveSettings();
+			});
+		});
+		
+		// Reset button
+		new Setting(container)
+			.setName('Reset to defaults')
+			.setDesc('Reset all field mappings to default values')
+			.addButton(button => button
+				.setButtonText('Reset')
+				.setWarning()
+				.onClick(async () => {
+					this.plugin.settings.fieldMapping = { ...DEFAULT_FIELD_MAPPING };
+					await this.plugin.saveSettings();
+					this.renderActiveTab();
+				}));
+	}
+	
+	private renderStatusesTab(): void {
+		const container = this.tabContents['statuses'];
+		
+		container.createEl('h3', { text: 'Task Statuses' });
+		container.createEl('p', { 
+			text: 'Define the statuses available for your tasks. The order determines the cycling sequence.'
+		});
+		
+		// Status list
+		const statusList = container.createDiv();
+		statusList.style.marginBottom = '20px';
+		
+		this.renderStatusList(statusList);
+		
+		// Add status button
+		new Setting(container)
+			.setName('Add new status')
+			.addButton(button => button
+				.setButtonText('Add Status')
+				.onClick(async () => {
+					const newStatus = StatusManager.createDefaultStatus(this.plugin.settings.customStatuses);
+					this.plugin.settings.customStatuses.push(newStatus);
+					await this.plugin.saveSettings();
+					this.renderActiveTab();
+				}));
+	}
+	
+	private renderStatusList(container: HTMLElement): void {
+		container.empty();
+		
+		const sortedStatuses = [...this.plugin.settings.customStatuses].sort((a, b) => a.order - b.order);
+		
+		sortedStatuses.forEach((status, index) => {
+			const statusRow = container.createDiv();
+			statusRow.style.display = 'flex';
+			statusRow.style.alignItems = 'center';
+			statusRow.style.marginBottom = '12px';
+			statusRow.style.padding = '12px';
+			statusRow.style.border = '1px solid var(--background-modifier-border)';
+			statusRow.style.borderRadius = '4px';
+			
+			// Color indicator
+			const colorIndicator = statusRow.createDiv();
+			colorIndicator.style.width = '20px';
+			colorIndicator.style.height = '20px';
+			colorIndicator.style.borderRadius = '50%';
+			colorIndicator.style.backgroundColor = status.color;
+			colorIndicator.style.marginRight = '12px';
+			colorIndicator.style.flexShrink = '0';
+			
+			// Status value input
+			const valueInput = statusRow.createEl('input', {
+				type: 'text',
+				value: status.value
+			});
+			valueInput.style.marginRight = '12px';
+			valueInput.style.width = '120px';
+			
+			// Status label input
+			const labelInput = statusRow.createEl('input', {
+				type: 'text',
+				value: status.label
+			});
+			labelInput.style.marginRight = '12px';
+			labelInput.style.width = '120px';
+			
+			// Color input
+			const colorInput = statusRow.createEl('input', {
+				type: 'color',
+				value: status.color
+			});
+			colorInput.style.marginRight = '12px';
+			colorInput.style.width = '40px';
+			
+			// Completed checkbox
+			const completedLabel = statusRow.createEl('label');
+			completedLabel.style.marginRight = '12px';
+			completedLabel.style.display = 'flex';
+			completedLabel.style.alignItems = 'center';
+			
+			const completedCheckbox = completedLabel.createEl('input', {
+				type: 'checkbox'
+			});
+			completedCheckbox.checked = status.isCompleted;
+			completedCheckbox.style.marginRight = '4px';
+			
+			completedLabel.createSpan({ text: 'Completed' });
+			
+			// Delete button
+			const deleteButton = statusRow.createEl('button', {
+				text: 'Delete'
+			});
+			deleteButton.style.marginLeft = 'auto';
+			deleteButton.style.backgroundColor = 'var(--interactive-accent-rgb)';
+			deleteButton.style.color = 'var(--text-on-accent)';
+			deleteButton.style.border = 'none';
+			deleteButton.style.padding = '4px 8px';
+			deleteButton.style.borderRadius = '4px';
+			deleteButton.style.cursor = 'pointer';
+			
+			// Event listeners
+			const updateStatus = async () => {
+				status.value = valueInput.value;
+				status.label = labelInput.value;
+				status.color = colorInput.value;
+				status.isCompleted = completedCheckbox.checked;
+				await this.plugin.saveSettings();
+				colorIndicator.style.backgroundColor = status.color;
+			};
+			
+			valueInput.addEventListener('change', updateStatus);
+			labelInput.addEventListener('change', updateStatus);
+			colorInput.addEventListener('change', updateStatus);
+			completedCheckbox.addEventListener('change', updateStatus);
+			
+			deleteButton.addEventListener('click', async () => {
+				if (this.plugin.settings.customStatuses.length <= 2) {
+					alert('You must have at least 2 statuses');
+					return;
+				}
+				
+				const statusIndex = this.plugin.settings.customStatuses.findIndex(s => s.id === status.id);
+				if (statusIndex !== -1) {
+					this.plugin.settings.customStatuses.splice(statusIndex, 1);
+					await this.plugin.saveSettings();
+					this.renderActiveTab();
+				}
+			});
+		});
+	}
+	
+	private renderPrioritiesTab(): void {
+		const container = this.tabContents['priorities'];
+		
+		container.createEl('h3', { text: 'Task priorities' });
+		container.createEl('p', { 
+			text: 'Define the priority levels for your tasks. Higher weight = higher priority.'
+		});
+		
+		// Priority list
+		const priorityList = container.createDiv();
+		priorityList.style.marginBottom = '20px';
+		
+		this.renderPriorityList(priorityList);
+		
+		// Add priority button
+		new Setting(container)
+			.setName('Add new priority')
+			.addButton(button => button
+				.setButtonText('Add Priority')
+				.onClick(async () => {
+					const newPriority = PriorityManager.createDefaultPriority(this.plugin.settings.customPriorities);
+					this.plugin.settings.customPriorities.push(newPriority);
+					await this.plugin.saveSettings();
+					this.renderActiveTab();
+				}));
+	}
+	
+	private renderPriorityList(container: HTMLElement): void {
+		container.empty();
+		
+		const sortedPriorities = [...this.plugin.settings.customPriorities].sort((a, b) => b.weight - a.weight);
+		
+		sortedPriorities.forEach((priority, index) => {
+			const priorityRow = container.createDiv();
+			priorityRow.style.display = 'flex';
+			priorityRow.style.alignItems = 'center';
+			priorityRow.style.marginBottom = '12px';
+			priorityRow.style.padding = '12px';
+			priorityRow.style.border = '1px solid var(--background-modifier-border)';
+			priorityRow.style.borderRadius = '4px';
+			
+			// Color indicator
+			const colorIndicator = priorityRow.createDiv();
+			colorIndicator.style.width = '20px';
+			colorIndicator.style.height = '20px';
+			colorIndicator.style.borderRadius = '50%';
+			colorIndicator.style.backgroundColor = priority.color;
+			colorIndicator.style.marginRight = '12px';
+			colorIndicator.style.flexShrink = '0';
+			
+			// Priority value input
+			const valueInput = priorityRow.createEl('input', {
+				type: 'text',
+				value: priority.value
+			});
+			valueInput.style.marginRight = '12px';
+			valueInput.style.width = '120px';
+			
+			// Priority label input
+			const labelInput = priorityRow.createEl('input', {
+				type: 'text',
+				value: priority.label
+			});
+			labelInput.style.marginRight = '12px';
+			labelInput.style.width = '120px';
+			
+			// Color input
+			const colorInput = priorityRow.createEl('input', {
+				type: 'color',
+				value: priority.color
+			});
+			colorInput.style.marginRight = '12px';
+			colorInput.style.width = '40px';
+			
+			// Weight input
+			const weightInput = priorityRow.createEl('input', {
+				type: 'number',
+				value: priority.weight.toString()
+			});
+			weightInput.style.marginRight = '12px';
+			weightInput.style.width = '80px';
+			
+			// Delete button
+			const deleteButton = priorityRow.createEl('button', {
+				text: 'Delete'
+			});
+			deleteButton.style.marginLeft = 'auto';
+			deleteButton.style.backgroundColor = 'var(--interactive-accent-rgb)';
+			deleteButton.style.color = 'var(--text-on-accent)';
+			deleteButton.style.border = 'none';
+			deleteButton.style.padding = '4px 8px';
+			deleteButton.style.borderRadius = '4px';
+			deleteButton.style.cursor = 'pointer';
+			
+			// Event listeners
+			const updatePriority = async () => {
+				priority.value = valueInput.value;
+				priority.label = labelInput.value;
+				priority.color = colorInput.value;
+				priority.weight = parseInt(weightInput.value) || 0;
+				await this.plugin.saveSettings();
+				colorIndicator.style.backgroundColor = priority.color;
+			};
+			
+			valueInput.addEventListener('change', updatePriority);
+			labelInput.addEventListener('change', updatePriority);
+			colorInput.addEventListener('change', updatePriority);
+			weightInput.addEventListener('change', updatePriority);
+			
+			deleteButton.addEventListener('click', async () => {
+				if (this.plugin.settings.customPriorities.length <= 1) {
+					alert('You must have at least 1 priority');
+					return;
+				}
+				
+				const priorityIndex = this.plugin.settings.customPriorities.findIndex(p => p.id === priority.id);
+				if (priorityIndex !== -1) {
+					this.plugin.settings.customPriorities.splice(priorityIndex, 1);
+					await this.plugin.saveSettings();
+					this.renderActiveTab();
+				}
+			});
+		});
+	}
+	
+	private renderDailyNotesTab(): void {
+		const container = this.tabContents['daily-notes'];
+		
+		new Setting(container)
+			.setName('Daily notes folder')
+			.setDesc('Folder where daily notes will be stored')
 			.addText(text => text
-				.setPlaceholder('{date}-{title}')
-				.setValue(this.plugin.settings.customFilenameTemplate)
+				.setPlaceholder('TaskNotes/Daily')
+				.setValue(this.plugin.settings.dailyNotesFolder)
 				.onChange(async (value) => {
-					this.plugin.settings.customFilenameTemplate = value;
+					this.plugin.settings.dailyNotesFolder = value;
 					await this.plugin.saveSettings();
 				}));
 
-		// Store reference for visibility toggle
-		(this as any).customTemplateSetting = customTemplateSetting;
-		this.updateCustomTemplateVisibility();
-
-		// Pomodoro Settings
-		new Setting(containerEl).setName('Pomodoro timer').setHeading();
-
-		new Setting(containerEl)
+		new Setting(container)
+			.setName('Daily note template')
+			.setDesc('Path to template file for daily notes (leave empty to use built-in template). Supports Obsidian template variables like {{title}}, {{date}}, {{date:format}}, {{time}}, etc.')
+			.addText(text => text
+				.setPlaceholder('Templates/Daily Note Template.md')
+				.setValue(this.plugin.settings.dailyNoteTemplate)
+				.onChange(async (value) => {
+					this.plugin.settings.dailyNoteTemplate = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+	
+	private renderPomodoroTab(): void {
+		const container = this.tabContents['pomodoro'];
+		
+		new Setting(container)
 			.setName('Work duration')
 			.setDesc('Duration of work intervals in minutes')
 			.addText(text => text
@@ -198,7 +705,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					}
 				}));
 
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Short break duration')
 			.setDesc('Duration of short breaks in minutes')
 			.addText(text => text
@@ -212,7 +719,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					}
 				}));
 
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Long break duration')
 			.setDesc('Duration of long breaks in minutes')
 			.addText(text => text
@@ -226,7 +733,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					}
 				}));
 
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Long break interval')
 			.setDesc('Take a long break after this many pomodoros')
 			.addText(text => text
@@ -240,7 +747,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					}
 				}));
 
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Auto-start breaks')
 			.setDesc('Automatically start break timer after work session')
 			.addToggle(toggle => toggle
@@ -250,7 +757,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Auto-start work')
 			.setDesc('Automatically start work timer after break')
 			.addToggle(toggle => toggle
@@ -260,7 +767,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Enable notifications')
 			.setDesc('Show notifications when pomodoro sessions complete')
 			.addToggle(toggle => toggle
@@ -270,7 +777,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Enable sound')
 			.setDesc('Play sound when pomodoro sessions complete')
 			.addToggle(toggle => toggle
@@ -280,7 +787,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(container)
 			.setName('Sound volume')
 			.setDesc('Volume for completion sounds (0-100)')
 			.addSlider(slider => slider
@@ -291,16 +798,5 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					this.plugin.settings.pomodoroSoundVolume = value;
 					await this.plugin.saveSettings();
 				}));
-	}
-
-	private updateCustomTemplateVisibility() {
-		const customSetting = (this as any).customTemplateSetting as Setting;
-		if (customSetting) {
-			if (this.plugin.settings.taskFilenameFormat === 'custom') {
-				customSetting.settingEl.style.display = '';
-			} else {
-				customSetting.settingEl.style.display = 'none';
-			}
-		}
 	}
 }
