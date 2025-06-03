@@ -3,7 +3,7 @@
 	"name": "TaskNotes",
 	"version": "0.7.0",
 	"minAppVersion": "1.0.0",
-	"description": "Comprehensive task and note management with calendar integration for Obsidian.",
+	"description": "Note-based task management with calendar, pomodoro and time-tracking integration.",
 	"author": "Callum Alpass",
 	"authorUrl": "https://github.com/callumalpass",
 	"isDesktopOnly": false
