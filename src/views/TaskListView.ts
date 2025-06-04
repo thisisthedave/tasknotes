@@ -16,6 +16,7 @@ import {
     getEffectiveTaskStatus,
     calculateTotalTimeSpent
 } from '../utils/helpers';
+import { perfMonitor } from '../utils/PerformanceMonitor';
 
 export class TaskListView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -106,15 +107,29 @@ export class TaskListView extends ItemView {
     }
     
     async refresh(forceFullRefresh: boolean = false) {
-        // If forcing a full refresh, clear the caches
-        if (forceFullRefresh) {
-            this.cachedTasks = null;
-            this.lastTasksRefresh = 0;
-        }
-        
-        // Clear and prepare the content element
-        this.contentEl.empty();
-        await this.render();
+        return perfMonitor.measure('task-list-refresh', async () => {
+            // If forcing a full refresh, clear the caches
+            if (forceFullRefresh) {
+                this.cachedTasks = null;
+                this.lastTasksRefresh = 0;
+            }
+            
+            // Save UI state before refresh
+            const taskListContainer = this.contentEl.querySelector('.task-list') as HTMLElement;
+            if (taskListContainer) {
+                this.plugin.uiStateManager.saveState('task-list-scroll', taskListContainer);
+            }
+            
+            // Clear and prepare the content element
+            this.contentEl.empty();
+            await this.render();
+            
+            // Restore UI state after refresh
+            const newTaskListContainer = this.contentEl.querySelector('.task-list') as HTMLElement;
+            if (newTaskListContainer) {
+                this.plugin.uiStateManager.restoreState('task-list-scroll', newTaskListContainer);
+            }
+        });
     }
     
     async render() {
@@ -963,52 +978,77 @@ export class TaskListView extends ItemView {
     }
     
     async getTasksForView(forceRefresh: boolean = false): Promise<TaskInfo[]> {
-        try {
-            // Set loading state
-            this.isTasksLoading = true;
-            this.updateLoadingState();
-            
-            // Use cached tasks if available and not forcing refresh - important for UI stability
-            const now = Date.now();
-            if (!forceRefresh && 
-                this.cachedTasks && 
-                now - this.lastTasksRefresh < this.TASKS_CACHE_TTL) {
-                // Wait a little bit before returning to allow temp UI changes to be visible
-                await new Promise(resolve => setTimeout(resolve, 100));
-                return [...this.cachedTasks]; // Return a copy to prevent modification of cache
-            }
-            
-            // Get fresh tasks if cache expired or forcing refresh
-            // Use the FileIndexer to get task information much more efficiently
-            const tasks = await this.plugin.fileIndexer.getTaskInfoForDate(this.plugin.selectedDate, forceRefresh);
-            
-            // Deduplicate by path - this prevents duplicates if they somehow got into the indexer
-            const uniqueTasks = this.deduplicateTasksByPath(tasks);
-            
-            // Sort tasks by due date, then priority
-            const sortedResult = uniqueTasks.sort((a, b) => {
-                // Sort by due date
-                if (a.due && b.due) {
-                    return new Date(a.due).getTime() - new Date(b.due).getTime();
-                }
-                // Tasks with due dates come before tasks without
-                if (a.due && !b.due) return -1;
-                if (!a.due && b.due) return 1;
+        return perfMonitor.measure('get-tasks-for-view', async () => {
+            try {
+                // Set loading state
+                this.isTasksLoading = true;
+                this.updateLoadingState();
                 
-                // Then sort by priority using PriorityManager
-                return this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
-            });
-            
-            // Update cache and timestamp - we need a fresh cache 
-            this.cachedTasks = [...sortedResult];
-            this.lastTasksRefresh = now;
-            
-            return sortedResult;
-        } finally {
-            // Clear loading state
-            this.isTasksLoading = false;
-            this.updateLoadingState();
-        }
+                // Use cached tasks if available and not forcing refresh - important for UI stability
+                const now = Date.now();
+                if (!forceRefresh && 
+                    this.cachedTasks && 
+                    now - this.lastTasksRefresh < this.TASKS_CACHE_TTL) {
+                    // Wait a little bit before returning to allow temp UI changes to be visible
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    return [...this.cachedTasks]; // Return a copy to prevent modification of cache
+                }
+                
+                // Use request deduplication for cache requests
+                const cacheKey = `tasks-${format(this.plugin.selectedDate, 'yyyy-MM-dd')}-${forceRefresh}`;
+                const tasks = await this.plugin.requestDeduplicator.execute(
+                    cacheKey,
+                    async () => {
+                        // Try unified cache manager first
+                        try {
+                            const cachedTasks = await this.plugin.cacheManager.getTasksForDate(this.plugin.selectedDate, forceRefresh);
+                            if (cachedTasks.length > 0) {
+                                return cachedTasks;
+                            }
+                        } catch (error) {
+                            console.warn('Failed to get tasks from unified cache, falling back to FileIndexer:', error);
+                        }
+                        
+                        // Fallback to FileIndexer
+                        return this.plugin.fileIndexer.getTaskInfoForDate(this.plugin.selectedDate, forceRefresh);
+                    }
+                );
+                
+                // Record access for predictive prefetching
+                this.plugin.predictivePrefetcher.recordAccess(
+                    this.plugin.selectedDate,
+                    'tasks',
+                    (date) => this.plugin.cacheManager.getTasksForDate(date, false)
+                );
+                
+                // Deduplicate by path - this prevents duplicates if they somehow got into the indexer
+                const uniqueTasks = this.deduplicateTasksByPath(tasks);
+                
+                // Sort tasks by due date, then priority
+                const sortedResult = uniqueTasks.sort((a, b) => {
+                    // Sort by due date
+                    if (a.due && b.due) {
+                        return new Date(a.due).getTime() - new Date(b.due).getTime();
+                    }
+                    // Tasks with due dates come before tasks without
+                    if (a.due && !b.due) return -1;
+                    if (!a.due && b.due) return 1;
+                    
+                    // Then sort by priority using PriorityManager
+                    return this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
+                });
+                
+                // Update cache and timestamp - we need a fresh cache 
+                this.cachedTasks = [...sortedResult];
+                this.lastTasksRefresh = now;
+                
+                return sortedResult;
+            } finally {
+                // Clear loading state
+                this.isTasksLoading = false;
+                this.updateLoadingState();
+            }
+        });
     }
     
     // Helper method to deduplicate tasks by path
@@ -1125,8 +1165,19 @@ export class TaskListView extends ItemView {
             return;
         }
         
-        // Update task status badge
-        const statusBadge = taskElement.querySelector('.task-status') as HTMLElement;
+        // Use DOM reconciler for optimized updates
+        this.plugin.domReconciler.scheduleUpdate(() => {
+            this.performTaskElementUpdate(taskElement, updatedTask);
+        });
+    }
+    
+    /**
+     * Perform the actual DOM updates for a task element
+     */
+    private performTaskElementUpdate(taskElement: HTMLElement, updatedTask: TaskInfo): void {
+        perfMonitor.measureSync('task-element-update', () => {
+            // Update task status badge
+            const statusBadge = taskElement.querySelector('.task-status') as HTMLElement;
         if (statusBadge) {
             const effectiveStatus = updatedTask.recurrence 
                 ? getEffectiveTaskStatus(updatedTask, this.plugin.selectedDate)
@@ -1260,11 +1311,15 @@ export class TaskListView extends ItemView {
         const priorityClass = this.getSafeCSSClass('priority', updatedTask.priority);
         taskElement.className = `task-item ${priorityClass} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${updatedTask.archived ? 'task-archived' : ''} ${updatedTask.recurrence ? 'task-recurring' : ''} tasknotes-card`;
         
-        // Add visual feedback for the update
-        taskElement.classList.add('task-updated');
-        setTimeout(() => {
-            taskElement.classList.remove('task-updated');
-        }, 1500);
+            // Add visual feedback for the update
+            taskElement.classList.add('task-updated');
+            setTimeout(() => {
+                taskElement.classList.remove('task-updated');
+            }, 1500);
+            
+            // Animate the update
+            this.plugin.domReconciler.animateUpdate(taskElement, 'flash');
+        });
     }
     
     /**

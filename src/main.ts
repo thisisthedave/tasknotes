@@ -40,6 +40,10 @@ import {
 import { EventEmitter } from './utils/EventEmitter';
 import { FileIndexer } from './utils/FileIndexer';
 import { YAMLCache } from './utils/YAMLCache';
+import { CacheManager } from './utils/CacheManager';
+import { RequestDeduplicator, PredictivePrefetcher } from './utils/RequestDeduplicator';
+import { DOMReconciler, UIStateManager } from './utils/DOMReconciler';
+import { perfMonitor } from './utils/PerformanceMonitor';
 import { FieldMapper } from './services/FieldMapper';
 import { StatusManager } from './services/StatusManager';
 import { PriorityManager } from './services/PriorityManager';
@@ -53,8 +57,17 @@ export default class TaskNotesPlugin extends Plugin {
 	// Event emitter for view communication
 	emitter = new EventEmitter();
 	
-	// File indexer for efficient file access
+	// File indexer for efficient file access (legacy support)
 	fileIndexer: FileIndexer;
+	
+	// Unified cache manager
+	cacheManager: CacheManager;
+	
+	// Performance optimization utilities
+	requestDeduplicator: RequestDeduplicator;
+	predictivePrefetcher: PredictivePrefetcher;
+	domReconciler: DOMReconciler;
+	uiStateManager: UIStateManager;
 	
 	// Pomodoro service
 	pomodoroService: PomodoroService;
@@ -72,7 +85,23 @@ export default class TaskNotesPlugin extends Plugin {
 		this.statusManager = new StatusManager(this.settings.customStatuses);
 		this.priorityManager = new PriorityManager(this.settings.customPriorities);
 		
-		// Initialize the file indexer
+		// Initialize performance optimization utilities
+		this.requestDeduplicator = new RequestDeduplicator();
+		this.predictivePrefetcher = new PredictivePrefetcher(this.requestDeduplicator);
+		this.domReconciler = new DOMReconciler();
+		this.uiStateManager = new UIStateManager();
+		
+		// Initialize unified cache manager
+		this.cacheManager = new CacheManager(
+			this.app.vault,
+			this.settings.taskTag,
+			this.settings.excludedFolders,
+			this.settings.dailyNotesFolder,
+			this.settings.dailyNoteTemplate,
+			this.fieldMapper
+		);
+		
+		// Initialize the file indexer (legacy support)
 		this.fileIndexer = new FileIndexer(
 			this.app.vault, 
 			this.settings.taskTag,
@@ -81,6 +110,11 @@ export default class TaskNotesPlugin extends Plugin {
 			this.settings.dailyNoteTemplate,
 			this.fieldMapper
 		);
+		
+		// Initialize cache asynchronously
+		perfMonitor.measure('cache-initialization', async () => {
+			await this.cacheManager.initializeCache();
+		});
 		
 		// Initialize Pomodoro service
 		this.pomodoroService = new PomodoroService(this);
@@ -150,14 +184,13 @@ export default class TaskNotesPlugin extends Plugin {
 	 * @param triggerRefresh Whether to trigger a full UI refresh (default true)
 	 */
 	notifyDataChanged(filePath?: string, force: boolean = false, triggerRefresh: boolean = true): void {
-		// If we know which file changed, clear its cached info specifically
+		// Clear cache entries for unified cache manager
 		if (filePath) {
-			// Clear file index cache
+			this.cacheManager.clearCacheEntry(filePath);
+			
+			// Legacy support - clear file indexer cache
 			if (this.fileIndexer) {
-				// Clear specific file's cache
 				this.fileIndexer.clearCachedInfo(filePath);
-				
-				// If force is true, rebuild the entire cache
 				if (force) {
 					this.fileIndexer.rebuildIndex();
 				}
@@ -165,9 +198,12 @@ export default class TaskNotesPlugin extends Plugin {
 			
 			// Clear YAML parsing cache
 			YAMLCache.clearCacheEntry(filePath);
-		} else if (force && this.fileIndexer) {
-			// If force is true and no specific file, rebuild the entire cache
-			this.fileIndexer.rebuildIndex();
+		} else if (force) {
+			// Full cache clear if forcing
+			this.cacheManager.clearAllCaches();
+			if (this.fileIndexer) {
+				this.fileIndexer.rebuildIndex();
+			}
 		}
 		
 		// Only emit refresh event if triggerRefresh is true
@@ -180,12 +216,28 @@ export default class TaskNotesPlugin extends Plugin {
 	}
 
 	onunload() {
+		// Clean up performance monitoring
+		const cacheStats = perfMonitor.getStats('cache-initialization');
+		if (cacheStats && cacheStats.count > 0) {
+			perfMonitor.logSummary();
+		}
+		
 		// Clean up Pomodoro service
 		if (this.pomodoroService) {
 			this.pomodoroService.cleanup();
 		}
 		
-		// Clean up the file indexer
+		// Clean up unified cache manager
+		if (this.cacheManager) {
+			this.cacheManager.destroy();
+		}
+		
+		// Clean up request deduplicator
+		if (this.requestDeduplicator) {
+			this.requestDeduplicator.cancelAll();
+		}
+		
+		// Clean up the file indexer (legacy)
 		if (this.fileIndexer) {
 			this.fileIndexer.destroy();
 		}

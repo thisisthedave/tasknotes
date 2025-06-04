@@ -16,6 +16,7 @@ import {
     parseTime,
     isRecurringTaskDueOn
 } from '../utils/helpers';
+import { perfMonitor } from '../utils/PerformanceMonitor';
 
 export class CalendarView extends ItemView {
     // Static property to track initialization status for daily notes
@@ -721,16 +722,23 @@ export class CalendarView extends ItemView {
     
     // Method to colorize calendar for notes (notes tab)
     async colorizeCalendarForNotes() {
-        // First clear all existing colorization
-        this.clearCalendarColorization();
-        
-        // Get current year and month
-        const currentYear = this.plugin.selectedDate.getFullYear();
-        const currentMonth = this.plugin.selectedDate.getMonth();
-        
-        // Get calendar data from unified cache
-        const calendarData = await this.plugin.fileIndexer.getCalendarData(currentYear, currentMonth);
-        const notesCache = calendarData.notes;
+        return perfMonitor.measure('calendar-colorize-notes', async () => {
+            // First clear all existing colorization
+            this.clearCalendarColorization();
+            
+            // Get current year and month
+            const currentYear = this.plugin.selectedDate.getFullYear();
+            const currentMonth = this.plugin.selectedDate.getMonth();
+            
+            // Try unified cache manager first, fallback to FileIndexer
+            let calendarData;
+            try {
+                calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
+            } catch (error) {
+                console.warn('Failed to get calendar data from unified cache, falling back to FileIndexer:', error);
+                calendarData = await this.plugin.fileIndexer.getCalendarData(currentYear, currentMonth);
+            }
+            const notesCache = calendarData.notes;
         
         // Find all calendar days
         const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
@@ -791,6 +799,7 @@ export class CalendarView extends ItemView {
                     day.appendChild(indicator);
                 }
             }
+        });
         });
     }
     

@@ -48,6 +48,95 @@ button:active:not(:disabled) {
     transform: scale(0.98);
 }
 
+/* Performance optimization animations */
+@keyframes task-flash {
+    0% { 
+        background-color: var(--interactive-accent-hover); 
+        transform: scale(1.02);
+    }
+    100% { 
+        background-color: transparent; 
+        transform: scale(1);
+    }
+}
+
+@keyframes task-pulse {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.8; 
+        transform: scale(1.01);
+    }
+}
+
+@keyframes task-fade-in {
+    0% { 
+        opacity: 0; 
+        transform: translateY(-4px);
+    }
+    100% { 
+        opacity: 1; 
+        transform: translateY(0);
+    }
+}
+
+/* Task update animations */
+.task-flash {
+    animation: task-flash 1500ms ease-out;
+}
+
+.task-pulse {
+    animation: task-pulse 1000ms ease-in-out;
+}
+
+.task-fade-in {
+    animation: task-fade-in 300ms ease-out;
+}
+
+/* Visual feedback for updates */
+.task-updated {
+    border-left: 3px solid var(--interactive-accent);
+    transition: border-left 1500ms ease-out;
+}
+
+/* Loading states optimization */
+.loading-indicator {
+    transition: opacity var(--cs-transition-fast);
+}
+
+.loading-indicator.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Performance-optimized DOM transitions */
+.tasknotes-card {
+    transition: transform var(--cs-transition-fast), box-shadow var(--cs-transition-fast);
+    will-change: transform, box-shadow;
+}
+
+.tasknotes-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Cache loading states */
+.cache-loading-indicator {
+    position: sticky;
+    top: 0;
+    background: var(--background-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--cs-radius-sm);
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    margin-bottom: var(--cs-spacing-md);
+    font-size: var(--cs-text-sm);
+    color: var(--text-muted);
+    z-index: 10;
+    animation: task-fade-in 300ms ease-out;
+}
+
 /* Utility Classes */
 .is-hidden {
     display: none !important;
