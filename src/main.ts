@@ -792,7 +792,7 @@ private injectCustomStyles(): void {
 	document.head.appendChild(styleEl);
 }
 
-	async updateTaskProperty(task: TaskInfo, property: string, value: any, options: { silent?: boolean } = {}): Promise<void> {
+	async updateTaskProperty(task: TaskInfo, property: keyof TaskInfo, value: any, options: { silent?: boolean } = {}): Promise<void> {
 		try {
 			const file = this.app.vault.getAbstractFileByPath(task.path);
 			if (!(file instanceof TFile)) {
@@ -816,7 +816,7 @@ private injectCustomStyles(): void {
 			// Read current content and use field mapping to update
 			const content = await this.app.vault.read(file);
 			const propertyUpdates: Partial<TaskInfo> = {};
-			(propertyUpdates as any)[property] = value;
+			propertyUpdates[property] = value;
 			
 			// Special handling for status changes - update completedDate
 			if (property === 'status' && !task.recurrence) {

@@ -1670,6 +1670,7 @@ button.processing::after {
     flex-shrink: 0;
     border: 1px solid rgba(0, 0, 0, 0.1);
     transition: all var(--cs-transition-fast);
+    background-color: var(--priority-color, var(--text-muted));
 }
 
 .task-priority-indicator.clickable {
@@ -3115,6 +3116,7 @@ button.processing::after {
     border-radius: 50%;
     margin-right: 12px;
     flex-shrink: 0;
+    background-color: var(--indicator-color, var(--text-muted));
 }
 
 .settings-input {

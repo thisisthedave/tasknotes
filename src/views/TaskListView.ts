@@ -577,7 +577,7 @@ export class TaskListView extends ItemView {
             
             // Apply custom priority color
             if (priorityConfig) {
-                priorityIndicator.style.backgroundColor = priorityConfig.color;
+                priorityIndicator.style.setProperty('--priority-color', priorityConfig.color);
             }
             
             // Add click handler for priority indicator
@@ -1186,7 +1186,7 @@ export class TaskListView extends ItemView {
             
             // Apply custom priority color
             if (priorityConfig) {
-                priorityIndicator.style.backgroundColor = priorityConfig.color;
+                priorityIndicator.style.setProperty('--priority-color', priorityConfig.color);
                 
                 // Update hover border styling on the task item
                 taskElement.dataset.priorityColor = priorityConfig.color;

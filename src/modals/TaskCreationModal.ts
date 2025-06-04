@@ -298,7 +298,7 @@ export class TaskCreationModal extends Modal {
 			});
 			
 			select.addEventListener('change', (e) => {
-				this.recurrence = (e.target as HTMLSelectElement).value as any;
+				this.recurrence = (e.target as HTMLSelectElement).value as 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 				this.updateRecurrenceOptions(contentEl);
 			});
 		});

@@ -418,7 +418,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			
 			// Color indicator
 			const colorIndicator = statusRow.createDiv('settings-color-indicator');
-			colorIndicator.style.backgroundColor = status.color; // Keep this - user color
+			colorIndicator.style.setProperty('--indicator-color', status.color);
 			
 			// Status value input
 			const valueInput = statusRow.createEl('input', {
@@ -464,7 +464,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				status.color = colorInput.value;
 				status.isCompleted = completedCheckbox.checked;
 				await this.plugin.saveSettings();
-				colorIndicator.style.backgroundColor = status.color;
+				colorIndicator.style.setProperty('--indicator-color', status.color);
 			};
 			
 			valueInput.addEventListener('change', updateStatus);
@@ -524,7 +524,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			
 			// Color indicator
 			const colorIndicator = priorityRow.createDiv('settings-color-indicator');
-			colorIndicator.style.backgroundColor = priority.color; // Keep this - user color
+			colorIndicator.style.setProperty('--indicator-color', priority.color);
 			
 			// Priority value input
 			const valueInput = priorityRow.createEl('input', {
@@ -567,7 +567,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				priority.color = colorInput.value;
 				priority.weight = parseInt(weightInput.value) || 0;
 				await this.plugin.saveSettings();
-				colorIndicator.style.backgroundColor = priority.color;
+				colorIndicator.style.setProperty('--indicator-color', priority.color);
 			};
 			
 			valueInput.addEventListener('change', updatePriority);
