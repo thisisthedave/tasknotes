@@ -530,7 +530,7 @@ export function getEffectiveTaskStatus(task: any, date: Date): string {
 	
 	// If it has recurrence, check if it's completed for the specified date
 	const dateStr = format(date, 'yyyy-MM-dd');
-	const completedDates = task.complete_instances || [];
+	const completedDates = Array.isArray(task.complete_instances) ? task.complete_instances : [];
 	
 	return completedDates.includes(dateStr) ? 'done' : 'open';
 }

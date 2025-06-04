@@ -88,6 +88,11 @@ export class TaskListView extends ItemView {
         
         // Listen for individual task updates
         const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, updatedTask }) => {
+            if (!path || !updatedTask) {
+                console.error('EVENT_TASK_UPDATED received invalid data:', { path, updatedTask });
+                return;
+            }
+            
             // Update the data in the view's local cache
             this.updateTaskInCache(path, updatedTask);
             // Update the single task element in the DOM without a full refresh
@@ -853,6 +858,7 @@ export class TaskListView extends ItemView {
                 const recurringSection = taskFooter.createDiv({ cls: 'recurring-section' });
                 
                 const isCompleted = this.plugin.statusManager.isCompletedStatus(effectiveStatus);
+                
                 const toggleButton = recurringSection.createEl('button', { 
                     cls: `task-toggle-button ${isCompleted ? 'mark-incomplete' : 'mark-complete'}`,
                     text: isCompleted ? 'Mark incomplete' : 'Mark complete',
@@ -865,43 +871,15 @@ export class TaskListView extends ItemView {
                 toggleButton.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     
-                    toggleButton.disabled = true;
-                    toggleButton.classList.add('processing');
-                    
                     // Get fresh task data from cache
                     const currentTask = this.getTaskFromCache(task.path) || task;
-                    const currentEffectiveStatus = currentTask.recurrence 
-                        ? getEffectiveTaskStatus(currentTask, this.plugin.selectedDate)
-                        : currentTask.status;
                     
                     try {
-                        const currentlyComplete = this.plugin.statusManager.isCompletedStatus(currentEffectiveStatus);
-                        const newComplete = !currentlyComplete;
+                        await this.plugin.toggleRecurringTaskComplete(currentTask, this.plugin.selectedDate);
                         
-                        const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
-                        const updatedTask = { ...currentTask };
-                        if (!updatedTask.complete_instances) {
-                            updatedTask.complete_instances = [];
-                        }
-                        
-                        if (newComplete) {
-                            if (!updatedTask.complete_instances.includes(selectedDateStr)) {
-                                updatedTask.complete_instances.push(selectedDateStr);
-                            }
-                        } else {
-                            updatedTask.complete_instances = updatedTask.complete_instances.filter(d => d !== selectedDateStr);
-                        }
-                        
-                        await this.plugin.toggleRecurringTaskStatus(updatedTask, this.plugin.selectedDate);
-                        
-                        setTimeout(() => {
-                            toggleButton.disabled = false;
-                            toggleButton.classList.remove('processing');
-                        }, 500);
-                    } catch(err) {
-                        toggleButton.disabled = false;
-                        toggleButton.classList.remove('processing');
-                        console.error('Failed to toggle recurring task:', err);
+                        // No need for manual refresh - granular updates will handle it
+                    } catch (error) {
+                        console.error('Error toggling recurring task completion:', error);
                     }
                 });
             }
@@ -1173,6 +1151,11 @@ export class TaskListView extends ItemView {
      * Perform the actual DOM updates for a task element
      */
     private performTaskElementUpdate(taskElement: HTMLElement, updatedTask: TaskInfo): void {
+        if (!updatedTask) {
+            console.error('performTaskElementUpdate called with undefined updatedTask');
+            return;
+        }
+        
         perfMonitor.measureSync('task-element-update', () => {
             // Update task status badge
             const statusBadge = taskElement.querySelector('.task-status') as HTMLElement;
@@ -1339,9 +1322,12 @@ export class TaskListView extends ItemView {
      * Update a task in the cached tasks array
      */
     private updateTaskInCache(taskPath: string, updatedTask: TaskInfo): void {
-        if (!this.cachedTasks) return;
+        if (!this.cachedTasks || !taskPath || !updatedTask) {
+            console.error('updateTaskInCache called with invalid data:', { taskPath, updatedTask, hasCachedTasks: !!this.cachedTasks });
+            return;
+        }
         
-        const index = this.cachedTasks.findIndex(t => t.path === taskPath);
+        const index = this.cachedTasks.findIndex(t => t && t.path === taskPath);
         if (index !== -1) {
             this.cachedTasks[index] = updatedTask;
         }
@@ -1351,8 +1337,8 @@ export class TaskListView extends ItemView {
      * Get current task from cache
      */
     private getTaskFromCache(taskPath: string): TaskInfo | undefined {
-        if (!this.cachedTasks) return undefined;
-        return this.cachedTasks.find(t => t.path === taskPath);
+        if (!this.cachedTasks || !taskPath) return undefined;
+        return this.cachedTasks.find(t => t && t.path === taskPath);
     }
     
     /**

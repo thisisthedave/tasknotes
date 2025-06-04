@@ -868,15 +868,8 @@ private injectCustomStyles(): void {
 	/**
 	 * Toggles a recurring task's completion status for the selected date
 	 */
-	async toggleRecurringTaskStatus(task: TaskInfo, date?: Date): Promise<void> {
+	async toggleRecurringTaskComplete(task: TaskInfo, date?: Date): Promise<void> {
 		try {
-			if (!task.recurrence) {
-				// Not a recurring task - do regular status toggle
-				const newStatus = this.statusManager.getNextStatus(task.status);
-				await this.updateTaskProperty(task, 'status', newStatus);
-				return;
-			}
-
 			const file = this.app.vault.getAbstractFileByPath(task.path);
 			if (!(file instanceof TFile)) {
 				new Notice(`Cannot find task file: ${task.path}`);
@@ -887,64 +880,66 @@ private injectCustomStyles(): void {
 			const targetDate = date || this.selectedDate;
 			const dateStr = format(targetDate, 'yyyy-MM-dd');
 			
-			// Create a local modified copy of the task to update UI immediately
+			// Check current completion status for this date
+			const completeInstances = Array.isArray(task.complete_instances) ? task.complete_instances : [];
+			const currentComplete = completeInstances.includes(dateStr);
+			const newComplete = !currentComplete;
+			
+			// Create a local modified copy for immediate UI feedback
 			const updatedTask = { ...task };
-			if (!updatedTask.complete_instances) {
-				updatedTask.complete_instances = [];
-			}
 			
-			let isCompleted = false;
-			
-			// Process the frontmatter
+			// Process the frontmatter - follow time tracking pattern
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				// Make sure complete_instances array exists
+				// Ensure complete_instances array exists
 				if (!frontmatter.complete_instances) {
 					frontmatter.complete_instances = [];
 				}
 				
-				// If the target date is in the array, remove it; otherwise add it
 				const completeDates: string[] = frontmatter.complete_instances;
-				const dateIndex = completeDates.indexOf(dateStr);
 				
-				// Format the date for display
-				const displayDate = format(targetDate, 'MMM d, yyyy');
-				
-				if (dateIndex > -1) {
-					// Remove date from the completed dates
-					completeDates.splice(dateIndex, 1);
-					new Notice(`Marked task as incomplete for ${displayDate}`);
-					isCompleted = false;
+				if (newComplete) {
+					// Add date to completed instances if not already present
+					if (!completeDates.includes(dateStr)) {
+						completeDates.push(dateStr);
+					}
 				} else {
-					// Add date to the completed dates
-					completeDates.push(dateStr);
-					new Notice(`Marked task as complete for ${displayDate}`);
-					isCompleted = true;
+					// Remove date from completed instances
+					const index = completeDates.indexOf(dateStr);
+					if (index > -1) {
+						completeDates.splice(index, 1);
+					}
 				}
 				
+				// Update frontmatter
 				frontmatter.complete_instances = completeDates;
 				
-				// Update the local task object with the new complete_instances values
-				// This ensures getEffectiveTaskStatus will have the right data immediately
+				// Update the dateModified field using field mapping
+				const dateModifiedField = this.fieldMapper.toUserField('dateModified');
+				frontmatter[dateModifiedField] = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
+				
+				// Update local copy for immediate UI feedback
 				updatedTask.complete_instances = [...completeDates];
 			});
 			
-			// Add the updated task to the file indexer's cache
+			// Update cache and rebuild index - follow time tracking pattern
 			if (this.fileIndexer) {
-				// First update with our already-updated task object in the cache
 				await this.fileIndexer.updateTaskInfoInCache(task.path, updatedTask);
-				
-				// Then rebuild the file index to ensure all data is fresh
 				await this.fileIndexer.rebuildIndex();
-				
-				// Clear the YAML cache for this file
-				YAMLCache.clearCacheEntry(task.path);
 			}
 			
-			// Emit granular task update instead of full refresh to avoid race conditions
-			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path });
+			// Clear YAML cache
+			YAMLCache.clearCacheEntry(task.path);
+			
+			// Emit granular task update event
+			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask });
+			
+			// Show success notice
+			const displayDate = format(targetDate, 'MMM d, yyyy');
+			new Notice(`Marked task as ${newComplete ? 'complete' : 'incomplete'} for ${displayDate}`);
+			
 		} catch (error) {
-			console.error('Error toggling recurring task status:', error);
-			new Notice('Failed to update recurring task status');
+			console.error('Error toggling recurring task completion:', error);
+			new Notice('Failed to update recurring task completion');
 		}
 	}
 	
@@ -1132,6 +1127,16 @@ private injectCustomStyles(): void {
 	 */
 	getActiveTimeSession(task: TaskInfo) {
 		return getActiveTimeEntry(task.timeEntries || []);
+	}
+	
+	/**
+	 * Check if a recurring task is completed for a specific date
+	 */
+	isRecurringTaskCompleteForDate(task: TaskInfo, date: Date): boolean {
+		if (!task.recurrence) return false;
+		const dateStr = format(date, 'yyyy-MM-dd');
+		const completeInstances = Array.isArray(task.complete_instances) ? task.complete_instances : [];
+		return completeInstances.includes(dateStr);
 	}
 	
 	/**
