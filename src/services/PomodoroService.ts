@@ -439,8 +439,9 @@ export class PomodoroService {
                 // Remove old timeSpent field if it exists
                 delete frontmatter.timeSpent;
 
-                // Update modified date
-                frontmatter.dateModified = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
+                // Update modified date using field mapper
+                const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
+                frontmatter[dateModifiedField] = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
             });
 
             // Emit task update event

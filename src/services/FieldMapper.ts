@@ -58,6 +58,14 @@ export class FieldMapper {
         if (frontmatter[this.mapping.recurrence] !== undefined) {
             mapped.recurrence = frontmatter[this.mapping.recurrence];
         }
+        
+        if (frontmatter[this.mapping.dateCreated] !== undefined) {
+            mapped.dateCreated = frontmatter[this.mapping.dateCreated];
+        }
+        
+        if (frontmatter[this.mapping.dateModified] !== undefined) {
+            mapped.dateModified = frontmatter[this.mapping.dateModified];
+        }
 
         // Handle tags array (includes archive tag)
         if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
@@ -111,6 +119,14 @@ export class FieldMapper {
         
         if (taskData.recurrence !== undefined) {
             frontmatter[this.mapping.recurrence] = taskData.recurrence;
+        }
+        
+        if (taskData.dateCreated !== undefined) {
+            frontmatter[this.mapping.dateCreated] = taskData.dateCreated;
+        }
+        
+        if (taskData.dateModified !== undefined) {
+            frontmatter[this.mapping.dateModified] = taskData.dateModified;
         }
 
         // Handle tags (merge archive status into tags array)

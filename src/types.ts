@@ -53,6 +53,8 @@ export interface TaskInfo {
 	completedDate?: string; // Date (YYYY-MM-DD) when task was marked as done
 	timeEstimate?: number; // Estimated time in minutes
 	timeEntries?: TimeEntry[]; // Individual time tracking sessions
+	dateCreated?: string; // Creation date (ISO timestamp)
+	dateModified?: string; // Last modification date (ISO timestamp)
 }
 
 export interface TimeEntry {

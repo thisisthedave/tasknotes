@@ -940,8 +940,8 @@ private injectCustomStyles(): void {
 				YAMLCache.clearCacheEntry(task.path);
 			}
 			
-			// Notify views that data has changed and force a full refresh of all views
-			this.notifyDataChanged(task.path, true, true);
+			// Emit granular task update instead of full refresh to avoid race conditions
+			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path });
 		} catch (error) {
 			console.error('Error toggling recurring task status:', error);
 			new Notice('Failed to update recurring task status');

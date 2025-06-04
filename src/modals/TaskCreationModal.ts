@@ -713,19 +713,14 @@ export class TaskCreationModal extends Modal {
 				status: this.status,
 				priority: this.priority,
 				tags: tagsArray,
+				dateCreated: format(now, "yyyy-MM-dd'T'HH:mm:ss"),
+				dateModified: format(now, "yyyy-MM-dd'T'HH:mm:ss"),
 			};
 			
 			// Add completedDate if status is completed
 			if (this.plugin.statusManager.isCompletedStatus(this.status)) {
 				taskInfo.completedDate = format(now, 'yyyy-MM-dd');
 			}
-			
-			// Use field mapper to create the YAML frontmatter
-			const yaml = this.plugin.fieldMapper.mapToFrontmatter(taskInfo);
-			
-			// Add standard fields that aren't mapped
-			yaml.dateCreated = format(now, "yyyy-MM-dd'T'HH:mm:ss");
-			yaml.dateModified = format(now, "yyyy-MM-dd'T'HH:mm:ss");
 			
 			// Add optional fields through field mapping
 			if (this.dueDate) {
@@ -740,13 +735,6 @@ export class TaskCreationModal extends Modal {
 				taskInfo.timeEstimate = this.timeEstimate;
 				taskInfo.timeEntries = [];
 			}
-			
-			// Re-map with additional fields
-			const finalYaml = this.plugin.fieldMapper.mapToFrontmatter(taskInfo);
-			
-			// Preserve standard fields
-			finalYaml.dateCreated = yaml.dateCreated;
-			finalYaml.dateModified = yaml.dateModified;
 			
 			// Add recurrence info if specified
 			if (this.recurrence !== 'none') {
@@ -774,10 +762,8 @@ export class TaskCreationModal extends Modal {
 				taskInfo.complete_instances = [];
 			}
 			
-			// Create final YAML with all fields mapped
+			// Create final YAML with all fields mapped using the user's configured field names
 			const completeYaml = this.plugin.fieldMapper.mapToFrontmatter(taskInfo);
-			completeYaml.dateCreated = format(now, "yyyy-MM-dd'T'HH:mm:ss");
-			completeYaml.dateModified = format(now, "yyyy-MM-dd'T'HH:mm:ss");
 			
 			// Prepare the file content
 			const content = `---\n${YAML.stringify(completeYaml)}---\n\n# ${this.title}\n\n${this.details}`;

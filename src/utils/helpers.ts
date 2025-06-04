@@ -4,6 +4,7 @@ import { TimeInfo, TaskInfo, TimeEntry } from '../types';
 import * as YAML from 'yaml';
 import { YAMLCache } from './YAMLCache';
 import { FieldMapper } from '../services/FieldMapper';
+import { DEFAULT_FIELD_MAPPING } from '../settings/settings';
 
 /**
  * Creates a debounced version of a function
@@ -238,9 +239,16 @@ export function updateTaskProperty(
 		// Use field mapper to update properties
 		const mappedUpdates = fieldMapper.mapToFrontmatter(propertyUpdates);
 		Object.assign(yamlObj, mappedUpdates);
+		
+		// Always update the dateModified field when properties change
+		const dateModifiedField = fieldMapper.toUserField('dateModified');
+		yamlObj[dateModifiedField] = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
 	} else {
 		// Use legacy field names
 		Object.assign(yamlObj, propertyUpdates);
+		
+		// Always update dateModified when properties change (legacy)
+		yamlObj.dateModified = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
 	}
 	
 	// Stringify the frontmatter
@@ -418,48 +426,26 @@ export function extractTaskInfo(
 					
 					return taskInfo;
 				} else {
-					// Fallback to legacy field names for backward compatibility
-					const tags = yaml.tags || [];
-					const archived = Array.isArray(tags) && tags.includes('archived');
-					
-					// Extract recurrence info if present
-					let recurrence = undefined;
-					if (yaml.recurrence && typeof yaml.recurrence === 'object') {
-						recurrence = {
-							frequency: yaml.recurrence.frequency,
-							days_of_week: yaml.recurrence.days_of_week,
-							day_of_month: yaml.recurrence.day_of_month,
-							month_of_year: yaml.recurrence.month_of_year
-						};
-					}
-					
-					// Extract complete_instances array if present
-					let complete_instances = undefined;
-					if (yaml.complete_instances && Array.isArray(yaml.complete_instances)) {
-						complete_instances = yaml.complete_instances;
-					}
-					
-					// Extract contexts
-					const contexts = yaml.contexts || [];
+					// Fallback to default field mapping for backward compatibility
+					const defaultMapper = new FieldMapper(DEFAULT_FIELD_MAPPING);
+					const mappedTask = defaultMapper.mapFromFrontmatter(yaml, path);
 					
 					return {
-						title: yaml.title || 'Untitled task',
-						status: yaml.status || 'open',
-						priority: yaml.priority || 'normal',
-						due: yaml.due,
+						title: mappedTask.title || 'Untitled task',
+						status: mappedTask.status || 'open',
+						priority: mappedTask.priority || 'normal',
+						due: mappedTask.due,
 						path,
-						archived,
-						tags: Array.isArray(tags) ? [...tags] : [],
-						contexts: Array.isArray(contexts) ? [...contexts] : [],
-						recurrence,
-						complete_instances,
-						completedDate: yaml.completedDate,
-						timeEstimate: yaml.timeEstimate,
-						timeEntries: yaml.timeEntries?.map((entry: any) => ({
-							startTime: entry.start || entry.startTime,
-							endTime: entry.end || entry.endTime,
-														description: entry.description
-						}))
+						archived: mappedTask.archived || false,
+						tags: mappedTask.tags || [],
+						contexts: mappedTask.contexts || [],
+						recurrence: mappedTask.recurrence,
+						complete_instances: mappedTask.complete_instances,
+						completedDate: mappedTask.completedDate,
+						timeEstimate: mappedTask.timeEstimate,
+						timeEntries: mappedTask.timeEntries,
+						dateCreated: mappedTask.dateCreated,
+						dateModified: mappedTask.dateModified
 					};
 				}
 			}

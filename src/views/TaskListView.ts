@@ -893,8 +893,6 @@ export class TaskListView extends ItemView {
                         }
                         
                         await this.plugin.toggleRecurringTaskStatus(updatedTask, this.plugin.selectedDate);
-                        this.updateTaskElementInDOM(currentTask.path, updatedTask);
-                        this.updateTaskInCache(currentTask.path, updatedTask);
                         
                         setTimeout(() => {
                             toggleButton.disabled = false;
@@ -1299,6 +1297,21 @@ export class TaskListView extends ItemView {
             timeIcon.textContent = isTracking ? '⏸' : '▶';
             timeIcon.setAttribute('aria-label', isTracking ? 'Stop time tracking' : 'Start time tracking');
             timeIcon.setAttribute('title', isTracking ? 'Stop time tracking' : 'Start time tracking');
+        }
+        
+        // Update recurring task toggle button if it exists
+        if (updatedTask.recurrence) {
+            const toggleButton = taskElement.querySelector('.task-toggle-button') as HTMLButtonElement;
+            if (toggleButton) {
+                const effectiveStatus = getEffectiveTaskStatus(updatedTask, this.plugin.selectedDate);
+                const isCompleted = this.plugin.statusManager.isCompletedStatus(effectiveStatus);
+                
+                // Update button class and text
+                toggleButton.className = `task-toggle-button ${isCompleted ? 'mark-incomplete' : 'mark-complete'}`;
+                toggleButton.textContent = isCompleted ? 'Mark incomplete' : 'Mark complete';
+                toggleButton.setAttribute('aria-label', `${isCompleted ? 'Mark task incomplete' : 'Mark task complete'} for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}`);
+                toggleButton.setAttribute('aria-pressed', isCompleted.toString());
+            }
         }
         
         // Update main task item classes
