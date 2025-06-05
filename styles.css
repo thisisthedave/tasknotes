@@ -34,17 +34,20 @@
     --cs-text-lg: 0.9rem;
 }
 
-/* Reduced motion support */
+/* Reduced motion support - scope to TaskNotes components only */
 @media (prefers-reduced-motion: reduce) {
-    * {
+    .tasknotes-container *,
+    .tasknotes-card *,
+    .tasknotes-button * {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
 }
 
-/* Button click feedback */
-button:active:not(:disabled) {
+/* Button click feedback - scope to TaskNotes buttons only */
+.tasknotes-container button:active:not(:disabled),
+.tasknotes-button:active:not(:disabled) {
     transform: scale(0.98);
 }
 
@@ -305,13 +308,15 @@ button:active:not(:disabled) {
     color: var(--text-error);
 }
 
-/* Processing state for buttons */
-button.processing {
+/* Processing state for buttons - scope to TaskNotes buttons only */
+.tasknotes-container button.processing,
+.tasknotes-button.processing {
     opacity: 0.7;
     cursor: not-allowed;
 }
 
-button.processing::after {
+.tasknotes-container button.processing::after,
+.tasknotes-button.processing::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -856,8 +861,8 @@ button.processing::after {
     border: 1px solid rgba(0, 0, 0, 0.2);
 }
 
-/* Add hover information for indicators */
-[class$="-indicator"]:hover::after {
+/* Add hover information for indicators - scope to TaskNotes components */
+.tasknotes-container [class$="-indicator"]:hover::after {
     content: attr(aria-label);
     position: absolute;
     background: var(--background-primary);
