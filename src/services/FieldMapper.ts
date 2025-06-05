@@ -84,7 +84,7 @@ export class FieldMapper {
     /**
      * Convert internal task data to frontmatter using mapping
      */
-    mapToFrontmatter(taskData: Partial<TaskInfo>): any {
+    mapToFrontmatter(taskData: Partial<TaskInfo>, taskTag?: string): any {
         const frontmatter: any = {};
 
         // Map each field if it exists in task data
@@ -131,6 +131,11 @@ export class FieldMapper {
 
         // Handle tags (merge archive status into tags array)
         let tags = taskData.tags ? [...taskData.tags] : [];
+        
+        // Ensure task tag is always preserved if provided
+        if (taskTag && !tags.includes(taskTag)) {
+            tags.push(taskTag);
+        }
         
         if (taskData.archived === true && !tags.includes(this.mapping.archiveTag)) {
             tags.push(this.mapping.archiveTag);

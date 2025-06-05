@@ -197,7 +197,8 @@ export function updateYamlFrontmatter<T = any>(content: string, key: string, upd
 export function updateTaskProperty(
 	content: string, 
 	propertyUpdates: Partial<TaskInfo>, 
-	fieldMapper?: FieldMapper
+	fieldMapper?: FieldMapper,
+	taskTag?: string
 ): string {
 	// Check if the content has YAML frontmatter
 	if (!content.startsWith('---')) {
@@ -206,7 +207,7 @@ export function updateTaskProperty(
 		
 		if (fieldMapper) {
 			// Use field mapper to create frontmatter
-			const mappedFrontmatter = fieldMapper.mapToFrontmatter(propertyUpdates);
+			const mappedFrontmatter = fieldMapper.mapToFrontmatter(propertyUpdates, taskTag);
 			Object.assign(yamlObj, mappedFrontmatter);
 		} else {
 			// Use legacy field names
@@ -237,7 +238,7 @@ export function updateTaskProperty(
 	// Update properties
 	if (fieldMapper) {
 		// Use field mapper to update properties
-		const mappedUpdates = fieldMapper.mapToFrontmatter(propertyUpdates);
+		const mappedUpdates = fieldMapper.mapToFrontmatter(propertyUpdates, taskTag);
 		Object.assign(yamlObj, mappedUpdates);
 		
 		// Always update the dateModified field when properties change

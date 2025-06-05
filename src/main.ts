@@ -828,7 +828,7 @@ private injectCustomStyles(): void {
 			}
 			
 			// Use field mapping to update the content
-			const updatedContent = updateTaskProperty(content, propertyUpdates, this.fieldMapper);
+			const updatedContent = updateTaskProperty(content, propertyUpdates, this.fieldMapper, this.settings.taskTag);
 			await this.app.vault.modify(file, updatedContent);
 			
 			// Show a notice (unless silent)
@@ -962,7 +962,7 @@ private injectCustomStyles(): void {
 			};
 			
 			// Use field mapping to update the content
-			const updatedContent = updateTaskProperty(content, propertyUpdates, this.fieldMapper);
+			const updatedContent = updateTaskProperty(content, propertyUpdates, this.fieldMapper, this.settings.taskTag);
 			await this.app.vault.modify(file, updatedContent);
 			
 			// Show a notice
