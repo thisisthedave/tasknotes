@@ -261,12 +261,12 @@ export class CacheManager {
     }
     
     /**
-     * Get all tasks (for compatibility with FileIndexer behavior)
+     * Get all tasks
      * The date parameter is kept for compatibility but filtering should happen in the view layer
      */
     async getTasksForDate(date: Date, forceRefresh = false): Promise<TaskInfo[]> {
         // Return ALL tasks, not filtered by date - let the view layer handle filtering
-        // This matches the behavior of FileIndexer.getTaskInfoForDate()
+        // Return all tasks for flexible filtering in views
         const results: TaskInfo[] = [];
         
         // Get all task paths from the indexed files cache
@@ -789,6 +789,111 @@ export class CacheManager {
         if (fieldMapper !== undefined) {
             this.fieldMapper = fieldMapper;
         }
+    }
+    
+    /**
+     * Update daily note template path (for backward compatibility)
+     */
+    updateDailyNoteTemplatePath(newPath: string): void {
+        this.updateConfig(undefined, undefined, undefined, newPath, undefined);
+    }
+    
+    /**
+     * Update field mapper (for backward compatibility)
+     */
+    updateFieldMapper(fieldMapper: FieldMapper): void {
+        this.updateConfig(undefined, undefined, undefined, undefined, fieldMapper);
+    }
+    
+    /**
+     * Clear cached info for a specific file (for backward compatibility)
+     */
+    clearCachedInfo(path: string): void {
+        this.clearCacheEntry(path);
+    }
+    
+    /**
+     * Update task info in cache
+     */
+    async updateTaskInfoInCache(path: string, taskInfo: TaskInfo | null): Promise<void> {
+        if (taskInfo) {
+            // Update the task info cache
+            this.taskInfoCache.set(path, taskInfo);
+            
+            // Update the indexed files cache
+            this.indexedFilesCache.set(path, {
+                path,
+                mtime: Date.now(),
+                ctime: Date.now(),
+                isTask: true,
+                cachedInfo: taskInfo
+            });
+            
+            // Update indexes
+            this.updateTaskIndexes(path, taskInfo);
+        } else {
+            // Remove from caches
+            this.taskInfoCache.delete(path);
+            this.indexedFilesCache.delete(path);
+            this.removeFromIndexes(path, 'task');
+        }
+    }
+    
+    /**
+     * Rebuild daily notes cache for a specific month
+     */
+    async rebuildDailyNotesCache(year: number, month: number): Promise<Set<string>> {
+        const dailyNotesForMonth = new Set<string>();
+        
+        // Get all files and filter for daily notes in the specified month
+        const allFiles = this.vault.getMarkdownFiles();
+        const normalizedPath = this.dailyNotesPath.replace(/^\/+|\/+$/g, '');
+        
+        for (const file of allFiles) {
+            const path = file.path;
+            
+            // Check if this file is in the daily notes folder
+            const isInDailyNotesFolder = 
+                path.startsWith(normalizedPath + '/') || 
+                path === normalizedPath ||
+                (normalizedPath === '' && !path.includes('/'));
+            
+            if (!isInDailyNotesFolder) continue;
+            
+            const fileName = path.split('/').pop() || '';
+            const dateMatch = fileName.match(/^(\d{4})-(\d{2})-(\d{2})\.md$/);
+            
+            if (dateMatch) {
+                const fileYear = parseInt(dateMatch[1]);
+                const fileMonth = parseInt(dateMatch[2]) - 1; // JavaScript months are 0-indexed
+                
+                if (fileYear === year && fileMonth === month) {
+                    const dateStr = `${fileYear}-${String(fileMonth + 1).padStart(2, '0')}-${dateMatch[3]}`;
+                    dailyNotesForMonth.add(dateStr);
+                    this.dailyNotes.add(dateStr);
+                }
+            }
+        }
+        
+        return dailyNotesForMonth;
+    }
+    
+    /**
+     * Rebuild the entire cache index
+     */
+    async rebuildIndex(): Promise<void> {
+        // Clear all cached data but keep configuration
+        this.clearAllCaches();
+        
+        // Rebuild from scratch
+        await this.initializeCache();
+    }
+    
+    /**
+     * Get task info for a specific date (alias for getTasksForDate for backwards compatibility)
+     */
+    async getTaskInfoForDate(date: Date, forceRefresh = false): Promise<TaskInfo[]> {
+        return this.getTasksForDate(date, forceRefresh);
     }
     
     /**

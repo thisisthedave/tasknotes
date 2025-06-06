@@ -982,11 +982,11 @@ export class TaskListView extends ItemView {
                                 return cachedTasks;
                             }
                         } catch (error) {
-                            console.warn('Failed to get tasks from unified cache, falling back to FileIndexer:', error);
+                            console.warn('Failed to get tasks from unified cache manager:', error);
                         }
                         
-                        // Fallback to FileIndexer
-                        return this.plugin.fileIndexer.getTaskInfoForDate(this.plugin.selectedDate, forceRefresh);
+                        // Use CacheManager
+                        return this.plugin.cacheManager.getTaskInfoForDate(this.plugin.selectedDate, forceRefresh);
                     }
                 );
                 

@@ -209,8 +209,8 @@ export class AgendaView extends ItemView {
         // Fetch all data
         const dataPromises = dates.map(async date => {
             const [tasks, notes] = await Promise.all([
-                this.plugin.fileIndexer.getTaskInfoForDate(date),
-                this.plugin.fileIndexer.getNotesForDate(date)
+                this.plugin.cacheManager.getTaskInfoForDate(date),
+                this.plugin.cacheManager.getNotesForDate(date)
             ]);
             return { date, tasks, notes };
         });

@@ -38,7 +38,6 @@ import {
 	getActiveTimeEntry
 } from './utils/helpers';
 import { EventEmitter } from './utils/EventEmitter';
-import { FileIndexer } from './utils/FileIndexer';
 import { YAMLCache } from './utils/YAMLCache';
 import { CacheManager } from './utils/CacheManager';
 import { RequestDeduplicator, PredictivePrefetcher } from './utils/RequestDeduplicator';
@@ -56,9 +55,6 @@ export default class TaskNotesPlugin extends Plugin {
 	
 	// Event emitter for view communication
 	emitter = new EventEmitter();
-	
-	// File indexer for efficient file access (legacy support)
-	fileIndexer: FileIndexer;
 	
 	// Unified cache manager
 	cacheManager: CacheManager;
@@ -94,16 +90,6 @@ export default class TaskNotesPlugin extends Plugin {
 		// Initialize unified cache manager
 		this.cacheManager = new CacheManager(
 			this.app.vault,
-			this.settings.taskTag,
-			this.settings.excludedFolders,
-			this.settings.dailyNotesFolder,
-			this.settings.dailyNoteTemplate,
-			this.fieldMapper
-		);
-		
-		// Initialize the file indexer (legacy support)
-		this.fileIndexer = new FileIndexer(
-			this.app.vault, 
 			this.settings.taskTag,
 			this.settings.excludedFolders,
 			this.settings.dailyNotesFolder,
@@ -188,22 +174,11 @@ export default class TaskNotesPlugin extends Plugin {
 		if (filePath) {
 			this.cacheManager.clearCacheEntry(filePath);
 			
-			// Legacy support - clear file indexer cache
-			if (this.fileIndexer) {
-				this.fileIndexer.clearCachedInfo(filePath);
-				if (force) {
-					this.fileIndexer.rebuildIndex();
-				}
-			}
-			
 			// Clear YAML parsing cache
 			YAMLCache.clearCacheEntry(filePath);
 		} else if (force) {
 			// Full cache clear if forcing
 			this.cacheManager.clearAllCaches();
-			if (this.fileIndexer) {
-				this.fileIndexer.rebuildIndex();
-			}
 		}
 		
 		// Only emit refresh event if triggerRefresh is true
@@ -237,10 +212,6 @@ export default class TaskNotesPlugin extends Plugin {
 			this.requestDeduplicator.cancelAll();
 		}
 		
-		// Clean up the file indexer (legacy)
-		if (this.fileIndexer) {
-			this.fileIndexer.destroy();
-		}
 		
 		// Clean up the event emitter
 		this.emitter.removeAllListeners();
@@ -264,31 +235,14 @@ export default class TaskNotesPlugin extends Plugin {
 			this.priorityManager.updatePriorities(this.settings.customPriorities);
 		}
 		
-		// Update the file indexer with new settings if relevant
-		if (this.fileIndexer) {
-			// Update template path and field mapper without recreating the entire indexer
-			this.fileIndexer.updateDailyNoteTemplatePath(this.settings.dailyNoteTemplate);
-			this.fileIndexer.updateFieldMapper(this.fieldMapper);
-			
-			// Only recreate indexer if core settings changed
-			const coreSettingsChanged = this.fileIndexer.taskTag !== this.settings.taskTag || 
-				this.fileIndexer.excludedFolders.join(',') !== this.settings.excludedFolders;
-			
-			if (coreSettingsChanged) {
-				// Properly destroy the old indexer first
-				this.fileIndexer.destroy();
-				
-				// Create a new indexer with updated settings
-				this.fileIndexer = new FileIndexer(
-					this.app.vault, 
-					this.settings.taskTag,
-					this.settings.excludedFolders,
-					this.settings.dailyNotesFolder,
-					this.settings.dailyNoteTemplate,
-					this.fieldMapper
-				);
-			}
-		}
+		// Update the cache manager with new settings
+		this.cacheManager.updateConfig(
+			this.settings.taskTag,
+			this.settings.excludedFolders,
+			this.settings.dailyNotesFolder,
+			this.settings.dailyNoteTemplate,
+			this.fieldMapper
+		);
 		
 		// Update custom styles
 		this.injectCustomStyles();
@@ -717,13 +671,13 @@ export default class TaskNotesPlugin extends Plugin {
 			
 			// If we created a new daily note, force a rebuild of the calendar cache
 			// for this month to ensure it shows up immediately in the calendar view
-			if (noteWasCreated && this.fileIndexer) {
+			if (noteWasCreated) {
 				// Get the year and month from the date
 				const year = date.getFullYear();
 				const month = date.getMonth();
 				
 				// Rebuild the daily notes cache for this month
-				this.fileIndexer.rebuildDailyNotesCache(year, month)
+				this.cacheManager.rebuildDailyNotesCache(year, month)
 					.then(() => {
 						// Notify views that data has changed to trigger a UI refresh
 						this.notifyDataChanged(dailyNotePath, false, true);
@@ -836,17 +790,15 @@ private injectCustomStyles(): void {
 				new Notice(`Updated task ${property}`);
 			}
 			
-			// Add the updated task to the file indexer's cache
-			if (this.fileIndexer) {
-				// Use the manually constructed updated task like recurring tasks do
-				await this.fileIndexer.updateTaskInfoInCache(task.path, updatedTask as TaskInfo);
-				
-				// Rebuild the file index to ensure all data is fresh like recurring tasks do
-				await this.fileIndexer.rebuildIndex();
-				
-				// Clear the YAML cache for this file
-				YAMLCache.clearCacheEntry(task.path);
-			}
+			// Add the updated task to the cache manager
+			// Use the manually constructed updated task like recurring tasks do
+			await this.cacheManager.updateTaskInfoInCache(task.path, updatedTask as TaskInfo);
+			
+			// Rebuild the file index to ensure all data is fresh like recurring tasks do
+			await this.cacheManager.rebuildIndex();
+			
+			// Clear the YAML cache for this file
+			YAMLCache.clearCacheEntry(task.path);
 			
 			// For simple property updates (priority, status, due), emit a granular update event
 			// For more complex changes that affect task identity, keep using full refresh
@@ -922,10 +874,8 @@ private injectCustomStyles(): void {
 			});
 			
 			// Update cache and rebuild index - follow time tracking pattern
-			if (this.fileIndexer) {
-				await this.fileIndexer.updateTaskInfoInCache(task.path, updatedTask);
-				await this.fileIndexer.rebuildIndex();
-			}
+			await this.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+			await this.cacheManager.rebuildIndex();
 			
 			// Clear YAML cache
 			YAMLCache.clearCacheEntry(task.path);
@@ -968,17 +918,15 @@ private injectCustomStyles(): void {
 			// Show a notice
 			new Notice(task.archived ? 'Task unarchived' : 'Task archived');
 			
-			// Add the updated task to the file indexer's cache
-			if (this.fileIndexer) {
-				// Use the updated task info with field mapping
-				const taskInfo = extractTaskInfo(updatedContent, task.path, this.fieldMapper);
-				
-				// Find and update this file in the index
-				await this.fileIndexer.updateTaskInfoInCache(task.path, taskInfo as TaskInfo);
-				
-				// Clear the YAML cache for this file
-				YAMLCache.clearCacheEntry(task.path);
-			}
+			// Add the updated task to the cache
+			// Use the updated task info with field mapping
+			const taskInfo = extractTaskInfo(updatedContent, task.path, this.fieldMapper);
+			
+			// Find and update this file in the index
+			await this.cacheManager.updateTaskInfoInCache(task.path, taskInfo as TaskInfo);
+			
+			// Clear the YAML cache for this file
+			YAMLCache.clearCacheEntry(task.path);
 			
 			// For archived status changes, we do want a full UI refresh as the task
 			// might need to be moved between sections or hidden completely
@@ -1034,11 +982,9 @@ private injectCustomStyles(): void {
 			new Notice('Time tracking started');
 			
 			// Update the cache with the modified task
-			if (this.fileIndexer) {
-				await this.fileIndexer.updateTaskInfoInCache(task.path, updatedTask);
-				await this.fileIndexer.rebuildIndex();
-				YAMLCache.clearCacheEntry(task.path);
-			}
+			await this.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+			await this.cacheManager.rebuildIndex();
+			YAMLCache.clearCacheEntry(task.path);
 			
 			// Emit granular update event instead of full refresh
 			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask });
@@ -1108,11 +1054,9 @@ private injectCustomStyles(): void {
 			new Notice('Time tracking stopped');
 			
 			// Update the cache with the modified task
-			if (this.fileIndexer) {
-				await this.fileIndexer.updateTaskInfoInCache(task.path, updatedTask);
-				await this.fileIndexer.rebuildIndex();
-				YAMLCache.clearCacheEntry(task.path);
-			}
+			await this.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+			await this.cacheManager.rebuildIndex();
+			YAMLCache.clearCacheEntry(task.path);
 			
 			// Emit granular update event instead of full refresh
 			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask });

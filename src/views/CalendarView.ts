@@ -119,7 +119,7 @@ export class CalendarView extends ItemView {
         if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
             // Force daily notes cache rebuild for the new month
             if (this.colorizeMode === 'daily') {
-                this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+                this.plugin.cacheManager.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
             }
             await this.refresh();
         } else {
@@ -140,7 +140,7 @@ export class CalendarView extends ItemView {
         if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
             // Force daily notes cache rebuild for the new month
             if (this.colorizeMode === 'daily') {
-                this.plugin.fileIndexer.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+                this.plugin.cacheManager.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
             }
             await this.refresh();
         } else {
@@ -160,7 +160,7 @@ export class CalendarView extends ItemView {
             
             // Force daily notes cache rebuild for the current month
             if (this.colorizeMode === 'daily') {
-                this.plugin.fileIndexer.rebuildDailyNotesCache(today.getFullYear(), today.getMonth());
+                this.plugin.cacheManager.rebuildDailyNotesCache(today.getFullYear(), today.getMonth());
             }
             
             await this.refresh();
@@ -326,7 +326,7 @@ export class CalendarView extends ItemView {
         try {
             const container = this.contentEl.querySelector('.tasknotes-container') as HTMLElement;
             if (container) {
-                // Simply render the view and get fresh data from FileIndexer
+                // Simply render the view and get fresh data from CacheManager
                 this.renderView(container);
             }
         } finally {
@@ -481,7 +481,7 @@ export class CalendarView extends ItemView {
             if (mode === 'daily') {
                 const currentYear = this.plugin.selectedDate.getFullYear();
                 const currentMonth = this.plugin.selectedDate.getMonth();
-                await this.plugin.fileIndexer.rebuildDailyNotesCache(currentYear, currentMonth);
+                await this.plugin.cacheManager.rebuildDailyNotesCache(currentYear, currentMonth);
             }
             
             this.colorizeCalendar();
@@ -730,13 +730,13 @@ export class CalendarView extends ItemView {
             const currentYear = this.plugin.selectedDate.getFullYear();
             const currentMonth = this.plugin.selectedDate.getMonth();
             
-            // Try unified cache manager first, fallback to FileIndexer
+            // Get data from unified cache manager
             let calendarData;
             try {
                 calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
             } catch (error) {
-                console.warn('Failed to get calendar data from unified cache, falling back to FileIndexer:', error);
-                calendarData = await this.plugin.fileIndexer.getCalendarData(currentYear, currentMonth);
+                console.warn('Failed to get calendar data from unified cache manager:', error);
+                calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
             }
             const notesCache = calendarData.notes;
         
@@ -813,7 +813,7 @@ export class CalendarView extends ItemView {
         const currentMonth = this.plugin.selectedDate.getMonth();
         
         // Get calendar data from unified cache
-        const calendarData = await this.plugin.fileIndexer.getCalendarData(currentYear, currentMonth);
+        const calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
         const tasksCache = calendarData.tasks;
         
         // Find all calendar days
@@ -897,11 +897,11 @@ export class CalendarView extends ItemView {
         
         if (!CalendarView.dailyNotesInitialized) {
             // Use the targeted rebuild method instead of rebuilding the entire index
-            dailyNotesCache = await this.plugin.fileIndexer.rebuildDailyNotesCache(currentYear, currentMonth);
+            dailyNotesCache = await this.plugin.cacheManager.rebuildDailyNotesCache(currentYear, currentMonth);
             CalendarView.dailyNotesInitialized = true;
         } else {
             // Get calendar data from file indexer
-            const calendarData = await this.plugin.fileIndexer.getCalendarData(currentYear, currentMonth);
+            const calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
             dailyNotesCache = calendarData.dailyNotes;
         }
         

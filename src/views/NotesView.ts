@@ -265,8 +265,8 @@ export class NotesView extends ItemView {
                 return [...this.cachedNotes]; // Return a copy to prevent modification of cache
             }
             
-            // Use the FileIndexer to get notes information for the specific date
-            const notes = await this.plugin.fileIndexer.getNotesForDate(this.plugin.selectedDate, forceRefresh);
+            // Use the CacheManager to get notes information for the specific date
+            const notes = await this.plugin.cacheManager.getNotesForDate(this.plugin.selectedDate, forceRefresh);
             
             // Include all notes (both regular notes and daily notes)
             const filteredNotes = notes;

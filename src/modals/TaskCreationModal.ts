@@ -43,7 +43,7 @@ export class TaskCreationModal extends Modal {
 				const checkDate = new Date(currentDate);
 				checkDate.setDate(currentDate.getDate() + i);
 				try {
-					const tasksForDate = await this.plugin.fileIndexer.getTaskInfoForDate(checkDate);
+					const tasksForDate = await this.plugin.cacheManager.getTaskInfoForDate(checkDate);
 					allTaskDates.push(...tasksForDate);
 				} catch (err) {
 					// Ignore errors for individual dates
@@ -80,7 +80,7 @@ export class TaskCreationModal extends Modal {
 				const checkDate = new Date(currentDate);
 				checkDate.setDate(currentDate.getDate() + i);
 				try {
-					const tasksForDate = await this.plugin.fileIndexer.getTaskInfoForDate(checkDate);
+					const tasksForDate = await this.plugin.cacheManager.getTaskInfoForDate(checkDate);
 					allTaskDates.push(...tasksForDate);
 				} catch (err) {
 					// Ignore errors for individual dates

@@ -265,7 +265,7 @@ export class PomodoroView extends ItemView {
                 date.setDate(today.getDate() + i);
                 
                 try {
-                    const dayTasks = await this.plugin.fileIndexer.getTaskInfoForDate(date);
+                    const dayTasks = await this.plugin.cacheManager.getTaskInfoForDate(date);
                     tasks.push(...dayTasks);
                 } catch (error) {
                     // Error getting tasks for date
@@ -337,7 +337,7 @@ export class PomodoroView extends ItemView {
                     date.setDate(today.getDate() + i);
                     
                     try {
-                        const dayTasks = await this.plugin.fileIndexer.getTaskInfoForDate(date);
+                        const dayTasks = await this.plugin.cacheManager.getTaskInfoForDate(date);
                         const task = dayTasks.find(t => t.path === lastTaskPath);
                         
                         if (task && task.status !== 'done' && !task.archived) {
@@ -364,7 +364,7 @@ export class PomodoroView extends ItemView {
                 date.setDate(today.getDate() + i);
                 
                 try {
-                    const dayTasks = await this.plugin.fileIndexer.getTaskInfoForDate(date);
+                    const dayTasks = await this.plugin.cacheManager.getTaskInfoForDate(date);
                     const task = dayTasks.find(t => t.path === taskPath);
                     
                     if (task) {
