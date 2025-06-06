@@ -854,10 +854,10 @@ private injectCustomStyles(): void {
 	 * Opens a simple due date modal (placeholder for now)
 	 */
 	openDueDateModal(task: TaskInfo) {
-		const dateStr = prompt('Enter due date (YYYY-MM-DD):', task.due || '');
-		if (dateStr !== null) {
-			this.updateTaskProperty(task, 'due', dateStr || undefined);
-		}
+		import('./modals/DueDateModal').then(({ DueDateModal }) => {
+			const modal = new DueDateModal(this.app, task, this);
+			modal.open();
+		}).catch(console.error);
 	}
 
 }

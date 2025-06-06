@@ -3439,6 +3439,74 @@
     cursor: pointer;
 }
 
+/* Due Date Modal Styling */
+.task-title-display {
+    font-weight: 500;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: var(--background-secondary);
+    border-radius: var(--radius-s);
+    border-left: 3px solid var(--interactive-accent);
+}
+
+.quick-dates-container {
+    margin: 16px 0;
+}
+
+.quick-dates-container h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+.quick-date-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.quick-date-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: all var(--cs-transition-fast);
+}
+
+.quick-date-btn:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+}
+
+.quick-date-btn.clear-btn {
+    background: var(--background-modifier-error);
+    color: var(--text-on-accent);
+}
+
+.quick-date-btn.clear-btn:hover {
+    background: var(--background-modifier-error-hover);
+}
+
+.modal-button-container {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.error-message {
+    color: var(--text-error);
+    background: var(--background-modifier-error);
+    padding: 8px 12px;
+    border-radius: var(--radius-s);
+    margin-top: 8px;
+    font-size: 0.9em;
+}
+
 /* Empty message styling */
 .empty-agenda-message {
     text-align: center;
