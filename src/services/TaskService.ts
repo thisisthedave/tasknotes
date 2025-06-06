@@ -83,18 +83,29 @@ export class TaskService {
                 }
             });
 
-            // Clear cache for this specific file
+            // Clear cache for this specific file and trigger refresh
             this.plugin.notifyDataChanged(task.path, false, false);
             
-            // Get the fresh task data from cache after the file update
-            const freshTasks = await this.plugin.cacheManager.getTaskInfoForDate(this.plugin.selectedDate, true);
-            const freshTask = freshTasks.find(t => t.path === task.path);
-            
-            // Emit the UI update with fresh data from cache, or fallback to optimistic update
-            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                path: task.path,
-                updatedTask: freshTask || (updatedTask as TaskInfo)
-            });
+            // Give the cache a moment to clear and then get fresh data
+            setTimeout(async () => {
+                try {
+                    // Get the fresh task data directly from cache manager
+                    const freshTask = await this.plugin.cacheManager.getTaskInfo(task.path, true);
+                    
+                    // Emit the UI update with fresh data from cache, or fallback to optimistic update
+                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                        path: task.path,
+                        updatedTask: freshTask || (updatedTask as TaskInfo)
+                    });
+                } catch (error) {
+                    console.error('Failed to get fresh task data:', error);
+                    // Emit with optimistic update as fallback
+                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                        path: task.path,
+                        updatedTask: (updatedTask as TaskInfo)
+                    });
+                }
+            }, 50);
             
             if (!options.silent) {
                 if (property === 'status') {

@@ -18,7 +18,7 @@ export class AgendaView extends ItemView {
     
     // View settings
     private daysToShow: number = 7;
-    private showCompletedTasks: boolean = false;
+    private showArchived: boolean = false;
     private groupByDate: boolean = true;
     private startDate: Date;
     
@@ -196,18 +196,18 @@ export class AgendaView extends ItemView {
             currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
-        // Show completed toggle
-        const completedContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
-        const completedToggle = completedContainer.createEl('label', { cls: 'toggle-label' });
-        const completedCheckbox = completedToggle.createEl('input', { 
+        // Show archived toggle
+        const archivedContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
+        const archivedToggle = archivedContainer.createEl('label', { cls: 'toggle-label' });
+        const archivedCheckbox = archivedToggle.createEl('input', { 
             type: 'checkbox',
             cls: 'toggle-checkbox'
         });
-        completedCheckbox.checked = this.showCompletedTasks;
-        completedToggle.appendChild(document.createTextNode(' Show completed'));
+        archivedCheckbox.checked = this.showArchived;
+        archivedToggle.appendChild(document.createTextNode(' Show archived'));
         
-        completedCheckbox.addEventListener('change', () => {
-            this.showCompletedTasks = completedCheckbox.checked;
+        archivedCheckbox.addEventListener('change', () => {
+            this.showArchived = archivedCheckbox.checked;
             this.refresh();
         });
         
@@ -260,8 +260,8 @@ export class AgendaView extends ItemView {
             
             // Filter tasks
             const tasksForDate = dayData.tasks.filter(task => {
-                // Skip completed tasks if not showing them
-                if (!this.showCompletedTasks && task.status === 'done') {
+                // Skip archived tasks if not showing them
+                if (!this.showArchived && task.archived) {
                     return false;
                 }
                 
@@ -330,7 +330,7 @@ export class AgendaView extends ItemView {
             const dateStr = format(dayData.date, 'yyyy-MM-dd');
             
             dayData.tasks.forEach(task => {
-                if (!this.showCompletedTasks && task.status === 'done') {
+                if (!this.showArchived && task.archived) {
                     return;
                 }
                 
@@ -458,7 +458,11 @@ export class AgendaView extends ItemView {
      */
     private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
         const taskElement = this.contentEl.querySelector(`[data-task-path="${taskPath}"]`) as HTMLElement;
-        if (taskElement) {
+        
+        // Check if task should be visible based on archived filter
+        const shouldBeVisible = this.showArchived || !updatedTask.archived;
+        
+        if (taskElement && shouldBeVisible) {
             try {
                 // Update the existing task card
                 updateTaskCard(taskElement, updatedTask, this.plugin, {
@@ -475,11 +479,17 @@ export class AgendaView extends ItemView {
                 // If update fails, trigger a full refresh to recover
                 this.refresh();
             }
+        } else if (taskElement && !shouldBeVisible) {
+            // Task should be hidden - remove it from the DOM
+            taskElement.remove();
+            console.log(`AgendaView: Removed task ${taskPath} from DOM (archived)`);
+        } else if (!taskElement && shouldBeVisible) {
+            // Task element not found but should be visible - might be a new task
+            console.log(`AgendaView: No element found for task ${taskPath}, triggering refresh`);
+            this.refresh();
         } else {
-            // Task element not found, might be a new task or filtering change
-            console.log(`AgendaView: No element found for task ${taskPath}, skipping update`);
-            // Don't trigger a full refresh for missing elements, as this can cause issues
-            // The task might not be visible in the current view due to date/filter constraints
+            // Task element not found and shouldn't be visible - nothing to do
+            console.log(`AgendaView: No element found for task ${taskPath}, skipping update (filtered)`);
         }
     }
     
@@ -627,13 +637,13 @@ export class AgendaView extends ItemView {
                     this.refresh();
                     break;
                     
-                // c - toggle completed tasks
+                // c - toggle archived tasks
                 case 'c':
                 case 'C':
                     e.preventDefault();
-                    this.showCompletedTasks = !this.showCompletedTasks;
+                    this.showArchived = !this.showArchived;
                     const checkbox = this.contentEl.querySelector('.toggle-checkbox') as HTMLInputElement;
-                    if (checkbox) checkbox.checked = this.showCompletedTasks;
+                    if (checkbox) checkbox.checked = this.showArchived;
                     this.refresh();
                     break;
             }
