@@ -130,12 +130,6 @@ export class KanbanView extends ItemView {
         newTaskButton.addEventListener('click', () => {
             this.plugin.openTaskCreationModal();
         });
-        
-        const refreshButton = actions.createEl('button', { 
-            cls: 'kanban-refresh-button tasknotes-button',
-            text: 'Refresh'
-        });
-        refreshButton.addEventListener('click', () => this.refresh());
 
         // Bottom row: Filters and stats
         const filtersRow = header.createDiv({ cls: 'kanban-filters' });
