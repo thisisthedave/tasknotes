@@ -204,8 +204,9 @@ export interface ExportedConfig {
 export type KanbanGroupByField = 'status' | 'priority' | 'context';
 
 export interface KanbanBoardConfig {
-	id: string; // Unique ID, e.g., 'board-166854321'
-	name: string; // User-facing name, e.g., "My Project Status"
-	groupByField: KanbanGroupByField;
-	columnOrder: string[]; // Array of values, e.g., ['open', 'in-progress', 'done']
+	id: string;                          // Unique ID
+	name: string;                        // User-facing name
+	groupByField: KanbanGroupByField;    // What to group tasks by
+	columnOrder: string[];               // Order of column values
 }
+

@@ -4,8 +4,7 @@ import {
     KANBAN_VIEW_TYPE, 
     EVENT_DATA_CHANGED, 
     EVENT_TASK_UPDATED, 
-    TaskInfo, 
-    KanbanBoardConfig 
+    TaskInfo 
 } from '../types';
 import { createTaskCard, updateTaskCard } from '../ui/TaskCard';
 
@@ -17,7 +16,7 @@ export class KanbanView extends ItemView {
     
     // View state
     private tasks: TaskInfo[] = [];
-    private currentBoardId: string | null = null;
+    private currentGroupBy: 'status' | 'priority' | 'context' = 'status';
     private showArchived: boolean = false;
     private taskElements: Map<string, HTMLElement> = new Map(); // For granular updates
     private searchQuery: string = '';
@@ -95,50 +94,47 @@ export class KanbanView extends ItemView {
 
         const boardSelectorContainer = topRow.createDiv({ cls: 'kanban-board-selector' });
         const boardInfo = boardSelectorContainer.createDiv({ cls: 'kanban-board-info' });
-        boardInfo.createEl('h2', { text: 'Board:', cls: 'kanban-board-title' });
+        boardInfo.createEl('h2', { text: 'Group by:', cls: 'kanban-board-title' });
         
-        const boardSelect = boardInfo.createEl('select', { cls: 'kanban-select' });
-        const boards = this.plugin.settings.kanbanBoards;
+        const groupBySelect = boardInfo.createEl('select', { cls: 'kanban-select' });
+        
+        const groupOptions = [
+            { value: 'status', label: 'Status' },
+            { value: 'priority', label: 'Priority' },
+            { value: 'context', label: 'Context' }
+        ];
 
-        if (boards.length > 0) {
-            // Set default board if none selected
-            if (!this.currentBoardId || !boards.some(b => b.id === this.currentBoardId)) {
-                this.currentBoardId = boards[0].id;
+        groupOptions.forEach(option => {
+            const optionEl = groupBySelect.createEl('option', { 
+                value: option.value, 
+                text: option.label 
+            });
+            if (option.value === this.currentGroupBy) {
+                optionEl.selected = true;
             }
+        });
 
-            boards.forEach(board => {
-                const option = boardSelect.createEl('option', { value: board.id, text: board.name });
-                if (board.id === this.currentBoardId) {
-                    option.selected = true;
-                }
-            });
-
-            boardSelect.addEventListener('change', async () => {
-                this.currentBoardId = boardSelect.value;
-                await this.loadAndRenderBoard();
-            });
-        } else {
-            boardSelect.createEl('option', { text: 'No boards configured' }).disabled = true;
-        }
+        groupBySelect.addEventListener('change', async () => {
+            this.currentGroupBy = groupBySelect.value as 'status' | 'priority' | 'context';
+            await this.loadAndRenderBoard();
+        });
 
 
         const actions = topRow.createDiv({ cls: 'kanban-actions' });
         
         // Add new task button
         const newTaskButton = actions.createEl('button', { 
-            cls: 'kanban-new-task-button tasknotes-button tasknotes-button-primary' 
+            cls: 'kanban-new-task-button tasknotes-button tasknotes-button-primary',
+            text: 'New Task'
         });
-        newTaskButton.createSpan({ cls: 'kanban-button-icon', text: '➕' });
-        newTaskButton.createSpan({ text: 'New Task' });
         newTaskButton.addEventListener('click', () => {
             this.plugin.openTaskCreationModal();
         });
         
         const refreshButton = actions.createEl('button', { 
-            cls: 'kanban-refresh-button tasknotes-button' 
+            cls: 'kanban-refresh-button tasknotes-button',
+            text: 'Refresh'
         });
-        refreshButton.createSpan({ cls: 'kanban-button-icon', text: '🔄' });
-        refreshButton.createSpan({ text: 'Refresh' });
         refreshButton.addEventListener('click', () => this.refresh());
 
         // Bottom row: Filters and stats
@@ -241,63 +237,23 @@ export class KanbanView extends ItemView {
         this.boardContainer.empty();
         this.taskElements.clear();
 
-        const boardConfig = this.getCurrentBoardConfig();
-        if (!boardConfig) {
-            this.boardContainer.createDiv({ 
-                cls: 'kanban-empty-state',
-                text: "Please select or create a board in settings." 
-            });
-            return;
-        }
-
         const boardEl = this.boardContainer.createDiv({ cls: 'kanban-board' });
 
-        // Group tasks by the specified field
-        const groupedTasks = this.groupTasks(tasks, boardConfig.groupByField);
+        // Group tasks by the current grouping field
+        const groupedTasks = this.groupTasks(tasks, this.currentGroupBy);
         
-        // Get all possible columns (from config + discovered from tasks)
-        const allColumns = this.getAllColumns(groupedTasks, boardConfig);
+        // Get all possible columns from the actual tasks
+        const allColumns = Array.from(groupedTasks.keys()).sort();
 
-        // Render columns in the determined order
+        // Render columns
         allColumns.forEach(columnId => {
             const columnTasks = groupedTasks.get(columnId) || [];
-            this.renderColumn(boardEl, columnId, columnTasks, boardConfig);
+            this.renderColumn(boardEl, columnId, columnTasks);
         });
     }
 
-    private getAllColumns(groupedTasks: Map<string, TaskInfo[]>, boardConfig: KanbanBoardConfig): string[] {
-        // Just show all columns that have tasks, always
-        const allColumns: string[] = [];
-        const discoveredColumns = Array.from(groupedTasks.keys());
-        
-        // Start with configured columns that have tasks
-        for (const configuredColumn of boardConfig.columnOrder) {
-            if (discoveredColumns.includes(configuredColumn)) {
-                allColumns.push(configuredColumn);
-            }
-        }
-        
-        // Add any other discovered columns that aren't configured
-        for (const columnId of discoveredColumns) {
-            if (!boardConfig.columnOrder.includes(columnId)) {
-                if (columnId === 'uncategorized') {
-                    // Add uncategorized at the end
-                    continue;
-                } else {
-                    allColumns.push(columnId);
-                }
-            }
-        }
-        
-        // Add uncategorized at the end if it exists
-        if (discoveredColumns.includes('uncategorized')) {
-            allColumns.push('uncategorized');
-        }
-        
-        return allColumns;
-    }
 
-    private renderColumn(container: HTMLElement, columnId: string, tasks: TaskInfo[], boardConfig: KanbanBoardConfig) {
+    private renderColumn(container: HTMLElement, columnId: string, tasks: TaskInfo[]) {
         const columnEl = container.createDiv({ cls: 'kanban-column' });
         columnEl.dataset.columnId = columnId;
 
@@ -309,23 +265,20 @@ export class KanbanView extends ItemView {
         // Column header
         const headerEl = columnEl.createDiv({ cls: 'kanban-column-header' });
         
-        // Make all columns draggable for reordering
+        // Make columns draggable for reordering
         headerEl.draggable = true;
         headerEl.dataset.columnId = columnId;
-        this.addColumnDragHandlers(headerEl, boardConfig);
+        this.addColumnDragHandlers(headerEl);
         
-        // Title and count container
-        const titleContainer = headerEl.createDiv({ cls: 'column-title-container' });
-        const title = this.formatColumnTitle(columnId, boardConfig.groupByField);
-        titleContainer.createEl('h3', { text: title, cls: 'kanban-column-title' });
+        // Title line
+        const title = this.formatColumnTitle(columnId, this.currentGroupBy);
+        headerEl.createEl('div', { text: title, cls: 'kanban-column-title' });
         
-        // Simple task count
-        if (tasks.length > 0) {
-            titleContainer.createSpan({ 
-                text: ` (${tasks.length})`, 
-                cls: 'kanban-column-count-simple' 
-            });
-        }
+        // Count line
+        headerEl.createEl('div', { 
+            text: `${tasks.length} tasks`, 
+            cls: 'kanban-column-count' 
+        });
 
         
         // Column body for tasks
@@ -339,7 +292,7 @@ export class KanbanView extends ItemView {
             });
             
             // Make empty columns droppable
-            this.addColumnDropHandlers(emptyEl, boardConfig);
+            this.addColumnDropHandlers(emptyEl);
         } else {
             // Sort tasks within column by priority, then by title
             const sortedTasks = [...tasks].sort((a, b) => {
@@ -372,11 +325,10 @@ export class KanbanView extends ItemView {
         }
         
         // Add drop handlers to the column
-        this.addColumnDropHandlers(columnEl, boardConfig);
+        this.addColumnDropHandlers(columnEl);
     }
 
-
-    private addColumnDragHandlers(headerEl: HTMLElement, boardConfig: KanbanBoardConfig) {
+    private addColumnDragHandlers(headerEl: HTMLElement) {
         headerEl.addEventListener('dragstart', (e) => {
             if (e.dataTransfer) {
                 const columnId = headerEl.dataset.columnId;
@@ -417,41 +369,81 @@ export class KanbanView extends ItemView {
                 const targetColumnId = headerEl.dataset.columnId;
 
                 if (sourceColumnId && targetColumnId && sourceColumnId !== targetColumnId) {
-                    await this.reorderColumns(sourceColumnId, targetColumnId, boardConfig);
+                    await this.reorderColumns(sourceColumnId, targetColumnId);
                 }
             }
         });
     }
 
-    private async reorderColumns(sourceColumnId: string, targetColumnId: string, boardConfig: KanbanBoardConfig) {
-        try {
-            // Add columns to config if they're not already there
-            if (!boardConfig.columnOrder.includes(sourceColumnId)) {
-                boardConfig.columnOrder.push(sourceColumnId);
-            }
-            if (!boardConfig.columnOrder.includes(targetColumnId)) {
-                boardConfig.columnOrder.push(targetColumnId);
-            }
+    private columnOrder: string[] = [];
 
-            const sourceIndex = boardConfig.columnOrder.indexOf(sourceColumnId);
-            const targetIndex = boardConfig.columnOrder.indexOf(targetColumnId);
-
-            if (sourceIndex === -1 || targetIndex === -1) return;
-
-            // Remove source column from its current position
-            const [movedColumn] = boardConfig.columnOrder.splice(sourceIndex, 1);
-            
-            // Insert it at the target position
-            boardConfig.columnOrder.splice(targetIndex, 0, movedColumn);
-
-            await this.plugin.saveSettings();
-            this.refresh();
-
-            new Notice(`Moved "${this.formatColumnTitle(sourceColumnId, boardConfig.groupByField)}" column`);
-        } catch (error) {
-            console.error('Failed to reorder columns:', error);
-            new Notice('Failed to reorder columns');
+    private async reorderColumns(sourceColumnId: string, targetColumnId: string) {
+        // Get current column order or create it from DOM
+        if (this.columnOrder.length === 0) {
+            const columns = this.boardContainer?.querySelectorAll('.kanban-column');
+            this.columnOrder = Array.from(columns || []).map(col => 
+                (col as HTMLElement).dataset.columnId || ''
+            ).filter(id => id);
         }
+
+        const sourceIndex = this.columnOrder.indexOf(sourceColumnId);
+        const targetIndex = this.columnOrder.indexOf(targetColumnId);
+
+        if (sourceIndex === -1 || targetIndex === -1) return;
+
+        // Remove source column from its current position
+        const [movedColumn] = this.columnOrder.splice(sourceIndex, 1);
+        
+        // Insert it at the target position
+        this.columnOrder.splice(targetIndex, 0, movedColumn);
+
+        // Re-render the board with new order
+        this.renderBoardWithOrder();
+    }
+
+    private async renderBoardWithOrder() {
+        if (!this.boardContainer) return;
+        
+        // Get current tasks
+        const filteredTasks = this.tasks.filter(task => {
+            if (!this.showArchived && task.archived) return false;
+            if (this.searchQuery.trim()) {
+                const query = this.searchQuery.toLowerCase();
+                const matchesTitle = task.title.toLowerCase().includes(query);
+                const matchesContexts = task.contexts?.some(context => 
+                    context.toLowerCase().includes(query)
+                ) || false;
+                if (!matchesTitle && !matchesContexts) return false;
+            }
+            return true;
+        });
+
+        const boardEl = this.boardContainer.querySelector('.kanban-board') as HTMLElement;
+        if (!boardEl) return;
+
+        boardEl.empty();
+        this.taskElements.clear();
+
+        // Group tasks by the current grouping field
+        const groupedTasks = this.groupTasks(filteredTasks, this.currentGroupBy);
+        
+        // Render columns in the stored order
+        this.columnOrder.forEach(columnId => {
+            if (groupedTasks.has(columnId)) {
+                const columnTasks = groupedTasks.get(columnId) || [];
+                this.renderColumn(boardEl, columnId, columnTasks);
+            }
+        });
+
+        // Add any new columns that aren't in our order yet
+        const allColumns = Array.from(groupedTasks.keys());
+        allColumns.forEach(columnId => {
+            if (!this.columnOrder.includes(columnId)) {
+                this.columnOrder.push(columnId);
+                const columnTasks = groupedTasks.get(columnId) || [];
+                this.renderColumn(boardEl, columnId, columnTasks);
+            }
+        });
     }
 
     private addDragHandlers(card: HTMLElement, task: TaskInfo) {
@@ -468,7 +460,7 @@ export class KanbanView extends ItemView {
         });
     }
 
-    private addColumnDropHandlers(columnEl: HTMLElement, boardConfig: KanbanBoardConfig) {
+    private addColumnDropHandlers(columnEl: HTMLElement) {
         columnEl.addEventListener('dragover', (e) => {
             e.preventDefault();
             if (e.dataTransfer) {
@@ -492,11 +484,11 @@ export class KanbanView extends ItemView {
                 const task = this.tasks.find(t => t.path === taskPath);
                 if (task) {
                     try {
-                        // Map groupByField to actual TaskInfo property
+                        // Map current grouping to actual TaskInfo property
                         let propertyToUpdate: keyof TaskInfo;
                         let valueToSet: any;
                         
-                        switch (boardConfig.groupByField) {
+                        switch (this.currentGroupBy) {
                             case 'status':
                                 propertyToUpdate = 'status';
                                 valueToSet = targetColumnId;
@@ -511,11 +503,11 @@ export class KanbanView extends ItemView {
                                 valueToSet = [targetColumnId];
                                 break;
                             default:
-                                throw new Error(`Unsupported groupByField: ${boardConfig.groupByField}`);
+                                throw new Error(`Unsupported groupBy: ${this.currentGroupBy}`);
                         }
                         
                         await this.plugin.taskService.updateProperty(task, propertyToUpdate, valueToSet, { silent: true });
-                        new Notice(`Task moved to "${this.formatColumnTitle(targetColumnId, boardConfig.groupByField)}"`);
+                        new Notice(`Task moved to "${this.formatColumnTitle(targetColumnId, this.currentGroupBy)}"`);
                     } catch (error) {
                         console.error('Failed to move task:', error);
                         new Notice('Failed to move task');
@@ -577,15 +569,14 @@ export class KanbanView extends ItemView {
         }
 
         const taskElement = this.taskElements.get(path);
-        const boardConfig = this.getCurrentBoardConfig();
 
-        if (taskElement && boardConfig) {
+        if (taskElement) {
             // Determine if the task needs to move columns
             const currentColumnEl = taskElement.closest('.kanban-column');
             const currentColumnId = (currentColumnEl as HTMLElement)?.dataset?.columnId;
             
             let newColumnId: string;
-            switch(boardConfig.groupByField) {
+            switch(this.currentGroupBy) {
                 case 'status': 
                     newColumnId = updatedTask.status || 'open'; 
                     break;
@@ -636,8 +627,4 @@ export class KanbanView extends ItemView {
         return id;
     }
 
-    
-    private getCurrentBoardConfig(): KanbanBoardConfig | undefined {
-        return this.plugin.settings.kanbanBoards.find(b => b.id === this.currentBoardId);
-    }
 }

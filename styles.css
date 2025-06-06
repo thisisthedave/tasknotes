@@ -4883,9 +4883,6 @@
     font-size: 0.9em;
 }
 
-.kanban-new-task-button .kanban-button-icon {
-    font-size: 1.1em;
-}
 
 
 
@@ -4936,17 +4933,6 @@
     pointer-events: none;
 }
 
-/* Draggable column visual indicator */
-.kanban-column-header[draggable="true"] .column-title-container::before {
-    content: "⋮⋮";
-    color: var(--text-muted);
-    font-size: 0.8em;
-    margin-right: 6px;
-    opacity: 0.6;
-    line-height: 1;
-    transform: rotate(90deg);
-    display: inline-block;
-}
 
 /* Simplified Filter Controls */
 .kanban-filter-controls {
@@ -4989,3 +4975,4 @@
     color: var(--text-muted);
     margin-left: auto;
 }
+

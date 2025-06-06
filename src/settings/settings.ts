@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import TaskNotesPlugin from '../main';
-import { FieldMapping, StatusConfig, PriorityConfig, KanbanBoardConfig } from '../types';
+import { FieldMapping, StatusConfig, PriorityConfig } from '../types';
 import { StatusManager } from '../services/StatusManager';
 import { PriorityManager } from '../services/PriorityManager';
 
@@ -31,8 +31,6 @@ export interface TaskNotesSettings {
 	fieldMapping: FieldMapping;
 	customStatuses: StatusConfig[];
 	customPriorities: PriorityConfig[];
-	// Kanban settings
-	kanbanBoards: KanbanBoardConfig[];
 }
 
 // Default field mapping maintains backward compatibility
@@ -129,17 +127,9 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	// Customization defaults
 	fieldMapping: DEFAULT_FIELD_MAPPING,
 	customStatuses: DEFAULT_STATUSES,
-	customPriorities: DEFAULT_PRIORITIES,
-	// Kanban defaults
-	kanbanBoards: [
-		{
-			id: 'default-status-board',
-			name: 'By Status',
-			groupByField: 'status',
-			columnOrder: ['open', 'in-progress', 'done'],
-		}
-	]
+	customPriorities: DEFAULT_PRIORITIES
 };
+
 
 export class TaskNotesSettingTab extends PluginSettingTab {
 	plugin: TaskNotesPlugin;
@@ -163,7 +153,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			{ id: 'field-mapping', name: 'Field mapping' },
 			{ id: 'statuses', name: 'Statuses' },
 			{ id: 'priorities', name: 'Priorities' },
-			{ id: 'kanban', name: 'Kanban boards' },
 			{ id: 'daily-notes', name: 'Daily notes' },
 			{ id: 'pomodoro', name: 'Pomodoro' }
 		];
@@ -215,9 +204,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				break;
 			case 'priorities':
 				this.renderPrioritiesTab();
-				break;
-			case 'kanban':
-				this.renderKanbanTab();
 				break;
 			case 'daily-notes':
 				this.renderDailyNotesTab();
@@ -742,116 +728,5 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					this.plugin.settings.pomodoroSoundVolume = value;
 					await this.plugin.saveSettings();
 				}));
-	}
-	
-	private renderKanbanTab(): void {
-		const container = this.tabContents['kanban'];
-		
-		container.createEl('h3', { text: 'Kanban boards' });
-		container.createEl('p', { 
-			text: 'Configure your Kanban boards for different views of your tasks.'
-		});
-		
-		// Board list
-		const boardList = container.createDiv('settings-list');
-		
-		this.renderKanbanBoardList(boardList);
-		
-		// Add board button
-		new Setting(container)
-			.setName('Add new board')
-			.addButton(button => button
-				.setButtonText('Add board')
-				.onClick(async () => {
-					const newBoard: KanbanBoardConfig = {
-						id: `board-${Date.now()}`,
-						name: 'New Board',
-						groupByField: 'status',
-						columnOrder: ['open', 'in-progress', 'done']
-					};
-					this.plugin.settings.kanbanBoards.push(newBoard);
-					await this.plugin.saveSettings();
-					this.renderActiveTab();
-				}));
-	}
-	
-	private renderKanbanBoardList(container: HTMLElement): void {
-		container.empty();
-		
-		this.plugin.settings.kanbanBoards.forEach((board, index) => {
-			const boardRow = container.createDiv('settings-item-row');
-			
-			// Board name input
-			const nameInput = boardRow.createEl('input', {
-				type: 'text',
-				value: board.name,
-				cls: 'settings-input'
-			});
-			
-			// Group by field dropdown
-			const groupBySelect = boardRow.createEl('select', {
-				cls: 'settings-input'
-			});
-			
-			const groupByOptions = [
-				{ value: 'status', label: 'Status' },
-				{ value: 'priority', label: 'Priority' },
-				{ value: 'context', label: 'Context' }
-			];
-			
-			groupByOptions.forEach(option => {
-				const optionEl = groupBySelect.createEl('option', {
-					value: option.value,
-					text: option.label
-				});
-				if (board.groupByField === option.value) {
-					optionEl.selected = true;
-				}
-			});
-			
-			// Delete button
-			const deleteButton = boardRow.createEl('button', {
-				text: 'Delete',
-				cls: 'settings-delete-button'
-			});
-			
-			// Event listeners
-			const updateBoard = async () => {
-				board.name = nameInput.value;
-				board.groupByField = groupBySelect.value as any;
-				
-				// Update column order based on new group field
-				if (board.groupByField === 'status') {
-					board.columnOrder = this.plugin.settings.customStatuses
-						.sort((a, b) => a.order - b.order)
-						.map(s => s.value);
-				} else if (board.groupByField === 'priority') {
-					board.columnOrder = this.plugin.settings.customPriorities
-						.sort((a, b) => b.weight - a.weight)
-						.map(p => p.value);
-				} else if (board.groupByField === 'context') {
-					board.columnOrder = ['work', 'home', 'personal']; // Default contexts
-				}
-				
-				await this.plugin.saveSettings();
-			};
-			
-			nameInput.addEventListener('change', updateBoard);
-			groupBySelect.addEventListener('change', updateBoard);
-			
-			deleteButton.addEventListener('click', async () => {
-				if (this.plugin.settings.kanbanBoards.length <= 1) {
-					alert('You must have at least 1 Kanban board');
-					return;
-				}
-				
-				const boardIndex = this.plugin.settings.kanbanBoards.findIndex(b => b.id === board.id);
-				if (boardIndex !== -1) {
-					this.plugin.settings.kanbanBoards.splice(boardIndex, 1);
-					await this.plugin.saveSettings();
-					this.renderActiveTab();
-				}
-			});
-		});
 	}
 }
