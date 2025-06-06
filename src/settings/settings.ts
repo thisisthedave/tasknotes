@@ -456,6 +456,16 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				cls: 'settings-input color-input'
 			});
 			
+			// Completed checkbox
+			const completedLabel = statusRow.createEl('label', { cls: 'settings-checkbox-label' });
+			
+			const completedCheckbox = completedLabel.createEl('input', {
+				type: 'checkbox'
+			});
+			completedCheckbox.checked = status.isCompleted;
+			
+			completedLabel.createSpan({ text: 'Completed' });
+			
 			// Delete button
 			const deleteButton = statusRow.createEl('button', {
 				text: 'Delete',
