@@ -141,6 +141,10 @@ export class TaskService {
         const isCurrentlyArchived = task.archived;
 
         try {
+            // Create a local modified copy for immediate UI feedback
+            const updatedTask = { ...task };
+            updatedTask.archived = !isCurrentlyArchived;
+
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 // Toggle archived property
                 if (isCurrentlyArchived) {
@@ -169,14 +173,41 @@ export class TaskService {
                 }
             });
 
-            // Notify about the change
-            this.plugin.notifyDataChanged(task.path);
+            // Clear cache for this specific file and trigger refresh
+            this.plugin.notifyDataChanged(task.path, false, false);
+            
+            // Give the cache a moment to clear and then get fresh data
+            setTimeout(async () => {
+                try {
+                    // Get the fresh task data directly from cache manager
+                    const freshTask = await this.plugin.cacheManager.getTaskInfo(task.path, true);
+                    
+                    // Emit the UI update with fresh data from cache, or fallback to optimistic update
+                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                        path: task.path,
+                        updatedTask: freshTask || updatedTask
+                    });
+                } catch (error) {
+                    console.error('Failed to get fresh task data:', error);
+                    // Emit with optimistic update as fallback
+                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                        path: task.path,
+                        updatedTask: updatedTask
+                    });
+                }
+            }, 50);
             
             const action = isCurrentlyArchived ? 'unarchived' : 'archived';
             new Notice(`Task ${action}`);
         } catch (error) {
             console.error('Failed to toggle task archive:', error);
             new Notice('Failed to update task archive status');
+            
+            // Revert optimistic update on error
+            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                path: task.path,
+                updatedTask: task
+            });
         }
     }
 

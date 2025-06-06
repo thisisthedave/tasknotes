@@ -388,7 +388,7 @@ export class AgendaView extends ItemView {
     private renderTaskItem(container: HTMLElement, task: TaskInfo, date?: Date) {
         const taskCard = createTaskCard(task, this.plugin, {
             showDueDate: !this.groupByDate,
-            showCheckbox: true,
+            showCheckbox: false,
             showTimeTracking: true,
             showRecurringControls: true,
             groupByDate: this.groupByDate,
@@ -467,7 +467,7 @@ export class AgendaView extends ItemView {
                 // Update the existing task card
                 updateTaskCard(taskElement, updatedTask, this.plugin, {
                     showDueDate: !this.groupByDate,
-                    showCheckbox: true,
+                    showCheckbox: false,
                     showTimeTracking: true,
                     showRecurringControls: true,
                     groupByDate: this.groupByDate,
