@@ -4886,3 +4886,106 @@
 .kanban-new-task-button .kanban-button-icon {
     font-size: 1.1em;
 }
+
+
+
+/* Simple column count */
+.kanban-column-count-simple {
+    color: var(--text-muted);
+    font-size: 0.8em;
+    font-weight: normal;
+    margin-left: 4px;
+}
+
+/* Column Drag and Drop */
+.kanban-column-header[draggable="true"] {
+    cursor: grab;
+    user-select: none;
+}
+
+.kanban-column-header[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.kanban-column-header.is-dragging-column {
+    opacity: 0.5;
+    transform: rotate(2deg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.kanban-column-header.column-drop-target {
+    background: var(--background-modifier-hover);
+    border: 2px dashed var(--color-accent);
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}
+
+.kanban-column-header.column-drop-target::after {
+    content: "Drop here to reorder";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--color-accent);
+    color: var(--text-on-accent);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 500;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* Draggable column visual indicator */
+.kanban-column-header[draggable="true"] .column-title-container::before {
+    content: "⋮⋮";
+    color: var(--text-muted);
+    font-size: 0.8em;
+    margin-right: 6px;
+    opacity: 0.6;
+    line-height: 1;
+    transform: rotate(90deg);
+    display: inline-block;
+}
+
+/* Simplified Filter Controls */
+.kanban-filter-controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.kanban-search-input {
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+    width: 200px;
+    transition: border-color 0.2s ease;
+}
+
+.kanban-search-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.kanban-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.kanban-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.board-stats-simple {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-left: auto;
+}
