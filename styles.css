@@ -4533,26 +4533,27 @@
 
 .kanban-column-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 4px;
     padding: var(--cs-spacing-sm) var(--cs-spacing-md);
     border-bottom: 1px solid var(--background-modifier-border);
     background: var(--background-secondary);
     border-radius: var(--cs-radius-md) var(--cs-radius-md) 0 0;
+    cursor: grab;
+    user-select: none;
 }
 
 .kanban-column-title {
     font-weight: 600;
     font-size: var(--cs-text-md);
     color: var(--text-normal);
+    line-height: 1.2;
 }
 
 .kanban-column-count {
-    background: var(--background-modifier-border);
     color: var(--text-muted);
-    padding: 2px 6px;
-    border-radius: var(--cs-radius-sm);
     font-size: var(--cs-text-xs);
+    line-height: 1.2;
     font-weight: 500;
 }
 
@@ -4895,12 +4896,7 @@
 }
 
 /* Column Drag and Drop */
-.kanban-column-header[draggable="true"] {
-    cursor: grab;
-    user-select: none;
-}
-
-.kanban-column-header[draggable="true"]:active {
+.kanban-column-header:active {
     cursor: grabbing;
 }
 
