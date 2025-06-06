@@ -46,6 +46,7 @@ import { perfMonitor } from './utils/PerformanceMonitor';
 import { FieldMapper } from './services/FieldMapper';
 import { StatusManager } from './services/StatusManager';
 import { PriorityManager } from './services/PriorityManager';
+import { TaskService } from './services/TaskService';
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -73,6 +74,9 @@ export default class TaskNotesPlugin extends Plugin {
 	statusManager: StatusManager;
 	priorityManager: PriorityManager;
 	
+	// Business logic services
+	taskService: TaskService;
+	
 	async onload() {
 		await this.loadSettings();
 		
@@ -80,6 +84,9 @@ export default class TaskNotesPlugin extends Plugin {
 		this.fieldMapper = new FieldMapper(this.settings.fieldMapping);
 		this.statusManager = new StatusManager(this.settings.customStatuses);
 		this.priorityManager = new PriorityManager(this.settings.customPriorities);
+		
+		// Initialize business logic services
+		this.taskService = new TaskService(this);
 		
 		// Initialize performance optimization utilities
 		this.requestDeduplicator = new RequestDeduplicator();
@@ -183,10 +190,10 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		// Only emit refresh event if triggerRefresh is true
 		if (triggerRefresh) {
-			// Use a short delay before notifying to allow UI changes to be visible
-			setTimeout(() => {
+			// Use requestAnimationFrame for better UI timing instead of setTimeout
+			requestAnimationFrame(() => {
 				this.emitter.emit(EVENT_DATA_CHANGED);
-			}, 100);
+			});
 		}
 	}
 
@@ -600,9 +607,8 @@ export default class TaskNotesPlugin extends Plugin {
 			active: true
 		});
 		
-		// We need to wait for the first tab to be created completely
-		// before creating new tabs
-		await new Promise(resolve => setTimeout(resolve, 100));
+		// Wait for the view to be properly loaded before creating more tabs
+		await new Promise(resolve => requestAnimationFrame(resolve));
 		
 		// Create the second tab
 		const secondLeaf = workspace.getLeaf('tab');
@@ -610,8 +616,8 @@ export default class TaskNotesPlugin extends Plugin {
 			type: TASK_LIST_VIEW_TYPE,
 		});
 		
-		// Wait again before creating the third tab
-		await new Promise(resolve => setTimeout(resolve, 100));
+		// Wait for the second tab to load before creating the third
+		await new Promise(resolve => requestAnimationFrame(resolve));
 		
 		// Create the third tab
 		const thirdLeaf = workspace.getLeaf('tab');
@@ -747,194 +753,18 @@ private injectCustomStyles(): void {
 }
 
 	async updateTaskProperty(task: TaskInfo, property: keyof TaskInfo, value: any, options: { silent?: boolean } = {}): Promise<void> {
-		try {
-			const file = this.app.vault.getAbstractFileByPath(task.path);
-			if (!(file instanceof TFile)) {
-				new Notice(`Cannot find task file: ${task.path}`);
-				return;
-			}
-			
-			// Create a local modified copy of the task to update UI immediately
-			const updatedTask = { ...task } as Record<string, any>;
-			updatedTask[property] = value;
-			
-			// Special handling for status changes - update completedDate in local copy
-			if (property === 'status' && !task.recurrence) {
-				if (this.statusManager.isCompletedStatus(value)) {
-					updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
-				} else {
-					updatedTask.completedDate = undefined;
-				}
-			}
-			
-			// Read current content and use field mapping to update
-			const content = await this.app.vault.read(file);
-			const propertyUpdates: Partial<TaskInfo> = {};
-			propertyUpdates[property] = value;
-			
-			// Special handling for status changes - update completedDate
-			if (property === 'status' && !task.recurrence) {
-				if (this.statusManager.isCompletedStatus(value)) {
-					propertyUpdates.completedDate = format(new Date(), 'yyyy-MM-dd');
-				} else {
-					propertyUpdates.completedDate = undefined;
-				}
-			}
-			
-			// Use field mapping to update the content
-			const updatedContent = updateTaskProperty(content, propertyUpdates, this.fieldMapper, this.settings.taskTag);
-			await this.app.vault.modify(file, updatedContent);
-			
-			// Show a notice (unless silent)
-			if (!options.silent) {
-				new Notice(`Updated task ${property}`);
-			}
-			
-			// Add the updated task to the cache manager
-			// Use the manually constructed updated task like recurring tasks do
-			await this.cacheManager.updateTaskInfoInCache(task.path, updatedTask as TaskInfo);
-			
-			// Rebuild the file index to ensure all data is fresh like recurring tasks do
-			await this.cacheManager.rebuildIndex();
-			
-			// Clear the YAML cache for this file
-			YAMLCache.clearCacheEntry(task.path);
-			
-			// For simple property updates (priority, status, due), emit a granular update event
-			// For more complex changes that affect task identity, keep using full refresh
-			if (['priority', 'status', 'due'].includes(property)) {
-				this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask: updatedTask as TaskInfo });
-			} else {
-				// Notify views that data has changed and force a full refresh for other properties
-				this.notifyDataChanged(task.path, true, true);
-			}
-			
-			// Instead of a full refresh, we could implement a more targeted update
-			// mechanism in the future that updates just the affected DOM elements
-		} catch (error) {
-			console.error('Error updating task property:', error);
-			new Notice('Failed to update task property');
-		}
+		return this.taskService.updateProperty(task, property, value, options);
 	}
 	
 	/**
 	 * Toggles a recurring task's completion status for the selected date
 	 */
 	async toggleRecurringTaskComplete(task: TaskInfo, date?: Date): Promise<void> {
-		try {
-			const file = this.app.vault.getAbstractFileByPath(task.path);
-			if (!(file instanceof TFile)) {
-				new Notice(`Cannot find task file: ${task.path}`);
-				return;
-			}
-			
-			// Use the provided date or fall back to the currently selected date
-			const targetDate = date || this.selectedDate;
-			const dateStr = format(targetDate, 'yyyy-MM-dd');
-			
-			// Check current completion status for this date
-			const completeInstances = Array.isArray(task.complete_instances) ? task.complete_instances : [];
-			const currentComplete = completeInstances.includes(dateStr);
-			const newComplete = !currentComplete;
-			
-			// Create a local modified copy for immediate UI feedback
-			const updatedTask = { ...task };
-			
-			// Process the frontmatter - follow time tracking pattern
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				// Ensure complete_instances array exists
-				if (!frontmatter.complete_instances) {
-					frontmatter.complete_instances = [];
-				}
-				
-				const completeDates: string[] = frontmatter.complete_instances;
-				
-				if (newComplete) {
-					// Add date to completed instances if not already present
-					if (!completeDates.includes(dateStr)) {
-						completeDates.push(dateStr);
-					}
-				} else {
-					// Remove date from completed instances
-					const index = completeDates.indexOf(dateStr);
-					if (index > -1) {
-						completeDates.splice(index, 1);
-					}
-				}
-				
-				// Update frontmatter
-				frontmatter.complete_instances = completeDates;
-				
-				// Update the dateModified field using field mapping
-				const dateModifiedField = this.fieldMapper.toUserField('dateModified');
-				frontmatter[dateModifiedField] = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
-				
-				// Update local copy for immediate UI feedback
-				updatedTask.complete_instances = [...completeDates];
-			});
-			
-			// Update cache and rebuild index - follow time tracking pattern
-			await this.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
-			await this.cacheManager.rebuildIndex();
-			
-			// Clear YAML cache
-			YAMLCache.clearCacheEntry(task.path);
-			
-			// Emit granular task update event
-			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask });
-			
-			// Show success notice
-			const displayDate = format(targetDate, 'MMM d, yyyy');
-			new Notice(`Marked task as ${newComplete ? 'complete' : 'incomplete'} for ${displayDate}`);
-			
-		} catch (error) {
-			console.error('Error toggling recurring task completion:', error);
-			new Notice('Failed to update recurring task completion');
-		}
+		return this.taskService.toggleRecurringTaskComplete(task, date);
 	}
 	
 	async toggleTaskArchive(task: TaskInfo): Promise<void> {
-		try {
-			const file = this.app.vault.getAbstractFileByPath(task.path);
-			if (!(file instanceof TFile)) {
-				new Notice(`Cannot find task file: ${task.path}`);
-				return;
-			}
-			
-			// Create a local modified copy of the task to update UI immediately
-			const updatedTask = { ...task };
-			updatedTask.archived = !task.archived;
-			
-			// Read current content and use field mapping to update
-			const content = await this.app.vault.read(file);
-			const propertyUpdates: Partial<TaskInfo> = {
-				archived: !task.archived
-			};
-			
-			// Use field mapping to update the content
-			const updatedContent = updateTaskProperty(content, propertyUpdates, this.fieldMapper, this.settings.taskTag);
-			await this.app.vault.modify(file, updatedContent);
-			
-			// Show a notice
-			new Notice(task.archived ? 'Task unarchived' : 'Task archived');
-			
-			// Add the updated task to the cache
-			// Use the updated task info with field mapping
-			const taskInfo = extractTaskInfo(updatedContent, task.path, this.fieldMapper);
-			
-			// Find and update this file in the index
-			await this.cacheManager.updateTaskInfoInCache(task.path, taskInfo as TaskInfo);
-			
-			// Clear the YAML cache for this file
-			YAMLCache.clearCacheEntry(task.path);
-			
-			// For archived status changes, we do want a full UI refresh as the task
-			// might need to be moved between sections or hidden completely
-			this.notifyDataChanged(task.path, true, true);
-		} catch (error) {
-			console.error('Error toggling task archive status:', error);
-			new Notice('Failed to update task archive status');
-		}
+		return this.taskService.toggleArchive(task);
 	}
 	
 	openTaskCreationModal() {
@@ -945,125 +775,14 @@ private injectCustomStyles(): void {
 	 * Starts a time tracking session for a task
 	 */
 	async startTimeTracking(task: TaskInfo, description?: string): Promise<void> {
-		try {
-			const file = this.app.vault.getAbstractFileByPath(task.path);
-			if (!(file instanceof TFile)) {
-				new Notice(`Cannot find task file: ${task.path}`);
-				return;
-			}
-			
-			// Check if there's already an active session
-			const activeEntry = task.timeEntries?.find(entry => !entry.endTime);
-			if (activeEntry) {
-				new Notice('Time tracking is already active for this task');
-				return;
-			}
-			
-			const now = new Date().toISOString();
-			const newEntry: TimeEntry = {
-				startTime: now,
-				description: description || ''
-			};
-			
-			// Create a local modified copy of the task to update UI immediately
-			const updatedTask = { ...task };
-			if (!updatedTask.timeEntries) {
-				updatedTask.timeEntries = [];
-			}
-			updatedTask.timeEntries = [...updatedTask.timeEntries, newEntry];
-			
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				if (!frontmatter.timeEntries) {
-					frontmatter.timeEntries = [];
-				}
-				frontmatter.timeEntries.push(newEntry);
-			});
-			
-			new Notice('Time tracking started');
-			
-			// Update the cache with the modified task
-			await this.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
-			await this.cacheManager.rebuildIndex();
-			YAMLCache.clearCacheEntry(task.path);
-			
-			// Emit granular update event instead of full refresh
-			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask });
-		} catch (error) {
-			console.error('Error starting time tracking:', error);
-			new Notice('Failed to start time tracking');
-		}
+		return this.taskService.startTimeTracking(task);
 	}
 	
 	/**
 	 * Stops the active time tracking session for a task
 	 */
 	async stopTimeTracking(task: TaskInfo): Promise<void> {
-		try {
-			const file = this.app.vault.getAbstractFileByPath(task.path);
-			if (!(file instanceof TFile)) {
-				new Notice(`Cannot find task file: ${task.path}`);
-				return;
-			}
-			
-			const activeEntry = task.timeEntries?.find(entry => !entry.endTime);
-			if (!activeEntry) {
-				new Notice('No active time tracking session found');
-				return;
-			}
-			
-			const now = new Date().toISOString();
-			
-			// Create a local modified copy of the task to update UI immediately
-			const updatedTask = { ...task };
-			if (!updatedTask.timeEntries) {
-				updatedTask.timeEntries = [];
-			}
-			
-			// Update the time entry in our local copy
-			updatedTask.timeEntries = updatedTask.timeEntries.map(entry => {
-				if (entry.startTime === activeEntry.startTime && !entry.endTime) {
-					return {
-						...entry,
-						endTime: now
-					};
-				}
-				return entry;
-			});
-			
-			
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				if (frontmatter.timeEntries) {
-					const entryToUpdate = frontmatter.timeEntries.find((entry: any) => 
-						(entry.start || entry.startTime) === activeEntry.startTime && !(entry.end || entry.endTime)
-					);
-					if (entryToUpdate) {
-						// Support both old and new field names for compatibility
-						if (entryToUpdate.start) {
-							entryToUpdate.end = now;
-							delete entryToUpdate.start; // Remove old field
-							entryToUpdate.startTime = activeEntry.startTime; // Add new field
-						} else {
-							entryToUpdate.endTime = now;
-						}
-						// Remove duration if it exists (old format)
-						delete entryToUpdate.duration;
-					}
-				}
-			});
-			
-			new Notice('Time tracking stopped');
-			
-			// Update the cache with the modified task
-			await this.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
-			await this.cacheManager.rebuildIndex();
-			YAMLCache.clearCacheEntry(task.path);
-			
-			// Emit granular update event instead of full refresh
-			this.emitter.emit(EVENT_TASK_UPDATED, { path: task.path, updatedTask });
-		} catch (error) {
-			console.error('Error stopping time tracking:', error);
-			new Notice('Failed to stop time tracking');
-		}
+		return this.taskService.stopTimeTracking(task);
 	}
 	
 	/**

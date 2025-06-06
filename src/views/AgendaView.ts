@@ -5,10 +5,13 @@ import {
     AGENDA_VIEW_TYPE,
     EVENT_DATA_CHANGED,
     EVENT_DATE_SELECTED,
+    EVENT_TASK_UPDATED,
     TaskInfo, 
     NoteInfo,
 } from '../types';
 import { isRecurringTaskDueOn, calculateTotalTimeSpent } from '../utils/helpers';
+import { createTaskCard, updateTaskCard } from '../ui/TaskCard';
+import { createNoteCard } from '../ui/NoteCard';
 
 export class AgendaView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -48,6 +51,12 @@ export class AgendaView extends ItemView {
             this.refresh();
         });
         this.listeners.push(dateListener);
+        
+        // Listen for individual task updates for granular DOM updates
+        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, updatedTask }) => {
+            this.updateTaskElementInDOM(path, updatedTask);
+        });
+        this.listeners.push(taskUpdateListener);
     }
     
     getViewType(): string {
@@ -104,13 +113,10 @@ export class AgendaView extends ItemView {
     private createAgendaControls(container: HTMLElement) {
         const controlsContainer = container.createDiv({ cls: 'agenda-controls' });
         
-        // Navigation controls
-        const navContainer = controlsContainer.createDiv({ cls: 'agenda-nav' });
+        // Row 1: Period Navigation
+        const navigationRow = controlsContainer.createDiv({ cls: 'controls-row navigation-row' });
         
-        // Time navigation buttons
-        const timeNavContainer = navContainer.createDiv({ cls: 'time-navigation' });
-        
-        const prevButton = timeNavContainer.createEl('button', {
+        const prevButton = navigationRow.createEl('button', {
             cls: 'nav-arrow-button',
             text: '‹',
             attr: {
@@ -123,7 +129,13 @@ export class AgendaView extends ItemView {
             this.navigateToPreviousPeriod();
         });
         
-        const nextButton = timeNavContainer.createEl('button', {
+        // Current period display
+        const currentPeriodDisplay = navigationRow.createDiv({ 
+            cls: 'current-period-display',
+            text: this.getCurrentPeriodText()
+        });
+        
+        const nextButton = navigationRow.createEl('button', {
             cls: 'nav-arrow-button',
             text: '›',
             attr: {
@@ -136,15 +148,28 @@ export class AgendaView extends ItemView {
             this.navigateToNextPeriod();
         });
         
+        const todayButton = navigationRow.createEl('button', {
+            text: 'Today',
+            cls: 'today-button tasknotes-button tasknotes-button-primary'
+        });
+        
+        todayButton.addEventListener('click', () => {
+            this.startDate = new Date();
+            this.refresh();
+        });
+        
+        // Row 2: View Options
+        const optionsRow = controlsContainer.createDiv({ cls: 'controls-row options-row' });
+        
         // Period selector
-        const periodContainer = navContainer.createDiv({ cls: 'period-selector' });
-        const periodLabel = periodContainer.createEl('span', { text: 'Show: ', cls: 'period-label' });
+        const periodContainer = optionsRow.createDiv({ cls: 'option-group period-selector' });
+        periodContainer.createEl('label', { text: 'Period:', cls: 'option-label' });
         
         const periodSelect = periodContainer.createEl('select', { cls: 'period-select' });
         const periods = [
-            { value: '7', text: 'Next 7 days' },
-            { value: '14', text: 'Next 14 days' },
-            { value: '30', text: 'Next 30 days' },
+            { value: '7', text: '7 days' },
+            { value: '14', text: '14 days' },
+            { value: '30', text: '30 days' },
             { value: 'week', text: 'This week' },
         ];
         
@@ -167,37 +192,39 @@ export class AgendaView extends ItemView {
                 this.daysToShow = parseInt(value);
             }
             this.refresh();
+            // Update the period display
+            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
         // Show completed toggle
-        const toggleContainer = navContainer.createDiv({ cls: 'toggle-container' });
-        const toggleLabel = toggleContainer.createEl('label', { cls: 'toggle-label' });
-        const toggleCheckbox = toggleLabel.createEl('input', { 
+        const completedContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
+        const completedToggle = completedContainer.createEl('label', { cls: 'toggle-label' });
+        const completedCheckbox = completedToggle.createEl('input', { 
             type: 'checkbox',
             cls: 'toggle-checkbox'
         });
-        toggleCheckbox.checked = this.showCompletedTasks;
-        toggleLabel.appendChild(document.createTextNode(' Show completed'));
+        completedCheckbox.checked = this.showCompletedTasks;
+        completedToggle.appendChild(document.createTextNode(' Show completed'));
         
-        toggleCheckbox.addEventListener('change', () => {
-            this.showCompletedTasks = toggleCheckbox.checked;
+        completedCheckbox.addEventListener('change', () => {
+            this.showCompletedTasks = completedCheckbox.checked;
             this.refresh();
         });
         
-        // Today button
-        const todayButton = navContainer.createEl('button', {
-            text: 'Today',
-            cls: 'today-button tasknotes-button tasknotes-button-primary'
+        // Group by date toggle
+        const groupingContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
+        const groupingToggle = groupingContainer.createEl('label', { cls: 'toggle-label' });
+        const groupingCheckbox = groupingToggle.createEl('input', { 
+            type: 'checkbox',
+            cls: 'toggle-checkbox'
         });
+        groupingCheckbox.checked = this.groupByDate;
+        groupingToggle.appendChild(document.createTextNode(' Group by date'));
         
-        todayButton.addEventListener('click', () => {
-            this.startDate = new Date();
+        groupingCheckbox.addEventListener('change', () => {
+            this.groupByDate = groupingCheckbox.checked;
             this.refresh();
         });
-        
-        // Current period display
-        const currentPeriod = controlsContainer.createDiv({ cls: 'current-period-display' });
-        currentPeriod.textContent = this.getCurrentPeriodText();
     }
     
     private async renderAgendaContent(container: HTMLElement) {
@@ -349,12 +376,8 @@ export class AgendaView extends ItemView {
             if (a.status !== 'done' && b.status === 'done') return -1;
             if (a.status === 'done' && b.status !== 'done') return 1;
             
-            // Then by priority
-            const priorityOrder = { high: 0, normal: 1, low: 2 };
-            const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 1;
-            const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 1;
-            
-            return aPriority - bPriority;
+            // Then by priority using PriorityManager
+            return this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
         });
         
         sortedTasks.forEach(task => {
@@ -363,109 +386,22 @@ export class AgendaView extends ItemView {
     }
     
     private renderTaskItem(container: HTMLElement, task: TaskInfo, date?: Date) {
-        const item = container.createDiv({ cls: `agenda-item task-item ${task.status}` });
-        
-        // Task checkbox
-        const checkbox = item.createEl('input', { 
-            type: 'checkbox',
-            cls: 'task-checkbox'
-        });
-        checkbox.checked = task.status === 'done';
-        
-        checkbox.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            await this.toggleTaskStatus(task);
+        const taskCard = createTaskCard(task, this.plugin, {
+            showDueDate: !this.groupByDate,
+            showCheckbox: true,
+            showTimeTracking: true,
+            showRecurringControls: true,
+            groupByDate: this.groupByDate,
+            targetDate: date
         });
         
-        // Task content
-        const content = item.createDiv({ cls: 'item-content' });
-        
-        // Title
-        const titleEl = content.createDiv({ cls: 'item-title', text: task.title });
-        if (task.status === 'done') {
-            titleEl.classList.add('completed');
-        }
-        
-        // Metadata
-        const meta = content.createDiv({ cls: 'item-meta' });
-        
-        // Priority badge
-        if (task.priority && task.priority !== 'normal') {
-            meta.createSpan({ 
-                cls: `priority-badge priority-${task.priority}`, 
-                text: task.priority 
-            });
-        }
-        
-        // Due date (only show if not grouping by date)
-        if (!this.groupByDate && task.due) {
-            const dueSpan = meta.createSpan({ cls: 'due-date' });
-            const dueDate = new Date(task.due);
-            
-            if (isToday(dueDate)) {
-                dueSpan.classList.add('due-today');
-                dueSpan.textContent = 'Today';
-            } else {
-                dueSpan.textContent = format(dueDate, 'MMM d');
-            }
-        }
-        
-        // Contexts
-        if (task.contexts && task.contexts.length > 0) {
-            task.contexts.forEach(context => {
-                meta.createSpan({ cls: 'context-tag', text: `@${context}` });
-            });
-        }
-        
-        // Time tracking
-        const timeSpent = calculateTotalTimeSpent(task.timeEntries || []);
-        if (task.timeEstimate || timeSpent > 0) {
-            const timeContainer = meta.createSpan({ cls: 'time-info' });
-            
-            if (timeSpent > 0) {
-                const progress = task.timeEstimate ? 
-                    Math.round((timeSpent / task.timeEstimate) * 100) : 0;
-                
-                timeContainer.createSpan({ 
-                    cls: 'time-spent', 
-                    text: this.plugin.formatTime(timeSpent)
-                });
-                
-                if (task.timeEstimate) {
-                    timeContainer.createSpan({ 
-                        cls: 'time-separator', 
-                        text: ' / ' 
-                    });
-                    timeContainer.createSpan({ 
-                        cls: 'time-estimate', 
-                        text: this.plugin.formatTime(task.timeEstimate)
-                    });
-                    
-                    if (progress > 100) {
-                        timeContainer.classList.add('over-estimate');
-                    }
-                }
-            } else if (task.timeEstimate) {
-                timeContainer.createSpan({ 
-                    cls: 'time-estimate', 
-                    text: `Est: ${this.plugin.formatTime(task.timeEstimate)}`
-                });
-            }
-        }
-        
-        // Add click handler
-        item.addEventListener('click', () => {
-            this.openFile(task.path);
-        });
-        
-        // Add context menu
-        item.addEventListener('contextmenu', (e) => {
+        // Add context menu handler
+        taskCard.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             this.showTaskContextMenu(e, task);
         });
         
-        // Add hover preview
-        this.addHoverPreview(item, task.path);
+        container.appendChild(taskCard);
     }
     
     private renderNotes(container: HTMLElement, notes: NoteInfo[]) {
@@ -475,52 +411,35 @@ export class AgendaView extends ItemView {
     }
     
     private renderNoteItem(container: HTMLElement, note: NoteInfo, date?: Date) {
-        const item = container.createDiv({ cls: 'agenda-item note-item' });
+        const noteCard = createNoteCard(note, this.plugin, {
+            showCreatedDate: false, // Don't show created date in agenda view
+            showTags: true,
+            showPath: false,
+            maxTags: 3,
+            showDailyNoteBadge: false // Notes in agenda are contextual to date
+        });
         
-        // Note icon
-        item.createDiv({ cls: 'note-icon', text: '📝' });
+        // Add agenda-specific styling
+        noteCard.classList.add('agenda-item');
         
-        // Note content
-        const content = item.createDiv({ cls: 'item-content' });
+        // Add note icon
+        const icon = noteCard.createDiv({ cls: 'note-icon', text: '📝' });
+        noteCard.prepend(icon);
         
-        // Title
-        content.createDiv({ cls: 'item-title', text: note.title });
+        // Add item type metadata if we want to distinguish from tasks
+        const meta = noteCard.querySelector('.note-item-content') || noteCard.createDiv({ cls: 'note-item-content' });
+        const typeBadge = meta.createSpan({ cls: 'item-type', text: 'Note' });
+        meta.prepend(typeBadge);
         
-        // Metadata
-        const meta = content.createDiv({ cls: 'item-meta' });
-        
-        meta.createSpan({ cls: 'item-type', text: 'Note' });
-        
-        // Tags
-        if (note.tags && note.tags.length > 0) {
-            const maxTags = 3;
-            note.tags.slice(0, maxTags).forEach(tag => {
-                meta.createSpan({ cls: 'note-tag', text: `#${tag}` });
-            });
-            
-            if (note.tags.length > maxTags) {
-                meta.createSpan({ 
-                    cls: 'more-tags', 
-                    text: `+${note.tags.length - maxTags}` 
-                });
-            }
-        }
-        
-        // Date (only show if not grouping by date)
+        // Add date if not grouping by date
         if (!this.groupByDate && date) {
-            meta.createSpan({ 
+            const dateSpan = meta.createSpan({ 
                 cls: 'note-date', 
                 text: format(date, 'MMM d') 
             });
         }
         
-        // Add click handler
-        item.addEventListener('click', () => {
-            this.openFile(note.path);
-        });
-        
-        // Add hover preview
-        this.addHoverPreview(item, note.path);
+        container.appendChild(noteCard);
     }
     
     private addHoverPreview(element: HTMLElement, filePath: string) {
@@ -540,72 +459,30 @@ export class AgendaView extends ItemView {
     }
     
     private async toggleTaskStatus(task: TaskInfo) {
-        const file = this.app.vault.getAbstractFileByPath(task.path);
-        if (!(file instanceof TFile)) return;
-        
-        const content = await this.app.vault.read(file);
-        const lines = content.split('\n');
-        
-        // Find the frontmatter
-        let inFrontmatter = false;
-        let frontmatterStart = -1;
-        let frontmatterEnd = -1;
-        
-        for (let i = 0; i < lines.length; i++) {
-            if (lines[i] === '---') {
-                if (!inFrontmatter) {
-                    inFrontmatter = true;
-                    frontmatterStart = i;
-                } else {
-                    frontmatterEnd = i;
-                    break;
-                }
-            }
+        // Use the centralized TaskService for safe data manipulation
+        await this.plugin.taskService.toggleStatus(task);
+    }
+    
+    /**
+     * Update a specific task element in the DOM without full re-render
+     */
+    private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
+        const taskElement = this.contentEl.querySelector(`[data-task-path="${taskPath}"]`) as HTMLElement;
+        if (taskElement) {
+            // Update the existing task card
+            updateTaskCard(taskElement, updatedTask, this.plugin, {
+                showDueDate: !this.groupByDate,
+                showCheckbox: true,
+                showTimeTracking: true,
+                showRecurringControls: true,
+                groupByDate: this.groupByDate,
+                targetDate: this.startDate
+            });
+        } else {
+            // Task element not found, might be a new task or filtering change
+            // Fall back to full refresh
+            this.refresh();
         }
-        
-        if (frontmatterStart === -1 || frontmatterEnd === -1) return;
-        
-        // Update status in frontmatter
-        for (let i = frontmatterStart + 1; i < frontmatterEnd; i++) {
-            if (lines[i].startsWith('status:')) {
-                const newStatus = task.status === 'done' ? 'open' : 'done';
-                lines[i] = `status: ${newStatus}`;
-                
-                // Update completed date
-                if (newStatus === 'done') {
-                    // Add completed date if not present
-                    let hasCompletedDate = false;
-                    for (let j = frontmatterStart + 1; j < frontmatterEnd; j++) {
-                        if (lines[j].startsWith('completed:')) {
-                            hasCompletedDate = true;
-                            lines[j] = `completed: ${format(new Date(), 'yyyy-MM-dd')}`;
-                            break;
-                        }
-                    }
-                    if (!hasCompletedDate) {
-                        lines.splice(frontmatterEnd, 0, `completed: ${format(new Date(), 'yyyy-MM-dd')}`);
-                    }
-                } else {
-                    // Remove completed date
-                    for (let j = frontmatterStart + 1; j < frontmatterEnd; j++) {
-                        if (lines[j].startsWith('completed:')) {
-                            lines.splice(j, 1);
-                            break;
-                        }
-                    }
-                }
-                
-                break;
-            }
-        }
-        
-        // Save the file
-        await this.app.vault.modify(file, lines.join('\n'));
-        
-        // Notify about the change
-        this.plugin.notifyDataChanged(task.path);
-        
-        new Notice(`Task ${task.status === 'done' ? 'reopened' : 'completed'}`);
     }
     
     private showTaskContextMenu(event: MouseEvent, task: TaskInfo) {
@@ -727,7 +604,20 @@ export class AgendaView extends ItemView {
     async refresh() {
         const container = this.contentEl.querySelector('.tasknotes-container') as HTMLElement;
         if (container) {
+            // Try to preserve scroll position
+            const contentContainer = container.querySelector('.agenda-content') as HTMLElement;
+            let scrollTop = 0;
+            if (contentContainer) {
+                scrollTop = contentContainer.scrollTop;
+            }
+            
             await this.renderView(container);
+            
+            // Restore scroll position
+            const newContentContainer = container.querySelector('.agenda-content') as HTMLElement;
+            if (newContentContainer) {
+                newContentContainer.scrollTop = scrollTop;
+            }
         }
     }
     
@@ -766,6 +656,8 @@ export class AgendaView extends ItemView {
                 case 'G':
                     e.preventDefault();
                     this.groupByDate = !this.groupByDate;
+                    const groupingCheckbox = this.contentEl.querySelector('.option-group.toggle-container:last-child .toggle-checkbox') as HTMLInputElement;
+                    if (groupingCheckbox) groupingCheckbox.checked = this.groupByDate;
                     this.refresh();
                     break;
                     

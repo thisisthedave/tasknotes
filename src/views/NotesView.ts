@@ -7,6 +7,7 @@ import {
     EVENT_DATE_SELECTED,
     EVENT_DATA_CHANGED
 } from '../types';
+import { createNoteCard } from '../ui/NoteCard';
 
 export class NotesView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -82,9 +83,27 @@ export class NotesView extends ItemView {
             this.lastNotesRefresh = 0;
         }
         
+        // Try to preserve scroll position if not forcing full refresh
+        const existingContainer = this.contentEl.querySelector('.tasknotes-container');
+        let scrollTop = 0;
+        if (existingContainer && !forceFullRefresh) {
+            const notesList = existingContainer.querySelector('.notes-list') as HTMLElement;
+            if (notesList) {
+                scrollTop = notesList.scrollTop;
+            }
+        }
+        
         // Clear and prepare the content element
         this.contentEl.empty();
         await this.render();
+        
+        // Restore scroll position
+        if (scrollTop > 0) {
+            const newNotesList = this.contentEl.querySelector('.notes-list') as HTMLElement;
+            if (newNotesList) {
+                newNotesList.scrollTop = scrollTop;
+            }
+        }
     }
     
     async render() {
@@ -118,10 +137,24 @@ export class NotesView extends ItemView {
         });
         
         refreshButton.addEventListener('click', async () => {
-            // Force refresh the notes cache
-            this.cachedNotes = null;
-            this.lastNotesRefresh = 0;
-            await this.refresh(true);
+            // Prevent double-clicks during refresh
+            if (refreshButton.classList.contains('is-loading')) return;
+            
+            refreshButton.classList.add('is-loading');
+            refreshButton.disabled = true;
+            const originalText = refreshButton.textContent;
+            refreshButton.textContent = 'Refreshing...';
+            
+            try {
+                // Force refresh the notes cache
+                this.cachedNotes = null;
+                this.lastNotesRefresh = 0;
+                await this.refresh(true);
+            } finally {
+                refreshButton.classList.remove('is-loading');
+                refreshButton.disabled = false;
+                refreshButton.textContent = originalText;
+            }
         });
     }
     
@@ -156,79 +189,17 @@ export class NotesView extends ItemView {
             // Use document fragment for faster DOM operations
             const fragment = document.createDocumentFragment();
             
-            // Create note items
+            // Create note items using the NoteCard component
             notes.forEach(note => {
-                const noteItem = document.createElement('div');
-                const isDailyNote = note.path.startsWith(this.plugin.settings.dailyNotesFolder);
-                noteItem.className = `note-item tasknotes-card ${isDailyNote ? 'daily-note-item' : ''}`;
-                
-                const titleEl = document.createElement('div');
-                titleEl.className = 'note-item-title tasknotes-card-header';
-                
-                // Add indicator for daily notes
-                if (isDailyNote) {
-                    const dailyIndicator = document.createElement('span');
-                    dailyIndicator.className = 'daily-note-badge';
-                    dailyIndicator.textContent = 'Daily';
-                    titleEl.appendChild(dailyIndicator);
-                    titleEl.appendChild(document.createTextNode(' '));
-                }
-                
-                titleEl.appendChild(document.createTextNode(note.title));
-                noteItem.appendChild(titleEl);
-                
-                const contentContainer = document.createElement('div');
-                contentContainer.className = 'tasknotes-card-content';
-                
-                // Add created date if available
-                if (note.createdDate) {
-                    const dateStr = note.createdDate.indexOf('T') > 0 
-                        ? format(new Date(note.createdDate), 'MMM d, yyyy h:mm a') 
-                        : note.createdDate;
-                    const dateEl = document.createElement('div');
-                    dateEl.className = 'note-item-date';
-                    dateEl.textContent = `Created: ${dateStr}`;
-                    contentContainer.appendChild(dateEl);
-                }
-                
-                noteItem.appendChild(contentContainer);
-                
-                // Add tags as footer
-                if (note.tags && note.tags.length > 0) {
-                    const tagContainer = document.createElement('div');
-                    tagContainer.className = 'note-item-tags tasknotes-card-footer';
-                    
-                    note.tags.forEach(tag => {
-                        const tagEl = document.createElement('span');
-                        tagEl.className = 'note-tag';
-                        tagEl.textContent = tag;
-                        tagContainer.appendChild(tagEl);
-                    });
-                    
-                    noteItem.appendChild(tagContainer);
-                }
-                
-                // Add click handler to open note
-                noteItem.addEventListener('click', () => {
-                    this.openNote(note.path);
+                const noteCard = createNoteCard(note, this.plugin, {
+                    showCreatedDate: true,
+                    showTags: true,
+                    showPath: false,
+                    maxTags: 5,
+                    showDailyNoteBadge: true
                 });
                 
-                // Add hover preview functionality
-                noteItem.addEventListener('mouseover', (event) => {
-                    const file = this.app.vault.getAbstractFileByPath(note.path);
-                    if (file) {
-                        this.app.workspace.trigger('hover-link', {
-                            event,
-                            source: 'tasknotes-notes',
-                            hoverParent: this,
-                            targetEl: noteItem,
-                            linktext: note.path,
-                            sourcePath: note.path
-                        });
-                    }
-                });
-                
-                fragment.appendChild(noteItem);
+                fragment.appendChild(noteCard);
             });
             
             // Append all notes at once

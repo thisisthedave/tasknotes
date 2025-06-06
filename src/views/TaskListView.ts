@@ -17,6 +17,7 @@ import {
     calculateTotalTimeSpent
 } from '../utils/helpers';
 import { perfMonitor } from '../utils/PerformanceMonitor';
+import { updateTaskCard } from '../ui/TaskCard';
 
 export class TaskListView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -117,16 +118,25 @@ export class TaskListView extends ItemView {
             if (forceFullRefresh) {
                 this.cachedTasks = null;
                 this.lastTasksRefresh = 0;
+                this.taskElements.clear();
             }
             
-            // Save UI state before refresh
+            // If we have existing content and not forcing full refresh, try incremental update
+            const existingContainer = this.contentEl.querySelector('.tasknotes-container');
+            if (existingContainer && !forceFullRefresh) {
+                await this.incrementalRefresh();
+                return;
+            }
+            
+            // Save UI state before full refresh
             const taskListContainer = this.contentEl.querySelector('.task-list') as HTMLElement;
             if (taskListContainer) {
                 this.plugin.uiStateManager.saveState('task-list-scroll', taskListContainer);
             }
             
-            // Clear and prepare the content element
+            // Clear and prepare the content element for full refresh
             this.contentEl.empty();
+            this.taskElements.clear();
             await this.render();
             
             // Restore UI state after refresh
@@ -135,6 +145,22 @@ export class TaskListView extends ItemView {
                 this.plugin.uiStateManager.restoreState('task-list-scroll', newTaskListContainer);
             }
         });
+    }
+    
+    /**
+     * Perform incremental refresh without full DOM rebuild
+     */
+    private async incrementalRefresh(): Promise<void> {
+        if (!this.taskListContainer) return;
+        
+        // Get updated tasks
+        await this.getTasksForView(false);
+        
+        // Apply current filters and get grouped tasks
+        const statusSelect = this.contentEl.querySelector('.status-select') as HTMLSelectElement;
+        if (statusSelect) {
+            await this.applyFilters(this.taskListContainer, statusSelect);
+        }
     }
     
     async render() {
@@ -354,8 +380,22 @@ export class TaskListView extends ItemView {
         });
         
         refreshButton.addEventListener('click', async () => {
-            // Force refresh the cache and update UI
-            await this.refresh(true); // Pass true to force a full refresh
+            // Prevent double-clicks during refresh
+            if (refreshButton.classList.contains('is-loading')) return;
+            
+            refreshButton.classList.add('is-loading');
+            refreshButton.disabled = true;
+            const originalText = refreshButton.textContent;
+            refreshButton.textContent = 'Refreshing...';
+            
+            try {
+                // Force refresh the cache and update UI
+                await this.refresh(true); // Pass true to force a full refresh
+            } finally {
+                refreshButton.classList.remove('is-loading');
+                refreshButton.disabled = false;
+                refreshButton.textContent = originalText;
+            }
         });
         
         // Task list container
@@ -1087,7 +1127,9 @@ export class TaskListView extends ItemView {
                 });
             }
             await this.updateContextButtonText();
-            await this.applyFilters(this.taskListContainer!, statusSelect);
+            if (this.taskListContainer) {
+                await this.applyFilters(this.taskListContainer, statusSelect);
+            }
         });
         
         // Individual context options
@@ -1110,7 +1152,9 @@ export class TaskListView extends ItemView {
                     }
                 }
                 await this.updateContextButtonText();
-                await this.applyFilters(this.taskListContainer!, statusSelect);
+                if (this.taskListContainer) {
+                    await this.applyFilters(this.taskListContainer, statusSelect);
+                }
             });
         });
     }
@@ -1141,182 +1185,18 @@ export class TaskListView extends ItemView {
             return;
         }
         
-        // Use DOM reconciler for optimized updates
-        this.plugin.domReconciler.scheduleUpdate(() => {
-            this.performTaskElementUpdate(taskElement, updatedTask);
+        // Use the consistent TaskCard update logic
+        updateTaskCard(taskElement, updatedTask, this.plugin, {
+            showDueDate: true,
+            showCheckbox: false, // TaskListView doesn't use checkboxes, uses status indicators
+            showArchiveButton: true,
+            showTimeTracking: true,
+            showRecurringControls: true,
+            groupByDate: false,
+            targetDate: this.plugin.selectedDate
         });
     }
     
-    /**
-     * Perform the actual DOM updates for a task element
-     */
-    private performTaskElementUpdate(taskElement: HTMLElement, updatedTask: TaskInfo): void {
-        if (!updatedTask) {
-            console.error('performTaskElementUpdate called with undefined updatedTask');
-            return;
-        }
-        
-        perfMonitor.measureSync('task-element-update', () => {
-            // Update task status badge
-            const statusBadge = taskElement.querySelector('.task-status') as HTMLElement;
-        if (statusBadge) {
-            const effectiveStatus = updatedTask.recurrence 
-                ? getEffectiveTaskStatus(updatedTask, this.plugin.selectedDate)
-                : updatedTask.status;
-            
-            const statusClass = this.getSafeCSSClass('task-status', effectiveStatus);
-            const statusConfig = this.plugin.statusManager.getStatusConfig(effectiveStatus);
-            const statusLabel = statusConfig?.label || effectiveStatus;
-            
-            statusBadge.className = `task-status ${statusClass} ${updatedTask.recurrence ? 'recurring-status' : ''} ${!updatedTask.recurrence ? 'clickable' : ''}`;
-            statusBadge.textContent = statusLabel;
-            
-            // Apply custom status color
-            if (statusConfig) {
-                statusBadge.style.setProperty('background', statusConfig.color, 'important');
-            }
-        }
-        
-        // Update priority indicator
-        const priorityIndicator = taskElement.querySelector('.task-priority-indicator') as HTMLElement;
-        if (priorityIndicator) {
-            const priorityClass = this.getSafeCSSClass('priority', updatedTask.priority);
-            const priorityConfig = this.plugin.priorityManager.getPriorityConfig(updatedTask.priority);
-            priorityIndicator.className = `task-priority-indicator ${priorityClass} clickable`;
-            
-            // Apply custom priority color
-            if (priorityConfig) {
-                priorityIndicator.style.setProperty('--priority-color', priorityConfig.color);
-                
-                // Update hover border styling on the task item
-                taskElement.dataset.priorityColor = priorityConfig.color;
-                taskElement.style.setProperty('--current-priority-color', priorityConfig.color);
-            }
-        }
-        
-        // Update archive status
-        const archiveButton = taskElement.querySelector('.archive-button-icon') as HTMLElement;
-        if (archiveButton) {
-            archiveButton.className = `archive-button-icon ${updatedTask.archived ? 'archived' : ''}`;
-            archiveButton.title = updatedTask.archived ? 'Unarchive this task' : 'Archive this task';
-            archiveButton.empty();
-            const updatedArchiveIcon = this.createArchiveIcon(updatedTask.archived);
-            archiveButton.appendChild(updatedArchiveIcon);
-        }
-        
-        // Update archived badge visibility
-        const archivedBadge = taskElement.querySelector('.task-archived-badge') as HTMLElement;
-        if (archivedBadge) {
-            if (updatedTask.archived) {
-                archivedBadge.classList.remove('is-hidden');
-            } else {
-                archivedBadge.classList.add('is-hidden');
-            }
-        } else if (updatedTask.archived) {
-            // Add archived badge if it doesn't exist
-            const taskMeta = taskElement.querySelector('.task-item-metadata');
-            if (taskMeta) {
-                taskMeta.createDiv({
-                    cls: 'task-archived-badge',
-                    text: 'Archived'
-                });
-            }
-        }
-        
-        // Update completed date badge
-        const completedDateEl = taskElement.querySelector('.task-completed-date') as HTMLElement;
-        if (completedDateEl) {
-            if (!updatedTask.recurrence && updatedTask.status === 'done' && updatedTask.completedDate) {
-                completedDateEl.textContent = `${format(new Date(updatedTask.completedDate), 'MMM d')}`;
-                completedDateEl.classList.remove('is-hidden');
-            } else {
-                completedDateEl.classList.add('is-hidden');
-            }
-        } else if (!updatedTask.recurrence && updatedTask.status === 'done' && updatedTask.completedDate) {
-            // Add completed date badge if it doesn't exist
-            const taskMeta = taskElement.querySelector('.task-item-metadata');
-            if (taskMeta) {
-                const completedDateEl = taskMeta.createDiv({
-                    cls: 'task-completed-date',
-                    text: `${format(new Date(updatedTask.completedDate), 'MMM d')}`
-                });
-                completedDateEl.setAttribute('title', `Completed on ${format(new Date(updatedTask.completedDate), 'MMMM d, yyyy')}`);
-            }
-        }
-        
-        // Update time metadata
-        const timeMetaContainer = taskElement.querySelector('.time-meta-compact') as HTMLElement;
-        if (timeMetaContainer) {
-            // Calculate time spent dynamically
-            const timeSpent = calculateTotalTimeSpent(updatedTask.timeEntries || []);
-            
-            // Update existing time info
-            const estimateEl = timeMetaContainer.querySelector('.time-meta-estimate') as HTMLElement;
-            const spentEl = timeMetaContainer.querySelector('.time-meta-spent') as HTMLElement;
-            const progressDot = timeMetaContainer.querySelector('.progress-dot') as HTMLElement;
-            
-            if (estimateEl && updatedTask.timeEstimate) {
-                estimateEl.textContent = this.plugin.formatTime(updatedTask.timeEstimate);
-            }
-            
-            if (spentEl && timeSpent > 0) {
-                spentEl.textContent = this.plugin.formatTime(timeSpent);
-            }
-            
-            if (progressDot && updatedTask.timeEstimate && timeSpent > 0) {
-                const progress = Math.min((timeSpent / updatedTask.timeEstimate) * 100, 100);
-                progressDot.className = `progress-dot ${progress > 100 ? 'over-estimate' : progress >= 100 ? 'complete' : 'in-progress'}`;
-                progressDot.setAttribute('title', `${Math.round(progress)}% complete`);
-            }
-        }
-        
-        // Update time tracking icon
-        const timeIcon = taskElement.querySelector('.time-icon') as HTMLElement;
-        if (timeIcon) {
-            const activeSession = this.plugin.getActiveTimeSession(updatedTask);
-            const isTracking = !!activeSession;
-            
-            timeIcon.className = `time-icon ${isTracking ? 'tracking' : 'idle'}`;
-            timeIcon.textContent = isTracking ? '⏸' : '▶';
-            timeIcon.setAttribute('aria-label', isTracking ? 'Stop time tracking' : 'Start time tracking');
-            timeIcon.setAttribute('title', isTracking ? 'Stop time tracking' : 'Start time tracking');
-        }
-        
-        // Update recurring task toggle button if it exists
-        if (updatedTask.recurrence) {
-            const toggleButton = taskElement.querySelector('.task-toggle-button') as HTMLButtonElement;
-            if (toggleButton) {
-                const effectiveStatus = getEffectiveTaskStatus(updatedTask, this.plugin.selectedDate);
-                const isCompleted = this.plugin.statusManager.isCompletedStatus(effectiveStatus);
-                
-                // Update button class and text
-                toggleButton.className = `task-toggle-button ${isCompleted ? 'mark-incomplete' : 'mark-complete'}`;
-                toggleButton.textContent = isCompleted ? 'Mark incomplete' : 'Mark complete';
-                toggleButton.setAttribute('aria-label', `${isCompleted ? 'Mark task incomplete' : 'Mark task complete'} for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}`);
-                toggleButton.setAttribute('aria-pressed', isCompleted.toString());
-            }
-        }
-        
-        // Update main task item classes
-        const selectedDateStr = format(this.plugin.selectedDate, 'yyyy-MM-dd');
-        const isDueOnSelectedDate = selectedDateStr && (
-            updatedTask.due === selectedDateStr || 
-            (updatedTask.recurrence && isRecurringTaskDueOn(updatedTask, this.plugin.selectedDate))
-        );
-        
-        const priorityClass = this.getSafeCSSClass('priority', updatedTask.priority);
-        taskElement.className = `task-item ${priorityClass} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${updatedTask.archived ? 'task-archived' : ''} ${updatedTask.recurrence ? 'task-recurring' : ''} tasknotes-card`;
-        
-            // Add visual feedback for the update
-            taskElement.classList.add('task-updated');
-            setTimeout(() => {
-                taskElement.classList.remove('task-updated');
-            }, 1500);
-            
-            // Animate the update
-            this.plugin.domReconciler.animateUpdate(taskElement, 'flash');
-        });
-    }
     
     /**
      * Update a task in the cached tasks array
