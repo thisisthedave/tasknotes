@@ -3408,17 +3408,19 @@
 
 .current-period-display {
     font-weight: 600;
-    font-size: 1.1em;
-    min-width: 150px;
+    font-size: 1.0em;
+    min-width: 140px;
     text-align: center;
+    color: var(--text-normal);
 }
 
 /* Options Row Layout */
 .options-row {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
     flex-wrap: wrap;
+    font-size: 0.9em;
 }
 
 .period-selector {
@@ -3530,10 +3532,12 @@
 }
 
 .agenda-controls {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .agenda-nav {
@@ -3575,9 +3579,11 @@
 .toggle-label {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     cursor: pointer;
     user-select: none;
+    font-size: 0.9em;
+    color: var(--text-normal);
 }
 
 .toggle-checkbox {
@@ -3592,81 +3598,94 @@
 }
 
 .agenda-content {
-    margin-top: 20px;
+    margin-top: 16px;
 }
 
 .agenda-day-section {
     margin-bottom: 32px;
-    border-radius: var(--radius-m);
-    overflow: hidden;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
 }
 
 .agenda-day-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
-    background: var(--background-modifier-hover);
-    border-bottom: 1px solid var(--background-modifier-border);
+    padding: 0 0 8px 0;
+    margin-bottom: 16px;
+    border-bottom: 2px solid var(--background-modifier-border);
 }
 
 .day-header-text {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .day-name {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 1.1em;
+    color: var(--text-normal);
 }
 
 .today-badge {
     background: var(--interactive-accent);
-    color: white;
-    padding: 2px 8px;
-    border-radius: var(--radius-s);
-    font-size: 0.85em;
+    color: var(--text-on-accent);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 600;
 }
 
 .day-date {
     color: var(--text-muted);
+    font-size: 0.9em;
 }
 
 .item-count-badge {
     background: var(--background-modifier-border);
     color: var(--text-muted);
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 0.85em;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
     font-weight: 500;
+    min-width: 20px;
+    text-align: center;
 }
 
 .agenda-item-list {
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-left: 0;
 }
 
 .agenda-item {
     display: flex;
     align-items: flex-start;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.agenda-item:last-child {
-    border-bottom: none;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .agenda-item:hover {
     background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .agenda-item.task-item {
     gap: 12px;
+    border-left: 3px solid var(--color-orange);
+}
+
+.agenda-item.note-item {
+    gap: 12px;
+    border-left: 3px solid var(--color-green);
 }
 
 .task-checkbox {
@@ -3675,14 +3694,11 @@
     cursor: pointer;
 }
 
-.agenda-item.note-item {
-    gap: 12px;
-}
-
 .note-icon {
     flex-shrink: 0;
-    font-size: 1.2em;
-    margin-top: -2px;
+    font-size: 1.1em;
+    margin-top: 1px;
+    color: var(--color-green);
 }
 
 .item-content {
@@ -3782,38 +3798,41 @@
 
 .empty-agenda-message {
     text-align: center;
-    padding: 60px 20px;
+    padding: 40px 20px;
     color: var(--text-muted);
 }
 
 .empty-agenda-message p {
-    margin: 8px 0;
+    margin: 6px 0;
+    font-size: 1.0em;
 }
 
 .empty-tip {
-    font-size: 0.9em;
-    margin-top: 16px;
+    font-size: 0.85em;
+    margin-top: 12px;
+    opacity: 0.8;
 }
 
 /* Flat list styles */
-.agenda-item-list.flat-list .agenda-item {
-    border-radius: var(--radius-s);
-    margin-bottom: 8px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
+.agenda-item-list.flat-list {
+    gap: 8px;
 }
 
-.agenda-item-list.flat-list .agenda-item:hover {
-    border-color: var(--background-modifier-border-hover);
+.agenda-item-list.flat-list .agenda-item {
+    border-radius: 8px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
 }
 
 /* Task status specific styles */
 .agenda-item.task-item.done {
-    opacity: 0.7;
+    opacity: 0.6;
+    border-left-color: var(--color-base-40);
 }
 
 .agenda-item.task-item.done .item-title {
     text-decoration: line-through;
+    color: var(--text-muted);
 }
 
 /* Pomodoro View Styles */
