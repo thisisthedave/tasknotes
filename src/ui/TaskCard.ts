@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { TFile } from 'obsidian';
+import { TFile, Menu } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { calculateTotalTimeSpent, isRecurringTaskDueOn, getEffectiveTaskStatus } from '../utils/helpers';
@@ -24,7 +24,7 @@ export const DEFAULT_TASK_CARD_OPTIONS: TaskCardOptions = {
 };
 
 /**
- * Create a reusable task card element
+ * Create a minimalist, unified task card element
  */
 export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options: Partial<TaskCardOptions> = {}): HTMLElement {
     const opts = { ...DEFAULT_TASK_CARD_OPTIONS, ...options };
@@ -35,19 +35,21 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         ? getEffectiveTaskStatus(task, targetDate)
         : task.status;
     
-    // Check if task is due on target date
-    const targetDateStr = format(targetDate, 'yyyy-MM-dd');
-    const isDueOnTargetDate = task.recurrence 
-        ? isRecurringTaskDueOn(task, targetDate)
-        : task.due === targetDateStr;
+    // Main container
+    const card = document.createElement('div');
+    card.className = `task-card ${effectiveStatus} ${task.archived ? 'archived' : ''}`;
+    card.dataset.taskPath = task.path;
     
-    const item = document.createElement('div');
-    item.className = `agenda-item task-item ${effectiveStatus} ${task.archived ? 'archived' : ''}`;
-    item.dataset.taskPath = task.path;
+    // Apply priority as left border color
+    const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);
+    if (priorityConfig) {
+        card.style.setProperty('--priority-color', priorityConfig.color);
+        card.style.borderLeftColor = priorityConfig.color;
+    }
     
-    // Task checkbox (if enabled)
+    // Completion checkbox (if enabled)
     if (opts.showCheckbox) {
-        const checkbox = item.createEl('input', { 
+        const checkbox = card.createEl('input', { 
             type: 'checkbox',
             cls: 'task-checkbox'
         });
@@ -63,169 +65,232 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         });
     }
     
-    // Task content container
-    const content = item.createDiv({ cls: 'item-content' });
-    
-    // Title with priority indicator
-    const titleContainer = content.createDiv({ cls: 'item-title-container' });
-    
-    // Priority indicator
-    const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);
-    if (priorityConfig) {
-        const priorityBadge = titleContainer.createSpan({ 
-            cls: `priority-badge priority-${task.priority}`, 
-            text: priorityConfig.label,
-            attr: { title: `Priority: ${priorityConfig.label}` }
-        });
-        priorityBadge.style.setProperty('--priority-color', priorityConfig.color);
+    // Status indicator dot
+    const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
+    const statusDot = card.createEl('span', { cls: 'status-dot' });
+    if (statusConfig) {
+        statusDot.style.backgroundColor = statusConfig.color;
     }
     
-    // Task title
-    const titleEl = titleContainer.createDiv({ 
-        cls: 'item-title', 
+    // Main content container
+    const contentContainer = card.createEl('div', { cls: 'task-content' });
+    
+    // First line: Task title
+    const titleEl = contentContainer.createEl('div', { 
+        cls: 'task-title', 
         text: task.title
     });
     if (plugin.statusManager.isCompletedStatus(effectiveStatus)) {
         titleEl.classList.add('completed');
     }
     
-    // Add recurring indicator
+    // Second line: Metadata
+    const metadataLine = contentContainer.createEl('div', { cls: 'task-metadata-line' });
+    const metadataItems: string[] = [];
+    
+    // Recurrence info (if recurring)
     if (task.recurrence) {
-        const recurIcon = titleEl.createSpan({ 
-            cls: 'recurring-indicator',
-            text: '⟳',
-            attr: { title: `${task.recurrence.frequency} recurring task` }
-        });
-        titleEl.prepend(recurIcon);
+        metadataItems.push(`Recurring: ${task.recurrence.frequency}`);
     }
     
-    // Metadata section
-    const meta = content.createDiv({ cls: 'item-meta' });
-    
-    // Status badge
-    const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
-    const statusBadge = meta.createSpan({ 
-        cls: `status-badge status-${effectiveStatus}`, 
-        text: statusConfig?.label || effectiveStatus
-    });
-    if (statusConfig) {
-        statusBadge.style.setProperty('background', statusConfig.color);
-    }
-    
-    // Due date (if enabled and not grouping by date)
-    if (opts.showDueDate && !opts.groupByDate && task.due) {
-        const dueSpan = meta.createSpan({ cls: 'due-date' });
+    // Due date (if has due date)
+    if (task.due) {
         const dueDate = new Date(task.due);
+        const today = new Date();
+        const isToday = dueDate.toDateString() === today.toDateString();
+        const isOverdue = dueDate < today;
         
-        if (isDueOnTargetDate) {
-            dueSpan.classList.add('due-today');
-            dueSpan.textContent = 'Today';
+        if (isToday) {
+            metadataItems.push('Due: Today');
+        } else if (isOverdue) {
+            metadataItems.push(`Due: ${format(dueDate, 'MMM d')} (overdue)`);
         } else {
-            dueSpan.textContent = format(dueDate, 'MMM d');
+            metadataItems.push(`Due: ${format(dueDate, 'MMM d')}`);
         }
     }
     
-    // Contexts
+    // Contexts (if has contexts)
     if (task.contexts && task.contexts.length > 0) {
-        const contextContainer = meta.createSpan({ cls: 'contexts' });
-        task.contexts.forEach(context => {
-            contextContainer.createSpan({ cls: 'context-tag', text: `@${context}` });
-        });
+        metadataItems.push(`@${task.contexts.join(', @')}`);
     }
     
-    // Time tracking info (if enabled)
-    if (opts.showTimeTracking) {
-        const timeSpent = calculateTotalTimeSpent(task.timeEntries || []);
-        if (task.timeEstimate || timeSpent > 0) {
-            const timeContainer = meta.createSpan({ cls: 'time-info' });
-            
-            if (timeSpent > 0) {
-                const progress = task.timeEstimate ? 
-                    Math.round((timeSpent / task.timeEstimate) * 100) : 0;
-                
-                timeContainer.createSpan({ 
-                    cls: 'time-spent', 
-                    text: plugin.formatTime(timeSpent)
-                });
-                
-                if (task.timeEstimate) {
-                    timeContainer.createSpan({ cls: 'time-separator', text: ' / ' });
-                    timeContainer.createSpan({ 
-                        cls: 'time-estimate', 
-                        text: plugin.formatTime(task.timeEstimate)
-                    });
-                    
-                    if (progress > 100) {
-                        timeContainer.classList.add('over-estimate');
-                    }
-                }
-            } else if (task.timeEstimate) {
-                timeContainer.createSpan({ 
-                    cls: 'time-estimate', 
-                    text: `Est: ${plugin.formatTime(task.timeEstimate)}`
-                });
-            }
+    // Time tracking (if has time estimate or logged time)
+    const timeSpent = calculateTotalTimeSpent(task.timeEntries || []);
+    if (task.timeEstimate || timeSpent > 0) {
+        const timeInfo: string[] = [];
+        if (timeSpent > 0) {
+            timeInfo.push(`${plugin.formatTime(timeSpent)} spent`);
         }
+        if (task.timeEstimate) {
+            timeInfo.push(`${plugin.formatTime(task.timeEstimate)} estimated`);
+        }
+        metadataItems.push(timeInfo.join(', '));
     }
     
-    // Archive button (if enabled)
-    if (opts.showArchiveButton) {
-        const archiveButton = meta.createEl('button', {
-            cls: `archive-button ${task.archived ? 'archived' : ''}`,
-            text: task.archived ? 'Unarchive' : 'Archive',
-            attr: { title: task.archived ? 'Unarchive this task' : 'Archive this task' }
-        });
-        
-        archiveButton.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            await plugin.taskService.toggleArchive(task);
-        });
+    // Populate metadata line
+    if (metadataItems.length > 0) {
+        metadataLine.textContent = metadataItems.join(' • ');
+    } else {
+        metadataLine.style.display = 'none';
     }
     
-    // Recurring task controls (if enabled and task is recurring)
-    if (opts.showRecurringControls && task.recurrence) {
-        const recurringControls = content.createDiv({ cls: 'recurring-controls' });
+    // Add click handlers
+    card.addEventListener('click', (e) => {
+        if (e.target === card.querySelector('.task-checkbox')) {
+            return; // Let checkbox handle its own click
+        }
         
-        const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
-        const toggleButton = recurringControls.createEl('button', { 
-            cls: `recurring-toggle ${isCompleted ? 'mark-incomplete' : 'mark-complete'}`,
-            text: isCompleted ? 'Mark incomplete' : 'Mark complete',
-            attr: {
-                'aria-label': `${isCompleted ? 'Mark incomplete' : 'Mark complete'} for ${format(targetDate, 'MMM d')}`,
-                'title': `Toggle completion for ${format(targetDate, 'MMM d')}`
+        if (e.ctrlKey || e.metaKey) {
+            // Ctrl/Cmd + Click: Open source note
+            const file = plugin.app.vault.getAbstractFileByPath(task.path);
+            if (file instanceof TFile) {
+                plugin.app.workspace.getLeaf(false).openFile(file);
             }
-        });
-        
-        toggleButton.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            await plugin.taskService.toggleRecurringTaskComplete(task, targetDate);
-        });
-    }
-    
-    // Add click handler to open task
-    item.addEventListener('click', () => {
-        const file = plugin.app.vault.getAbstractFileByPath(task.path);
-        if (file instanceof TFile) {
-            plugin.app.workspace.getLeaf(false).openFile(file);
+        } else {
+            // Left-click: Open edit modal
+            plugin.openTaskEditModal(task);
         }
     });
     
-    // Add hover preview
-    item.addEventListener('mouseover', (event) => {
+    // Right-click: Context menu
+    card.addEventListener('contextmenu', async (e) => {
+        e.preventDefault();
+        const path = card.dataset.taskPath;
+        if (!path) return;
+
+        try {
+            // Force a refresh from the file to get the absolute latest state for the context menu.
+            // A right-click is a user action where a slight delay for I/O is acceptable.
+            const latestTask = await plugin.cacheManager.getTaskInfo(path, true); 
+            if (latestTask) {
+                showTaskContextMenu(e, latestTask, plugin, targetDate);
+            } else {
+                // Fallback to the task data from when the card was rendered if cache fails
+                console.warn(`Could not refetch task info for ${path}, context menu may be stale.`);
+                showTaskContextMenu(e, task, plugin, targetDate);
+            }
+        } catch (error) {
+            console.error(`Error fetching latest task info for context menu for ${path}:`, error);
+            showTaskContextMenu(e, task, plugin, targetDate); // Fallback on any error
+        }
+    });
+    
+    // Hover preview
+    card.addEventListener('mouseover', (event) => {
         const file = plugin.app.vault.getAbstractFileByPath(task.path);
         if (file) {
             plugin.app.workspace.trigger('hover-link', {
                 event,
                 source: 'tasknotes-task-card',
-                hoverParent: item,
-                targetEl: item,
+                hoverParent: card,
+                targetEl: card,
                 linktext: task.path,
                 sourcePath: task.path
             });
         }
     });
     
-    return item;
+    return card;
+}
+
+/**
+ * Show context menu for task card
+ */
+function showTaskContextMenu(event: MouseEvent, task: TaskInfo, plugin: TaskNotesPlugin, targetDate: Date) {
+    const menu = new Menu();
+    
+    // Direct status options (no submenu to avoid issues)
+    plugin.statusManager.getAllStatuses().forEach(statusConfig => {
+        menu.addItem((item) => {
+            const isSelected = task.status === statusConfig.value;
+            item.setTitle(`${isSelected ? '✓ ' : ''}${statusConfig.label}`);
+            item.setIcon('circle');
+            if (isSelected) {
+                item.setIcon('check-circle');
+            }
+            item.onClick(async () => {
+                await plugin.updateTaskProperty(task, 'status', statusConfig.value);
+            });
+        });
+    });
+    
+    menu.addSeparator();
+    
+    // Direct priority options (no submenu to avoid issues)
+    plugin.priorityManager.getPrioritiesByWeight().forEach(priorityConfig => {
+        menu.addItem((item) => {
+            const isSelected = task.priority === priorityConfig.value;
+            item.setTitle(`${isSelected ? '✓ ' : ''}Priority: ${priorityConfig.label}`);
+            item.setIcon('flag');
+            if (isSelected) {
+                item.setIcon('flag-triangle-right');
+            }
+            item.onClick(async () => {
+                await plugin.updateTaskProperty(task, 'priority', priorityConfig.value);
+            });
+        });
+    });
+    
+    menu.addSeparator();
+    
+    // Set Due Date
+    menu.addItem((item) => {
+        item.setTitle('Set Due Date...');
+        item.setIcon('calendar');
+        item.onClick(() => {
+            plugin.openDueDateModal(task);
+        });
+    });
+    
+    menu.addSeparator();
+    
+    // Time Tracking
+    const activeSession = plugin.getActiveTimeSession(task);
+    menu.addItem((item) => {
+        item.setTitle(activeSession ? 'Stop Time Tracking' : 'Start Time Tracking');
+        item.setIcon(activeSession ? 'pause' : 'play');
+        item.onClick(async () => {
+            if (activeSession) {
+                await plugin.stopTimeTracking(task);
+            } else {
+                await plugin.startTimeTracking(task);
+            }
+        });
+    });
+    
+    // Archive/Unarchive
+    menu.addItem((item) => {
+        item.setTitle(task.archived ? 'Unarchive' : 'Archive');
+        item.setIcon(task.archived ? 'archive-restore' : 'archive');
+        item.onClick(async () => {
+            await plugin.taskService.toggleArchive(task);
+        });
+    });
+    
+    menu.addSeparator();
+    
+    // Open Note
+    menu.addItem((item) => {
+        item.setTitle('Open Note');
+        item.setIcon('file-text');
+        item.onClick(() => {
+            const file = plugin.app.vault.getAbstractFileByPath(task.path);
+            if (file instanceof TFile) {
+                plugin.app.workspace.getLeaf(false).openFile(file);
+            }
+        });
+    });
+    
+    // Copy Task Title
+    menu.addItem((item) => {
+        item.setTitle('Copy Task Title');
+        item.setIcon('copy');
+        item.onClick(() => {
+            navigator.clipboard.writeText(task.title);
+        });
+    });
+    
+    menu.showAtMouseEvent(event);
 }
 
 /**
@@ -241,7 +306,14 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         : task.status;
     
     // Update main element classes
-    element.className = `agenda-item task-item ${effectiveStatus} ${task.archived ? 'archived' : ''}`;
+    element.className = `task-card ${effectiveStatus} ${task.archived ? 'archived' : ''}`;
+    
+    // Update priority border color
+    const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);
+    if (priorityConfig) {
+        element.style.setProperty('--priority-color', priorityConfig.color);
+        element.style.borderLeftColor = priorityConfig.color;
+    }
     
     // Update checkbox if present
     const checkbox = element.querySelector('.task-checkbox') as HTMLInputElement;
@@ -249,30 +321,73 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         checkbox.checked = plugin.statusManager.isCompletedStatus(effectiveStatus);
     }
     
+    // Update status dot
+    const statusDot = element.querySelector('.status-dot') as HTMLElement;
+    if (statusDot) {
+        const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
+        if (statusConfig) {
+            statusDot.style.backgroundColor = statusConfig.color;
+        }
+    }
+    
     // Update title
-    const titleEl = element.querySelector('.item-title') as HTMLElement;
+    const titleEl = element.querySelector('.task-title') as HTMLElement;
     if (titleEl) {
         titleEl.textContent = task.title;
         titleEl.classList.toggle('completed', plugin.statusManager.isCompletedStatus(effectiveStatus));
     }
     
-    // Update status badge
-    const statusBadge = element.querySelector('.status-badge') as HTMLElement;
-    if (statusBadge) {
-        const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
-        statusBadge.textContent = statusConfig?.label || effectiveStatus;
-        statusBadge.className = `status-badge status-${effectiveStatus}`;
-        if (statusConfig) {
-            statusBadge.style.setProperty('background', statusConfig.color);
+    // Update metadata line
+    const metadataLine = element.querySelector('.task-metadata-line') as HTMLElement;
+    if (metadataLine) {
+        const metadataItems: string[] = [];
+        
+        // Recurrence info (if recurring)
+        if (task.recurrence) {
+            metadataItems.push(`Recurring: ${task.recurrence.frequency}`);
         }
-    }
-    
-    // Update recurring toggle button if present
-    const recurringToggle = element.querySelector('.recurring-toggle') as HTMLButtonElement;
-    if (recurringToggle && task.recurrence) {
-        const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
-        recurringToggle.className = `recurring-toggle ${isCompleted ? 'mark-incomplete' : 'mark-complete'}`;
-        recurringToggle.textContent = isCompleted ? 'Mark incomplete' : 'Mark complete';
+        
+        // Due date (if has due date)
+        if (task.due) {
+            const dueDate = new Date(task.due);
+            const today = new Date();
+            const isToday = dueDate.toDateString() === today.toDateString();
+            const isOverdue = dueDate < today;
+            
+            if (isToday) {
+                metadataItems.push('Due: Today');
+            } else if (isOverdue) {
+                metadataItems.push(`Due: ${format(dueDate, 'MMM d')} (overdue)`);
+            } else {
+                metadataItems.push(`Due: ${format(dueDate, 'MMM d')}`);
+            }
+        }
+        
+        // Contexts (if has contexts)
+        if (task.contexts && task.contexts.length > 0) {
+            metadataItems.push(`@${task.contexts.join(', @')}`);
+        }
+        
+        // Time tracking (if has time estimate or logged time)
+        const timeSpent = calculateTotalTimeSpent(task.timeEntries || []);
+        if (task.timeEstimate || timeSpent > 0) {
+            const timeInfo: string[] = [];
+            if (timeSpent > 0) {
+                timeInfo.push(`${plugin.formatTime(timeSpent)} spent`);
+            }
+            if (task.timeEstimate) {
+                timeInfo.push(`${plugin.formatTime(task.timeEstimate)} estimated`);
+            }
+            metadataItems.push(timeInfo.join(', '));
+        }
+        
+        // Update metadata line
+        if (metadataItems.length > 0) {
+            metadataLine.textContent = metadataItems.join(' • ');
+            metadataLine.style.display = '';
+        } else {
+            metadataLine.style.display = 'none';
+        }
     }
     
     // Add update animation

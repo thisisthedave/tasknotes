@@ -26,11 +26,11 @@ import { NotesView } from './views/NotesView';
 import { AgendaView } from './views/AgendaView';
 import { PomodoroView } from './views/PomodoroView';
 import { TaskCreationModal } from './modals/TaskCreationModal';
+import { TaskEditModal } from './modals/TaskEditModal';
 import { PomodoroService } from './services/PomodoroService';
 import { 
 	ensureFolderExists, 
 	generateDailyNoteTemplate,
-	updateYamlFrontmatter,
 	extractTaskInfo,
 	updateTaskProperty,
 	formatTime,
@@ -808,4 +808,22 @@ private injectCustomStyles(): void {
 	formatTime(minutes: number): string {
 		return formatTime(minutes);
 	}
+
+	/**
+	 * Opens the task edit modal for a specific task
+	 */
+	openTaskEditModal(task: TaskInfo) {
+		new TaskEditModal(this.app, this, task).open();
+	}
+
+	/**
+	 * Opens a simple due date modal (placeholder for now)
+	 */
+	openDueDateModal(task: TaskInfo) {
+		const dateStr = prompt('Enter due date (YYYY-MM-DD):', task.due || '');
+		if (dateStr !== null) {
+			this.updateTaskProperty(task, 'due', dateStr || undefined);
+		}
+	}
+
 }

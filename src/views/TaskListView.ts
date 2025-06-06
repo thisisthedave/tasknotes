@@ -17,7 +17,7 @@ import {
     calculateTotalTimeSpent
 } from '../utils/helpers';
 import { perfMonitor } from '../utils/PerformanceMonitor';
-import { updateTaskCard } from '../ui/TaskCard';
+import { createTaskCard, updateTaskCard } from '../ui/TaskCard';
 
 export class TaskListView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -412,7 +412,8 @@ export class TaskListView extends ItemView {
         this.updateLoadingState();
         
         // Get tasks (this will now show loading indicator while working)
-        const tasks = await this.getTasksForView(false);
+        // Force refresh on initial load to ensure we get fresh data
+        const tasks = await this.getTasksForView(true);
         
         // Hide loading state when done
         this.isTasksLoading = false;
@@ -497,12 +498,6 @@ export class TaskListView extends ItemView {
         });
     }
     
-    /**
-     * Generate a safe CSS class name from a value
-     */
-    private getSafeCSSClass(prefix: string, value: string): string {
-        return `${prefix}-${value.replace(/[^a-zA-Z0-9-]/g, '-')}`;
-    }
     
     /**
      * Create SVG icon element safely without innerHTML
@@ -520,17 +515,7 @@ export class TaskListView extends ItemView {
         svg.appendChild(path);
         return svg;
     }
-    
-    /**
-     * Create archive/unarchive icon
-     */
-    private createArchiveIcon(isArchived: boolean): SVGElement {
-        const unarchiveIcon = 'M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z';
-        const archiveIcon = 'M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.81-1h12l.94 1H5.12z';
-        
-        return this.createSVGIcon('0 0 24 24', 16, 16, isArchived ? unarchiveIcon : archiveIcon);
-    }
-    
+
     /**
      * Format group name for display
      */
@@ -571,378 +556,21 @@ export class TaskListView extends ItemView {
                 return;
             }
             
-            // Get effective status for recurring tasks
-            const effectiveStatus = task.recurrence 
-                ? getEffectiveTaskStatus(task, this.plugin.selectedDate)
-                : task.status;
-            
-            const priorityClass = this.getSafeCSSClass('priority', task.priority);
-            const taskItem = container.createDiv({ 
-                cls: `task-item ${priorityClass} ${isDueOnSelectedDate ? 'task-due-today' : ''} ${task.archived ? 'task-archived' : ''} ${task.recurrence ? 'task-recurring' : ''} tasknotes-card`
+            // Create the unified task card
+            const taskCard = createTaskCard(task, this.plugin, {
+                showDueDate: true,
+                showCheckbox: false, // TaskListView doesn't use checkboxes 
+                showArchiveButton: true,
+                showTimeTracking: true,
+                showRecurringControls: true,
+                groupByDate: false,
+                targetDate: this.plugin.selectedDate
             });
             
             // Store reference to this task element for future updates
-            taskItem.dataset.taskPath = task.path;
-            this.taskElements.set(task.path, taskItem);
+            this.taskElements.set(task.path, taskCard);
             
-            // Get priority configuration for styling and interactions
-            const priorityConfig = this.plugin.priorityManager.getPriorityConfig(task.priority);
-            
-            // Apply priority color for hover border styling
-            if (priorityConfig) {
-                taskItem.dataset.priorityColor = priorityConfig.color;
-                taskItem.style.setProperty('--current-priority-color', priorityConfig.color);
-            }
-            
-            // Create header row (title and metadata)
-            const taskHeader = taskItem.createDiv({ cls: 'task-header tasknotes-card-header' });
-            
-            // Create info section (left side)
-            const taskInfo = taskHeader.createDiv({ cls: 'task-info' });
-            
-            // Task title with priority indicator
-            const titleContainer = taskInfo.createDiv({ cls: 'task-title-container' });
-            
-            // Priority indicator - clickable
-            const priorityLabel = priorityConfig?.label || task.priority;
-            
-            const priorityIndicator = titleContainer.createEl('button', { 
-                cls: `task-priority-indicator ${priorityClass} clickable`,
-                attr: {
-                    'aria-label': `Priority: ${priorityLabel}. Click to change`,
-                    'title': 'Click to change priority',
-                    'type': 'button'
-                }
-            });
-            
-            // Apply custom priority color
-            if (priorityConfig) {
-                priorityIndicator.style.setProperty('--priority-color', priorityConfig.color);
-            }
-            
-            // Add click handler for priority indicator
-            priorityIndicator.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                
-                // Get fresh task data from cache
-                const currentTask = this.getTaskFromCache(task.path) || task;
-                
-                // Use PriorityManager to get next priority
-                const nextPriority = this.plugin.priorityManager.getNextPriority(currentTask.priority);
-                
-                const originalPriority = currentTask.priority;
-                const updatedTask = { ...currentTask, priority: nextPriority };
-                
-                // Optimistic UI update
-                this.updateTaskElementInDOM(currentTask.path, updatedTask);
-                this.updateTaskInCache(currentTask.path, updatedTask);
-                
-                try {
-                    await this.plugin.updateTaskProperty(currentTask, 'priority', nextPriority);
-                } catch(err) {
-                    // Revert on error
-                    const revertedTask = { ...currentTask, priority: originalPriority };
-                    this.updateTaskElementInDOM(currentTask.path, revertedTask);
-                    this.updateTaskInCache(currentTask.path, revertedTask);
-                    console.error('Failed to update task priority:', err);
-                }
-            });
-            
-            // Time tracking icon (for all tasks)
-            const activeSession = this.plugin.getActiveTimeSession(task);
-            const isTracking = !!activeSession;
-            
-            const timeIcon = titleContainer.createEl('span', {
-                cls: `time-icon ${isTracking ? 'tracking' : 'idle'}`,
-                attr: {
-                    'aria-label': isTracking ? 'Stop time tracking' : 'Start time tracking',
-                    'title': isTracking ? 'Stop time tracking' : 'Start time tracking'
-                }
-            });
-            
-            timeIcon.textContent = isTracking ? '⏸' : '▶';
-            
-            timeIcon.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                
-                // Get fresh task data from cache
-                const currentTask = this.getTaskFromCache(task.path) || task;
-                const currentActiveSession = this.plugin.getActiveTimeSession(currentTask);
-                const currentlyTracking = !!currentActiveSession;
-                
-                try {
-                    if (currentlyTracking) {
-                        await this.plugin.stopTimeTracking(currentTask);
-                    } else {
-                        await this.plugin.startTimeTracking(currentTask);
-                    }
-                    
-                    // No need for refresh - granular updates will handle it
-                } catch (error) {
-                    console.error('Error toggling time tracking:', error);
-                }
-            });
-            
-            
-            const titleEl = titleContainer.createDiv({ 
-                cls: 'task-item-title', 
-                text: task.title
-            });
-            
-            // Add recurring indicator if needed
-            if (task.recurrence) {
-                const recurIcon = document.createElement('span');
-                recurIcon.className = 'task-recurring-icon';
-                recurIcon.textContent = '⟳ ';
-                recurIcon.title = `${task.recurrence.frequency} recurring task`;
-                titleEl.prepend(recurIcon);
-            }
-            
-            // Due date display removed
-            
-            // Create metadata section (right side)
-            const taskMeta = taskHeader.createDiv({ cls: 'task-item-metadata' });
-            
-            // Time tracking info in metadata (compact display)
-            const timeSpent = calculateTotalTimeSpent(task.timeEntries || []);
-            if (task.timeEstimate || timeSpent > 0) {
-                const timeMetaContainer = taskMeta.createDiv({ cls: 'time-meta-compact' });
-                
-                if (task.timeEstimate) {
-                    timeMetaContainer.createSpan({ 
-                        cls: 'time-meta-estimate',
-                        text: this.plugin.formatTime(task.timeEstimate),
-                        attr: { title: `Estimated: ${this.plugin.formatTime(task.timeEstimate)}` }
-                    });
-                }
-                
-                if (timeSpent > 0) {
-                    timeMetaContainer.createSpan({ 
-                        cls: 'time-meta-spent',
-                        text: this.plugin.formatTime(timeSpent),
-                        attr: { title: `Time spent: ${this.plugin.formatTime(timeSpent)}` }
-                    });
-                    
-                    // Add small progress indicator if both are available
-                    if (task.timeEstimate && task.timeEstimate > 0) {
-                        const progress = Math.min((timeSpent / task.timeEstimate) * 100, 100);
-                        const progressDot = timeMetaContainer.createSpan({ 
-                            cls: `progress-dot ${progress > 100 ? 'over-estimate' : progress >= 100 ? 'complete' : 'in-progress'}`,
-                            attr: { title: `${Math.round(progress)}% complete` }
-                        });
-                    }
-                }
-            }
-            
-            // Show completed date for non-recurring tasks that are done
-            if (!task.recurrence && task.status === 'done' && task.completedDate) {
-                const completedDateEl = taskMeta.createDiv({
-                    cls: 'task-completed-date',
-                    text: `${format(new Date(task.completedDate), 'MMM d')}`
-                });
-                completedDateEl.setAttribute('title', `Completed on ${format(new Date(task.completedDate), 'MMMM d, yyyy')}`);
-            }
-            
-            // Create archive button in the metadata section (top right)
-            const archiveButton = taskMeta.createEl('button', { 
-                cls: `archive-button-icon ${task.archived ? 'archived' : ''}`,
-                attr: { 
-                    title: task.archived ? 'Unarchive this task' : 'Archive this task',
-                    'aria-label': task.archived ? 'Unarchive' : 'Archive'
-                }
-            });
-            
-            // Add icon based on archive status
-            const archiveIcon = this.createArchiveIcon(task.archived);
-            archiveButton.appendChild(archiveIcon);
-            
-            // Add event listener for archive toggle
-            archiveButton.addEventListener('click', async (e) => {
-                e.stopPropagation(); // Prevent task opening
-                
-                // Get fresh task data from cache
-                const currentTask = this.getTaskFromCache(task.path) || task;
-                
-                try {
-                    // Update in the backend
-                    await this.plugin.toggleTaskArchive(currentTask);
-                    
-                    // Manually trigger refresh like recurring tasks do
-                    this.refresh();
-                } catch(err) {
-                    console.error('Failed to toggle task archive:', err);
-                }
-            });
-            
-            // Archived badge if applicable
-            if (task.archived) {
-                taskMeta.createDiv({
-                    cls: 'task-archived-badge',
-                    text: 'Archived'
-                });
-            }
-            
-            // Create footer row for due date and recurring task control
-            const taskFooter = taskItem.createDiv({ cls: 'task-footer' });
-            
-            // Due date section (left side of footer)
-            const dueDateSection = taskFooter.createDiv({ cls: 'due-date-section' });
-            
-            const dueDateLabel = dueDateSection.createEl('label', { 
-                cls: 'due-date-label',
-                text: 'Due:',
-                attr: { 'for': `due-${task.path}` }
-            });
-            
-            const dueDateInput = dueDateSection.createEl('input', { 
-                type: 'date',
-                cls: 'task-due-date-input',
-                attr: { 
-                    'id': `due-${task.path}`,
-                    'title': 'Set due date',
-                    'aria-label': `Due date for ${task.title}`
-                }
-            });
-            
-            // Status badge - clickable for non-recurring tasks (in footer)
-            const statusClass = this.getSafeCSSClass('task-status', effectiveStatus);
-            const statusConfig = this.plugin.statusManager.getStatusConfig(effectiveStatus);
-            const statusLabel = statusConfig?.label || effectiveStatus;
-            
-            const statusBadge = dueDateSection.createEl('button', {
-                cls: `task-status ${statusClass} ${task.recurrence ? 'recurring-status' : ''} ${!task.recurrence ? 'clickable' : ''}`,
-                text: statusLabel,
-                attr: {
-                    'aria-label': `Change status: ${statusLabel}`,
-                    'title': task.recurrence ? `Status for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}` : 'Click to change status',
-                    'type': 'button',
-                    'disabled': task.recurrence ? 'true' : null
-                }
-            });
-            
-            // Apply custom status color
-            if (statusConfig) {
-                statusBadge.style.setProperty('background', statusConfig.color, 'important');
-            }
-            
-            // Add click handler for status badge (non-recurring tasks only)
-            if (!task.recurrence) {
-                statusBadge.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    
-                    // Get fresh task data from cache
-                    const currentTask = this.getTaskFromCache(task.path) || task;
-                    
-                    // Use StatusManager to get next status
-                    const nextStatus = this.plugin.statusManager.getNextStatus(currentTask.status);
-                    
-                    const originalStatus = currentTask.status;
-                    const updatedTask = { ...currentTask, status: nextStatus };
-                    
-                    // Update completedDate based on whether new status is completed
-                    if (this.plugin.statusManager.isCompletedStatus(nextStatus)) {
-                        updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
-                    } else {
-                        updatedTask.completedDate = undefined;
-                    }
-                    
-                    // Optimistic UI update
-                    this.updateTaskElementInDOM(currentTask.path, updatedTask);
-                    this.updateTaskInCache(currentTask.path, updatedTask);
-                    
-                    try {
-                        await this.plugin.updateTaskProperty(currentTask, 'status', nextStatus);
-                    } catch(err) {
-                        // Revert on error
-                        const revertedTask = { ...currentTask, status: originalStatus };
-                        this.updateTaskElementInDOM(currentTask.path, revertedTask);
-                        this.updateTaskInCache(currentTask.path, revertedTask);
-                        console.error('Failed to update task status:', err);
-                    }
-                });
-            }
-            
-            // Set current due date if exists
-            if (task.due) {
-                dueDateInput.value = task.due;
-            }
-            
-            // Add event listener for due date change
-            dueDateInput.addEventListener('change', async (e) => {
-                e.stopPropagation();
-                const input = e.target as HTMLInputElement;
-                const newDueDate = input.value;
-                
-                // Get fresh task data from cache
-                const currentTask = this.getTaskFromCache(task.path) || task;
-                const originalDueDate = currentTask.due;
-                
-                const updatedTask = { ...currentTask, due: newDueDate };
-                
-                this.updateTaskElementInDOM(currentTask.path, updatedTask);
-                this.updateTaskInCache(currentTask.path, updatedTask);
-                
-                try {
-                    await this.plugin.updateTaskProperty(currentTask, 'due', newDueDate);
-                } catch(err) {
-                    input.value = originalDueDate || '';
-                    const revertedTask = { ...currentTask, due: originalDueDate };
-                    this.updateTaskElementInDOM(currentTask.path, revertedTask);
-                    this.updateTaskInCache(currentTask.path, revertedTask);
-                    console.error('Failed to update task due date:', err);
-                }
-            });
-            
-            // Recurring task toggle button (right side of footer)
-            if (task.recurrence) {
-                const recurringSection = taskFooter.createDiv({ cls: 'recurring-section' });
-                
-                const isCompleted = this.plugin.statusManager.isCompletedStatus(effectiveStatus);
-                
-                const toggleButton = recurringSection.createEl('button', { 
-                    cls: `task-toggle-button ${isCompleted ? 'mark-incomplete' : 'mark-complete'}`,
-                    text: isCompleted ? 'Mark incomplete' : 'Mark complete',
-                    attr: {
-                        'aria-label': `${isCompleted ? 'Mark task incomplete' : 'Mark task complete'} for ${format(this.plugin.selectedDate, 'MMMM d, yyyy')}`,
-                        'aria-pressed': isCompleted.toString()
-                    }
-                });
-                
-                toggleButton.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    
-                    // Get fresh task data from cache
-                    const currentTask = this.getTaskFromCache(task.path) || task;
-                    
-                    try {
-                        await this.plugin.toggleRecurringTaskComplete(currentTask, this.plugin.selectedDate);
-                        
-                        // No need for manual refresh - granular updates will handle it
-                    } catch (error) {
-                        console.error('Error toggling recurring task completion:', error);
-                    }
-                });
-            }
-            
-            // Add click handler to open task (only on the task info part)
-            taskInfo.addEventListener('click', () => {
-                this.openTask(task.path);
-            });
-            
-            // Add hover preview functionality for tasks
-            taskInfo.addEventListener('mouseover', (event) => {
-                const file = this.app.vault.getAbstractFileByPath(task.path);
-                if (file) {
-                    this.app.workspace.trigger('hover-link', {
-                        event,
-                        source: 'tasknotes-tasks',
-                        hoverParent: this,
-                        targetEl: taskInfo,
-                        linktext: task.path,
-                        sourcePath: task.path
-                    });
-                }
-            });
+            container.appendChild(taskCard);
         });
     }
     
@@ -1181,20 +809,28 @@ export class TaskListView extends ItemView {
     private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
         const taskElement = this.taskElements.get(taskPath);
         if (!taskElement) {
-            // Task element not found for path
+            // Task element not found for path - this is normal for new tasks or filtered tasks
+            console.log(`TaskListView: No element found for task ${taskPath}, skipping DOM update`);
             return;
         }
         
-        // Use the consistent TaskCard update logic
-        updateTaskCard(taskElement, updatedTask, this.plugin, {
-            showDueDate: true,
-            showCheckbox: false, // TaskListView doesn't use checkboxes, uses status indicators
-            showArchiveButton: true,
-            showTimeTracking: true,
-            showRecurringControls: true,
-            groupByDate: false,
-            targetDate: this.plugin.selectedDate
-        });
+        try {
+            // Use the unified TaskCard update logic
+            updateTaskCard(taskElement, updatedTask, this.plugin, {
+                showDueDate: true,
+                showCheckbox: false, // TaskListView doesn't use checkboxes
+                showArchiveButton: true,
+                showTimeTracking: true,
+                showRecurringControls: true,
+                groupByDate: false,
+                targetDate: this.plugin.selectedDate
+            });
+            console.log(`TaskListView: Successfully updated DOM for task ${taskPath}`);
+        } catch (error) {
+            console.error(`TaskListView: Error updating DOM for task ${taskPath}:`, error);
+            // If update fails, trigger a full refresh to recover
+            this.refresh();
+        }
     }
     
     
@@ -1351,7 +987,7 @@ export class TaskListView extends ItemView {
      */
     private async applyFilters(taskListContainer: HTMLElement, statusSelect: HTMLSelectElement): Promise<void> {
         const selectedStatus = statusSelect.value;
-        const allTasks = await this.getTasksForView(true); // Force refresh to get latest data
+        const allTasks = await this.getTasksForView(false); // Don't force refresh for filters
 
         // Get the current archive tag from field mapping
         const archiveTag = this.plugin.fieldMapper.getMapping().archiveTag;

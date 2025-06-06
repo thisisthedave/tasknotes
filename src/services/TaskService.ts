@@ -1,7 +1,7 @@
 import { TFile, Notice } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
-import { TaskInfo, TimeEntry } from '../types';
+import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
 
 export class TaskService {
     constructor(private plugin: TaskNotesPlugin) {}
@@ -55,13 +55,7 @@ export class TaskService {
                 }
             }
             
-            // Optimistic UI update
-            this.plugin.emitter.emit('EVENT_TASK_UPDATED', {
-                path: task.path,
-                updatedTask: updatedTask as TaskInfo
-            });
-            
-            // Process the file
+            // Process the file first
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 // Use property name directly since we're working with frontmatter
                 const fieldName = property as string;
@@ -89,8 +83,18 @@ export class TaskService {
                 }
             });
 
-            // Notify cache about the change - use incremental update, not full rebuild
+            // Clear cache for this specific file
             this.plugin.notifyDataChanged(task.path, false, false);
+            
+            // Get the fresh task data from cache after the file update
+            const freshTasks = await this.plugin.cacheManager.getTaskInfoForDate(this.plugin.selectedDate, true);
+            const freshTask = freshTasks.find(t => t.path === task.path);
+            
+            // Emit the UI update with fresh data from cache, or fallback to optimistic update
+            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                path: task.path,
+                updatedTask: freshTask || (updatedTask as TaskInfo)
+            });
             
             if (!options.silent) {
                 if (property === 'status') {
@@ -105,7 +109,7 @@ export class TaskService {
             new Notice(`Failed to update task ${property}`);
             
             // Revert optimistic update on error
-            this.plugin.emitter.emit('EVENT_TASK_UPDATED', {
+            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
                 path: task.path,
                 updatedTask: task
             });
@@ -297,14 +301,18 @@ export class TaskService {
                 updatedTask.complete_instances = completeInstances.filter(d => d !== dateStr);
             }
             
-            // Emit optimistic UI update
-            this.plugin.emitter.emit('EVENT_TASK_UPDATED', {
-                path: task.path,
-                updatedTask: updatedTask
-            });
-
-            // Notify cache about the change - use incremental update
+            // Notify cache about the change - clear cache but don't trigger full UI refresh 
             this.plugin.notifyDataChanged(task.path, false, false);
+            
+            // Get the fresh task data from cache after the file update
+            const freshTasks = await this.plugin.cacheManager.getTaskInfoForDate(this.plugin.selectedDate, true);
+            const freshTask = freshTasks.find(t => t.path === task.path);
+            
+            // Emit the UI update with fresh data from cache, or fallback to optimistic update
+            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                path: task.path,
+                updatedTask: freshTask || updatedTask
+            });
             
             const action = newComplete ? 'completed' : 'marked incomplete';
             new Notice(`Recurring task ${action} for ${format(targetDate, 'MMM d')}`);
@@ -313,7 +321,7 @@ export class TaskService {
             new Notice('Failed to update recurring task');
             
             // Revert optimistic update on error
-            this.plugin.emitter.emit('EVENT_TASK_UPDATED', {
+            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
                 path: task.path,
                 updatedTask: task
             });

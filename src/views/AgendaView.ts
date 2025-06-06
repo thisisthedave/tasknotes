@@ -395,12 +395,6 @@ export class AgendaView extends ItemView {
             targetDate: date
         });
         
-        // Add context menu handler
-        taskCard.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            this.showTaskContextMenu(e, task);
-        });
-        
         container.appendChild(taskCard);
     }
     
@@ -458,10 +452,6 @@ export class AgendaView extends ItemView {
         });
     }
     
-    private async toggleTaskStatus(task: TaskInfo) {
-        // Use the centralized TaskService for safe data manipulation
-        await this.plugin.taskService.toggleStatus(task);
-    }
     
     /**
      * Update a specific task element in the DOM without full re-render
@@ -469,54 +459,30 @@ export class AgendaView extends ItemView {
     private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
         const taskElement = this.contentEl.querySelector(`[data-task-path="${taskPath}"]`) as HTMLElement;
         if (taskElement) {
-            // Update the existing task card
-            updateTaskCard(taskElement, updatedTask, this.plugin, {
-                showDueDate: !this.groupByDate,
-                showCheckbox: true,
-                showTimeTracking: true,
-                showRecurringControls: true,
-                groupByDate: this.groupByDate,
-                targetDate: this.startDate
-            });
+            try {
+                // Update the existing task card
+                updateTaskCard(taskElement, updatedTask, this.plugin, {
+                    showDueDate: !this.groupByDate,
+                    showCheckbox: true,
+                    showTimeTracking: true,
+                    showRecurringControls: true,
+                    groupByDate: this.groupByDate,
+                    targetDate: this.startDate
+                });
+                console.log(`AgendaView: Successfully updated DOM for task ${taskPath}`);
+            } catch (error) {
+                console.error(`AgendaView: Error updating DOM for task ${taskPath}:`, error);
+                // If update fails, trigger a full refresh to recover
+                this.refresh();
+            }
         } else {
             // Task element not found, might be a new task or filtering change
-            // Fall back to full refresh
-            this.refresh();
+            console.log(`AgendaView: No element found for task ${taskPath}, skipping update`);
+            // Don't trigger a full refresh for missing elements, as this can cause issues
+            // The task might not be visible in the current view due to date/filter constraints
         }
     }
     
-    private showTaskContextMenu(event: MouseEvent, task: TaskInfo) {
-        const menu = new Menu();
-        
-        menu.addItem((item) => {
-            item.setTitle('Open task')
-                .setIcon('file-text')
-                .onClick(() => {
-                    this.openFile(task.path);
-                });
-        });
-        
-        menu.addItem((item) => {
-            item.setTitle(task.status === 'done' ? 'Mark as incomplete' : 'Mark as complete')
-                .setIcon(task.status === 'done' ? 'undo' : 'check')
-                .onClick(async () => {
-                    await this.toggleTaskStatus(task);
-                });
-        });
-        
-        menu.addSeparator();
-        
-        menu.addItem((item) => {
-            item.setTitle('Copy task title')
-                .setIcon('copy')
-                .onClick(() => {
-                    navigator.clipboard.writeText(task.title);
-                    new Notice('Task title copied');
-                });
-        });
-        
-        menu.showAtMouseEvent(event);
-    }
     
     private openFile(path: string) {
         const file = this.app.vault.getAbstractFileByPath(path);
