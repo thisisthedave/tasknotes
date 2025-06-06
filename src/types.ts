@@ -4,6 +4,7 @@ export const TASK_LIST_VIEW_TYPE = 'tasknotes-task-list-view';
 export const NOTES_VIEW_TYPE = 'tasknotes-notes-view';
 export const AGENDA_VIEW_TYPE = 'tasknotes-agenda-view';
 export const POMODORO_VIEW_TYPE = 'tasknotes-pomodoro-view';
+export const KANBAN_VIEW_TYPE = 'tasknotes-kanban-view';
 
 // Event types
 export const EVENT_DATE_SELECTED = 'date-selected';
@@ -197,4 +198,14 @@ export interface ExportedConfig {
 	fieldMapping: FieldMapping;
 	customStatuses: StatusConfig[];
 	customPriorities: PriorityConfig[];
+}
+
+// Kanban board types
+export type KanbanGroupByField = 'status' | 'priority' | 'context';
+
+export interface KanbanBoardConfig {
+	id: string; // Unique ID, e.g., 'board-166854321'
+	name: string; // User-facing name, e.g., "My Project Status"
+	groupByField: KanbanGroupByField;
+	columnOrder: string[]; // Array of values, e.g., ['open', 'in-progress', 'done']
 }

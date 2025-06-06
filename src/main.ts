@@ -12,6 +12,7 @@ import {
 	TASK_LIST_VIEW_TYPE,
 	AGENDA_VIEW_TYPE,
 	POMODORO_VIEW_TYPE,
+	KANBAN_VIEW_TYPE,
 	TimeInfo,
 	TaskInfo,
 	TimeEntry,
@@ -25,6 +26,7 @@ import { TaskListView } from './views/TaskListView';
 import { NotesView } from './views/NotesView';
 import { AgendaView } from './views/AgendaView';
 import { PomodoroView } from './views/PomodoroView';
+import { KanbanView } from './views/KanbanView';
 import { TaskCreationModal } from './modals/TaskCreationModal';
 import { TaskEditModal } from './modals/TaskEditModal';
 import { PomodoroService } from './services/PomodoroService';
@@ -136,6 +138,10 @@ export default class TaskNotesPlugin extends Plugin {
 		this.registerView(
 			POMODORO_VIEW_TYPE,
 			(leaf) => new PomodoroView(leaf, this)
+		);
+		this.registerView(
+			KANBAN_VIEW_TYPE,
+			(leaf) => new KanbanView(leaf, this)
 		);
 		
 		// Add ribbon icon
@@ -301,6 +307,14 @@ export default class TaskNotesPlugin extends Plugin {
 		});
 		
 		this.addCommand({
+			id: 'open-kanban-view',
+			name: 'Open kanban board',
+			callback: async () => {
+				await this.activateKanbanView();
+			}
+		});
+		
+		this.addCommand({
 			id: 'open-linked-views',
 			name: 'Open calendar with task view',
 			callback: async () => {
@@ -363,6 +377,14 @@ export default class TaskNotesPlugin extends Plugin {
 				name: 'Open pomodoro timer in new window',
 				callback: async () => {
 					await this.openViewInPopout(POMODORO_VIEW_TYPE);
+				}
+			});
+			
+			this.addCommand({
+				id: 'open-kanban-popout',
+				name: 'Open kanban board in new window',
+				callback: async () => {
+					await this.openViewInPopout(KANBAN_VIEW_TYPE);
 				}
 			});
 		}
@@ -463,6 +485,10 @@ export default class TaskNotesPlugin extends Plugin {
 		return this.activateView(POMODORO_VIEW_TYPE);
 	}
 	
+	async activateKanbanView() {
+		return this.activateView(KANBAN_VIEW_TYPE);
+	}
+	
 	// Open a view in a popout window
 	async openViewInPopout(viewType: string) {
 		const { workspace } = this.app;
@@ -502,6 +528,7 @@ export default class TaskNotesPlugin extends Plugin {
 		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
 		workspace.detachLeavesOfType(AGENDA_VIEW_TYPE);
 		workspace.detachLeavesOfType(POMODORO_VIEW_TYPE);
+		workspace.detachLeavesOfType(KANBAN_VIEW_TYPE);
 		
 		// Create a calendar view
 		const calendarLeaf = workspace.getLeaf('tab');
@@ -528,12 +555,19 @@ export default class TaskNotesPlugin extends Plugin {
 			type: AGENDA_VIEW_TYPE
 		});
 		
+		// Create a kanban view in a new tab
+		const kanbanLeaf = workspace.getLeaf('tab');
+		await kanbanLeaf.setViewState({
+			type: KANBAN_VIEW_TYPE
+		});
+		
 		// Group these leaves together for synchronized date selection
 		const groupName = 'tasknotes-views';
 		calendarLeaf.setGroup(groupName);
 		tasksLeaf.setGroup(groupName);
 		notesLeaf.setGroup(groupName);
 		agendaLeaf.setGroup(groupName);
+		kanbanLeaf.setGroup(groupName);
 		
 		// Make calendar the active view
 		workspace.setActiveLeaf(calendarLeaf, { focus: true });
