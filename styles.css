@@ -3601,17 +3601,17 @@
     margin-top: 16px;
 }
 
-.agenda-day-section {
-    margin-bottom: 32px;
-}
-
 .agenda-day-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 0 8px 0;
-    margin-bottom: 16px;
+    margin: 24px 0 16px 0;
     border-bottom: 2px solid var(--background-modifier-border);
+}
+
+.agenda-day-header:first-child {
+    margin-top: 0;
 }
 
 .day-header-text {
@@ -3669,6 +3669,7 @@
     cursor: pointer;
     transition: all 0.15s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 8px;
 }
 
 .agenda-item:hover {

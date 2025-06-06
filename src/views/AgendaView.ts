@@ -286,11 +286,8 @@ export class AgendaView extends ItemView {
             if (hasItems) {
                 hasAnyItems = true;
                 
-                // Create day section
-                const daySection = container.createDiv({ cls: 'agenda-day-section' });
-                
-                // Day header
-                const dayHeader = daySection.createDiv({ cls: 'agenda-day-header' });
+                // Day header (rendered directly to container)
+                const dayHeader = container.createDiv({ cls: 'agenda-day-header' });
                 const headerText = dayHeader.createDiv({ cls: 'day-header-text' });
                 
                 const dayName = format(dayData.date, 'EEEE');
@@ -308,14 +305,11 @@ export class AgendaView extends ItemView {
                 const itemCount = tasksForDate.length + dayData.notes.length;
                 dayHeader.createDiv({ cls: 'item-count-badge', text: `${itemCount}` });
                 
-                // Item list
-                const itemList = daySection.createDiv({ cls: 'agenda-item-list' });
+                // Render tasks first (directly to container)
+                this.renderTasks(container, tasksForDate);
                 
-                // Render tasks first
-                this.renderTasks(itemList, tasksForDate);
-                
-                // Then render notes
-                this.renderNotes(itemList, dayData.notes);
+                // Then render notes (directly to container)
+                this.renderNotes(container, dayData.notes);
             }
         });
         
