@@ -37,7 +37,8 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     
     // Main container
     const card = document.createElement('div');
-    card.className = `task-card ${effectiveStatus} ${task.archived ? 'archived' : ''}`;
+    const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
+    card.className = `task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''}`;
     card.dataset.taskPath = task.path;
     
     // Apply priority as left border color
@@ -306,7 +307,8 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         : task.status;
     
     // Update main element classes
-    element.className = `task-card ${effectiveStatus} ${task.archived ? 'archived' : ''}`;
+    const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
+    element.className = `task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''}`;
     
     // Update priority border color
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);

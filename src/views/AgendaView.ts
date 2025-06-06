@@ -75,11 +75,8 @@ export class AgendaView extends ItemView {
         const contentEl = this.contentEl;
         contentEl.empty();
         
-        // Add container with improved styling
+        // Add container
         const container = contentEl.createDiv({ cls: 'tasknotes-container agenda-view-container' });
-        container.style.padding = '16px';
-        container.style.maxWidth = '1000px';
-        container.style.margin = '0 auto';
         
         // Show loading indicator
         this.showLoadingIndicator();
@@ -118,16 +115,9 @@ export class AgendaView extends ItemView {
         
         // Row 1: Period Navigation
         const navigationRow = controlsContainer.createDiv({ cls: 'controls-row navigation-row' });
-        navigationRow.style.display = 'flex';
-        navigationRow.style.alignItems = 'center';
-        navigationRow.style.justifyContent = 'space-between';
-        navigationRow.style.gap = '12px';
         
         // Navigation controls group
         const navGroup = navigationRow.createDiv({ cls: 'nav-group' });
-        navGroup.style.display = 'flex';
-        navGroup.style.alignItems = 'center';
-        navGroup.style.gap = '8px';
         
         const prevButton = navGroup.createEl('button', {
             cls: 'nav-arrow-button tasknotes-button',
@@ -147,10 +137,6 @@ export class AgendaView extends ItemView {
             cls: 'current-period-display',
             text: this.getCurrentPeriodText()
         });
-        currentPeriodDisplay.style.fontWeight = '600';
-        currentPeriodDisplay.style.fontSize = '1.1em';
-        currentPeriodDisplay.style.minWidth = '150px';
-        currentPeriodDisplay.style.textAlign = 'center';
         
         const nextButton = navGroup.createEl('button', {
             cls: 'nav-arrow-button tasknotes-button',
@@ -177,16 +163,9 @@ export class AgendaView extends ItemView {
         
         // Row 2: View Options
         const optionsRow = controlsContainer.createDiv({ cls: 'controls-row options-row' });
-        optionsRow.style.display = 'flex';
-        optionsRow.style.alignItems = 'center';
-        optionsRow.style.gap = '20px';
-        optionsRow.style.flexWrap = 'wrap';
         
         // Period selector
         const periodContainer = optionsRow.createDiv({ cls: 'option-group period-selector' });
-        periodContainer.style.display = 'flex';
-        periodContainer.style.alignItems = 'center';
-        periodContainer.style.gap = '8px';
         
         periodContainer.createEl('label', { text: 'Period:', cls: 'option-label' });
         
@@ -223,14 +202,8 @@ export class AgendaView extends ItemView {
         
         // Show archived toggle
         const archivedContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
-        archivedContainer.style.display = 'flex';
-        archivedContainer.style.alignItems = 'center';
         
         const archivedToggle = archivedContainer.createEl('label', { cls: 'toggle-label' });
-        archivedToggle.style.display = 'flex';
-        archivedToggle.style.alignItems = 'center';
-        archivedToggle.style.gap = '6px';
-        archivedToggle.style.cursor = 'pointer';
         
         const archivedCheckbox = archivedToggle.createEl('input', { 
             type: 'checkbox',
@@ -246,14 +219,8 @@ export class AgendaView extends ItemView {
         
         // Group by date toggle
         const groupingContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
-        groupingContainer.style.display = 'flex';
-        groupingContainer.style.alignItems = 'center';
         
         const groupingToggle = groupingContainer.createEl('label', { cls: 'toggle-label' });
-        groupingToggle.style.display = 'flex';
-        groupingToggle.style.alignItems = 'center';
-        groupingToggle.style.gap = '6px';
-        groupingToggle.style.cursor = 'pointer';
         
         const groupingCheckbox = groupingToggle.createEl('input', { 
             type: 'checkbox',
@@ -355,20 +322,15 @@ export class AgendaView extends ItemView {
         // Show empty message if no items
         if (!hasAnyItems) {
             const emptyMessage = container.createDiv({ cls: 'empty-agenda-message' });
-            emptyMessage.style.textAlign = 'center';
-            emptyMessage.style.padding = '40px 20px';
-            emptyMessage.style.color = 'var(--text-muted)';
             
             emptyMessage.createEl('p', { 
-                text: 'No items scheduled for this period.',
-                attr: { style: 'margin: 0 0 8px 0; font-size: 1.1em;' }
+                text: 'No items scheduled for this period.'
             });
             
             const tipMessage = emptyMessage.createEl('p', { 
-                cls: 'empty-tip',
-                attr: { style: 'margin: 0; font-size: 0.9em; opacity: 0.8;' }
+                cls: 'empty-tip'
             });
-            tipMessage.createEl('span', { text: 'Tip: ', attr: { style: 'font-weight: 500;' } });
+            tipMessage.createEl('span', { text: 'Tip: ' });
             tipMessage.appendChild(document.createTextNode('Create tasks with due dates or add notes to see them here.'));
         }
     }
@@ -401,9 +363,6 @@ export class AgendaView extends ItemView {
         
         if (allItems.length === 0) {
             const emptyMessage = container.createDiv({ cls: 'empty-agenda-message' });
-            emptyMessage.style.textAlign = 'center';
-            emptyMessage.style.padding = '40px 20px';
-            emptyMessage.style.color = 'var(--text-muted)';
             emptyMessage.textContent = 'No items found for the selected period.';
             return;
         }

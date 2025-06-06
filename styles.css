@@ -98,6 +98,35 @@
     animation: task-fade-in 300ms ease-out;
 }
 
+/* Active time tracking indicator */
+.task-card.actively-tracked {
+    position: relative;
+}
+
+.task-card.actively-tracked::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, var(--interactive-accent), var(--interactive-accent-hover));
+    border-radius: var(--radius-m);
+    z-index: -1;
+    animation: tracking-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tracking-pulse {
+    0%, 100% { 
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.6;
+        transform: scale(1.01);
+    }
+}
+
 /* Visual feedback for updates */
 .task-updated {
     border-left: 3px solid var(--interactive-accent);
@@ -3358,9 +3387,78 @@
 
 /* Agenda View Styles */
 .agenda-view-container {
-    padding: 20px;
-    max-width: 900px;
+    padding: 16px;
+    max-width: 1000px;
     margin: 0 auto;
+}
+
+/* Navigation Row Layout */
+.navigation-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.nav-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.current-period-display {
+    font-weight: 600;
+    font-size: 1.1em;
+    min-width: 150px;
+    text-align: center;
+}
+
+/* Options Row Layout */
+.options-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.period-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+/* Empty message styling */
+.empty-agenda-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+}
+
+.empty-agenda-message p {
+    margin: 0 0 8px 0;
+    font-size: 1.1em;
+}
+
+.empty-agenda-message .empty-tip {
+    margin: 0;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+.empty-agenda-message .empty-tip span {
+    font-weight: 500;
 }
 
 .agenda-controls {

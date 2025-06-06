@@ -229,25 +229,60 @@ export class TaskService {
         }
 
         try {
+            // Create a local modified copy for immediate UI feedback
+            const updatedTask = { ...task };
+            if (!updatedTask.timeEntries) {
+                updatedTask.timeEntries = [];
+            }
+            const newEntry: TimeEntry = {
+                startTime: new Date().toISOString(),
+                description: 'Work session'
+            };
+            updatedTask.timeEntries.push(newEntry);
+
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 if (!frontmatter.timeEntries) {
                     frontmatter.timeEntries = [];
                 }
 
                 // Add new time entry with start time
-                const newEntry: TimeEntry = {
-                    startTime: new Date().toISOString(),
-                    description: 'Work session'
-                };
-
                 frontmatter.timeEntries.push(newEntry);
             });
 
-            this.plugin.notifyDataChanged(task.path);
+            // Clear cache for this specific file and trigger refresh
+            this.plugin.notifyDataChanged(task.path, false, false);
+            
+            // Give the cache a moment to clear and then get fresh data
+            setTimeout(async () => {
+                try {
+                    // Get the fresh task data directly from cache manager
+                    const freshTask = await this.plugin.cacheManager.getTaskInfo(task.path, true);
+                    
+                    // Emit the UI update with fresh data from cache, or fallback to optimistic update
+                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                        path: task.path,
+                        updatedTask: freshTask || updatedTask
+                    });
+                } catch (error) {
+                    console.error('Failed to get fresh task data:', error);
+                    // Emit with optimistic update as fallback
+                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                        path: task.path,
+                        updatedTask: updatedTask
+                    });
+                }
+            }, 50);
+
             new Notice('Time tracking started');
         } catch (error) {
             console.error('Failed to start time tracking:', error);
             new Notice('Failed to start time tracking');
+            
+            // Revert optimistic update on error
+            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                path: task.path,
+                updatedTask: task
+            });
         }
     }
 
@@ -268,6 +303,20 @@ export class TaskService {
         }
 
         try {
+            // Create a local modified copy for immediate UI feedback
+            const updatedTask = { ...task };
+            if (updatedTask.timeEntries && Array.isArray(updatedTask.timeEntries)) {
+                const entryIndex = updatedTask.timeEntries.findIndex((entry: TimeEntry) => 
+                    entry.startTime === activeSession.startTime && !entry.endTime
+                );
+                if (entryIndex !== -1) {
+                    updatedTask.timeEntries[entryIndex] = {
+                        ...updatedTask.timeEntries[entryIndex],
+                        endTime: new Date().toISOString()
+                    };
+                }
+            }
+
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 if (frontmatter.timeEntries && Array.isArray(frontmatter.timeEntries)) {
                     // Find and update the active session
@@ -281,11 +330,40 @@ export class TaskService {
                 }
             });
 
-            this.plugin.notifyDataChanged(task.path);
+            // Clear cache for this specific file and trigger refresh
+            this.plugin.notifyDataChanged(task.path, false, false);
+            
+            // Give the cache a moment to clear and then get fresh data
+            setTimeout(async () => {
+                try {
+                    // Get the fresh task data directly from cache manager
+                    const freshTask = await this.plugin.cacheManager.getTaskInfo(task.path, true);
+                    
+                    // Emit the UI update with fresh data from cache, or fallback to optimistic update
+                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                        path: task.path,
+                        updatedTask: freshTask || updatedTask
+                    });
+                } catch (error) {
+                    console.error('Failed to get fresh task data:', error);
+                    // Emit with optimistic update as fallback
+                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                        path: task.path,
+                        updatedTask: updatedTask
+                    });
+                }
+            }, 50);
+
             new Notice('Time tracking stopped');
         } catch (error) {
             console.error('Failed to stop time tracking:', error);
             new Notice('Failed to stop time tracking');
+            
+            // Revert optimistic update on error
+            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                path: task.path,
+                updatedTask: task
+            });
         }
     }
 
