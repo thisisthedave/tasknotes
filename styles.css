@@ -3687,6 +3687,8 @@
 .agenda-item.note-item {
     gap: 12px;
     border-left: 3px solid var(--color-green);
+    height: auto !important; /* Override the height: 100% from general note-item */
+    min-height: auto;
 }
 
 .task-checkbox {
