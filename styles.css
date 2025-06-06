@@ -4697,3 +4697,192 @@
         font-size: var(--cs-text-xs);
     }
 }
+
+/* Enhanced Kanban Features */
+.kanban-empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-style: italic;
+    background: var(--background-secondary);
+    border: 2px dashed var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    margin: 20px 0;
+}
+
+/* Board meta information */
+.kanban-board-meta {
+    margin-top: 8px;
+}
+
+.board-meta-item {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    background: var(--background-modifier-form-field);
+    padding: 4px 8px;
+    border-radius: var(--radius-s);
+}
+
+/* Enhanced filters and stats */
+.kanban-filter-controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.kanban-stats {
+    margin-left: auto;
+}
+
+.board-stats {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.stat-item {
+    font-size: 0.8em;
+    padding: 4px 8px;
+    border-radius: var(--radius-s);
+    background: var(--background-secondary);
+    color: var(--text-muted);
+}
+
+.stat-item.total {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    font-weight: 500;
+}
+
+.stat-item.completed {
+    background: var(--color-green);
+    color: white;
+}
+
+.stat-item.archived {
+    background: var(--background-modifier-border);
+}
+
+.stat-item.percentage {
+    background: var(--color-blue);
+    color: white;
+    font-weight: 500;
+}
+
+/* Enhanced column styling */
+.column-title-container {
+    flex: 1;
+}
+
+.column-count-container {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.kanban-column-count.total {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    padding: 2px 6px;
+    border-radius: var(--radius-s);
+    font-size: 0.7em;
+    font-weight: 600;
+}
+
+.kanban-column-count.completed {
+    background: var(--color-green);
+    color: white;
+    padding: 2px 6px;
+    border-radius: var(--radius-s);
+    font-size: 0.7em;
+}
+
+/* Discovered column styling */
+.kanban-column.discovered-column {
+    border: 2px dashed var(--color-orange);
+    background: linear-gradient(135deg, var(--background-primary) 0%, var(--background-secondary) 100%);
+}
+
+.kanban-column.discovered-column .kanban-column-header {
+    background: linear-gradient(135deg, rgba(255, 165, 0, 0.2) 0%, var(--background-modifier-hover) 100%);
+    color: var(--text-normal);
+}
+
+.kanban-column.uncategorized-column {
+    opacity: 0.8;
+    border: 1px dashed var(--text-muted);
+}
+
+.kanban-column.uncategorized-column .kanban-column-header {
+    background: var(--background-modifier-border);
+}
+
+/* Column actions */
+.column-actions {
+    margin-left: auto;
+}
+
+.column-action-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    font-weight: bold;
+    transition: all var(--cs-transition-fast);
+}
+
+.column-action-btn:hover {
+    background: var(--interactive-accent-hover);
+    transform: scale(1.1);
+}
+
+/* Empty column placeholder */
+.kanban-column-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 20px;
+    border: 2px dashed var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    margin: 8px;
+    background: var(--background-secondary);
+    transition: all var(--cs-transition-fast);
+}
+
+.kanban-column-empty:hover {
+    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+}
+
+/* Enhanced drag and drop */
+.kanban-column.is-dragover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: var(--interactive-accent);
+}
+
+.kanban-column.is-dragover .kanban-column-empty {
+    border-color: var(--interactive-accent);
+    background: var(--interactive-accent-hover);
+    color: var(--text-on-accent);
+}
+
+/* New task button */
+.kanban-new-task-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    font-size: 0.9em;
+}
+
+.kanban-new-task-button .kanban-button-icon {
+    font-size: 1.1em;
+}

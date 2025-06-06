@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, Menu } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     KANBAN_VIEW_TYPE, 
@@ -120,17 +120,42 @@ export class KanbanView extends ItemView {
             boardSelect.createEl('option', { text: 'No boards configured' }).disabled = true;
         }
 
+        // Board info display
+        const currentBoard = this.getCurrentBoardConfig();
+        if (currentBoard) {
+            const boardMetaInfo = boardSelectorContainer.createDiv({ cls: 'kanban-board-meta' });
+            boardMetaInfo.createSpan({ 
+                text: `Grouping by: ${currentBoard.groupByField}`,
+                cls: 'board-meta-item'
+            });
+        }
+
         const actions = topRow.createDiv({ cls: 'kanban-actions' });
         
-        const refreshButton = actions.createEl('button', { cls: 'kanban-refresh-button' });
+        // Add new task button
+        const newTaskButton = actions.createEl('button', { 
+            cls: 'kanban-new-task-button tasknotes-button tasknotes-button-primary' 
+        });
+        newTaskButton.createSpan({ cls: 'kanban-button-icon', text: '➕' });
+        newTaskButton.createSpan({ text: 'New Task' });
+        newTaskButton.addEventListener('click', () => {
+            this.plugin.openTaskCreationModal();
+        });
+        
+        const refreshButton = actions.createEl('button', { 
+            cls: 'kanban-refresh-button tasknotes-button' 
+        });
         refreshButton.createSpan({ cls: 'kanban-button-icon', text: '🔄' });
         refreshButton.createSpan({ text: 'Refresh' });
         refreshButton.addEventListener('click', () => this.refresh());
 
-        // Bottom row: Filters
+        // Bottom row: Filters and stats
         const filtersRow = header.createDiv({ cls: 'kanban-filters' });
         
-        const showArchivedFilter = filtersRow.createDiv({ cls: 'kanban-filter' });
+        // Filter controls
+        const filterControls = filtersRow.createDiv({ cls: 'kanban-filter-controls' });
+        
+        const showArchivedFilter = filterControls.createDiv({ cls: 'kanban-filter' });
         const archivedLabel = showArchivedFilter.createEl('label', { cls: 'kanban-checkbox-label' });
         const archivedCheckbox = archivedLabel.createEl('input', { type: 'checkbox' });
         archivedCheckbox.checked = this.showArchived;
@@ -139,6 +164,52 @@ export class KanbanView extends ItemView {
             this.showArchived = archivedCheckbox.checked;
             await this.loadAndRenderBoard();
         });
+
+        // Board stats
+        const statsContainer = filtersRow.createDiv({ cls: 'kanban-stats' });
+        this.updateBoardStats(statsContainer);
+    }
+
+    private updateBoardStats(container: HTMLElement) {
+        container.empty();
+        
+        if (this.tasks.length === 0) return;
+
+        const totalTasks = this.tasks.length;
+        const completedTasks = this.tasks.filter(task => 
+            this.plugin.statusManager.isCompletedStatus(task.status)
+        ).length;
+        const archivedTasks = this.tasks.filter(task => task.archived).length;
+
+        const statsEl = container.createDiv({ cls: 'board-stats' });
+        
+        statsEl.createSpan({ 
+            text: `${totalTasks} tasks`,
+            cls: 'stat-item total'
+        });
+
+        if (completedTasks > 0) {
+            statsEl.createSpan({ 
+                text: `${completedTasks} completed`,
+                cls: 'stat-item completed'
+            });
+        }
+
+        if (archivedTasks > 0) {
+            statsEl.createSpan({ 
+                text: `${archivedTasks} archived`,
+                cls: 'stat-item archived'
+            });
+        }
+
+        // Completion percentage
+        if (totalTasks > 0) {
+            const completionRate = Math.round((completedTasks / totalTasks) * 100);
+            statsEl.createSpan({ 
+                text: `${completionRate}% complete`,
+                cls: 'stat-item percentage'
+            });
+        }
     }
 
     private async loadAndRenderBoard() {
@@ -157,6 +228,12 @@ export class KanbanView extends ItemView {
             });
 
             this.renderBoard(filteredTasks);
+            
+            // Update stats after rendering
+            const statsContainer = this.contentEl.querySelector('.kanban-stats') as HTMLElement;
+            if (statsContainer) {
+                this.updateBoardStats(statsContainer);
+            }
         } catch (error) {
             console.error("Error loading Kanban board:", error);
             new Notice("Failed to load Kanban board. See console for details.");
@@ -172,7 +249,10 @@ export class KanbanView extends ItemView {
 
         const boardConfig = this.getCurrentBoardConfig();
         if (!boardConfig) {
-            this.boardContainer.createDiv({ text: "Please select or create a board in settings." });
+            this.boardContainer.createDiv({ 
+                cls: 'kanban-empty-state',
+                text: "Please select or create a board in settings." 
+            });
             return;
         }
 
@@ -180,44 +260,311 @@ export class KanbanView extends ItemView {
 
         // Group tasks by the specified field
         const groupedTasks = this.groupTasks(tasks, boardConfig.groupByField);
+        
+        // Get all possible columns (from config + discovered from tasks)
+        const allColumns = this.getAllColumns(groupedTasks, boardConfig);
 
-        // Render columns in the specified order
-        boardConfig.columnOrder.forEach(columnId => {
+        // Render columns in the determined order
+        allColumns.forEach(columnId => {
             const columnTasks = groupedTasks.get(columnId) || [];
             this.renderColumn(boardEl, columnId, columnTasks, boardConfig);
         });
+    }
 
-        // Optionally, render a column for uncategorized tasks
-        if (groupedTasks.has('uncategorized')) {
-            this.renderColumn(boardEl, 'uncategorized', groupedTasks.get('uncategorized')!, boardConfig);
+    private getAllColumns(groupedTasks: Map<string, TaskInfo[]>, boardConfig: KanbanBoardConfig): string[] {
+        const configuredColumns = new Set(boardConfig.columnOrder);
+        const discoveredColumns = new Set(groupedTasks.keys());
+        
+        // Start with configured columns in order
+        const allColumns: string[] = [...boardConfig.columnOrder];
+        
+        // Add any discovered columns that aren't in the config
+        for (const columnId of discoveredColumns) {
+            if (!configuredColumns.has(columnId)) {
+                // Add discovered columns at the end, except 'uncategorized' which goes last
+                if (columnId === 'uncategorized') {
+                    continue; // Handle separately
+                } else {
+                    allColumns.push(columnId);
+                }
+            }
         }
+        
+        // Add uncategorized at the end if it exists
+        if (discoveredColumns.has('uncategorized')) {
+            allColumns.push('uncategorized');
+        }
+        
+        return allColumns;
     }
 
     private renderColumn(container: HTMLElement, columnId: string, tasks: TaskInfo[], boardConfig: KanbanBoardConfig) {
         const columnEl = container.createDiv({ cls: 'kanban-column' });
         columnEl.dataset.columnId = columnId;
 
+        // Add column status classes for styling
+        if (columnId === 'uncategorized') {
+            columnEl.addClass('uncategorized-column');
+        }
+        
+        // Check if this is a configured vs discovered column
+        const isConfiguredColumn = boardConfig.columnOrder.includes(columnId);
+        if (!isConfiguredColumn && columnId !== 'uncategorized') {
+            columnEl.addClass('discovered-column');
+        }
+
         // Column header
         const headerEl = columnEl.createDiv({ cls: 'kanban-column-header' });
+        
+        // Title and count container
+        const titleContainer = headerEl.createDiv({ cls: 'column-title-container' });
         const title = this.formatColumnTitle(columnId, boardConfig.groupByField);
-        headerEl.createEl('h3', { text: title, cls: 'kanban-column-title' });
-        headerEl.createSpan({ text: tasks.length.toString(), cls: 'kanban-column-count' });
+        titleContainer.createEl('h3', { text: title, cls: 'kanban-column-title' });
+        
+        // Task count with breakdown
+        const countContainer = titleContainer.createDiv({ cls: 'column-count-container' });
+        const totalCount = tasks.length;
+        const completedCount = tasks.filter(task => 
+            this.plugin.statusManager.isCompletedStatus(task.status)
+        ).length;
+        
+        countContainer.createSpan({ 
+            text: totalCount.toString(), 
+            cls: 'kanban-column-count total' 
+        });
+        
+        if (completedCount > 0) {
+            countContainer.createSpan({ 
+                text: `(${completedCount} done)`, 
+                cls: 'kanban-column-count completed' 
+            });
+        }
+
+        // Column actions
+        const actionsEl = headerEl.createDiv({ cls: 'column-actions' });
+        
+        if (!isConfiguredColumn && columnId !== 'uncategorized') {
+            // Add to board button for discovered columns
+            const addToConfigBtn = actionsEl.createEl('button', {
+                cls: 'column-action-btn add-column-btn',
+                title: 'Add to board configuration',
+                text: '+'
+            });
+            addToConfigBtn.addEventListener('click', () => {
+                this.addColumnToBoard(columnId, boardConfig);
+            });
+        } else if (isConfiguredColumn && boardConfig.columnOrder.length > 1) {
+            // Remove from board button for configured columns (only if more than 1 column)
+            const removeFromConfigBtn = actionsEl.createEl('button', {
+                cls: 'column-action-btn remove-column-btn',
+                title: 'Remove from board configuration',
+                text: '×'
+            });
+            removeFromConfigBtn.addEventListener('click', () => {
+                this.removeColumnFromBoard(columnId, boardConfig);
+            });
+        }
+        
+        // Column settings dropdown for configured columns
+        if (isConfiguredColumn) {
+            const settingsBtn = actionsEl.createEl('button', {
+                cls: 'column-action-btn settings-btn',
+                title: 'Column settings',
+                text: '⚙'
+            });
+            settingsBtn.addEventListener('click', (e) => {
+                this.showColumnSettingsMenu(e, columnId, boardConfig, tasks);
+            });
+        }
         
         // Column body for tasks
         const bodyEl = columnEl.createDiv({ cls: 'kanban-column-body' });
-        tasks.forEach(task => {
-            const taskCard = createTaskCard(task, this.plugin, {
-                showDueDate: true,
-                showCheckbox: false
+        
+        if (tasks.length === 0) {
+            // Empty column placeholder
+            const emptyEl = bodyEl.createDiv({ 
+                cls: 'kanban-column-empty',
+                text: 'No tasks'
             });
-            taskCard.draggable = true;
-            this.addDragHandlers(taskCard, task);
-            bodyEl.appendChild(taskCard);
-            this.taskElements.set(task.path, taskCard);
-        });
+            
+            // Make empty columns droppable
+            this.addColumnDropHandlers(emptyEl, boardConfig);
+        } else {
+            // Sort tasks within column by priority, then by title
+            const sortedTasks = [...tasks].sort((a, b) => {
+                // First by completion status (incomplete first)
+                const aCompleted = this.plugin.statusManager.isCompletedStatus(a.status);
+                const bCompleted = this.plugin.statusManager.isCompletedStatus(b.status);
+                if (aCompleted !== bCompleted) {
+                    return aCompleted ? 1 : -1;
+                }
+                
+                // Then by priority
+                const priorityCompare = this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
+                if (priorityCompare !== 0) return priorityCompare;
+                
+                // Finally by title
+                return a.title.localeCompare(b.title);
+            });
+
+            sortedTasks.forEach(task => {
+                const taskCard = createTaskCard(task, this.plugin, {
+                    showDueDate: true,
+                    showCheckbox: false,
+                    showTimeTracking: true
+                });
+                taskCard.draggable = true;
+                this.addDragHandlers(taskCard, task);
+                bodyEl.appendChild(taskCard);
+                this.taskElements.set(task.path, taskCard);
+            });
+        }
         
         // Add drop handlers to the column
         this.addColumnDropHandlers(columnEl, boardConfig);
+    }
+
+    private async addColumnToBoard(columnId: string, boardConfig: KanbanBoardConfig) {
+        // Add the discovered column to the board configuration
+        boardConfig.columnOrder.push(columnId);
+        await this.plugin.saveSettings();
+        
+        // Refresh to show the updated board
+        this.refresh();
+        
+        new Notice(`Added "${this.formatColumnTitle(columnId, boardConfig.groupByField)}" to board configuration`);
+    }
+
+    private async removeColumnFromBoard(columnId: string, boardConfig: KanbanBoardConfig) {
+        // Don't allow removal if it's the only column
+        if (boardConfig.columnOrder.length <= 1) {
+            new Notice("Cannot remove the last column from the board");
+            return;
+        }
+
+        // Remove the column from the board configuration
+        const columnIndex = boardConfig.columnOrder.indexOf(columnId);
+        if (columnIndex > -1) {
+            boardConfig.columnOrder.splice(columnIndex, 1);
+            await this.plugin.saveSettings();
+            
+            // Refresh to show the updated board
+            this.refresh();
+            
+            new Notice(`Removed "${this.formatColumnTitle(columnId, boardConfig.groupByField)}" from board configuration`);
+        }
+    }
+
+    private showColumnSettingsMenu(event: MouseEvent, columnId: string, boardConfig: KanbanBoardConfig, tasks: TaskInfo[]) {
+        const menu = new Menu();
+        
+        // Move column left
+        const currentIndex = boardConfig.columnOrder.indexOf(columnId);
+        if (currentIndex > 0) {
+            menu.addItem((item) => {
+                item.setTitle('Move Left')
+                    .setIcon('arrow-left')
+                    .onClick(async () => {
+                        // Swap with previous column
+                        [boardConfig.columnOrder[currentIndex - 1], boardConfig.columnOrder[currentIndex]] = 
+                        [boardConfig.columnOrder[currentIndex], boardConfig.columnOrder[currentIndex - 1]];
+                        await this.plugin.saveSettings();
+                        this.refresh();
+                    });
+            });
+        }
+
+        // Move column right
+        if (currentIndex < boardConfig.columnOrder.length - 1) {
+            menu.addItem((item) => {
+                item.setTitle('Move Right')
+                    .setIcon('arrow-right')
+                    .onClick(async () => {
+                        // Swap with next column
+                        [boardConfig.columnOrder[currentIndex], boardConfig.columnOrder[currentIndex + 1]] = 
+                        [boardConfig.columnOrder[currentIndex + 1], boardConfig.columnOrder[currentIndex]];
+                        await this.plugin.saveSettings();
+                        this.refresh();
+                    });
+            });
+        }
+
+        if (currentIndex > 0 || currentIndex < boardConfig.columnOrder.length - 1) {
+            menu.addSeparator();
+        }
+
+        // Bulk operations
+        if (tasks.length > 0) {
+            // Complete all tasks in column
+            const incompleteTasks = tasks.filter(task => 
+                !this.plugin.statusManager.isCompletedStatus(task.status)
+            );
+            if (incompleteTasks.length > 0) {
+                menu.addItem((item) => {
+                    item.setTitle(`Complete All (${incompleteTasks.length} tasks)`)
+                        .setIcon('check-circle')
+                        .onClick(async () => {
+                            await this.bulkCompleteTasksInColumn(incompleteTasks);
+                        });
+                });
+            }
+
+            // Archive all completed tasks in column
+            const completedTasks = tasks.filter(task => 
+                this.plugin.statusManager.isCompletedStatus(task.status) && !task.archived
+            );
+            if (completedTasks.length > 0) {
+                menu.addItem((item) => {
+                    item.setTitle(`Archive Completed (${completedTasks.length} tasks)`)
+                        .setIcon('archive')
+                        .onClick(async () => {
+                            await this.bulkArchiveTasksInColumn(completedTasks);
+                        });
+                });
+            }
+
+            menu.addSeparator();
+        }
+
+        // Remove column (only if more than 1 column)
+        if (boardConfig.columnOrder.length > 1) {
+            menu.addItem((item) => {
+                item.setTitle('Remove Column')
+                    .setIcon('trash')
+                    .onClick(() => {
+                        this.removeColumnFromBoard(columnId, boardConfig);
+                    });
+            });
+        }
+
+        menu.showAtMouseEvent(event);
+    }
+
+    private async bulkCompleteTasksInColumn(tasks: TaskInfo[]) {
+        try {
+            const completedStatus = this.plugin.statusManager.getCompletedStatus();
+            for (const task of tasks) {
+                await this.plugin.taskService.updateProperty(task, 'status', completedStatus, { silent: true });
+            }
+            new Notice(`Completed ${tasks.length} tasks`);
+            this.refresh();
+        } catch (error) {
+            console.error('Failed to complete tasks:', error);
+            new Notice('Failed to complete some tasks');
+        }
+    }
+
+    private async bulkArchiveTasksInColumn(tasks: TaskInfo[]) {
+        try {
+            for (const task of tasks) {
+                await this.plugin.taskService.updateProperty(task, 'archived', true, { silent: true });
+            }
+            new Notice(`Archived ${tasks.length} tasks`);
+            this.refresh();
+        } catch (error) {
+            console.error('Failed to archive tasks:', error);
+            new Notice('Failed to archive some tasks');
+        }
     }
 
     private addDragHandlers(card: HTMLElement, task: TaskInfo) {
