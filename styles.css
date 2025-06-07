@@ -4110,6 +4110,11 @@
     box-sizing: border-box;
 }
 
+/* Hide the close button */
+.task-edit-modal .modal-close-button {
+    display: none !important;
+}
+
 .task-edit-modal .modal-content {
     padding: var(--cs-spacing-sm);
     box-sizing: border-box;
@@ -4137,7 +4142,7 @@
     color: var(--text-normal);
 }
 
-.task-edit-modal .form-group input,
+.task-edit-modal .form-group input:not([type="checkbox"]),
 .task-edit-modal .form-group select,
 .task-edit-modal .form-group textarea {
     width: 100%;
@@ -4217,6 +4222,13 @@
     display: none;
 }
 
+.task-edit-modal .recurrence-helper-text {
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
 .task-edit-modal .days-of-week-title {
     margin-bottom: var(--cs-spacing-sm);
     font-size: var(--cs-text-base);
@@ -4224,9 +4236,10 @@
 }
 
 .task-edit-modal .days-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-    gap: var(--cs-spacing-xs);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
 }
 
 .task-edit-modal .day-row {
@@ -4235,17 +4248,23 @@
 }
 
 .task-edit-modal .day-checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: var(--cs-spacing-xs);
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
     cursor: pointer;
-    font-size: var(--cs-text-sm);
-    color: var(--text-normal);
+    font-size: var(--cs-text-sm) !important;
+    color: var(--text-normal) !important;
+    margin: 0 !important;
+    padding: 0.25rem 0 !important;
 }
 
 .task-edit-modal .day-checkbox {
-    width: auto !important;
-    margin: 0;
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
+    margin-right: 0 !important;
+    flex-shrink: 0 !important;
+    cursor: pointer !important;
 }
 
 .task-edit-modal .button-container {

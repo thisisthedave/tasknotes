@@ -490,11 +490,13 @@ export class TaskEditModal extends Modal {
     createDaysOfWeekSelector(container: HTMLElement) {
         container.createEl('h4', { text: 'Select days of week:', cls: 'days-of-week-title' });
         
+        // Container for the days of week selection
         const daysContainer = container.createDiv({ cls: 'days-container' });
         
         const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         const shortDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
         
+        // Create checkboxes in a clearer layout - one per row
         daysOfWeek.forEach((day, index) => {
             const dayRow = daysContainer.createDiv({ cls: 'day-row' });
             
@@ -504,11 +506,14 @@ export class TaskEditModal extends Modal {
                 cls: 'day-checkbox'
             });
             
+            // Set data attribute for the day
             checkbox.dataset.day = shortDays[index];
             checkbox.checked = this.daysOfWeek.includes(shortDays[index]);
             
+            // Add the day name after the checkbox
             label.appendChild(document.createTextNode(' ' + day));
             
+            // Add change listener
             checkbox.addEventListener('change', (e) => {
                 const isChecked = (e.target as HTMLInputElement).checked;
                 const day = (e.target as HTMLInputElement).dataset.day;
@@ -519,6 +524,12 @@ export class TaskEditModal extends Modal {
                     this.daysOfWeek = this.daysOfWeek.filter(d => d !== day);
                 }
             });
+        });
+        
+        // Add helper text
+        const helperText = container.createEl('div', { 
+            text: 'Select at least one day of the week on which this task should recur.',
+            cls: 'recurrence-helper-text'
         });
     }
 
@@ -577,6 +588,12 @@ export class TaskEditModal extends Modal {
             input.addEventListener('input', (e) => {
                 this.dayOfMonth = (e.target as HTMLInputElement).value;
             });
+        });
+        
+        // Add helper text
+        const helperText = container.createEl('div', { 
+            text: 'Select the month and day on which this task should recur each year.',
+            cls: 'recurrence-helper-text'
         });
     }
 
