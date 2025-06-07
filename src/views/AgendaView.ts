@@ -8,19 +8,24 @@ import {
     EVENT_TASK_UPDATED,
     TaskInfo, 
     NoteInfo,
+    FilterQuery
 } from '../types';
 import { isRecurringTaskDueOn, calculateTotalTimeSpent } from '../utils/helpers';
 import { createTaskCard, updateTaskCard } from '../ui/TaskCard';
 import { createNoteCard } from '../ui/NoteCard';
+import { FilterBar } from '../ui/FilterBar';
 
 export class AgendaView extends ItemView {
     plugin: TaskNotesPlugin;
     
     // View settings
     private daysToShow: number = 7;
-    private showArchived: boolean = false;
     private groupByDate: boolean = true;
     private startDate: Date;
+    
+    // Filter system
+    private filterBar: FilterBar | null = null;
+    private currentQuery: FilterQuery;
     
     // Event listeners
     private listeners: (() => void)[] = [];
@@ -29,6 +34,20 @@ export class AgendaView extends ItemView {
         super(leaf);
         this.plugin = plugin;
         this.startDate = new Date(plugin.selectedDate);
+        
+        // Initialize with saved state or default query for agenda view
+        const savedQuery = this.plugin.viewStateManager?.getFilterState(AGENDA_VIEW_TYPE);
+        this.currentQuery = savedQuery || {
+            searchQuery: undefined,
+            status: 'all',
+            contexts: undefined,
+            priorities: undefined,
+            dateRange: this.getDateRange(),
+            showArchived: false,
+            sortKey: 'due',
+            sortDirection: 'asc',
+            groupKey: 'none' // Agenda groups by date internally
+        };
         
         // Register event listeners
         this.registerEvents();
@@ -54,9 +73,15 @@ export class AgendaView extends ItemView {
         
         // Listen for individual task updates for granular DOM updates
         const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, updatedTask }) => {
-            this.updateTaskElementInDOM(path, updatedTask);
+            this.refresh(); // Simplified - just refresh on task updates
         });
         this.listeners.push(taskUpdateListener);
+        
+        // Listen for filter service data changes
+        const filterDataListener = this.plugin.filterService.on('data-changed', () => {
+            this.refresh();
+        });
+        this.listeners.push(filterDataListener);
     }
     
     getViewType(): string {
@@ -95,6 +120,12 @@ export class AgendaView extends ItemView {
         // Remove event listeners
         this.listeners.forEach(unsubscribe => unsubscribe());
         
+        // Clean up FilterBar
+        if (this.filterBar) {
+            this.filterBar.destroy();
+            this.filterBar = null;
+        }
+        
         // Clean up
         this.contentEl.empty();
     }
@@ -104,14 +135,44 @@ export class AgendaView extends ItemView {
         container.empty();
         
         // Create controls
-        this.createAgendaControls(container);
+        await this.createAgendaControls(container);
         
         // Create agenda content
         await this.renderAgendaContent(container);
     }
     
-    private createAgendaControls(container: HTMLElement) {
+    private async createAgendaControls(container: HTMLElement) {
         const controlsContainer = container.createDiv({ cls: 'agenda-controls' });
+        
+        // FilterBar container
+        const filterBarContainer = controlsContainer.createDiv({ cls: 'agenda-filter-bar-container' });
+        
+        // Get filter options from FilterService
+        const filterOptions = await this.plugin.filterService.getFilterOptions();
+        
+        // Create FilterBar with Agenda configuration
+        this.filterBar = new FilterBar(
+            filterBarContainer,
+            this.currentQuery,
+            filterOptions,
+            {
+                showSearch: true,
+                showGroupBy: false, // Agenda groups by date internally
+                showSortBy: true,
+                showAdvancedFilters: true,
+                allowedSortKeys: ['due', 'priority', 'title'],
+                allowedGroupKeys: ['none'] // Only none allowed since we group by date
+            }
+        );
+        
+        // Listen for filter changes
+        this.filterBar.on('queryChange', (newQuery: FilterQuery) => {
+            this.currentQuery = newQuery;
+            // Save the filter state (but always update date range based on current view)
+            const queryToSave = { ...newQuery, dateRange: this.getDateRange() };
+            this.plugin.viewStateManager.setFilterState(AGENDA_VIEW_TYPE, queryToSave);
+            this.refresh();
+        });
         
         // Row 1: Period Navigation
         const navigationRow = controlsContainer.createDiv({ cls: 'controls-row navigation-row' });
@@ -195,27 +256,15 @@ export class AgendaView extends ItemView {
             } else {
                 this.daysToShow = parseInt(value);
             }
+            
+            // Update the date range in the query
+            this.currentQuery.dateRange = this.getDateRange();
+            
             this.refresh();
             // Update the period display
             currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
-        // Show archived toggle
-        const archivedContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
-        
-        const archivedToggle = archivedContainer.createEl('label', { cls: 'toggle-label' });
-        
-        const archivedCheckbox = archivedToggle.createEl('input', { 
-            type: 'checkbox',
-            cls: 'toggle-checkbox'
-        });
-        archivedCheckbox.checked = this.showArchived;
-        archivedToggle.createSpan({ text: 'Show archived' });
-        
-        archivedCheckbox.addEventListener('change', () => {
-            this.showArchived = archivedCheckbox.checked;
-            this.refresh();
-        });
         
         // Group by date toggle
         const groupingContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
@@ -235,49 +284,77 @@ export class AgendaView extends ItemView {
         });
     }
     
+    /**
+     * Get date range for FilterService query
+     */
+    private getDateRange(): { start: string; end: string } {
+        const dates = this.getAgendaDates();
+        const startDate = dates[0];
+        const endDate = dates[dates.length - 1];
+        
+        return {
+            start: format(startDate, 'yyyy-MM-dd'),
+            end: format(endDate, 'yyyy-MM-dd')
+        };
+    }
+    
     private async renderAgendaContent(container: HTMLElement) {
         const contentContainer = container.createDiv({ cls: 'agenda-content' });
         
-        // Get date range
-        const dates = this.getAgendaDates();
-        
-        // Fetch all tasks and notes once, then group by date in memory
-        const [allTasks, allNotes] = await Promise.all([
-            this.plugin.cacheManager.getTasksForDate(new Date(), false),
-            this.plugin.cacheManager.getAllNotes()
-        ]);
-        
-        // Group data by date
-        const agendaData = dates.map(date => {
-            const dateStr = format(date, 'yyyy-MM-dd');
+        try {
+            // Update the date range in the query
+            this.currentQuery.dateRange = this.getDateRange();
             
-            // Filter tasks for this date
-            const tasksForDate = allTasks.filter(task => {
-                // Handle recurring tasks
-                if (task.recurrence) {
-                    return isRecurringTaskDueOn(task, date);
-                }
-                // Handle regular tasks with due dates
-                return task.due === dateStr;
+            // Get filtered tasks from FilterService
+            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
+            
+            // Flatten the grouped tasks since we'll re-group by date
+            const allTasks = Array.from(groupedTasks.values()).flat();
+            
+            // Get all notes for the date range (FilterService doesn't handle notes yet)
+            const allNotes = await this.plugin.cacheManager.getAllNotes();
+            
+            // Get date range
+            const dates = this.getAgendaDates();
+            
+            // Group data by date
+            const agendaData = dates.map(date => {
+                const dateStr = format(date, 'yyyy-MM-dd');
+                
+                // Filter tasks for this date (already filtered by FilterService date range)
+                const tasksForDate = allTasks.filter(task => {
+                    // Handle recurring tasks
+                    if (task.recurrence) {
+                        return isRecurringTaskDueOn(task, date);
+                    }
+                    // Handle regular tasks with due dates
+                    return task.due === dateStr;
+                });
+                
+                // Filter notes for this date
+                const notesForDate = allNotes.filter(note => {
+                    if (note.createdDate) {
+                        const noteCreatedDate = note.createdDate.split('T')[0];
+                        return noteCreatedDate === dateStr;
+                    }
+                    return false;
+                });
+                
+                return { date, tasks: tasksForDate, notes: notesForDate };
             });
             
-            // Filter notes for this date
-            const notesForDate = allNotes.filter(note => {
-                if (note.createdDate) {
-                    const noteCreatedDate = note.createdDate.split('T')[0];
-                    return noteCreatedDate === dateStr;
-                }
-                return false;
+            // Group items by date if enabled
+            if (this.groupByDate) {
+                this.renderGroupedAgenda(contentContainer, agendaData);
+            } else {
+                this.renderFlatAgenda(contentContainer, agendaData);
+            }
+        } catch (error) {
+            console.error('Error rendering agenda content:', error);
+            contentContainer.createEl('p', { 
+                text: 'Error loading agenda. Please try refreshing.', 
+                cls: 'error-message' 
             });
-            
-            return { date, tasks: tasksForDate, notes: notesForDate };
-        });
-        
-        // Group items by date if enabled
-        if (this.groupByDate) {
-            this.renderGroupedAgenda(contentContainer, agendaData);
-        } else {
-            this.renderFlatAgenda(contentContainer, agendaData);
         }
     }
     
@@ -287,13 +364,8 @@ export class AgendaView extends ItemView {
         agendaData.forEach(dayData => {
             const dateStr = format(dayData.date, 'yyyy-MM-dd');
             
-            // Filter tasks
+            // Filter tasks (archived filtering already handled by FilterService)
             const tasksForDate = dayData.tasks.filter(task => {
-                // Skip archived tasks if not showing them
-                if (!this.showArchived && task.archived) {
-                    return false;
-                }
-                
                 // Handle recurring tasks
                 if (task.recurrence) {
                     return isRecurringTaskDueOn(task, dayData.date);
@@ -358,10 +430,7 @@ export class AgendaView extends ItemView {
             const dateStr = format(dayData.date, 'yyyy-MM-dd');
             
             dayData.tasks.forEach(task => {
-                if (!this.showArchived && task.archived) {
-                    return;
-                }
-                
+                // Archived filtering already handled by FilterService
                 if (task.recurrence) {
                     if (isRecurringTaskDueOn(task, dayData.date)) {
                         allItems.push({ type: 'task', item: task, date: dayData.date });
@@ -477,92 +546,6 @@ export class AgendaView extends ItemView {
         });
     }
     
-    
-    /**
-     * Update a specific task element in the DOM without full re-render
-     */
-    private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
-        const taskElement = this.contentEl.querySelector(`[data-task-path="${taskPath}"]`) as HTMLElement;
-        
-        // Check if task should be visible based on archived filter
-        const shouldBeVisible = this.showArchived || !updatedTask.archived;
-        
-        if (taskElement && shouldBeVisible) {
-            // Check if the task's date group has changed
-            if (this.hasTaskMovedDateGroups(taskPath, updatedTask)) {
-                // Task has moved to a different date group, trigger full refresh
-                this.debounceRefresh();
-                return;
-            }
-
-            try {
-                // Update the existing task card
-                updateTaskCard(taskElement, updatedTask, this.plugin, {
-                    showDueDate: !this.groupByDate,
-                    showCheckbox: false,
-                    showTimeTracking: true,
-                    showRecurringControls: true,
-                    groupByDate: this.groupByDate,
-                    targetDate: this.startDate
-                });
-            } catch (error) {
-                console.error(`AgendaView: Error updating DOM for task ${taskPath}:`, error);
-                // If update fails, trigger a full refresh to recover
-                this.refresh();
-            }
-        } else if (taskElement && !shouldBeVisible) {
-            // Task should be hidden - remove it from the DOM
-            taskElement.remove();
-        } else if (!taskElement && shouldBeVisible) {
-            // Task element not found but should be visible - might be a new task or moved groups
-            this.debounceRefresh();
-        } else {
-            // Task element not found and shouldn't be visible - nothing to do
-        }
-    }
-
-    // Debounced refresh to avoid multiple rapid refreshes
-    private refreshTimeout: NodeJS.Timeout | null = null;
-    private debounceRefresh() {
-        if (this.refreshTimeout) {
-            clearTimeout(this.refreshTimeout);
-        }
-        this.refreshTimeout = setTimeout(() => {
-            this.refresh();
-            this.refreshTimeout = null;
-        }, 150);
-    }
-
-    /**
-     * Check if a task has moved to a different date group in the agenda
-     */
-    private hasTaskMovedDateGroups(taskPath: string, updatedTask: TaskInfo): boolean {
-        // Find the current date group for this task
-        const currentDateSection = this.contentEl.querySelector(`[data-task-path="${taskPath}"]`)?.closest('.agenda-day');
-        if (!currentDateSection) return false;
-
-        const currentDateStr = currentDateSection.getAttribute('data-date');
-        if (!currentDateStr) return false;
-
-        // Check what date this task should belong to now
-        const taskDate = this.getTaskDateGroup(updatedTask);
-        const newDateStr = format(taskDate, 'yyyy-MM-dd');
-
-        return currentDateStr !== newDateStr;
-    }
-
-    /**
-     * Get the date group a task should belong to
-     */
-    private getTaskDateGroup(task: TaskInfo): Date {
-        // For agenda view, tasks are grouped by their due date or today if no due date
-        if (task.due) {
-            return new Date(task.due);
-        }
-        return new Date(); // Today
-    }
-    
-    
     private openFile(path: string) {
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file instanceof TFile) {
@@ -601,6 +584,10 @@ export class AgendaView extends ItemView {
             // Fixed days - go back by the number of days shown
             this.startDate = addDays(this.startDate, -this.daysToShow);
         }
+        
+        // Update the date range in the query
+        this.currentQuery.dateRange = this.getDateRange();
+        
         this.refresh();
     }
     
@@ -612,6 +599,10 @@ export class AgendaView extends ItemView {
             // Fixed days - go forward by the number of days shown
             this.startDate = addDays(this.startDate, this.daysToShow);
         }
+        
+        // Update the date range in the query
+        this.currentQuery.dateRange = this.getDateRange();
+        
         this.refresh();
     }
     
@@ -710,9 +701,14 @@ export class AgendaView extends ItemView {
                 case 'c':
                 case 'C':
                     e.preventDefault();
-                    this.showArchived = !this.showArchived;
-                    const checkbox = this.contentEl.querySelector('.toggle-checkbox') as HTMLInputElement;
-                    if (checkbox) checkbox.checked = this.showArchived;
+                    // Toggle showArchived in the current query
+                    this.currentQuery.showArchived = !this.currentQuery.showArchived;
+                    // Update FilterBar if available
+                    if (this.filterBar) {
+                        this.filterBar.updateQuery(this.currentQuery);
+                    }
+                    // Save state and refresh
+                    this.plugin.viewStateManager.setFilterState(AGENDA_VIEW_TYPE, this.currentQuery);
                     this.refresh();
                     break;
             }

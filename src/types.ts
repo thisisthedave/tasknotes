@@ -25,6 +25,37 @@ export type CalendarDisplayMode = 'month' | 'agenda';
 // Task sorting and grouping types
 export type TaskSortKey = 'due' | 'priority' | 'title';
 export type TaskGroupKey = 'none' | 'priority' | 'context' | 'due' | 'status';
+export type SortDirection = 'asc' | 'desc';
+
+// Unified filtering system types
+export interface FilterQuery {
+	// Filtering
+	searchQuery?: string;
+	status?: 'all' | 'open' | 'archived' | string; // 'open' = all non-completed
+	contexts?: string[];
+	priorities?: string[];
+	dateRange?: {
+		start: string; // YYYY-MM-DD
+		end: string;   // YYYY-MM-DD
+	};
+	showArchived: boolean;
+	
+	// Sorting
+	sortKey: TaskSortKey;
+	sortDirection: SortDirection;
+
+	// Grouping
+	groupKey: TaskGroupKey;
+}
+
+export interface FilterBarConfig {
+	showSearch?: boolean;
+	showGroupBy?: boolean;
+	showSortBy?: boolean;
+	showAdvancedFilters?: boolean;
+	allowedSortKeys?: TaskSortKey[];
+	allowedGroupKeys?: TaskGroupKey[];
+}
 
 // Time and date related types
 export interface TimeInfo {
@@ -208,5 +239,10 @@ export interface KanbanBoardConfig {
 	name: string;                        // User-facing name
 	groupByField: KanbanGroupByField;    // What to group tasks by
 	columnOrder: string[];               // Order of column values
+}
+
+// UI state management for filter preferences
+export interface ViewFilterState {
+	[viewType: string]: FilterQuery;
 }
 

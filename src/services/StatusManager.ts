@@ -64,6 +64,14 @@ export class StatusManager {
     }
 
     /**
+     * Get status order for sorting
+     */
+    getStatusOrder(statusValue: string): number {
+        const status = this.getStatusConfig(statusValue);
+        return status?.order || 0;
+    }
+
+    /**
      * Get CSS variables for status colors
      */
     getStatusStyles(): string {

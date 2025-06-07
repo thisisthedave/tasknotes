@@ -4,9 +4,12 @@ import {
     KANBAN_VIEW_TYPE, 
     EVENT_DATA_CHANGED, 
     EVENT_TASK_UPDATED, 
-    TaskInfo 
+    TaskInfo,
+    FilterQuery,
+    TaskGroupKey
 } from '../types';
 import { createTaskCard, updateTaskCard } from '../ui/TaskCard';
+import { FilterBar } from '../ui/FilterBar';
 
 export class KanbanView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -14,12 +17,10 @@ export class KanbanView extends ItemView {
     // UI elements
     private boardContainer: HTMLElement | null = null;
     
-    // View state
-    private tasks: TaskInfo[] = [];
-    private currentGroupBy: 'status' | 'priority' | 'context' = 'status';
-    private showArchived: boolean = false;
-    private taskElements: Map<string, HTMLElement> = new Map(); // For granular updates
-    private searchQuery: string = '';
+    // Filter system
+    private filterBar: FilterBar | null = null;
+    private currentQuery: FilterQuery;
+    private taskElements: Map<string, HTMLElement> = new Map();
 
     // Event listeners
     private listeners: (() => void)[] = [];
@@ -27,6 +28,21 @@ export class KanbanView extends ItemView {
     constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
         this.plugin = plugin;
+        
+        // Initialize with saved state or default query for Kanban
+        const savedQuery = this.plugin.viewStateManager?.getFilterState(KANBAN_VIEW_TYPE);
+        this.currentQuery = savedQuery || {
+            searchQuery: undefined,
+            status: 'all',
+            contexts: undefined,
+            priorities: undefined,
+            dateRange: undefined,
+            showArchived: false,
+            sortKey: 'priority',
+            sortDirection: 'desc',
+            groupKey: 'status' // Kanban default grouping
+        };
+        
         this.registerEvents();
     }
 
@@ -50,9 +66,15 @@ export class KanbanView extends ItemView {
         this.listeners.push(dataListener);
 
         const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, updatedTask }) => {
-            this.updateTaskInView(path, updatedTask);
+            this.refresh(); // Simpler approach - just refresh on task updates
         });
         this.listeners.push(taskUpdateListener);
+        
+        // Listen for filter service data changes
+        const filterDataListener = this.plugin.filterService.on('data-changed', () => {
+            this.refresh();
+        });
+        this.listeners.push(filterDataListener);
     }
 
     async onOpen() {
@@ -66,6 +88,13 @@ export class KanbanView extends ItemView {
             clearTimeout(this.refreshTimeout);
             this.refreshTimeout = null;
         }
+        
+        // Clean up FilterBar
+        if (this.filterBar) {
+            this.filterBar.destroy();
+            this.filterBar = null;
+        }
+        
         this.contentEl.empty();
     }
 
@@ -79,51 +108,50 @@ export class KanbanView extends ItemView {
         container.empty();
         container.addClass('kanban-view');
 
-        this.renderHeader(container);
+        await this.renderHeader(container);
         
         this.boardContainer = container.createDiv({ cls: 'kanban-board-container' });
 
         await this.loadAndRenderBoard();
     }
 
-    private renderHeader(container: HTMLElement) {
+    private async renderHeader(container: HTMLElement) {
         const header = container.createDiv({ cls: 'kanban-header' });
 
-        // Top row: Board selector and actions
-        const topRow = header.createDiv({ cls: 'kanban-header-top' });
-
-        const boardSelectorContainer = topRow.createDiv({ cls: 'kanban-board-selector' });
-        const boardInfo = boardSelectorContainer.createDiv({ cls: 'kanban-board-info' });
-        boardInfo.createEl('h2', { text: 'Group by:', cls: 'kanban-board-title' });
+        // FilterBar container
+        const filterBarContainer = header.createDiv({ cls: 'kanban-filter-bar-container' });
         
-        const groupBySelect = boardInfo.createEl('select', { cls: 'kanban-select' });
+        // Get filter options from FilterService
+        const filterOptions = await this.plugin.filterService.getFilterOptions();
         
-        const groupOptions = [
-            { value: 'status', label: 'Status' },
-            { value: 'priority', label: 'Priority' },
-            { value: 'context', label: 'Context' }
-        ];
-
-        groupOptions.forEach(option => {
-            const optionEl = groupBySelect.createEl('option', { 
-                value: option.value, 
-                text: option.label 
-            });
-            if (option.value === this.currentGroupBy) {
-                optionEl.selected = true;
+        // Create FilterBar with Kanban configuration
+        this.filterBar = new FilterBar(
+            filterBarContainer,
+            this.currentQuery,
+            filterOptions,
+            {
+                showSearch: true,
+                showGroupBy: true, // Allow changing grouping field
+                showSortBy: true,
+                showAdvancedFilters: true,
+                allowedSortKeys: ['priority', 'title', 'due'],
+                allowedGroupKeys: ['status', 'priority', 'context']
             }
+        );
+        
+        // Listen for filter changes
+        this.filterBar.on('queryChange', (newQuery: FilterQuery) => {
+            this.currentQuery = newQuery;
+            // Save the filter state
+            this.plugin.viewStateManager.setFilterState(KANBAN_VIEW_TYPE, newQuery);
+            this.loadAndRenderBoard();
         });
 
-        groupBySelect.addEventListener('change', async () => {
-            this.currentGroupBy = groupBySelect.value as 'status' | 'priority' | 'context';
-            await this.loadAndRenderBoard();
-        });
-
-
-        const actions = topRow.createDiv({ cls: 'kanban-actions' });
+        // Actions row
+        const actionsRow = header.createDiv({ cls: 'kanban-header-actions' });
         
         // Add new task button
-        const newTaskButton = actions.createEl('button', { 
+        const newTaskButton = actionsRow.createEl('button', { 
             cls: 'kanban-new-task-button tasknotes-button tasknotes-button-primary',
             text: 'New Task'
         });
@@ -131,46 +159,18 @@ export class KanbanView extends ItemView {
             this.plugin.openTaskCreationModal();
         });
 
-        // Bottom row: Filters and stats
-        const filtersRow = header.createDiv({ cls: 'kanban-filters' });
-        
-        // Simple filter controls
-        const filterControls = filtersRow.createDiv({ cls: 'kanban-filter-controls' });
-        
-        // Search input
-        const searchInput = filterControls.createEl('input', { 
-            type: 'text',
-            placeholder: 'Search tasks...',
-            cls: 'kanban-search-input'
-        });
-        searchInput.value = this.searchQuery;
-        searchInput.addEventListener('input', async () => {
-            this.searchQuery = searchInput.value;
-            await this.loadAndRenderBoard();
-        });
-
-        // Archived toggle
-        const archivedLabel = filterControls.createEl('label', { cls: 'kanban-checkbox-label' });
-        const archivedCheckbox = archivedLabel.createEl('input', { type: 'checkbox' });
-        archivedCheckbox.checked = this.showArchived;
-        archivedLabel.createSpan({ text: 'Show archived' });
-        archivedCheckbox.addEventListener('change', async () => {
-            this.showArchived = archivedCheckbox.checked;
-            await this.loadAndRenderBoard();
-        });
-
         // Board stats
-        const statsContainer = filtersRow.createDiv({ cls: 'kanban-stats' });
+        const statsContainer = header.createDiv({ cls: 'kanban-stats' });
         this.updateBoardStats(statsContainer);
     }
 
-    private updateBoardStats(container: HTMLElement) {
+    private updateBoardStats(container: HTMLElement, tasks?: TaskInfo[]) {
         container.empty();
         
-        if (this.tasks.length === 0) return;
+        if (!tasks || tasks.length === 0) return;
 
-        const totalTasks = this.tasks.length;
-        const completedTasks = this.tasks.filter(task => 
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter(task => 
             this.plugin.statusManager.isCompletedStatus(task.status)
         ).length;
 
@@ -190,33 +190,19 @@ export class KanbanView extends ItemView {
         this.boardContainer.createDiv({ cls: 'loading-indicator', text: 'Loading board...' });
 
         try {
-            // Fetch all tasks from the cache. The Kanban view is not date-specific.
-            this.tasks = await this.plugin.cacheManager.getTasksForDate(new Date(), false);
-
-            // Filter tasks based on view settings
-            const filteredTasks = this.tasks.filter(task => {
-                // Filter by archived status
-                if (!this.showArchived && task.archived) return false;
-                
-                // Filter by search query
-                if (this.searchQuery.trim()) {
-                    const query = this.searchQuery.toLowerCase();
-                    const matchesTitle = task.title.toLowerCase().includes(query);
-                    const matchesContexts = task.contexts?.some(context => 
-                        context.toLowerCase().includes(query)
-                    ) || false;
-                    if (!matchesTitle && !matchesContexts) return false;
-                }
-                
-                return true;
-            });
-
-            this.renderBoard(filteredTasks);
+            // Get grouped tasks from FilterService
+            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
+            
+            // Render the grouped tasks directly
+            this.renderBoardFromGroupedTasks(groupedTasks);
+            
+            // Calculate stats from all tasks
+            const allTasks = Array.from(groupedTasks.values()).flat();
             
             // Update stats after rendering
             const statsContainer = this.contentEl.querySelector('.kanban-stats') as HTMLElement;
             if (statsContainer) {
-                this.updateBoardStats(statsContainer);
+                this.updateBoardStats(statsContainer, allTasks);
             }
         } catch (error) {
             console.error("Error loading Kanban board:", error);
@@ -226,17 +212,14 @@ export class KanbanView extends ItemView {
         }
     }
 
-    private renderBoard(tasks: TaskInfo[]) {
+    private renderBoardFromGroupedTasks(groupedTasks: Map<string, TaskInfo[]>) {
         if (!this.boardContainer) return;
         this.boardContainer.empty();
         this.taskElements.clear();
 
         const boardEl = this.boardContainer.createDiv({ cls: 'kanban-board' });
-
-        // Group tasks by the current grouping field
-        const groupedTasks = this.groupTasks(tasks, this.currentGroupBy);
         
-        // Get all possible columns from the actual tasks
+        // Get all possible columns from the grouped tasks
         const allColumns = Array.from(groupedTasks.keys()).sort();
 
         // Render columns
@@ -265,7 +248,7 @@ export class KanbanView extends ItemView {
         this.addColumnDragHandlers(headerEl);
         
         // Title line
-        const title = this.formatColumnTitle(columnId, this.currentGroupBy);
+        const title = this.formatColumnTitle(columnId, this.currentQuery.groupKey);
         headerEl.createEl('div', { text: title, cls: 'kanban-column-title' });
         
         // Count line
@@ -288,24 +271,8 @@ export class KanbanView extends ItemView {
             // Make empty columns droppable
             this.addColumnDropHandlers(emptyEl);
         } else {
-            // Sort tasks within column by priority, then by title
-            const sortedTasks = [...tasks].sort((a, b) => {
-                // First by completion status (incomplete first)
-                const aCompleted = this.plugin.statusManager.isCompletedStatus(a.status);
-                const bCompleted = this.plugin.statusManager.isCompletedStatus(b.status);
-                if (aCompleted !== bCompleted) {
-                    return aCompleted ? 1 : -1;
-                }
-                
-                // Then by priority
-                const priorityCompare = this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
-                if (priorityCompare !== 0) return priorityCompare;
-                
-                // Finally by title
-                return a.title.localeCompare(b.title);
-            });
-
-            sortedTasks.forEach(task => {
+            // Tasks are already sorted by FilterService, just render them
+            tasks.forEach(task => {
                 const taskCard = createTaskCard(task, this.plugin, {
                     showDueDate: true,
                     showCheckbox: false,
@@ -396,48 +363,9 @@ export class KanbanView extends ItemView {
     }
 
     private async renderBoardWithOrder() {
-        if (!this.boardContainer) return;
-        
-        // Get current tasks
-        const filteredTasks = this.tasks.filter(task => {
-            if (!this.showArchived && task.archived) return false;
-            if (this.searchQuery.trim()) {
-                const query = this.searchQuery.toLowerCase();
-                const matchesTitle = task.title.toLowerCase().includes(query);
-                const matchesContexts = task.contexts?.some(context => 
-                    context.toLowerCase().includes(query)
-                ) || false;
-                if (!matchesTitle && !matchesContexts) return false;
-            }
-            return true;
-        });
-
-        const boardEl = this.boardContainer.querySelector('.kanban-board') as HTMLElement;
-        if (!boardEl) return;
-
-        boardEl.empty();
-        this.taskElements.clear();
-
-        // Group tasks by the current grouping field
-        const groupedTasks = this.groupTasks(filteredTasks, this.currentGroupBy);
-        
-        // Render columns in the stored order
-        this.columnOrder.forEach(columnId => {
-            if (groupedTasks.has(columnId)) {
-                const columnTasks = groupedTasks.get(columnId) || [];
-                this.renderColumn(boardEl, columnId, columnTasks);
-            }
-        });
-
-        // Add any new columns that aren't in our order yet
-        const allColumns = Array.from(groupedTasks.keys());
-        allColumns.forEach(columnId => {
-            if (!this.columnOrder.includes(columnId)) {
-                this.columnOrder.push(columnId);
-                const columnTasks = groupedTasks.get(columnId) || [];
-                this.renderColumn(boardEl, columnId, columnTasks);
-            }
-        });
+        // This method is no longer used - FilterService handles grouping
+        // Keeping for potential future use with column reordering
+        console.log('renderBoardWithOrder is deprecated - using FilterService instead');
     }
 
     private addDragHandlers(card: HTMLElement, task: TaskInfo) {
@@ -475,14 +403,15 @@ export class KanbanView extends ItemView {
             const targetColumnId = columnEl.dataset.columnId;
 
             if (taskPath && targetColumnId && targetColumnId !== 'uncategorized') {
-                const task = this.tasks.find(t => t.path === taskPath);
+                // Get task from cache since we no longer maintain local tasks array
+                const task = this.plugin.cacheManager.getCachedTaskInfo(taskPath);
                 if (task) {
                     try {
                         // Map current grouping to actual TaskInfo property
                         let propertyToUpdate: keyof TaskInfo;
                         let valueToSet: any;
                         
-                        switch (this.currentGroupBy) {
+                        switch (this.currentQuery.groupKey) {
                             case 'status':
                                 propertyToUpdate = 'status';
                                 valueToSet = targetColumnId;
@@ -497,11 +426,11 @@ export class KanbanView extends ItemView {
                                 valueToSet = [targetColumnId];
                                 break;
                             default:
-                                throw new Error(`Unsupported groupBy: ${this.currentGroupBy}`);
+                                throw new Error(`Unsupported groupBy: ${this.currentQuery.groupKey}`);
                         }
                         
                         await this.plugin.updateTaskProperty(task, propertyToUpdate, valueToSet, { silent: true });
-                        new Notice(`Task moved to "${this.formatColumnTitle(targetColumnId, this.currentGroupBy)}"`);
+                        new Notice(`Task moved to "${this.formatColumnTitle(targetColumnId, this.currentQuery.groupKey)}"`);
                     } catch (error) {
                         console.error('Failed to move task:', error);
                         new Notice('Failed to move task');
@@ -513,89 +442,7 @@ export class KanbanView extends ItemView {
         });
     }
 
-    private groupTasks(tasks: TaskInfo[], groupByField: 'status' | 'priority' | 'context'): Map<string, TaskInfo[]> {
-        const grouped = new Map<string, TaskInfo[]>();
-        
-        tasks.forEach(task => {
-            let keys: string[] = [];
-            switch (groupByField) {
-                case 'status':
-                    keys.push(task.status || 'open');
-                    break;
-                case 'priority':
-                    keys.push(task.priority || 'normal');
-                    break;
-                case 'context':
-                    keys = task.contexts && task.contexts.length > 0 ? task.contexts : ['uncategorized'];
-                    break;
-            }
-            
-            keys.forEach(key => {
-                if (!grouped.has(key)) {
-                    grouped.set(key, []);
-                }
-                grouped.get(key)!.push(task);
-            });
-        });
-        return grouped;
-    }
     
-    private updateTaskInView(path: string, updatedTask: TaskInfo) {
-        // Skip if not currently rendered or if task is filtered out
-        if (!this.showArchived && updatedTask.archived) {
-            // Task was archived and we're not showing archived tasks - remove it
-            this.tasks = this.tasks.filter(t => t.path !== path);
-            const taskElement = this.taskElements.get(path);
-            if (taskElement) {
-                taskElement.remove();
-                this.taskElements.delete(path);
-            }
-            return;
-        }
-
-        // Update task in local state
-        const taskIndex = this.tasks.findIndex(t => t.path === path);
-        if (taskIndex !== -1) {
-            this.tasks[taskIndex] = updatedTask;
-        } else {
-            // Task is new to this view, add it
-            this.tasks.push(updatedTask);
-        }
-
-        const taskElement = this.taskElements.get(path);
-
-        if (taskElement) {
-            // Determine if the task needs to move columns
-            const currentColumnEl = taskElement.closest('.kanban-column');
-            const currentColumnId = (currentColumnEl as HTMLElement)?.dataset?.columnId;
-            
-            let newColumnId: string;
-            switch(this.currentGroupBy) {
-                case 'status': 
-                    newColumnId = updatedTask.status || 'open'; 
-                    break;
-                case 'priority': 
-                    newColumnId = updatedTask.priority || 'normal'; 
-                    break;
-                case 'context': 
-                    newColumnId = updatedTask.contexts && updatedTask.contexts.length > 0 ? updatedTask.contexts[0] : 'uncategorized';
-                    break;
-                default:
-                    newColumnId = 'uncategorized';
-            }
-
-            if (currentColumnId !== newColumnId) {
-                // Task moved to a new column - do a full refresh to avoid DOM issues
-                this.debounceRefresh();
-            } else {
-                // Task updated within the same column - just update the card
-                updateTaskCard(taskElement, updatedTask, this.plugin);
-            }
-        } else {
-            // Task element not found, do a delayed refresh to avoid race conditions
-            this.debounceRefresh();
-        }
-    }
 
     // Debounced refresh to avoid multiple rapid refreshes
     private refreshTimeout: NodeJS.Timeout | null = null;
@@ -609,7 +456,7 @@ export class KanbanView extends ItemView {
         }, 150);
     }
 
-    private formatColumnTitle(id: string, groupBy: 'status' | 'priority' | 'context'): string {
+    private formatColumnTitle(id: string, groupBy: TaskGroupKey): string {
         switch (groupBy) {
             case 'status':
                 return this.plugin.statusManager.getStatusConfig(id)?.label || id;
@@ -617,8 +464,12 @@ export class KanbanView extends ItemView {
                 return this.plugin.priorityManager.getPriorityConfig(id)?.label || id;
             case 'context':
                 return id === 'uncategorized' ? 'Uncategorized' : `@${id}`;
+            case 'due':
+                return id;
+            case 'none':
+            default:
+                return id;
         }
-        return id;
     }
 
 }

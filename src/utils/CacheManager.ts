@@ -1176,6 +1176,55 @@ export class CacheManager {
     }
     
     /**
+     * Get task paths by status for FilterService optimization
+     */
+    getTaskPathsByStatus(status: string): Set<string> {
+        return this.tasksByStatus.get(status) || new Set();
+    }
+    
+    /**
+     * Get task paths by priority for FilterService optimization
+     */
+    getTaskPathsByPriority(priority: string): Set<string> {
+        return this.tasksByPriority.get(priority) || new Set();
+    }
+    
+    /**
+     * Get task paths by date for FilterService optimization
+     */
+    getTaskPathsByDate(date: string): Set<string> {
+        return this.tasksByDate.get(date) || new Set();
+    }
+    
+    /**
+     * Get all task paths for FilterService fallback
+     */
+    getAllTaskPaths(): Set<string> {
+        return new Set(this.taskInfoCache.keys());
+    }
+    
+    /**
+     * Get all available statuses for FilterService
+     */
+    getAllStatuses(): string[] {
+        return Array.from(this.tasksByStatus.keys()).sort();
+    }
+    
+    /**
+     * Get all available priorities for FilterService
+     */
+    getAllPriorities(): string[] {
+        return Array.from(this.tasksByPriority.keys()).sort();
+    }
+    
+    /**
+     * Get task info from cache without file system access
+     */
+    getCachedTaskInfo(path: string): TaskInfo | null {
+        return this.taskInfoCache.get(path) || null;
+    }
+
+    /**
      * Get cache statistics
      */
     getStats(): {

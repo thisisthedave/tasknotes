@@ -104,6 +104,14 @@ export class PriorityManager {
     }
 
     /**
+     * Get priority weight for sorting
+     */
+    getPriorityWeight(priority: string): number {
+        const config = this.getPriorityConfig(priority);
+        return config?.weight || 0;
+    }
+
+    /**
      * Check if priority A is higher than priority B
      */
     isHigherPriority(a: string, b: string): boolean {

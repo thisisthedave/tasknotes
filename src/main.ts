@@ -49,6 +49,8 @@ import { FieldMapper } from './services/FieldMapper';
 import { StatusManager } from './services/StatusManager';
 import { PriorityManager } from './services/PriorityManager';
 import { TaskService } from './services/TaskService';
+import { FilterService } from './services/FilterService';
+import { ViewStateManager } from './services/ViewStateManager';
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -78,6 +80,8 @@ export default class TaskNotesPlugin extends Plugin {
 	
 	// Business logic services
 	taskService: TaskService;
+	filterService: FilterService;
+	viewStateManager: ViewStateManager;
 	
 	async onload() {
 		await this.loadSettings();
@@ -87,16 +91,13 @@ export default class TaskNotesPlugin extends Plugin {
 		this.statusManager = new StatusManager(this.settings.customStatuses);
 		this.priorityManager = new PriorityManager(this.settings.customPriorities);
 		
-		// Initialize business logic services
-		this.taskService = new TaskService(this);
-		
 		// Initialize performance optimization utilities
 		this.requestDeduplicator = new RequestDeduplicator();
 		this.predictivePrefetcher = new PredictivePrefetcher(this.requestDeduplicator);
 		this.domReconciler = new DOMReconciler();
 		this.uiStateManager = new UIStateManager();
 		
-		// Initialize unified cache manager
+		// Initialize unified cache manager FIRST
 		this.cacheManager = new CacheManager(
 			this.app.vault,
 			this.settings.taskTag,
@@ -110,6 +111,22 @@ export default class TaskNotesPlugin extends Plugin {
 		await perfMonitor.measure('cache-initialization', async () => {
 			await this.cacheManager.initializeCache();
 		});
+		
+		// Initialize business logic services AFTER cache manager
+		this.taskService = new TaskService(this);
+		
+		// Initialize FilterService AFTER cache manager is ready
+		this.filterService = new FilterService(
+			this.cacheManager,
+			this.statusManager,
+			this.priorityManager
+		);
+		
+		// Initialize FilterService and set up event listeners
+		this.filterService.initialize();
+		
+		// Initialize ViewStateManager
+		this.viewStateManager = new ViewStateManager();
 		
 		// Initialize Pomodoro service
 		this.pomodoroService = new PomodoroService(this);
