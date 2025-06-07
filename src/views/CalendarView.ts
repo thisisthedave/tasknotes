@@ -396,7 +396,6 @@ export class CalendarView extends ItemView {
         
         // Add colorize mode selector
         const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
-        const colorizeLabel = colorizeContainer.createEl('span', { text: 'Show: ', cls: 'colorize-mode-label' });
         
         const colorizeSelect = colorizeContainer.createEl('select', { 
             cls: 'colorize-mode-select',

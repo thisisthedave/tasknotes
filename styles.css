@@ -574,39 +574,23 @@
 .colorize-mode-container {
     display: flex;
     align-items: center;
-    gap: var(--cs-spacing-xs);
-    font-size: 0.75rem;
-    opacity: 0.7;
-    transition: opacity 0.15s ease;
-}
-
-.colorize-mode-container:hover {
-    opacity: 1;
-}
-
-.colorize-mode-label {
-    font-size: 0.75rem;
-    color: var(--text-faint);
 }
 
 .colorize-mode-select {
-    padding: 2px 8px;
-    border-radius: 0;
-    border: none;
-    background-color: transparent;
-    color: var(--text-muted);
-    font-size: 0.75rem;
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    min-width: 100px;
     cursor: pointer;
-    transition: opacity 0.15s ease;
-    min-height: 20px;
-    opacity: 0.7;
+    transition: all var(--cs-transition-fast);
 }
 
 .colorize-mode-select:hover {
-    border-color: transparent;
-    background-color: transparent;
-    box-shadow: none;
-    opacity: 1;
+    background: var(--background-modifier-hover);
+    border-color: var(--background-modifier-border-hover);
     color: var(--text-normal);
 }
 
