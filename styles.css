@@ -3682,11 +3682,35 @@
     border-left: 3px solid var(--color-orange);
 }
 
+/* Fix task card layout in agenda view */
+.agenda-item.task-card {
+    align-items: flex-start;
+}
+
+.agenda-item.task-card .task-content {
+    margin: 0;
+    padding: 0;
+}
+
+.agenda-item.task-card .status-dot {
+    margin-top: 3px; /* Better alignment with title */
+}
+
 .agenda-item.note-item {
     gap: 12px;
     border-left: 3px solid var(--color-green);
     height: auto !important; /* Override the height: 100% from general note-item */
     min-height: auto;
+}
+
+/* Reduce whitespace in agenda note cards */
+.agenda-item.note-item .tasknotes-card-content {
+    margin: 0;
+    padding: 0;
+}
+
+.agenda-item.note-item .note-item-date {
+    margin-top: 4px;
 }
 
 .task-checkbox {
