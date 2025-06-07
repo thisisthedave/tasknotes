@@ -191,7 +191,7 @@ export class KanbanView extends ItemView {
 
         try {
             // Fetch all tasks from the cache. The Kanban view is not date-specific.
-            this.tasks = await this.plugin.cacheManager.getTasksForDate(new Date(), true);
+            this.tasks = await this.plugin.cacheManager.getTasksForDate(new Date(), false);
 
             // Filter tasks based on view settings
             const filteredTasks = this.tasks.filter(task => {
