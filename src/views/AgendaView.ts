@@ -263,7 +263,11 @@ export class AgendaView extends ItemView {
             
             // Filter notes for this date
             const notesForDate = allNotes.filter(note => {
-                return note.created === dateStr || note.date === dateStr;
+                if (note.createdDate) {
+                    const noteCreatedDate = note.createdDate.split('T')[0];
+                    return noteCreatedDate === dateStr;
+                }
+                return false;
             });
             
             return { date, tasks: tasksForDate, notes: notesForDate };
