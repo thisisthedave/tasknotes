@@ -1,7 +1,7 @@
 import { App, Modal, Notice, TFile } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
-import { TaskInfo } from '../types';
+import { TaskInfo, EVENT_TASK_UPDATED } from '../types';
 
 export class TaskEditModal extends Modal {
     plugin: TaskNotesPlugin;
@@ -52,7 +52,7 @@ export class TaskEditModal extends Modal {
         contentEl.createEl('h2', { text: 'Edit Task' });
 
         // Load autocomplete suggestions
-        await this.loadSuggestions();
+        this.loadSuggestions();
 
         // Title with character count
         this.createFormGroup(contentEl, 'Title', (container) => {
@@ -268,43 +268,15 @@ export class TaskEditModal extends Modal {
     }
     
     
-    // Load suggestions for autocomplete
-    private async loadSuggestions() {
+    // Load suggestions for autocomplete using instant cache methods
+    private loadSuggestions() {
         try {
-            // Get existing contexts from task cache
-            const currentDate = new Date();
-            const allTaskDates: TaskInfo[] = [];
+            // Use instant cache methods for contexts and tags
+            this.existingContexts = this.plugin.cacheManager.getAllContexts();
             
-            // Get tasks from multiple recent dates to build comprehensive list
-            for (let i = -30; i <= 30; i++) {
-                const checkDate = new Date(currentDate);
-                checkDate.setDate(currentDate.getDate() + i);
-                try {
-                    const tasksForDate = await this.plugin.cacheManager.getTaskInfoForDate(checkDate);
-                    allTaskDates.push(...tasksForDate);
-                } catch (err) {
-                    // Ignore errors for individual dates
-                }
-            }
-            
-            const contexts = new Set<string>();
-            const tags = new Set<string>();
-            
-            allTaskDates.forEach(task => {
-                if (task && task.contexts) {
-                    task.contexts.forEach((context: string) => contexts.add(context));
-                }
-                if (task && task.tags) {
-                    task.tags.forEach((tag: string) => {
-                        if (tag !== this.plugin.settings.taskTag) {
-                            tags.add(tag);
-                        }
-                    });
-                }
-            });
-            
-            this.existingContexts = Array.from(contexts).sort();
-            this.existingTags = Array.from(tags).sort();
+            // Filter out the default task tag from tags
+            const allTags = this.plugin.cacheManager.getAllTags();
+            this.existingTags = allTags.filter(tag => tag !== this.plugin.settings.taskTag);
         } catch (error) {
             // Provide fallback suggestions on error
             this.existingContexts = ['work', 'home', 'personal', 'urgent'];
@@ -699,22 +671,37 @@ export class TaskEditModal extends Modal {
                 updatedTask.complete_instances = undefined;
             }
 
-            // Update the task file using processFrontMatter API
+            // Use the new deterministic TaskService architecture
             const file = this.app.vault.getAbstractFileByPath(this.task.path);
-            if (file && file instanceof TFile) {
-                await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                    const yamlData = this.plugin.fieldMapper.mapToFrontmatter(updatedTask);
-                    Object.assign(frontmatter, yamlData);
-                });
-
-                new Notice('Task updated successfully');
-                this.close();
-
-                // Notify all views that data has changed
-                this.plugin.notifyDataChanged(this.task.path);
-            } else {
-                new Notice('Task file not found');
+            if (!(file instanceof TFile)) {
+                throw new Error('Task file not found');
             }
+
+            // Step 1: Construct complete new state
+            const newTaskInfo: TaskInfo = {
+                ...this.task,
+                ...updatedTask,
+                dateModified: new Date().toISOString()
+            } as TaskInfo;
+
+            // Step 2: Persist to file using the authoritative state
+            await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                const yamlData = this.plugin.fieldMapper.mapToFrontmatter(newTaskInfo);
+                Object.assign(frontmatter, yamlData);
+            });
+
+            // Step 3: Proactively update cache
+            await this.plugin.cacheManager.updateTaskInfoInCache(this.task.path, newTaskInfo);
+
+            // Step 4: Notify system of change
+            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                path: this.task.path,
+                updatedTask: newTaskInfo
+            });
+
+            // Step 5: Success feedback and cleanup
+            new Notice('Task updated successfully');
+            this.close();
 
         } catch (error) {
             console.error('Error updating task:', error);

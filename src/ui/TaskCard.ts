@@ -58,10 +58,15 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         
         checkbox.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (task.recurrence) {
-                await plugin.taskService.toggleRecurringTaskComplete(task, targetDate);
-            } else {
-                await plugin.taskService.toggleStatus(task);
+            try {
+                if (task.recurrence) {
+                    await plugin.toggleRecurringTaskComplete(task, targetDate);
+                } else {
+                    await plugin.toggleTaskStatus(task);
+                }
+            } catch (error) {
+                // Error handling and user feedback is now handled by the wrapper methods
+                console.error('Error in task checkbox handler:', error);
             }
         });
     }
@@ -210,7 +215,12 @@ function showTaskContextMenu(event: MouseEvent, task: TaskInfo, plugin: TaskNote
                 item.setIcon('check-circle');
             }
             item.onClick(async () => {
-                await plugin.updateTaskProperty(task, 'status', statusConfig.value);
+                try {
+                    await plugin.updateTaskProperty(task, 'status', statusConfig.value);
+                } catch (error) {
+                    // Error handling and user feedback is now handled by the wrapper method
+                    console.error('Error updating task status:', error);
+                }
             });
         });
     });
@@ -227,7 +237,12 @@ function showTaskContextMenu(event: MouseEvent, task: TaskInfo, plugin: TaskNote
                 item.setIcon('flag-triangle-right');
             }
             item.onClick(async () => {
-                await plugin.updateTaskProperty(task, 'priority', priorityConfig.value);
+                try {
+                    await plugin.updateTaskProperty(task, 'priority', priorityConfig.value);
+                } catch (error) {
+                    // Error handling and user feedback is now handled by the wrapper method
+                    console.error('Error updating task priority:', error);
+                }
             });
         });
     });
@@ -264,7 +279,12 @@ function showTaskContextMenu(event: MouseEvent, task: TaskInfo, plugin: TaskNote
         item.setTitle(task.archived ? 'Unarchive' : 'Archive');
         item.setIcon(task.archived ? 'archive-restore' : 'archive');
         item.onClick(async () => {
-            await plugin.taskService.toggleArchive(task);
+            try {
+                await plugin.toggleTaskArchive(task);
+            } catch (error) {
+                // Error handling and user feedback is now handled by the wrapper method
+                console.error('Error toggling task archive:', error);
+            }
         });
     });
     

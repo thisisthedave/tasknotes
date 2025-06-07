@@ -4,7 +4,7 @@ import * as YAML from 'yaml';
 import TaskNotesPlugin from '../main';
 import { ensureFolderExists } from '../utils/helpers';
 import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
-import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo, TimeEntry } from '../types';
+import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
 
 export class TaskCreationModal extends Modal {
 	plugin: TaskNotesPlugin;
@@ -29,83 +29,19 @@ export class TaskCreationModal extends Modal {
 		this.plugin = plugin;
 	}
 	
-	// Get existing contexts from task cache for autocomplete
-	async getExistingContexts(): Promise<string[]> {
-		try {
-			// Fetching existing contexts
-			
-			// Use the actual task data from a current date to get real tasks
-			const currentDate = new Date();
-			const allTaskDates: TaskInfo[] = [];
-			
-			// Get tasks from multiple recent dates to build comprehensive list
-			for (let i = -30; i <= 30; i++) {
-				const checkDate = new Date(currentDate);
-				checkDate.setDate(currentDate.getDate() + i);
-				try {
-					const tasksForDate = await this.plugin.cacheManager.getTaskInfoForDate(checkDate);
-					allTaskDates.push(...tasksForDate);
-				} catch (err) {
-					// Ignore errors for individual dates
-				}
-			}
-			
-			const contexts = new Set<string>();
-			allTaskDates.forEach(task => {
-				if (task && task.contexts) {
-					task.contexts.forEach((context: string) => contexts.add(context));
-				}
-			});
-			
-			const result = Array.from(contexts).sort();
-			// Found contexts
-			return result;
-		} catch (error) {
-			// Could not fetch existing contexts
-			return [];
-		}
+	// Get existing contexts from cache for instant autocomplete
+	getExistingContexts(): Promise<string[]> {
+		// Use the new instant cache method for contexts
+		return Promise.resolve(this.plugin.cacheManager.getAllContexts());
 	}
 	
-	// Get existing tags from task cache for autocomplete
-	async getExistingTags(): Promise<string[]> {
-		try {
-			// Fetching existing tags
-			
-			// Use the actual task data from a current date to get real tasks
-			const currentDate = new Date();
-			const allTaskDates: TaskInfo[] = [];
-			
-			// Get tasks from multiple recent dates to build comprehensive list
-			for (let i = -30; i <= 30; i++) {
-				const checkDate = new Date(currentDate);
-				checkDate.setDate(currentDate.getDate() + i);
-				try {
-					const tasksForDate = await this.plugin.cacheManager.getTaskInfoForDate(checkDate);
-					allTaskDates.push(...tasksForDate);
-				} catch (err) {
-					// Ignore errors for individual dates
-				}
-			}
-			
-			const tags = new Set<string>();
-			allTaskDates.forEach(task => {
-				if (task && task.tags) {
-					task.tags.forEach((tag: string) => {
-						// Skip the default task tag
-						if (tag !== this.plugin.settings.taskTag) {
-							tags.add(tag);
-						}
-					});
-				}
-			});
-			
-			const result = Array.from(tags).sort();
-			// Found tags
-			return result;
-		} catch (error) {
-			// Could not fetch existing tags
-			return [];
-		}
+	// Get existing tags from cache for instant autocomplete  
+	getExistingTags(): Promise<string[]> {
+		// Use the new instant cache method for tags
+		const allTags = this.plugin.cacheManager.getAllTags();
+		// Filter out the default task tag
+		const filteredTags = allTags.filter(tag => tag !== this.plugin.settings.taskTag);
+		return Promise.resolve(filteredTags);
 	}
   
 	onOpen() {
@@ -771,12 +707,20 @@ export class TaskCreationModal extends Modal {
 			// Create the file
 			await this.app.vault.create(taskFilePath, content);
 			
+			// Proactively update cache with the new task info
+			const fullTaskInfo: TaskInfo = taskInfo as TaskInfo;
+			fullTaskInfo.path = taskFilePath;
+			await this.plugin.cacheManager.updateTaskInfoInCache(taskFilePath, fullTaskInfo);
+			
+			// Notify system of the new task
+			this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+				path: taskFilePath,
+				updatedTask: fullTaskInfo
+			});
+			
 			// Show success notice and close modal
 			new Notice('Task created successfully');
 			this.close();
-			
-			// Notify all views that data has changed
-			this.plugin.notifyDataChanged();
 			
 		} catch (error) {
 			console.error('Error creating task:', error);

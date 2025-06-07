@@ -786,19 +786,74 @@ private injectCustomStyles(): void {
 	document.head.appendChild(styleEl);
 }
 
-	async updateTaskProperty(task: TaskInfo, property: keyof TaskInfo, value: any, options: { silent?: boolean } = {}): Promise<void> {
-		return this.taskService.updateProperty(task, property, value, options);
+	async updateTaskProperty(task: TaskInfo, property: keyof TaskInfo, value: any, options: { silent?: boolean } = {}): Promise<TaskInfo> {
+		try {
+			const updatedTask = await this.taskService.updateProperty(task, property, value, options);
+			
+			// Provide user feedback unless silent
+			if (!options.silent) {
+				if (property === 'status') {
+					const statusConfig = this.statusManager.getStatusConfig(value);
+					new Notice(`Task marked as '${statusConfig?.label || value}'`);
+				} else {
+					new Notice(`Task ${property} updated`);
+				}
+			}
+			
+			return updatedTask;
+		} catch (error) {
+			console.error(`Failed to update task ${property}:`, error);
+			new Notice(`Failed to update task ${property}`);
+			throw error;
+		}
 	}
 	
 	/**
 	 * Toggles a recurring task's completion status for the selected date
 	 */
-	async toggleRecurringTaskComplete(task: TaskInfo, date?: Date): Promise<void> {
-		return this.taskService.toggleRecurringTaskComplete(task, date);
+	async toggleRecurringTaskComplete(task: TaskInfo, date?: Date): Promise<TaskInfo> {
+		try {
+			const targetDate = date || this.selectedDate;
+			const updatedTask = await this.taskService.toggleRecurringTaskComplete(task, date);
+			
+			// Determine if task was completed or marked incomplete
+			const dateStr = format(targetDate, 'yyyy-MM-dd');
+			const wasCompleted = updatedTask.complete_instances?.includes(dateStr);
+			const action = wasCompleted ? 'completed' : 'marked incomplete';
+			
+			new Notice(`Recurring task ${action} for ${format(targetDate, 'MMM d')}`);
+			return updatedTask;
+		} catch (error) {
+			console.error('Failed to toggle recurring task completion:', error);
+			new Notice('Failed to update recurring task');
+			throw error;
+		}
 	}
 	
-	async toggleTaskArchive(task: TaskInfo): Promise<void> {
-		return this.taskService.toggleArchive(task);
+	async toggleTaskArchive(task: TaskInfo): Promise<TaskInfo> {
+		try {
+			const updatedTask = await this.taskService.toggleArchive(task);
+			const action = updatedTask.archived ? 'archived' : 'unarchived';
+			new Notice(`Task ${action}`);
+			return updatedTask;
+		} catch (error) {
+			console.error('Failed to toggle task archive:', error);
+			new Notice('Failed to update task archive status');
+			throw error;
+		}
+	}
+	
+	async toggleTaskStatus(task: TaskInfo): Promise<TaskInfo> {
+		try {
+			const updatedTask = await this.taskService.toggleStatus(task);
+			const statusConfig = this.statusManager.getStatusConfig(updatedTask.status);
+			new Notice(`Task marked as '${statusConfig?.label || updatedTask.status}'`);
+			return updatedTask;
+		} catch (error) {
+			console.error('Failed to toggle task status:', error);
+			new Notice('Failed to update task status');
+			throw error;
+		}
 	}
 	
 	openTaskCreationModal() {
@@ -808,15 +863,39 @@ private injectCustomStyles(): void {
 	/**
 	 * Starts a time tracking session for a task
 	 */
-	async startTimeTracking(task: TaskInfo, description?: string): Promise<void> {
-		return this.taskService.startTimeTracking(task);
+	async startTimeTracking(task: TaskInfo, description?: string): Promise<TaskInfo> {
+		try {
+			const updatedTask = await this.taskService.startTimeTracking(task);
+			new Notice('Time tracking started');
+			return updatedTask;
+		} catch (error) {
+			console.error('Failed to start time tracking:', error);
+			if (error.message === 'Time tracking is already active for this task') {
+				new Notice('Time tracking is already active for this task');
+			} else {
+				new Notice('Failed to start time tracking');
+			}
+			throw error;
+		}
 	}
 	
 	/**
 	 * Stops the active time tracking session for a task
 	 */
-	async stopTimeTracking(task: TaskInfo): Promise<void> {
-		return this.taskService.stopTimeTracking(task);
+	async stopTimeTracking(task: TaskInfo): Promise<TaskInfo> {
+		try {
+			const updatedTask = await this.taskService.stopTimeTracking(task);
+			new Notice('Time tracking stopped');
+			return updatedTask;
+		} catch (error) {
+			console.error('Failed to stop time tracking:', error);
+			if (error.message === 'No active time tracking session for this task') {
+				new Notice('No active time tracking session for this task');
+			} else {
+				new Notice('Failed to stop time tracking');
+			}
+			throw error;
+		}
 	}
 	
 	/**

@@ -1,4 +1,4 @@
-import { TFile, Notice } from 'obsidian';
+import { TFile } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
@@ -9,442 +9,339 @@ export class TaskService {
     /**
      * Toggle the status of a task between completed and open
      */
-    async toggleStatus(task: TaskInfo): Promise<void> {
-        const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
-        if (!(file instanceof TFile)) {
-            new Notice(`Cannot find task file: ${task.path}`);
-            return;
-        }
-
+    async toggleStatus(task: TaskInfo): Promise<TaskInfo> {
         // Determine new status
         const isCurrentlyCompleted = this.plugin.statusManager.isCompletedStatus(task.status);
         const newStatus = isCurrentlyCompleted 
             ? this.plugin.settings.defaultTaskStatus // Revert to default open status
             : this.plugin.statusManager.getCompletedStatuses()[0] || 'done'; // Set to first completed status
 
-        try {
-            await this.updateProperty(task, 'status', newStatus);
-            new Notice(`Task marked as '${this.plugin.statusManager.getStatusConfig(newStatus)?.label || newStatus}'`);
-        } catch (error) {
-            console.error('Failed to toggle task status:', error);
-            new Notice('Failed to update task status');
-        }
+        return await this.updateProperty(task, 'status', newStatus);
     }
 
     /**
-     * Update a single property of a task using safe frontmatter processing
+     * Update a single property of a task following the deterministic data flow pattern
      */
-    async updateProperty(task: TaskInfo, property: keyof TaskInfo, value: any, options: { silent?: boolean } = {}): Promise<void> {
-        try {
-            const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
-            if (!(file instanceof TFile)) {
-                new Notice(`Cannot find task file: ${task.path}`);
-                return;
+    async updateProperty(task: TaskInfo, property: keyof TaskInfo, value: any, options: { silent?: boolean } = {}): Promise<TaskInfo> {
+        const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
+        if (!(file instanceof TFile)) {
+            throw new Error(`Cannot find task file: ${task.path}`);
+        }
+        
+        // Step 1: Construct new state in memory
+        const updatedTask = { ...task } as Record<string, any>;
+        updatedTask[property] = value;
+        updatedTask.dateModified = new Date().toISOString();
+        
+        // Handle derivative changes for status updates
+        if (property === 'status' && !task.recurrence) {
+            if (this.plugin.statusManager.isCompletedStatus(value)) {
+                updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
+            } else {
+                updatedTask.completedDate = undefined;
             }
+        }
+        
+        // Step 2: Persist to file using the authoritative state
+        await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            // Map the complete new TaskInfo object to frontmatter fields
+            const fieldName = property as string;
             
-            // Create a local modified copy of the task to update UI immediately
-            const updatedTask = { ...task } as Record<string, any>;
-            updatedTask[property] = value;
-            
-            // Special handling for status changes - update completedDate in local copy
-            if (property === 'status' && !task.recurrence) {
-                if (this.plugin.statusManager.isCompletedStatus(value)) {
-                    updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
-                } else {
-                    updatedTask.completedDate = undefined;
-                }
-            }
-            
-            // Process the file first
-            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                // Use property name directly since we're working with frontmatter
-                const fieldName = property as string;
+            if (property === 'status') {
+                frontmatter[fieldName] = value;
                 
-                // Handle special cases for certain properties
-                if (property === 'status') {
-                    frontmatter[fieldName] = value;
-                    
-                    // Update completed date when marking as complete (non-recurring tasks only)
-                    if (!task.recurrence) {
-                        if (this.plugin.statusManager.isCompletedStatus(value)) {
-                            frontmatter.completedDate = format(new Date(), 'yyyy-MM-dd');
-                        } else {
-                            // Remove completed date when marking as incomplete
-                            if (frontmatter.completedDate) {
-                                delete frontmatter.completedDate;
-                            }
+                // Update completed date when marking as complete (non-recurring tasks only)
+                if (!task.recurrence) {
+                    if (this.plugin.statusManager.isCompletedStatus(value)) {
+                        frontmatter.completedDate = format(new Date(), 'yyyy-MM-dd');
+                    } else {
+                        // Remove completed date when marking as incomplete
+                        if (frontmatter.completedDate) {
+                            delete frontmatter.completedDate;
                         }
                     }
-                } else if (property === 'due' && !value) {
-                    // Remove empty due dates
-                    delete frontmatter[fieldName];
-                } else {
-                    frontmatter[fieldName] = value;
                 }
-            });
-
-            // Clear cache for this specific file and trigger refresh
-            this.plugin.notifyDataChanged(task.path, false, false);
-            
-            // Give the cache a moment to clear and then get fresh data
-            setTimeout(async () => {
-                try {
-                    // Get the fresh task data directly from cache manager
-                    const freshTask = await this.plugin.cacheManager.getTaskInfo(task.path, true);
-                    
-                    // Emit the UI update with fresh data from cache, or fallback to optimistic update
-                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                        path: task.path,
-                        updatedTask: freshTask || (updatedTask as TaskInfo)
-                    });
-                } catch (error) {
-                    console.error('Failed to get fresh task data:', error);
-                    // Emit with optimistic update as fallback
-                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                        path: task.path,
-                        updatedTask: (updatedTask as TaskInfo)
-                    });
-                }
-            }, 50);
-            
-            if (!options.silent) {
-                if (property === 'status') {
-                    const statusConfig = this.plugin.statusManager.getStatusConfig(value);
-                    new Notice(`Task marked as '${statusConfig?.label || value}'`);
-                } else {
-                    new Notice(`Task ${property} updated`);
-                }
+            } else if (property === 'due' && !value) {
+                // Remove empty due dates
+                delete frontmatter[fieldName];
+            } else {
+                frontmatter[fieldName] = value;
             }
-        } catch (error) {
-            console.error(`Failed to update task ${property}:`, error);
-            new Notice(`Failed to update task ${property}`);
             
-            // Revert optimistic update on error
-            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                path: task.path,
-                updatedTask: task
-            });
-        }
+            // Always update the modification timestamp
+            frontmatter.dateModified = updatedTask.dateModified;
+        });
+        
+        // Step 3: Proactively update cache
+        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask as TaskInfo);
+        
+        // Step 4: Notify system of change
+        this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+            path: task.path,
+            updatedTask: updatedTask as TaskInfo
+        });
+        
+        // Step 5: Return authoritative data
+        return updatedTask as TaskInfo;
     }
 
     /**
      * Toggle the archive status of a task
      */
-    async toggleArchive(task: TaskInfo): Promise<void> {
+    async toggleArchive(task: TaskInfo): Promise<TaskInfo> {
         const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
         if (!(file instanceof TFile)) {
-            new Notice(`Cannot find task file: ${task.path}`);
-            return;
+            throw new Error(`Cannot find task file: ${task.path}`);
         }
 
         const archiveTag = this.plugin.fieldMapper.getMapping().archiveTag;
         const isCurrentlyArchived = task.archived;
-
-        try {
-            // Create a local modified copy for immediate UI feedback
-            const updatedTask = { ...task };
-            updatedTask.archived = !isCurrentlyArchived;
-
-            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                // Toggle archived property
-                if (isCurrentlyArchived) {
-                    delete frontmatter.archived;
-                    
-                    // Remove archive tag from tags array if present
-                    if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
-                        frontmatter.tags = frontmatter.tags.filter((tag: string) => tag !== archiveTag);
-                        if (frontmatter.tags.length === 0) {
-                            delete frontmatter.tags;
-                        }
-                    }
-                } else {
-                    frontmatter.archived = true;
-                    
-                    // Add archive tag to tags array
-                    if (!frontmatter.tags) {
-                        frontmatter.tags = [];
-                    } else if (!Array.isArray(frontmatter.tags)) {
-                        frontmatter.tags = [frontmatter.tags];
-                    }
-                    
-                    if (!frontmatter.tags.includes(archiveTag)) {
-                        frontmatter.tags.push(archiveTag);
-                    }
-                }
-            });
-
-            // Clear cache for this specific file and trigger refresh
-            this.plugin.notifyDataChanged(task.path, false, false);
-            
-            // Give the cache a moment to clear and then get fresh data
-            setTimeout(async () => {
-                try {
-                    // Get the fresh task data directly from cache manager
-                    const freshTask = await this.plugin.cacheManager.getTaskInfo(task.path, true);
-                    
-                    // Emit the UI update with fresh data from cache, or fallback to optimistic update
-                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                        path: task.path,
-                        updatedTask: freshTask || updatedTask
-                    });
-                } catch (error) {
-                    console.error('Failed to get fresh task data:', error);
-                    // Emit with optimistic update as fallback
-                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                        path: task.path,
-                        updatedTask: updatedTask
-                    });
-                }
-            }, 50);
-            
-            const action = isCurrentlyArchived ? 'unarchived' : 'archived';
-            new Notice(`Task ${action}`);
-        } catch (error) {
-            console.error('Failed to toggle task archive:', error);
-            new Notice('Failed to update task archive status');
-            
-            // Revert optimistic update on error
-            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                path: task.path,
-                updatedTask: task
-            });
+        
+        // Step 1: Construct new state in memory
+        const updatedTask = { ...task };
+        updatedTask.archived = !isCurrentlyArchived;
+        updatedTask.dateModified = new Date().toISOString();
+        
+        // Update tags array to include/exclude archive tag
+        if (!updatedTask.tags) {
+            updatedTask.tags = [];
         }
+        
+        if (isCurrentlyArchived) {
+            // Remove archive tag
+            updatedTask.tags = updatedTask.tags.filter(tag => tag !== archiveTag);
+        } else {
+            // Add archive tag if not present
+            if (!updatedTask.tags.includes(archiveTag)) {
+                updatedTask.tags = [...updatedTask.tags, archiveTag];
+            }
+        }
+        
+        // Step 2: Persist to file
+        await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            // Toggle archived property
+            if (isCurrentlyArchived) {
+                delete frontmatter.archived;
+                
+                // Remove archive tag from tags array if present
+                if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
+                    frontmatter.tags = frontmatter.tags.filter((tag: string) => tag !== archiveTag);
+                    if (frontmatter.tags.length === 0) {
+                        delete frontmatter.tags;
+                    }
+                }
+            } else {
+                frontmatter.archived = true;
+                
+                // Add archive tag to tags array
+                if (!frontmatter.tags) {
+                    frontmatter.tags = [];
+                } else if (!Array.isArray(frontmatter.tags)) {
+                    frontmatter.tags = [frontmatter.tags];
+                }
+                
+                if (!frontmatter.tags.includes(archiveTag)) {
+                    frontmatter.tags.push(archiveTag);
+                }
+            }
+            
+            // Always update the modification timestamp
+            frontmatter.dateModified = updatedTask.dateModified;
+        });
+        
+        // Step 3: Proactively update cache
+        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        
+        // Step 4: Notify system of change
+        this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+            path: task.path,
+            updatedTask: updatedTask
+        });
+        
+        // Step 5: Return authoritative data
+        return updatedTask;
     }
 
     /**
      * Start time tracking for a task
      */
-    async startTimeTracking(task: TaskInfo): Promise<void> {
+    async startTimeTracking(task: TaskInfo): Promise<TaskInfo> {
         const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
         if (!(file instanceof TFile)) {
-            new Notice(`Cannot find task file: ${task.path}`);
-            return;
+            throw new Error(`Cannot find task file: ${task.path}`);
         }
 
         // Check if already tracking
         const activeSession = this.plugin.getActiveTimeSession(task);
         if (activeSession) {
-            new Notice('Time tracking is already active for this task');
-            return;
+            throw new Error('Time tracking is already active for this task');
         }
 
-        try {
-            // Create a local modified copy for immediate UI feedback
-            const updatedTask = { ...task };
-            if (!updatedTask.timeEntries) {
-                updatedTask.timeEntries = [];
+        // Step 1: Construct new state in memory
+        const updatedTask = { ...task };
+        updatedTask.dateModified = new Date().toISOString();
+        
+        if (!updatedTask.timeEntries) {
+            updatedTask.timeEntries = [];
+        }
+        
+        const newEntry: TimeEntry = {
+            startTime: new Date().toISOString(),
+            description: 'Work session'
+        };
+        updatedTask.timeEntries = [...updatedTask.timeEntries, newEntry];
+
+        // Step 2: Persist to file
+        await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            if (!frontmatter.timeEntries) {
+                frontmatter.timeEntries = [];
             }
-            const newEntry: TimeEntry = {
-                startTime: new Date().toISOString(),
-                description: 'Work session'
-            };
-            updatedTask.timeEntries.push(newEntry);
 
-            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                if (!frontmatter.timeEntries) {
-                    frontmatter.timeEntries = [];
-                }
+            // Add new time entry with start time
+            frontmatter.timeEntries.push(newEntry);
+            frontmatter.dateModified = updatedTask.dateModified;
+        });
 
-                // Add new time entry with start time
-                frontmatter.timeEntries.push(newEntry);
-            });
-
-            // Clear cache for this specific file and trigger refresh
-            this.plugin.notifyDataChanged(task.path, false, false);
-            
-            // Give the cache a moment to clear and then get fresh data
-            setTimeout(async () => {
-                try {
-                    // Get the fresh task data directly from cache manager
-                    const freshTask = await this.plugin.cacheManager.getTaskInfo(task.path, true);
-                    
-                    // Emit the UI update with fresh data from cache, or fallback to optimistic update
-                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                        path: task.path,
-                        updatedTask: freshTask || updatedTask
-                    });
-                } catch (error) {
-                    console.error('Failed to get fresh task data:', error);
-                    // Emit with optimistic update as fallback
-                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                        path: task.path,
-                        updatedTask: updatedTask
-                    });
-                }
-            }, 50);
-
-            new Notice('Time tracking started');
-        } catch (error) {
-            console.error('Failed to start time tracking:', error);
-            new Notice('Failed to start time tracking');
-            
-            // Revert optimistic update on error
-            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                path: task.path,
-                updatedTask: task
-            });
-        }
+        // Step 3: Proactively update cache
+        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        
+        // Step 4: Notify system of change
+        this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+            path: task.path,
+            updatedTask: updatedTask
+        });
+        
+        // Step 5: Return authoritative data
+        return updatedTask;
     }
 
     /**
      * Stop time tracking for a task
      */
-    async stopTimeTracking(task: TaskInfo): Promise<void> {
+    async stopTimeTracking(task: TaskInfo): Promise<TaskInfo> {
         const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
         if (!(file instanceof TFile)) {
-            new Notice(`Cannot find task file: ${task.path}`);
-            return;
+            throw new Error(`Cannot find task file: ${task.path}`);
         }
 
         const activeSession = this.plugin.getActiveTimeSession(task);
         if (!activeSession) {
-            new Notice('No active time tracking session for this task');
-            return;
+            throw new Error('No active time tracking session for this task');
         }
 
-        try {
-            // Create a local modified copy for immediate UI feedback
-            const updatedTask = { ...task };
-            if (updatedTask.timeEntries && Array.isArray(updatedTask.timeEntries)) {
-                const entryIndex = updatedTask.timeEntries.findIndex((entry: TimeEntry) => 
+        // Step 1: Construct new state in memory
+        const updatedTask = { ...task };
+        updatedTask.dateModified = new Date().toISOString();
+        
+        if (updatedTask.timeEntries && Array.isArray(updatedTask.timeEntries)) {
+            const entryIndex = updatedTask.timeEntries.findIndex((entry: TimeEntry) => 
+                entry.startTime === activeSession.startTime && !entry.endTime
+            );
+            if (entryIndex !== -1) {
+                updatedTask.timeEntries = [...updatedTask.timeEntries];
+                updatedTask.timeEntries[entryIndex] = {
+                    ...updatedTask.timeEntries[entryIndex],
+                    endTime: new Date().toISOString()
+                };
+            }
+        }
+
+        // Step 2: Persist to file
+        await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            if (frontmatter.timeEntries && Array.isArray(frontmatter.timeEntries)) {
+                // Find and update the active session
+                const entryIndex = frontmatter.timeEntries.findIndex((entry: TimeEntry) => 
                     entry.startTime === activeSession.startTime && !entry.endTime
                 );
+
                 if (entryIndex !== -1) {
-                    updatedTask.timeEntries[entryIndex] = {
-                        ...updatedTask.timeEntries[entryIndex],
-                        endTime: new Date().toISOString()
-                    };
+                    frontmatter.timeEntries[entryIndex].endTime = new Date().toISOString();
                 }
             }
+            frontmatter.dateModified = updatedTask.dateModified;
+        });
 
-            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                if (frontmatter.timeEntries && Array.isArray(frontmatter.timeEntries)) {
-                    // Find and update the active session
-                    const entryIndex = frontmatter.timeEntries.findIndex((entry: TimeEntry) => 
-                        entry.startTime === activeSession.startTime && !entry.endTime
-                    );
-
-                    if (entryIndex !== -1) {
-                        frontmatter.timeEntries[entryIndex].endTime = new Date().toISOString();
-                    }
-                }
-            });
-
-            // Clear cache for this specific file and trigger refresh
-            this.plugin.notifyDataChanged(task.path, false, false);
-            
-            // Give the cache a moment to clear and then get fresh data
-            setTimeout(async () => {
-                try {
-                    // Get the fresh task data directly from cache manager
-                    const freshTask = await this.plugin.cacheManager.getTaskInfo(task.path, true);
-                    
-                    // Emit the UI update with fresh data from cache, or fallback to optimistic update
-                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                        path: task.path,
-                        updatedTask: freshTask || updatedTask
-                    });
-                } catch (error) {
-                    console.error('Failed to get fresh task data:', error);
-                    // Emit with optimistic update as fallback
-                    this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                        path: task.path,
-                        updatedTask: updatedTask
-                    });
-                }
-            }, 50);
-
-            new Notice('Time tracking stopped');
-        } catch (error) {
-            console.error('Failed to stop time tracking:', error);
-            new Notice('Failed to stop time tracking');
-            
-            // Revert optimistic update on error
-            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                path: task.path,
-                updatedTask: task
-            });
-        }
+        // Step 3: Proactively update cache
+        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        
+        // Step 4: Notify system of change
+        this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+            path: task.path,
+            updatedTask: updatedTask
+        });
+        
+        // Step 5: Return authoritative data
+        return updatedTask;
     }
 
     /**
      * Toggle completion status for recurring tasks on a specific date
      */
-    async toggleRecurringTaskComplete(task: TaskInfo, date?: Date): Promise<void> {
-        try {
-            const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
-            if (!(file instanceof TFile)) {
-                new Notice(`Cannot find task file: ${task.path}`);
-                return;
-            }
-
-            if (!task.recurrence) {
-                throw new Error('Task is not recurring');
-            }
-
-            // Use the provided date or fall back to the currently selected date
-            const targetDate = date || this.plugin.selectedDate;
-            const dateStr = format(targetDate, 'yyyy-MM-dd');
-            
-            // Check current completion status for this date
-            const completeInstances = Array.isArray(task.complete_instances) ? task.complete_instances : [];
-            const currentComplete = completeInstances.includes(dateStr);
-            const newComplete = !currentComplete;
-            
-            // Create a local modified copy for immediate UI feedback
-            const updatedTask = { ...task };
-            
-            // Process the frontmatter
-            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                // Ensure complete_instances array exists
-                if (!frontmatter.complete_instances) {
-                    frontmatter.complete_instances = [];
-                }
-                
-                const completeDates: string[] = frontmatter.complete_instances;
-                
-                if (newComplete) {
-                    // Add date to completed instances if not already present
-                    if (!completeDates.includes(dateStr)) {
-                        frontmatter.complete_instances = [...completeDates, dateStr];
-                    }
-                } else {
-                    // Remove date from completed instances
-                    frontmatter.complete_instances = completeDates.filter(d => d !== dateStr);
-                }
-            });
-            
-            // Update the local copy for UI feedback
-            if (newComplete) {
-                updatedTask.complete_instances = [...completeInstances, dateStr];
-            } else {
-                updatedTask.complete_instances = completeInstances.filter(d => d !== dateStr);
-            }
-            
-            // Notify cache about the change - clear cache but don't trigger full UI refresh 
-            this.plugin.notifyDataChanged(task.path, false, false);
-            
-            // Get the fresh task data from cache after the file update
-            const freshTasks = await this.plugin.cacheManager.getTaskInfoForDate(this.plugin.selectedDate, true);
-            const freshTask = freshTasks.find(t => t.path === task.path);
-            
-            // Emit the UI update with fresh data from cache, or fallback to optimistic update
-            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                path: task.path,
-                updatedTask: freshTask || updatedTask
-            });
-            
-            const action = newComplete ? 'completed' : 'marked incomplete';
-            new Notice(`Recurring task ${action} for ${format(targetDate, 'MMM d')}`);
-        } catch (error) {
-            console.error('Failed to toggle recurring task completion:', error);
-            new Notice('Failed to update recurring task');
-            
-            // Revert optimistic update on error
-            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                path: task.path,
-                updatedTask: task
-            });
+    async toggleRecurringTaskComplete(task: TaskInfo, date?: Date): Promise<TaskInfo> {
+        const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
+        if (!(file instanceof TFile)) {
+            throw new Error(`Cannot find task file: ${task.path}`);
         }
+
+        if (!task.recurrence) {
+            throw new Error('Task is not recurring');
+        }
+
+        // Use the provided date or fall back to the currently selected date
+        const targetDate = date || this.plugin.selectedDate;
+        const dateStr = format(targetDate, 'yyyy-MM-dd');
+        
+        // Check current completion status for this date
+        const completeInstances = Array.isArray(task.complete_instances) ? task.complete_instances : [];
+        const currentComplete = completeInstances.includes(dateStr);
+        const newComplete = !currentComplete;
+        
+        // Step 1: Construct new state in memory
+        const updatedTask = { ...task };
+        updatedTask.dateModified = new Date().toISOString();
+        
+        if (newComplete) {
+            // Add date to completed instances if not already present
+            if (!completeInstances.includes(dateStr)) {
+                updatedTask.complete_instances = [...completeInstances, dateStr];
+            }
+        } else {
+            // Remove date from completed instances
+            updatedTask.complete_instances = completeInstances.filter(d => d !== dateStr);
+        }
+        
+        // Step 2: Persist to file
+        await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            // Ensure complete_instances array exists
+            if (!frontmatter.complete_instances) {
+                frontmatter.complete_instances = [];
+            }
+            
+            const completeDates: string[] = frontmatter.complete_instances;
+            
+            if (newComplete) {
+                // Add date to completed instances if not already present
+                if (!completeDates.includes(dateStr)) {
+                    frontmatter.complete_instances = [...completeDates, dateStr];
+                }
+            } else {
+                // Remove date from completed instances
+                frontmatter.complete_instances = completeDates.filter(d => d !== dateStr);
+            }
+            
+            frontmatter.dateModified = updatedTask.dateModified;
+        });
+        
+        // Step 3: Proactively update cache
+        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        
+        // Step 4: Notify system of change
+        this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+            path: task.path,
+            updatedTask: updatedTask
+        });
+        
+        // Step 5: Return authoritative data
+        return updatedTask;
     }
 }

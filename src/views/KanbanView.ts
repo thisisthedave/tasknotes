@@ -500,7 +500,7 @@ export class KanbanView extends ItemView {
                                 throw new Error(`Unsupported groupBy: ${this.currentGroupBy}`);
                         }
                         
-                        await this.plugin.taskService.updateProperty(task, propertyToUpdate, valueToSet, { silent: true });
+                        await this.plugin.updateTaskProperty(task, propertyToUpdate, valueToSet, { silent: true });
                         new Notice(`Task moved to "${this.formatColumnTitle(targetColumnId, this.currentGroupBy)}"`);
                     } catch (error) {
                         console.error('Failed to move task:', error);

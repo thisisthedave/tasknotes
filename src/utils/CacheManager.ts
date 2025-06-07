@@ -26,6 +26,10 @@ export class CacheManager {
     private tasksByPriority: Map<string, Set<string>> = new Map(); // priority -> task paths
     private dailyNotes: Set<string> = new Set(); // daily note paths in YYYY-MM-DD format
     
+    // Canonical sets for tags and contexts
+    private allTags: Set<string> = new Set(); // all unique tags across all tasks
+    private allContexts: Set<string> = new Set(); // all unique contexts across all tasks
+    
     // Configuration
     private taskTag: string;
     private excludedFolders: string[];
@@ -589,7 +593,7 @@ export class CacheManager {
      * Update task indexes when task info changes
      */
     private updateTaskIndexes(path: string, taskInfo: TaskInfo): void {
-        // Remove from old indexes
+        // Remove from old indexes first
         this.removeFromIndexes(path, 'task');
         
         // Add to new indexes
@@ -613,6 +617,23 @@ export class CacheManager {
                 this.tasksByPriority.set(taskInfo.priority, new Set());
             }
             this.tasksByPriority.get(taskInfo.priority)!.add(path);
+        }
+        
+        // Update canonical sets for tags and contexts
+        if (taskInfo.tags && Array.isArray(taskInfo.tags)) {
+            taskInfo.tags.forEach(tag => {
+                if (tag && typeof tag === 'string') {
+                    this.allTags.add(tag);
+                }
+            });
+        }
+        
+        if (taskInfo.contexts && Array.isArray(taskInfo.contexts)) {
+            taskInfo.contexts.forEach(context => {
+                if (context && typeof context === 'string') {
+                    this.allContexts.add(context);
+                }
+            });
         }
     }
     
@@ -693,6 +714,38 @@ export class CacheManager {
         if (/^\d{4}-\d{2}-\d{2}\.md$/.test(fileName)) {
             const dateStr = fileName.replace('.md', '');
             this.dailyNotes.delete(dateStr);
+        }
+        
+        // For canonical sets, we need to rebuild them completely when a task is removed
+        // This is simpler and more reliable than trying to track individual removals
+        if (type === 'task') {
+            this.rebuildCanonicalSets();
+        }
+    }
+    
+    /**
+     * Rebuild canonical sets for tags and contexts from current task cache
+     */
+    private rebuildCanonicalSets(): void {
+        this.allTags.clear();
+        this.allContexts.clear();
+        
+        for (const taskInfo of this.taskInfoCache.values()) {
+            if (taskInfo.tags && Array.isArray(taskInfo.tags)) {
+                taskInfo.tags.forEach(tag => {
+                    if (tag && typeof tag === 'string') {
+                        this.allTags.add(tag);
+                    }
+                });
+            }
+            
+            if (taskInfo.contexts && Array.isArray(taskInfo.contexts)) {
+                taskInfo.contexts.forEach(context => {
+                    if (context && typeof context === 'string') {
+                        this.allContexts.add(context);
+                    }
+                });
+            }
         }
     }
     
@@ -812,6 +865,8 @@ export class CacheManager {
         this.tasksByStatus.clear();
         this.tasksByPriority.clear();
         this.dailyNotes.clear();
+        this.allTags.clear();
+        this.allContexts.clear();
         
         // Reset initialization state
         this.isInitialized = false;
@@ -911,12 +966,20 @@ export class CacheManager {
     }
     
     /**
-     * Update task info in cache
+     * Update task info in cache proactively (without reading from file system)
+     * This method provides atomic cache updates and should be called immediately
+     * after successful file writes to ensure the cache reflects the new state.
      */
     async updateTaskInfoInCache(path: string, taskInfo: TaskInfo | null): Promise<void> {
         if (taskInfo) {
-            // Update the task info cache
-            this.taskInfoCache.set(path, taskInfo);
+            // Update the dateModified timestamp to reflect the current time
+            const updatedTaskInfo: TaskInfo = {
+                ...taskInfo,
+                dateModified: new Date().toISOString()
+            };
+            
+            // Update the task info cache with the new authoritative data
+            this.taskInfoCache.set(path, updatedTaskInfo);
             
             // Update the indexed files cache
             this.indexedFilesCache.set(path, {
@@ -924,13 +987,14 @@ export class CacheManager {
                 mtime: Date.now(),
                 ctime: Date.now(),
                 isTask: true,
-                cachedInfo: taskInfo
+                tags: updatedTaskInfo.tags || [],
+                cachedInfo: updatedTaskInfo
             });
             
-            // Update indexes
-            this.updateTaskIndexes(path, taskInfo);
+            // Update all indexes including canonical sets
+            this.updateTaskIndexes(path, updatedTaskInfo);
         } else {
-            // Remove from caches
+            // Remove from all caches and indexes
             this.taskInfoCache.delete(path);
             this.indexedFilesCache.delete(path);
             this.removeFromIndexes(path, 'task');
@@ -992,6 +1056,20 @@ export class CacheManager {
      */
     async getTaskInfoForDate(date: Date, forceRefresh = false): Promise<TaskInfo[]> {
         return this.getTasksForDate(date, forceRefresh);
+    }
+    
+    /**
+     * Get all unique contexts across all tasks (sorted)
+     */
+    getAllContexts(): string[] {
+        return Array.from(this.allContexts).sort();
+    }
+    
+    /**
+     * Get all unique tags across all tasks (sorted)
+     */
+    getAllTags(): string[] {
+        return Array.from(this.allTags).sort();
     }
     
     /**
