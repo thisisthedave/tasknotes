@@ -334,7 +334,7 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     
     // Update main element classes
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
-    element.className = `task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''}`;
+    element.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''}`;
     
     // Update priority border color
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);

@@ -71,7 +71,19 @@ export abstract class BaseTaskModal extends Modal {
         });
 
         input.addEventListener('focus', async () => {
-            const suggestions = await getSuggestionsFn();
+            let suggestions = await getSuggestionsFn();
+            
+            // If suggestions are empty, try to fetch fresh data
+            if (!suggestions || suggestions.length === 0) {
+                if (fieldName === 'contexts') {
+                    suggestions = await this.getExistingContexts();
+                    this.existingContexts = suggestions;
+                } else if (fieldName === 'tags') {
+                    suggestions = await this.getExistingTags();
+                    this.existingTags = suggestions;
+                }
+            }
+            
             this.showSuggestions(container, suggestions, input, onChangeFn);
         });
 
@@ -118,10 +130,19 @@ export abstract class BaseTaskModal extends Modal {
 
         const suggestionsList = container.createDiv({ cls: 'autocomplete-suggestions' });
         
-        const inputValue = input.value.toLowerCase();
-        const filteredSuggestions = suggestions.filter(suggestion => 
-            suggestion.toLowerCase().includes(inputValue)
-        );
+        // Get the current partial value being typed (after the last comma)
+        const inputValue = input.value;
+        const lastCommaIndex = inputValue.lastIndexOf(',');
+        const currentPartial = lastCommaIndex >= 0 
+            ? inputValue.substring(lastCommaIndex + 1).trim().toLowerCase()
+            : inputValue.toLowerCase();
+        
+        const filteredSuggestions = suggestions.filter(suggestion => {
+            const suggestionLower = suggestion.toLowerCase();
+            // Show suggestions that match the current partial input
+            // or show all if input is empty/just spaces
+            return currentPartial === '' || suggestionLower.includes(currentPartial);
+        });
 
         filteredSuggestions.slice(0, 10).forEach((suggestion, index) => {
             const suggestionItem = suggestionsList.createDiv({ 
