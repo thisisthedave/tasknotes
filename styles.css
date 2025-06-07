@@ -3676,7 +3676,8 @@
     word-wrap: break-word;
 }
 
-.item-title.completed {
+.item-title.completed,
+.item-title.task-completed {
     text-decoration: line-through;
     opacity: 0.6;
 }
@@ -4028,7 +4029,7 @@
     border-color: var(--background-modifier-border-hover);
 }
 
-.task-card.completed .task-title {
+.task-card.task-completed .task-title {
     color: var(--text-muted);
     text-decoration: line-through;
 }

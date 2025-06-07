@@ -38,7 +38,8 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     // Main container
     const card = document.createElement('div');
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
-    card.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''}`;
+    const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
+    card.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''}`;
     card.dataset.taskPath = task.path;
     
     // Apply priority as left border color
@@ -334,7 +335,8 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     
     // Update main element classes
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
-    element.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''}`;
+    const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
+    element.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''}`;
     
     // Update priority border color
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);

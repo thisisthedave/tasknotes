@@ -222,36 +222,6 @@ export class TaskListView extends ItemView {
             this.refreshTasks();
         });
         
-        // Add refresh button
-        const actionsContainer = container.createDiv({ cls: 'task-list-actions' });
-        const refreshButton = actionsContainer.createEl('button', { 
-            text: 'Refresh', 
-            cls: 'refresh-tasks-button tasknotes-button tasknotes-button-secondary',
-            attr: {
-                'aria-label': 'Refresh task list',
-                'title': 'Refresh task list'
-            }
-        });
-        
-        
-        refreshButton.addEventListener('click', async () => {
-            // Prevent double-clicks during refresh
-            if (refreshButton.classList.contains('is-loading')) return;
-            
-            refreshButton.classList.add('is-loading');
-            refreshButton.disabled = true;
-            const originalText = refreshButton.textContent;
-            refreshButton.textContent = 'Refreshing...';
-            
-            try {
-                // Force refresh the cache and update UI
-                await this.refresh(true);
-            } finally {
-                refreshButton.classList.remove('is-loading');
-                refreshButton.disabled = false;
-                refreshButton.textContent = originalText;
-            }
-        });
         
         // Task list container
         const taskList = container.createDiv({ cls: 'task-list' });
