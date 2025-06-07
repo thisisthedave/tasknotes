@@ -4258,6 +4258,109 @@
     background: var(--interactive-accent-hover);
 }
 
+/* Two-column properties grid */
+.task-edit-modal .properties-grid {
+    margin-bottom: var(--cs-spacing-md);
+}
+
+.task-edit-modal .grid-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--cs-spacing-md);
+    margin-bottom: var(--cs-spacing-md);
+}
+
+.task-edit-modal .grid-form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.task-edit-modal .grid-form-group label {
+    margin-bottom: var(--cs-spacing-xs);
+    font-size: var(--cs-text-sm);
+    font-weight: 500;
+    color: var(--text-normal);
+}
+
+.task-edit-modal .grid-form-group input,
+.task-edit-modal .grid-form-group select {
+    padding: var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-md);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-base);
+}
+
+.task-edit-modal .grid-form-group input:focus,
+.task-edit-modal .grid-form-group select:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+/* Modal footer with metadata and buttons */
+.task-edit-modal .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--cs-spacing-lg);
+    padding-top: var(--cs-spacing-md);
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.task-edit-modal .metadata-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-xs);
+}
+
+.task-edit-modal .metadata-item {
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+}
+
+.task-edit-modal .metadata-item::before {
+    content: "ℹ️";
+    font-size: var(--cs-text-sm);
+}
+
+.task-edit-modal .secondary-button {
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    border-color: var(--background-modifier-border);
+}
+
+.task-edit-modal .secondary-button:hover {
+    background: var(--background-modifier-hover);
+}
+
+/* Responsive layout for smaller screens */
+@media (max-width: 480px) {
+    .task-edit-modal .grid-row {
+        grid-template-columns: 1fr;
+        gap: var(--cs-spacing-sm);
+    }
+    
+    .task-edit-modal .modal-footer {
+        flex-direction: column;
+        gap: var(--cs-spacing-md);
+        align-items: stretch;
+    }
+    
+    .task-edit-modal .metadata-info {
+        text-align: center;
+        order: 2;
+    }
+    
+    .task-edit-modal .button-container {
+        order: 1;
+        justify-content: center;
+    }
+}
+
 /* ========================================
    KANBAN BOARD STYLES
    ======================================== */

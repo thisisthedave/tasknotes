@@ -1,6 +1,5 @@
 import { App, Modal, Notice, TFile } from 'obsidian';
 import { format } from 'date-fns';
-import * as YAML from 'yaml';
 import TaskNotesPlugin from '../main';
 import { TaskInfo } from '../types';
 
@@ -10,7 +9,6 @@ export class TaskEditModal extends Modal {
     
     // Form fields
     title: string;
-    details: string;
     dueDate: string;
     priority: string;
     status: string;
@@ -21,6 +19,10 @@ export class TaskEditModal extends Modal {
     daysOfWeek: string[] = [];
     dayOfMonth: string = '';
     monthOfYear: string = '';
+    
+    // Cached suggestions for autocomplete
+    private existingContexts: string[] = [];
+    private existingTags: string[] = [];
 
     constructor(app: App, plugin: TaskNotesPlugin, task: TaskInfo) {
         super(app);
@@ -29,7 +31,6 @@ export class TaskEditModal extends Modal {
         
         // Initialize form fields with current task data
         this.title = task.title;
-        this.details = ''; // Note: details are not stored in TaskInfo, will be extracted from file content
         this.dueDate = task.due || '';
         this.priority = task.priority;
         this.status = task.status;
@@ -45,12 +46,15 @@ export class TaskEditModal extends Modal {
         }
     }
 
-    onOpen() {
+    async onOpen() {
         const { contentEl } = this;
         contentEl.addClass('task-edit-modal');
         contentEl.createEl('h2', { text: 'Edit Task' });
 
-        // Title
+        // Load autocomplete suggestions
+        await this.loadSuggestions();
+
+        // Title with character count
         this.createFormGroup(contentEl, 'Title', (container) => {
             const inputContainer = container.createDiv({ cls: 'input-with-counter' });
             const input = inputContainer.createEl('input', { 
@@ -82,22 +86,12 @@ export class TaskEditModal extends Modal {
             setTimeout(() => input.focus(), 50);
         });
 
-        // Details
-        this.createFormGroup(contentEl, 'Details', (container) => {
-            const textarea = container.createEl('textarea', {
-                value: this.details,
-                attr: { 
-                    placeholder: 'Optional details or description...',
-                    rows: '3'
-                }
-            });
-            textarea.addEventListener('input', (e) => {
-                this.details = (e.target as HTMLTextAreaElement).value;
-            });
-        });
-
-        // Due Date
-        this.createFormGroup(contentEl, 'Due date', (container) => {
+        // Two-column properties grid
+        const propertiesGrid = contentEl.createDiv({ cls: 'properties-grid' });
+        
+        // Row 1: Due Date and Status
+        const row1 = propertiesGrid.createDiv({ cls: 'grid-row' });
+        this.createGridFormGroup(row1, 'Due Date', (container) => {
             const input = container.createEl('input', { 
                 type: 'date',
                 value: this.dueDate
@@ -107,30 +101,8 @@ export class TaskEditModal extends Modal {
                 this.dueDate = (e.target as HTMLInputElement).value;
             });
         });
-
-        // Priority
-        this.createFormGroup(contentEl, 'Priority', (container) => {
-            const select = container.createEl('select');
-            
-            const priorities = this.plugin.priorityManager.getPrioritiesByWeight();
-            
-            priorities.forEach(priorityConfig => {
-                const optEl = select.createEl('option', { 
-                    value: priorityConfig.value, 
-                    text: priorityConfig.label 
-                });
-                if (priorityConfig.value === this.priority) {
-                    optEl.selected = true;
-                }
-            });
-            
-            select.addEventListener('change', (e) => {
-                this.priority = (e.target as HTMLSelectElement).value;
-            });
-        });
-
-        // Status
-        this.createFormGroup(contentEl, 'Status', (container) => {
+        
+        this.createGridFormGroup(row1, 'Status', (container) => {
             const select = container.createEl('select');
             
             const statuses = this.plugin.statusManager.getStatusesByOrder();
@@ -150,32 +122,29 @@ export class TaskEditModal extends Modal {
             });
         });
 
-        // Contexts
-        this.createFormGroup(contentEl, 'Contexts (comma-separated)', (container) => {
-            const input = container.createEl('input', { 
-                type: 'text',
-                value: this.contexts,
-                attr: { placeholder: 'work, home, urgent...' }
+        // Row 2: Priority and Time Estimate
+        const row2 = propertiesGrid.createDiv({ cls: 'grid-row' });
+        this.createGridFormGroup(row2, 'Priority', (container) => {
+            const select = container.createEl('select');
+            
+            const priorities = this.plugin.priorityManager.getPrioritiesByWeight();
+            
+            priorities.forEach(priorityConfig => {
+                const optEl = select.createEl('option', { 
+                    value: priorityConfig.value, 
+                    text: priorityConfig.label 
+                });
+                if (priorityConfig.value === this.priority) {
+                    optEl.selected = true;
+                }
             });
-            input.addEventListener('input', (e) => {
-                this.contexts = (e.target as HTMLInputElement).value;
-            });
-        });
-
-        // Tags
-        this.createFormGroup(contentEl, 'Tags (comma-separated)', (container) => {
-            const input = container.createEl('input', { 
-                type: 'text',
-                value: this.tags,
-                attr: { placeholder: 'important, review, research...' }
-            });
-            input.addEventListener('input', (e) => {
-                this.tags = (e.target as HTMLInputElement).value;
+            
+            select.addEventListener('change', (e) => {
+                this.priority = (e.target as HTMLSelectElement).value;
             });
         });
-
-        // Time Estimate
-        this.createFormGroup(contentEl, 'Time estimate', (container) => {
+        
+        this.createGridFormGroup(row2, 'Time Est', (container) => {
             const timeContainer = container.createDiv({ cls: 'time-estimate-container' });
             const input = timeContainer.createEl('input', { 
                 type: 'number',
@@ -201,7 +170,7 @@ export class TaskEditModal extends Modal {
             });
         });
 
-        // Recurrence
+        // Recurrence (full-width)
         this.createFormGroup(contentEl, 'Recurrence', (container) => {
             const select = container.createEl('select');
             
@@ -230,15 +199,54 @@ export class TaskEditModal extends Modal {
         const recurrenceOptions = contentEl.createDiv({ cls: 'recurrence-options' });
         this.updateRecurrenceOptions(contentEl);
 
-        // Buttons
-        const buttonContainer = contentEl.createDiv({ cls: 'button-container' });
+        // Contexts with autocomplete (full-width)
+        this.createFormGroup(contentEl, 'Contexts', (container) => {
+            this.createAutocompleteInput(container, 'contexts', this.existingContexts, (value) => {
+                this.contexts = value;
+            });
+        });
+
+        // Tags with autocomplete (full-width)
+        this.createFormGroup(contentEl, 'Tags', (container) => {
+            this.createAutocompleteInput(container, 'tags', this.existingTags, (value) => {
+                this.tags = value;
+            });
+        });
+
+        // Footer with metadata and buttons
+        const footer = contentEl.createDiv({ cls: 'modal-footer' });
+        
+        // Left side: read-only metadata
+        const metadataContainer = footer.createDiv({ cls: 'metadata-info' });
+        const createdText = metadataContainer.createSpan({ 
+            cls: 'metadata-item',
+            text: `Created: ${this.task.dateCreated ? format(new Date(this.task.dateCreated), 'MMM dd, yyyy') : 'Unknown'}` 
+        });
+        const modifiedText = metadataContainer.createSpan({ 
+            cls: 'metadata-item',
+            text: `Modified: ${this.task.dateModified ? format(new Date(this.task.dateModified), 'MMM dd, yyyy') : 'Unknown'}` 
+        });
+        
+        // Right side: action buttons
+        const buttonContainer = footer.createDiv({ cls: 'button-container' });
+        
+        const openNoteButton = buttonContainer.createEl('button', { 
+            text: 'Open Note',
+            cls: 'secondary-button'
+        });
+        openNoteButton.addEventListener('click', () => {
+            this.openNote();
+        });
         
         const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
         cancelButton.addEventListener('click', () => {
             this.close();
         });
         
-        const saveButton = buttonContainer.createEl('button', { text: 'Save Changes', cls: 'create-button' });
+        const saveButton = buttonContainer.createEl('button', { 
+            text: 'Save',
+            cls: 'create-button'
+        });
         saveButton.addEventListener('click', () => {
             this.saveTask();
         });
@@ -260,6 +268,200 @@ export class TaskEditModal extends Modal {
         group.createEl('label', { text: label });
         inputCallback(group);
         return group;
+    }
+    
+    createGridFormGroup(container: HTMLElement, label: string, inputCallback: (container: HTMLElement) => void) {
+        const group = container.createDiv({ cls: 'grid-form-group' });
+        group.createEl('label', { text: label });
+        inputCallback(group);
+        return group;
+    }
+    
+    // Load suggestions for autocomplete
+    private async loadSuggestions() {
+        try {
+            // Get existing contexts from task cache
+            const currentDate = new Date();
+            const allTaskDates: TaskInfo[] = [];
+            
+            // Get tasks from multiple recent dates to build comprehensive list
+            for (let i = -30; i <= 30; i++) {
+                const checkDate = new Date(currentDate);
+                checkDate.setDate(currentDate.getDate() + i);
+                try {
+                    const tasksForDate = await this.plugin.cacheManager.getTaskInfoForDate(checkDate);
+                    allTaskDates.push(...tasksForDate);
+                } catch (err) {
+                    // Ignore errors for individual dates
+                }
+            }
+            
+            const contexts = new Set<string>();
+            const tags = new Set<string>();
+            
+            allTaskDates.forEach(task => {
+                if (task && task.contexts) {
+                    task.contexts.forEach((context: string) => contexts.add(context));
+                }
+                if (task && task.tags) {
+                    task.tags.forEach((tag: string) => {
+                        if (tag !== this.plugin.settings.taskTag) {
+                            tags.add(tag);
+                        }
+                    });
+                }
+            });
+            
+            this.existingContexts = Array.from(contexts).sort();
+            this.existingTags = Array.from(tags).sort();
+        } catch (error) {
+            // Provide fallback suggestions on error
+            this.existingContexts = ['work', 'home', 'personal', 'urgent'];
+            this.existingTags = ['important', 'review', 'research', 'followup'];
+        }
+    }
+    
+    private createAutocompleteInput(
+        container: HTMLElement,
+        fieldName: string,
+        suggestions: string[],
+        onChangeFn: (value: string) => void
+    ) {
+        const inputContainer = container.createDiv({ cls: 'autocomplete-container' });
+        const input = inputContainer.createEl('input', {
+            type: 'text',
+            cls: 'autocomplete-input',
+            value: fieldName === 'contexts' ? this.contexts : this.tags,
+            attr: { placeholder: 'Type to see suggestions...' }
+        });
+        
+        const suggestionsContainer = inputContainer.createDiv({ cls: 'autocomplete-suggestions' });
+        suggestionsContainer.addClass('is-hidden');
+        
+        let selectedIndex = -1;
+        
+        // Handle input changes
+        input.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            onChangeFn(value);
+            
+            // Get the current word being typed (after last comma)
+            const parts = value.split(',');
+            const currentWord = parts[parts.length - 1].trim().toLowerCase();
+            
+            if (currentWord.length > 0) {
+                // Filter suggestions based on current word
+                const filteredSuggestions = suggestions.filter(suggestion =>
+                    suggestion.toLowerCase().includes(currentWord) &&
+                    !parts.slice(0, -1).map(p => p.trim()).includes(suggestion)
+                );
+                
+                this.showSuggestions(suggestionsContainer, filteredSuggestions, input, onChangeFn);
+                selectedIndex = -1;
+            } else {
+                this.hideSuggestions(suggestionsContainer);
+            }
+        });
+        
+        // Handle keyboard navigation
+        input.addEventListener('keydown', (e) => {
+            const suggestionElements = suggestionsContainer.querySelectorAll('.autocomplete-suggestion');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, suggestionElements.length - 1);
+                this.updateSelectedSuggestion(suggestionElements, selectedIndex);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                this.updateSelectedSuggestion(suggestionElements, selectedIndex);
+            } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                e.preventDefault();
+                const selectedElement = suggestionElements[selectedIndex] as HTMLElement;
+                this.applySuggestion(input, selectedElement.textContent || '', onChangeFn);
+                this.hideSuggestions(suggestionsContainer);
+            } else if (e.key === 'Escape') {
+                this.hideSuggestions(suggestionsContainer);
+                selectedIndex = -1;
+            }
+        });
+        
+        // Hide suggestions when clicking outside
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                this.hideSuggestions(suggestionsContainer);
+            }, 150);
+        });
+    }
+    
+    private showSuggestions(
+        container: HTMLElement,
+        suggestions: string[],
+        input: HTMLInputElement,
+        onChangeFn: (value: string) => void
+    ) {
+        container.empty();
+        
+        if (suggestions.length === 0) {
+            container.addClass('is-hidden');
+            return;
+        }
+        
+        suggestions.slice(0, 8).forEach((suggestion, index) => {
+            const suggestionEl = container.createDiv({
+                cls: 'autocomplete-suggestion',
+                text: suggestion
+            });
+            
+            suggestionEl.addEventListener('click', () => {
+                this.applySuggestion(input, suggestion, onChangeFn);
+                this.hideSuggestions(container);
+            });
+        });
+        
+        container.removeClass('is-hidden');
+    }
+    
+    private applySuggestion(input: HTMLInputElement, suggestion: string, onChangeFn: (value: string) => void) {
+        const currentValue = input.value;
+        const parts = currentValue.split(',');
+        
+        // Replace the last part with the suggestion
+        parts[parts.length - 1] = ' ' + suggestion;
+        
+        const newValue = parts.join(',');
+        input.value = newValue;
+        onChangeFn(newValue);
+        
+        // Set cursor to end
+        input.setSelectionRange(newValue.length, newValue.length);
+        input.focus();
+    }
+    
+    private updateSelectedSuggestion(suggestions: NodeListOf<Element>, selectedIndex: number) {
+        suggestions.forEach((el, index) => {
+            if (index === selectedIndex) {
+                el.addClass('selected');
+            } else {
+                el.removeClass('selected');
+            }
+        });
+    }
+    
+    private hideSuggestions(container: HTMLElement) {
+        container.addClass('is-hidden');
+        container.empty();
+    }
+    
+    private async openNote() {
+        const file = this.app.vault.getAbstractFileByPath(this.task.path);
+        if (file && file instanceof TFile) {
+            const leaf = this.app.workspace.getLeaf('tab');
+            await leaf.openFile(file);
+            this.close();
+        } else {
+            new Notice('Task file not found');
+        }
     }
 
     updateTimeLabel(label: HTMLElement, value: number) {
@@ -413,9 +615,15 @@ export class TaskEditModal extends Modal {
         }
 
         try {
+            // Show saving state
+            const saveButton = document.querySelector('.create-button') as HTMLButtonElement;
+            if (saveButton) {
+                saveButton.disabled = true;
+                saveButton.textContent = 'Saving...';
+            }
+
             // Prepare updated task data
             const updatedTask: Partial<TaskInfo> = {
-                ...this.task,
                 title: this.title,
                 due: this.dueDate || undefined,
                 priority: this.priority,
@@ -483,19 +691,19 @@ export class TaskEditModal extends Modal {
                 updatedTask.complete_instances = undefined;
             }
 
-            // Update the task file
+            // Update the task file using processFrontMatter API
             const file = this.app.vault.getAbstractFileByPath(this.task.path);
             if (file && file instanceof TFile) {
-                const content = await this.app.vault.read(file);
-                const yamlData = this.plugin.fieldMapper.mapToFrontmatter(updatedTask);
-                const newContent = this.updateYamlFrontmatterContent(content, yamlData);
-                await this.app.vault.modify(file, newContent);
+                await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                    const yamlData = this.plugin.fieldMapper.mapToFrontmatter(updatedTask);
+                    Object.assign(frontmatter, yamlData);
+                });
 
                 new Notice('Task updated successfully');
                 this.close();
 
                 // Notify all views that data has changed
-                this.plugin.notifyDataChanged();
+                this.plugin.notifyDataChanged(this.task.path);
             } else {
                 new Notice('Task file not found');
             }
@@ -503,32 +711,16 @@ export class TaskEditModal extends Modal {
         } catch (error) {
             console.error('Error updating task:', error);
             new Notice('Error updating task. Check the console for details.');
+            
+            // Reset save button state
+            const saveButton = document.querySelector('.create-button') as HTMLButtonElement;
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Save';
+            }
         }
     }
 
-    /**
-     * Update YAML frontmatter in content with new data
-     */
-    private updateYamlFrontmatterContent(content: string, yamlData: any): string {
-        // Find the end of the YAML frontmatter
-        if (!content.startsWith('---')) {
-            // No frontmatter, add it
-            const yamlStr = YAML.stringify(yamlData);
-            return `---\n${yamlStr}---\n\n${content}`;
-        }
-        
-        const endOfFrontmatter = content.indexOf('---', 3);
-        if (endOfFrontmatter === -1) {
-            // Malformed frontmatter, replace with new
-            const yamlStr = YAML.stringify(yamlData);
-            return `---\n${yamlStr}---\n\n${content.substring(3)}`;
-        }
-        
-        // Replace the frontmatter
-        const restOfContent = content.substring(endOfFrontmatter + 3);
-        const yamlStr = YAML.stringify(yamlData);
-        return `---\n${yamlStr}---${restOfContent}`;
-    }
 
     onClose() {
         const { contentEl } = this;
