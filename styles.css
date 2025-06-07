@@ -1253,8 +1253,6 @@
     font-weight: 500;
     font-size: var(--cs-text-sm);
     margin-bottom: var(--cs-spacing-xs);
-    padding-bottom: var(--cs-spacing-xs);
-    border-bottom: 1px solid var(--background-modifier-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
