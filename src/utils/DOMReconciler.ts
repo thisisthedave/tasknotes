@@ -214,9 +214,9 @@ export class DOMReconciler {
             }
         });
         
-        // Clear container and append updated items
-        container.innerHTML = '';
-        container.appendChild(fragment);
+        // Replace container contents with the fragment
+        // This preserves the order and only updates what's necessary
+        container.replaceChildren(fragment);
     }
     
     /**

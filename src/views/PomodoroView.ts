@@ -84,6 +84,8 @@ export class PomodoroView extends ItemView {
     }
     
     async onOpen() {
+        // Wait for the plugin to be fully initialized before proceeding
+        await this.plugin.onReady();
         await this.render();
     }
     

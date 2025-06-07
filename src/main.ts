@@ -55,6 +55,10 @@ import { ViewStateManager } from './services/ViewStateManager';
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
 	
+	// Ready promise to signal when initialization is complete
+	private readyPromise: Promise<void>;
+	private resolveReady: () => void;
+	
 	// Shared state between views
 	selectedDate: Date = new Date();
 	
@@ -84,6 +88,11 @@ export default class TaskNotesPlugin extends Plugin {
 	viewStateManager: ViewStateManager;
 	
 	async onload() {
+		// Create the promise and store its resolver
+		this.readyPromise = new Promise(resolve => {
+			this.resolveReady = resolve;
+		});
+
 		await this.loadSettings();
 		
 		// Initialize customization services
@@ -110,6 +119,14 @@ export default class TaskNotesPlugin extends Plugin {
 		// Initialize cache and wait for completion
 		await perfMonitor.measure('cache-initialization', async () => {
 			await this.cacheManager.initializeCache();
+		});
+		
+		// Listen for delayed cache initialization completion
+		this.cacheManager.subscribe('cache-initialized', (data) => {
+			if (data.taskCount > 0) {
+				// Notify all views to refresh
+				this.notifyDataChanged();
+			}
 		});
 		
 		// Initialize business logic services AFTER cache manager
@@ -181,6 +198,22 @@ export default class TaskNotesPlugin extends Plugin {
 
 		// Add settings tab
 		this.addSettingTab(new TaskNotesSettingTab(this.app, this));
+
+
+		// At the very end of onload, resolve the promise to signal readiness
+		this.resolveReady();
+	}
+
+	/**
+	 * Public method for views to wait for readiness
+	 */
+	async onReady(): Promise<void> {
+		// If readyPromise doesn't exist, plugin hasn't started onload yet
+		if (!this.readyPromise) {
+			throw new Error('Plugin not yet initialized');
+		}
+		
+		await this.readyPromise;
 	}
 	
 	// Methods for updating shared state and emitting events

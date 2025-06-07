@@ -66,7 +66,33 @@ export class KanbanView extends ItemView {
         this.listeners.push(dataListener);
 
         const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, originalTask, updatedTask }) => {
-            this.refresh(); // Simpler approach - just refresh on task updates
+            if (!path || !updatedTask) return;
+            
+            // Check if this task is currently visible in our view
+            const taskElement = this.taskElements.get(path);
+            if (taskElement) {
+                // Task is visible - update it in place
+                try {
+                    updateTaskCard(taskElement, updatedTask, this.plugin, {
+                        showDueDate: true,
+                        showCheckbox: false,
+                        showTimeTracking: true
+                    });
+                    
+                    // Add update animation for real user updates
+                    taskElement.classList.add('task-updated');
+                    setTimeout(() => {
+                        taskElement.classList.remove('task-updated');
+                    }, 1000);
+                } catch (error) {
+                    console.error('Error updating task card in kanban:', error);
+                    // Fallback to refresh if update fails
+                    this.refresh();
+                }
+            } else {
+                // Task not currently visible or might have moved columns - refresh
+                this.refresh();
+            }
         });
         this.listeners.push(taskUpdateListener);
         
@@ -78,6 +104,9 @@ export class KanbanView extends ItemView {
     }
 
     async onOpen() {
+        // Wait for the plugin to be fully initialized before proceeding
+        await this.plugin.onReady();
+        
         this.contentEl.empty();
         await this.render();
     }
@@ -99,8 +128,13 @@ export class KanbanView extends ItemView {
     }
 
     async refresh() {
-        // Full re-render on refresh
-        await this.render();
+        // Use DOMReconciler for efficient updates
+        if (this.boardContainer) {
+            await this.loadAndRenderBoard();
+        } else {
+            // First render - do full render
+            await this.render();
+        }
     }
 
     async render() {
@@ -186,15 +220,24 @@ export class KanbanView extends ItemView {
 
     private async loadAndRenderBoard() {
         if (!this.boardContainer) return;
-        this.boardContainer.empty();
-        this.boardContainer.createDiv({ cls: 'loading-indicator', text: 'Loading board...' });
+        
+        // Show loading indicator only if board is empty
+        let loadingIndicator: HTMLElement | null = null;
+        if (this.boardContainer.children.length === 0) {
+            loadingIndicator = this.boardContainer.createDiv({ cls: 'loading-indicator', text: 'Loading board...' });
+        }
 
         try {
             // Get grouped tasks from FilterService
             const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
             
-            // Render the grouped tasks directly
-            this.renderBoardFromGroupedTasks(groupedTasks);
+            // Remove loading indicator if it exists
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+            
+            // Render the grouped tasks using DOMReconciler
+            this.renderBoardFromGroupedTasksWithReconciler(groupedTasks);
             
             // Calculate stats from all tasks
             const allTasks = Array.from(groupedTasks.values()).flat();
@@ -207,6 +250,13 @@ export class KanbanView extends ItemView {
         } catch (error) {
             console.error("Error loading Kanban board:", error);
             new Notice("Failed to load Kanban board. See console for details.");
+            
+            // Remove loading indicator if it exists
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+            
+            // Show error state
             this.boardContainer.empty();
             this.boardContainer.createDiv({ cls: 'kanban-error', text: 'Error loading board.' });
         }
@@ -369,8 +419,8 @@ export class KanbanView extends ItemView {
             // Get fresh grouped tasks from FilterService
             const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
             
-            // Re-render the board using the new column order
-            this.renderBoardFromGroupedTasksWithOrder(groupedTasks);
+            // Re-render the board using the new column order and DOMReconciler
+            this.renderBoardFromGroupedTasksWithReconciler(groupedTasks);
             
             // Update stats after rendering
             const allTasks = Array.from(groupedTasks.values()).flat();
@@ -494,7 +544,184 @@ export class KanbanView extends ItemView {
         });
     }
 
-    
+    /**
+     * Render board using DOMReconciler for efficient updates
+     */
+    private renderBoardFromGroupedTasksWithReconciler(groupedTasks: Map<string, TaskInfo[]>) {
+        if (!this.boardContainer) return;
+
+        // Get or create board element
+        let boardEl = this.boardContainer.querySelector('.kanban-board') as HTMLElement;
+        if (!boardEl) {
+            boardEl = this.boardContainer.createDiv({ cls: 'kanban-board' });
+        }
+        
+        // Get all possible columns from the grouped tasks
+        const allColumns = Array.from(groupedTasks.keys()).sort();
+
+        // Initialize column order if empty
+        if (this.columnOrder.length === 0) {
+            this.columnOrder = [...allColumns];
+        }
+
+        // Add any new columns that aren't in our order yet
+        allColumns.forEach(columnId => {
+            if (!this.columnOrder.includes(columnId)) {
+                this.columnOrder.push(columnId);
+            }
+        });
+
+        // Create column data in the stored order
+        const orderedColumns = this.columnOrder.map(columnId => ({
+            id: columnId,
+            tasks: groupedTasks.get(columnId) || []
+        }));
+
+        // Use DOMReconciler to update the columns
+        this.plugin.domReconciler.updateList(
+            boardEl,
+            orderedColumns,
+            (column) => column.id,
+            (column) => this.createColumnElement(column.id, column.tasks),
+            (element, column) => this.updateColumnElement(element, column.id, column.tasks)
+        );
+
+        // Update task elements tracking
+        this.taskElements.clear();
+        const taskCards = boardEl.querySelectorAll('.task-card[data-task-path]');
+        taskCards.forEach(card => {
+            const taskPath = (card as HTMLElement).dataset.taskPath;
+            if (taskPath) {
+                this.taskElements.set(taskPath, card as HTMLElement);
+            }
+        });
+    }
+
+    /**
+     * Create column element for reconciler
+     */
+    private createColumnElement(columnId: string, tasks: TaskInfo[]): HTMLElement {
+        const columnEl = document.createElement('div');
+        columnEl.className = 'kanban-column';
+        columnEl.dataset.columnId = columnId;
+
+        // Add column status classes for styling
+        if (columnId === 'uncategorized') {
+            columnEl.classList.add('uncategorized-column');
+        }
+
+        // Column header
+        const headerEl = columnEl.createDiv({ cls: 'kanban-column-header' });
+        
+        // Make columns draggable for reordering
+        headerEl.draggable = true;
+        headerEl.dataset.columnId = columnId;
+        this.addColumnDragHandlers(headerEl);
+        
+        // Title line
+        const title = this.formatColumnTitle(columnId, this.currentQuery.groupKey);
+        headerEl.createEl('div', { text: title, cls: 'kanban-column-title' });
+        
+        // Count line
+        headerEl.createEl('div', { 
+            text: `${tasks.length} tasks`, 
+            cls: 'kanban-column-count' 
+        });
+
+        // Column body for tasks
+        const bodyEl = columnEl.createDiv({ cls: 'kanban-column-body' });
+        
+        if (tasks.length === 0) {
+            // Empty column placeholder
+            const emptyEl = bodyEl.createDiv({ 
+                cls: 'kanban-column-empty',
+                text: 'No tasks'
+            });
+            
+            // Make empty columns droppable
+            this.addColumnDropHandlers(emptyEl);
+        } else {
+            // Use DOMReconciler for tasks within this column
+            this.plugin.domReconciler.updateList(
+                bodyEl,
+                tasks,
+                (task) => task.path,
+                (task) => this.createTaskCardElement(task),
+                (element, task) => this.updateTaskCardElement(element, task)
+            );
+        }
+        
+        // Add drop handlers to the column
+        this.addColumnDropHandlers(columnEl);
+        
+        return columnEl;
+    }
+
+    /**
+     * Update column element for reconciler
+     */
+    private updateColumnElement(element: HTMLElement, columnId: string, tasks: TaskInfo[]): void {
+        // Update count
+        const countEl = element.querySelector('.kanban-column-count');
+        if (countEl) {
+            countEl.textContent = `${tasks.length} tasks`;
+        }
+
+        // Update body
+        const bodyEl = element.querySelector('.kanban-column-body') as HTMLElement;
+        if (bodyEl) {
+            if (tasks.length === 0) {
+                // Clear and show empty state
+                bodyEl.empty();
+                const emptyEl = bodyEl.createDiv({ 
+                    cls: 'kanban-column-empty',
+                    text: 'No tasks'
+                });
+                this.addColumnDropHandlers(emptyEl);
+            } else {
+                // Remove empty state if it exists
+                const emptyEl = bodyEl.querySelector('.kanban-column-empty');
+                if (emptyEl) {
+                    emptyEl.remove();
+                }
+                
+                // Use DOMReconciler for tasks within this column
+                this.plugin.domReconciler.updateList(
+                    bodyEl,
+                    tasks,
+                    (task) => task.path,
+                    (task) => this.createTaskCardElement(task),
+                    (element, task) => this.updateTaskCardElement(element, task)
+                );
+            }
+        }
+    }
+
+    /**
+     * Create task card element for reconciler
+     */
+    private createTaskCardElement(task: TaskInfo): HTMLElement {
+        const taskCard = createTaskCard(task, this.plugin, {
+            showDueDate: true,
+            showCheckbox: false,
+            showTimeTracking: true
+        });
+        taskCard.draggable = true;
+        taskCard.dataset.taskPath = task.path;
+        this.addDragHandlers(taskCard, task);
+        return taskCard;
+    }
+
+    /**
+     * Update task card element for reconciler
+     */
+    private updateTaskCardElement(element: HTMLElement, task: TaskInfo): void {
+        updateTaskCard(element, task, this.plugin, {
+            showDueDate: true,
+            showCheckbox: false,
+            showTimeTracking: true
+        });
+    }
 
     // Debounced refresh to avoid multiple rapid refreshes
     private refreshTimeout: NodeJS.Timeout | null = null;

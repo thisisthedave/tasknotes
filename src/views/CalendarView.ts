@@ -74,6 +74,9 @@ export class CalendarView extends ItemView {
     }
   
     async onOpen() {
+        // Wait for the plugin to be fully initialized before proceeding
+        await this.plugin.onReady();
+        
         // Clear and prepare the content element
         const contentEl = this.contentEl;
         contentEl.empty();

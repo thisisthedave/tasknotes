@@ -73,7 +73,9 @@ export class AgendaView extends ItemView {
         
         // Listen for individual task updates for granular DOM updates
         const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, originalTask, updatedTask }) => {
-            this.refresh(); // Simplified - just refresh on task updates
+            // For agenda view, since items are organized by date and can move between days,
+            // it's safer to do a refresh rather than try to update in place
+            this.refresh();
         });
         this.listeners.push(taskUpdateListener);
         
@@ -97,6 +99,9 @@ export class AgendaView extends ItemView {
     }
     
     async onOpen() {
+        // Wait for the plugin to be fully initialized before proceeding
+        await this.plugin.onReady();
+        
         const contentEl = this.contentEl;
         contentEl.empty();
         
@@ -299,7 +304,11 @@ export class AgendaView extends ItemView {
     }
     
     private async renderAgendaContent(container: HTMLElement) {
-        const contentContainer = container.createDiv({ cls: 'agenda-content' });
+        // Find existing content container or create new one
+        let contentContainer = container.querySelector('.agenda-content') as HTMLElement;
+        if (!contentContainer) {
+            contentContainer = container.createDiv({ cls: 'agenda-content' });
+        }
         
         try {
             // Update the date range in the query
@@ -343,14 +352,15 @@ export class AgendaView extends ItemView {
                 return { date, tasks: tasksForDate, notes: notesForDate };
             });
             
-            // Group items by date if enabled
+            // Use DOMReconciler-based rendering
             if (this.groupByDate) {
-                this.renderGroupedAgenda(contentContainer, agendaData);
+                this.renderGroupedAgendaWithReconciler(contentContainer, agendaData);
             } else {
-                this.renderFlatAgenda(contentContainer, agendaData);
+                this.renderFlatAgendaWithReconciler(contentContainer, agendaData);
             }
         } catch (error) {
             console.error('Error rendering agenda content:', error);
+            contentContainer.empty();
             contentContainer.createEl('p', { 
                 text: 'Error loading agenda. Please try refreshing.', 
                 cls: 'error-message' 
@@ -530,6 +540,254 @@ export class AgendaView extends ItemView {
         container.appendChild(noteCard);
     }
     
+    /**
+     * Render grouped agenda using DOMReconciler for efficient updates
+     */
+    private renderGroupedAgendaWithReconciler(container: HTMLElement, agendaData: Array<{date: Date, tasks: TaskInfo[], notes: NoteInfo[]}>) {
+        // Create flattened list of all items with their day grouping
+        const allItems: Array<{type: 'day-header' | 'task' | 'note', item: any, date: Date, dayKey: string}> = [];
+        
+        let hasAnyItems = false;
+        agendaData.forEach(dayData => {
+            const dateStr = format(dayData.date, 'yyyy-MM-dd');
+            
+            // Filter tasks for this date
+            const tasksForDate = dayData.tasks.filter(task => {
+                if (task.recurrence) {
+                    return isRecurringTaskDueOn(task, dayData.date);
+                }
+                return task.due === dateStr;
+            });
+            
+            const hasItems = tasksForDate.length > 0 || dayData.notes.length > 0;
+            
+            if (hasItems) {
+                hasAnyItems = true;
+                const dayKey = dateStr;
+                
+                // Add day header
+                allItems.push({
+                    type: 'day-header',
+                    item: dayData,
+                    date: dayData.date,
+                    dayKey
+                });
+                
+                // Add tasks
+                tasksForDate.forEach(task => {
+                    allItems.push({
+                        type: 'task',
+                        item: task,
+                        date: dayData.date,
+                        dayKey
+                    });
+                });
+                
+                // Add notes
+                dayData.notes.forEach(note => {
+                    allItems.push({
+                        type: 'note',
+                        item: note,
+                        date: dayData.date,
+                        dayKey
+                    });
+                });
+            }
+        });
+        
+        if (!hasAnyItems) {
+            container.empty();
+            const emptyMessage = container.createDiv({ cls: 'empty-agenda-message' });
+            emptyMessage.createEl('p', { text: 'No items scheduled for this period.' });
+            const tipMessage = emptyMessage.createEl('p', { cls: 'empty-tip' });
+            tipMessage.createEl('span', { text: 'Tip: ' });
+            tipMessage.appendChild(document.createTextNode('Create tasks with due dates or add notes to see them here.'));
+            return;
+        }
+        
+        // Use DOMReconciler to update the list
+        this.plugin.domReconciler.updateList(
+            container,
+            allItems,
+            (item) => `${item.type}-${item.dayKey}-${item.type === 'day-header' ? item.dayKey : (item.item.path || (item.item as any).id || 'unknown')}`,
+            (item) => this.createAgendaItemElement(item),
+            (element, item) => this.updateAgendaItemElement(element, item)
+        );
+    }
+    
+    /**
+     * Render flat agenda using DOMReconciler for efficient updates
+     */
+    private renderFlatAgendaWithReconciler(container: HTMLElement, agendaData: Array<{date: Date, tasks: TaskInfo[], notes: NoteInfo[]}>) {
+        // Collect all items with their dates
+        const allItems: Array<{type: 'task' | 'note', item: TaskInfo | NoteInfo, date: Date}> = [];
+        
+        agendaData.forEach(dayData => {
+            const dateStr = format(dayData.date, 'yyyy-MM-dd');
+            
+            dayData.tasks.forEach(task => {
+                if (task.recurrence) {
+                    if (isRecurringTaskDueOn(task, dayData.date)) {
+                        allItems.push({ type: 'task', item: task, date: dayData.date });
+                    }
+                } else if (task.due === dateStr) {
+                    allItems.push({ type: 'task', item: task, date: dayData.date });
+                }
+            });
+            
+            dayData.notes.forEach(note => {
+                allItems.push({ type: 'note', item: note, date: dayData.date });
+            });
+        });
+        
+        if (allItems.length === 0) {
+            container.empty();
+            const emptyMessage = container.createDiv({ cls: 'empty-agenda-message' });
+            emptyMessage.textContent = 'No items found for the selected period.';
+            return;
+        }
+        
+        // Sort by date
+        allItems.sort((a, b) => a.date.getTime() - b.date.getTime());
+        
+        // Use DOMReconciler to update the list
+        this.plugin.domReconciler.updateList(
+            container,
+            allItems,
+            (item) => `${item.type}-${item.item.path || (item.item as any).id || 'unknown'}`,
+            (item) => this.createFlatAgendaItemElement(item),
+            (element, item) => this.updateFlatAgendaItemElement(element, item)
+        );
+    }
+    
+    /**
+     * Create agenda item element for reconciler
+     */
+    private createAgendaItemElement(item: {type: 'day-header' | 'task' | 'note', item: any, date: Date, dayKey: string}): HTMLElement {
+        if (item.type === 'day-header') {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'agenda-day-header';
+            
+            const headerText = dayHeader.createDiv({ cls: 'day-header-text' });
+            const dayName = format(item.date, 'EEEE');
+            const dateFormatted = format(item.date, 'MMMM d');
+            
+            if (isToday(item.date)) {
+                headerText.createSpan({ cls: 'day-name today-badge', text: 'Today' });
+                headerText.createSpan({ cls: 'day-date', text: ` • ${dateFormatted}` });
+            } else {
+                headerText.createSpan({ cls: 'day-name', text: dayName });
+                headerText.createSpan({ cls: 'day-date', text: ` • ${dateFormatted}` });
+            }
+            
+            // Item count badge
+            const itemCount = item.item.tasks.length + item.item.notes.length;
+            dayHeader.createDiv({ cls: 'item-count-badge', text: `${itemCount}` });
+            
+            return dayHeader;
+        } else if (item.type === 'task') {
+            return this.createTaskItemElement(item.item as TaskInfo, item.date);
+        } else {
+            return this.createNoteItemElement(item.item as NoteInfo, item.date);
+        }
+    }
+    
+    /**
+     * Update agenda item element for reconciler
+     */
+    private updateAgendaItemElement(element: HTMLElement, item: {type: 'day-header' | 'task' | 'note', item: any, date: Date, dayKey: string}): void {
+        if (item.type === 'day-header') {
+            // Update item count badge
+            const countBadge = element.querySelector('.item-count-badge');
+            if (countBadge) {
+                const itemCount = item.item.tasks.length + item.item.notes.length;
+                countBadge.textContent = `${itemCount}`;
+            }
+        } else if (item.type === 'task') {
+            updateTaskCard(element, item.item as TaskInfo, this.plugin, {
+                showDueDate: !this.groupByDate,
+                showCheckbox: false,
+                showTimeTracking: true,
+                showRecurringControls: true,
+                groupByDate: this.groupByDate,
+                targetDate: item.date
+            });
+        }
+        // Note updates are handled automatically by the note card structure
+    }
+    
+    /**
+     * Create flat agenda item element for reconciler
+     */
+    private createFlatAgendaItemElement(item: {type: 'task' | 'note', item: TaskInfo | NoteInfo, date: Date}): HTMLElement {
+        if (item.type === 'task') {
+            return this.createTaskItemElement(item.item as TaskInfo, item.date);
+        } else {
+            return this.createNoteItemElement(item.item as NoteInfo, item.date);
+        }
+    }
+    
+    /**
+     * Update flat agenda item element for reconciler
+     */
+    private updateFlatAgendaItemElement(element: HTMLElement, item: {type: 'task' | 'note', item: TaskInfo | NoteInfo, date: Date}): void {
+        if (item.type === 'task') {
+            updateTaskCard(element, item.item as TaskInfo, this.plugin, {
+                showDueDate: !this.groupByDate,
+                showCheckbox: false,
+                showTimeTracking: true,
+                showRecurringControls: true,
+                groupByDate: this.groupByDate,
+                targetDate: item.date
+            });
+        }
+        // Note updates are handled automatically by the note card structure
+    }
+    
+    /**
+     * Create task item element
+     */
+    private createTaskItemElement(task: TaskInfo, date?: Date): HTMLElement {
+        const taskCard = createTaskCard(task, this.plugin, {
+            showDueDate: !this.groupByDate,
+            showCheckbox: false,
+            showTimeTracking: true,
+            showRecurringControls: true,
+            groupByDate: this.groupByDate,
+            targetDate: date
+        });
+        
+        // Add completion status class if task is completed
+        if (this.plugin.statusManager.isCompletedStatus(task.status)) {
+            taskCard.classList.add('done');
+        }
+        
+        return taskCard;
+    }
+    
+    /**
+     * Create note item element
+     */
+    private createNoteItemElement(note: NoteInfo, date?: Date): HTMLElement {
+        const noteCard = createNoteCard(note, this.plugin, {
+            showCreatedDate: false,
+            showTags: true,
+            showPath: false,
+            maxTags: 3,
+            showDailyNoteBadge: false
+        });
+        
+        // Add date if not grouping by date
+        if (!this.groupByDate && date) {
+            const dateSpan = noteCard.createSpan({ 
+                cls: 'note-date', 
+                text: format(date, 'MMM d') 
+            });
+        }
+        
+        return noteCard;
+    }
+    
     private addHoverPreview(element: HTMLElement, filePath: string) {
         element.addEventListener('mouseover', (event) => {
             const file = this.app.vault.getAbstractFileByPath(filePath);
@@ -640,20 +898,8 @@ export class AgendaView extends ItemView {
     async refresh() {
         const container = this.contentEl.querySelector('.tasknotes-container') as HTMLElement;
         if (container) {
-            // Try to preserve scroll position
-            const contentContainer = container.querySelector('.agenda-content') as HTMLElement;
-            let scrollTop = 0;
-            if (contentContainer) {
-                scrollTop = contentContainer.scrollTop;
-            }
-            
-            await this.renderView(container);
-            
-            // Restore scroll position
-            const newContentContainer = container.querySelector('.agenda-content') as HTMLElement;
-            if (newContentContainer) {
-                newContentContainer.scrollTop = scrollTop;
-            }
+            // Use DOMReconciler for efficient updates
+            await this.renderAgendaContent(container);
         }
     }
     

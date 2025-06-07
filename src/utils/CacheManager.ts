@@ -60,7 +60,8 @@ export class CacheManager {
     
     // Initialization state
     private initializationPromise: Promise<void> | null = null;
-    private isInitialized: boolean = false;
+    private initialized: boolean = false;
+    private delayedInitializationScheduled: boolean = false;
     
     constructor(
         vault: Vault, 
@@ -80,6 +81,13 @@ export class CacheManager {
         this.fieldMapper = fieldMapper || null;
         
         this.registerFileEvents();
+    }
+    
+    /**
+     * Check if the cache has been initialized
+     */
+    isInitialized(): boolean {
+        return this.initialized;
     }
     
     /**
@@ -288,7 +296,7 @@ export class CacheManager {
         if (forceRefresh) {
             this.clearAllCaches();
             await this.performInitialization();
-            this.isInitialized = true;
+            this.initialized = true;
         }
         
         // Get all task paths from the indexed files cache
@@ -484,7 +492,7 @@ export class CacheManager {
         
         try {
             await this.initializationPromise;
-            this.isInitialized = true;
+            this.initialized = true;
             console.log('CacheManager: Initialization completed successfully');
         } catch (error) {
             console.error('CacheManager: Initialization failed:', error);
@@ -502,6 +510,11 @@ export class CacheManager {
         
         // Get all markdown files
         const files = this.vault.getMarkdownFiles();
+        
+        if (files.length === 0) {
+            // Schedule a delayed re-initialization when vault is ready
+            this.scheduleDelayedInitialization();
+        }
         
         // Process files in batches for better responsiveness
         const batchSize = 50;
@@ -521,10 +534,35 @@ export class CacheManager {
     }
     
     /**
+     * Schedule delayed initialization when vault becomes ready
+     */
+    private scheduleDelayedInitialization(): void {
+        if (this.delayedInitializationScheduled) {
+            return;
+        }
+        
+        this.delayedInitializationScheduled = true;
+        
+        // Try again in a few seconds
+        setTimeout(async () => {
+            const files = this.vault.getMarkdownFiles();
+            
+            if (files.length > 0) {
+                this.initialized = false;
+                this.initializationPromise = null;
+                await this.initializeCache();
+            } else {
+                this.delayedInitializationScheduled = false;
+                this.scheduleDelayedInitialization();
+            }
+        }, 2000); // Wait 2 seconds before retry
+    }
+    
+    /**
      * Ensure cache is initialized before proceeding with operations
      */
     private async ensureInitialized(): Promise<void> {
-        if (this.isInitialized) {
+        if (this.initialized) {
             return;
         }
         
@@ -552,10 +590,6 @@ export class CacheManager {
             const frontmatter = this.extractFrontmatter(content, file.path);
             const isTask = frontmatter?.tags?.includes(this.taskTag);
             
-            // Debug logging for task detection
-            if (frontmatter?.tags && Array.isArray(frontmatter.tags)) {
-                // File has tags - processing handled above
-            }
             
             // Create indexed file entry
             const indexedFile: IndexedFile = {
@@ -943,7 +977,7 @@ export class CacheManager {
         this.allContexts.clear();
         
         // Reset initialization state
-        this.isInitialized = false;
+        this.initialized = false;
         this.initializationPromise = null;
     }
     

@@ -4009,7 +4009,6 @@
 .task-card {
     /* Extend base card with specific task card properties */
     border-left: 3px solid var(--priority-color, var(--text-muted));
-    min-height: calc(var(--cs-touch-target) + var(--cs-spacing-sm));
     /* Ensure core properties are inherited from base classes */
     display: flex;
     align-items: flex-start;

@@ -99,10 +99,35 @@ export class TaskListView extends ItemView {
                 return;
             }
             
-            // Update the data in the cache manager
-            await this.updateTaskInCache(path, updatedTask);
-            // Refresh the view with current filters
-            await this.refreshTasks();
+            // Check if this task is currently visible in our view
+            const taskElement = this.taskElements.get(path);
+            if (taskElement) {
+                // Task is visible - update it in place using TaskCard's update function
+                try {
+                    updateTaskCard(taskElement, updatedTask, this.plugin, {
+                        showDueDate: true,
+                        showCheckbox: false,
+                        showArchiveButton: true,
+                        showTimeTracking: true,
+                        showRecurringControls: true,
+                        groupByDate: false,
+                        targetDate: this.plugin.selectedDate
+                    });
+                    
+                    // Add update animation for real user updates
+                    taskElement.classList.add('task-updated');
+                    setTimeout(() => {
+                        taskElement.classList.remove('task-updated');
+                    }, 1000);
+                } catch (error) {
+                    console.error('Error updating task card:', error);
+                    // Fallback to refresh if update fails
+                    this.refreshTasks();
+                }
+            } else {
+                // Task not currently visible - it might now match our filters, so refresh
+                this.refreshTasks();
+            }
         });
         this.listeners.push(taskUpdateListener);
         
@@ -114,7 +139,40 @@ export class TaskListView extends ItemView {
     }
     
     async onOpen() {
-        await this.refresh();
+        try {
+            // Wait for the plugin to be fully initialized before proceeding
+            await this.plugin.onReady();
+            await this.refresh();
+        } catch (error) {
+            console.error('TaskListView: Error during onOpen:', error);
+            // Fall back to the old polling approach if onReady fails
+            this.fallbackToPolling();
+        }
+    }
+
+    private async fallbackToPolling() {
+        // Show loading state
+        this.contentEl.empty();
+        const loadingEl = this.contentEl.createDiv({ cls: 'tasknotes-loading' });
+        loadingEl.createDiv({ cls: 'loading-spinner' });
+        loadingEl.createDiv({ cls: 'loading-text', text: 'Initializing...' });
+        
+        // Poll for cache to be ready (with timeout)
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds max
+        const checkReady = async () => {
+            attempts++;
+            if (this.plugin.cacheManager && this.plugin.cacheManager.isInitialized()) {
+                await this.refresh();
+            } else if (attempts < maxAttempts) {
+                setTimeout(checkReady, 100);
+            } else {
+                // Timeout - try to refresh anyway
+                console.warn('TaskListView: Cache initialization timeout, attempting to load anyway');
+                await this.refresh();
+            }
+        };
+        checkReady();
     }
     
     async onClose() {
@@ -251,7 +309,9 @@ export class TaskListView extends ItemView {
      * Refresh tasks using FilterService
      */
     private async refreshTasks(): Promise<void> {
-        if (!this.taskListContainer) return;
+        if (!this.taskListContainer) {
+            return;
+        }
         
         try {
             this.isTasksLoading = true;
@@ -264,7 +324,7 @@ export class TaskListView extends ItemView {
             this.renderTaskItems(this.taskListContainer, groupedTasks);
             
         } catch (error) {
-            console.error('Error refreshing tasks:', error);
+            console.error('TaskListView: Error refreshing tasks:', error);
             this.taskListContainer.createEl('p', { 
                 text: 'Error loading tasks. Please try refreshing.', 
                 cls: 'error-message' 
@@ -480,112 +540,6 @@ export class TaskListView extends ItemView {
     
     
     
-    /**
-     * Update a specific task element in the DOM without full re-render
-     */
-    private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
-        const taskElement = this.taskElements.get(taskPath);
-        if (!taskElement) {
-            // Task not currently in view, a refresh might be needed if it now matches filters
-            this.debounceRefresh();
-            return;
-        }
-        
-        // Check if the task's group or visibility has changed
-        if (this.hasTaskMovedGroups(taskElement, updatedTask)) {
-            // Task has moved to a new group or changed visibility, trigger full refresh
-            this.debounceRefresh();
-            return;
-        }
-        
-        try {
-            // Use the unified TaskCard update logic
-            updateTaskCard(taskElement, updatedTask, this.plugin, {
-                showDueDate: true,
-                showCheckbox: false, // TaskListView doesn't use checkboxes
-                showArchiveButton: true,
-                showTimeTracking: true,
-                showRecurringControls: true,
-                groupByDate: false,
-                targetDate: this.plugin.selectedDate
-            });
-        } catch (error) {
-            console.error(`TaskListView: Error updating DOM for task ${taskPath}:`, error);
-            // If update fails, trigger a full refresh to recover
-            this.refresh();
-        }
-    }
-
-    // Debounced refresh to avoid multiple rapid refreshes
-    private refreshTimeout: NodeJS.Timeout | null = null;
-    private debounceRefresh() {
-        if (this.refreshTimeout) {
-            clearTimeout(this.refreshTimeout);
-        }
-        this.refreshTimeout = setTimeout(() => {
-            this.refresh();
-            this.refreshTimeout = null;
-        }, 150);
-    }
-
-    /**
-     * Check if a task has moved to a different group or changed visibility
-     */
-    private hasTaskMovedGroups(taskElement: HTMLElement, updatedTask: TaskInfo): boolean {
-        // Get current group from DOM structure
-        const currentGroup = taskElement.closest('.task-group');
-        if (!currentGroup) return false;
-        
-        const currentGroupKey = currentGroup.getAttribute('data-group');
-        if (!currentGroupKey) return false;
-
-        // Determine what group this task should belong to now
-        const newGroupKey = this.getTaskGroupKey(updatedTask);
-        
-        return currentGroupKey !== newGroupKey;
-    }
-    
-    /**
-     * Get the group key for a task based on current grouping
-     */
-    private getTaskGroupKey(task: TaskInfo): string {
-        switch (this.currentQuery.groupKey) {
-            case 'status':
-                return task.status;
-            case 'priority':
-                return task.priority;
-            case 'context':
-                const contexts = task.contexts || [];
-                return contexts.length > 0 ? contexts[0] : 'No Context';
-            case 'due':
-                return task.due || 'No Due Date';
-            default:
-                return 'All';
-        }
-    }
-    
-    
-    /**
-     * Update a task in the cache manager
-     */
-    private async updateTaskInCache(taskPath: string, updatedTask: TaskInfo): Promise<void> {
-        if (!taskPath || !updatedTask) {
-            console.error('updateTaskInCache called with invalid data:', { taskPath, updatedTask });
-            return;
-        }
-        
-        // Update the task directly in CacheManager - it will handle the cache update
-        await this.plugin.cacheManager.updateTaskInfoInCache(taskPath, updatedTask);
-    }
-    
-    /**
-     * Get current task from cache
-     */
-    private async getTaskFromCache(taskPath: string): Promise<TaskInfo | null> {
-        if (!taskPath) return null;
-        // Get task directly from CacheManager
-        return this.plugin.cacheManager.getTaskInfo(taskPath, false);
-    }
     
     
     openTask(path: string) {

@@ -420,9 +420,5 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         }
     }
     
-    // Add update animation
-    element.classList.add('task-updated');
-    setTimeout(() => {
-        element.classList.remove('task-updated');
-    }, 1000);
+    // Animation is now handled separately - don't add it here during reconciler updates
 }
