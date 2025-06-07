@@ -8,6 +8,7 @@ import {
     EVENT_POMODORO_COMPLETE, 
     EVENT_POMODORO_INTERRUPT, 
     EVENT_POMODORO_TICK,
+    EVENT_TASK_UPDATED,
     TaskInfo,
     TimeEntry
 } from '../types';
@@ -168,6 +169,18 @@ export class PomodoroService {
         await this.saveState();
         this.startTimer();
         
+        // Start time tracking on the task if applicable
+        if (task) {
+            try {
+                await this.plugin.taskService.startTimeTracking(task);
+            } catch (error) {
+                // If time tracking is already active, that's fine for Pomodoro
+                if (!error.message?.includes('Time tracking is already active')) {
+                    console.error('Failed to start time tracking for Pomodoro:', error);
+                }
+            }
+        }
+        
         this.plugin.emitter.emit(EVENT_POMODORO_START, { session, task });
         new Notice(`Pomodoro started${task ? ` for: ${task.title}` : ''}`);
     }
@@ -257,6 +270,18 @@ export class PomodoroService {
         }
 
         this.plugin.emitter.emit(EVENT_POMODORO_INTERRUPT, { session: this.state.currentSession });
+
+        // Stop time tracking on the task if applicable
+        if (this.state.currentSession && this.state.currentSession.taskPath) {
+            try {
+                const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, false);
+                if (task) {
+                    await this.plugin.taskService.stopTimeTracking(task);
+                }
+            } catch (error) {
+                console.error('Failed to stop time tracking for Pomodoro interrupt:', error);
+            }
+        }
 
         this.state.currentSession = undefined;
         this.state.isRunning = false;
@@ -366,9 +391,16 @@ export class PomodoroService {
             this.state.currentStreak++;
             this.state.totalMinutesToday += session.duration; // Add actual duration
             
-            // Track time on task if applicable
+            // Stop time tracking on task if applicable
             if (session.taskPath) {
-                await this.trackTimeOnTask(session);
+                try {
+                    const task = await this.plugin.cacheManager.getTaskInfo(session.taskPath, false);
+                    if (task) {
+                        await this.plugin.taskService.stopTimeTracking(task);
+                    }
+                } catch (error) {
+                    console.error('Failed to stop time tracking for Pomodoro completion:', error);
+                }
             }
 
             // Update daily note with pomodoro count
@@ -415,41 +447,6 @@ export class PomodoroService {
         }
     }
 
-    private async trackTimeOnTask(session: PomodoroSession) {
-        if (!session.taskPath) return;
-
-        const file = this.plugin.app.vault.getAbstractFileByPath(session.taskPath);
-        if (!(file instanceof TFile)) return;
-
-        try {
-            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                // Initialize time tracking fields if needed
-                if (!frontmatter.timeEntries) {
-                    frontmatter.timeEntries = [];
-                }
-
-                // Create time entry with new format
-                const entry = {
-                    startTime: session.startTime,
-                    endTime: session.endTime!,
-                    description: 'Pomodoro session'
-                };
-                frontmatter.timeEntries.push(entry);
-
-                // Remove old timeSpent field if it exists
-                delete frontmatter.timeSpent;
-
-                // Update modified date using field mapper
-                const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
-                frontmatter[dateModifiedField] = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
-            });
-
-            // Emit task update event
-            this.plugin.emitter.emit('task-updated', { path: session.taskPath });
-        } catch (error) {
-            console.error('Failed to track time on task:', error);
-        }
-    }
 
     private async updateDailyNotePomodoros() {
         try {
@@ -588,6 +585,7 @@ export class PomodoroService {
             session: this.state.currentSession 
         });
     }
+
 
     cleanup() {
         this.stopTimer();
