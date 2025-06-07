@@ -3026,29 +3026,7 @@
     gap: var(--cs-spacing-sm);
 }
 
-.agenda-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--cs-spacing-xs);
-    padding: var(--cs-spacing-sm);
-    background: var(--background-primary-alt);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--cs-radius-md);
-    transition: var(--cs-transition-fast);
-    cursor: pointer;
-}
-
-.agenda-item:hover {
-    background: var(--background-modifier-hover);
-}
-
-.agenda-item.task-item {
-    border-left: 3px solid var(--text-error);
-}
-
-.agenda-item.note-item {
-    border-left: 3px solid var(--text-success);
-}
+/* Remove old agenda-item styling - cards should use their own styles */
 
 .item-title {
     font-weight: 500;
@@ -3658,25 +3636,7 @@
     margin-left: 0;
 }
 
-.agenda-item {
-    display: flex;
-    align-items: flex-start;
-    padding: 12px 16px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    margin-bottom: 8px;
-}
-
-.agenda-item:hover {
-    background: var(--background-modifier-hover);
-    border-color: var(--interactive-accent-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
+/* Remove conflicting agenda-item styles - let cards use their own styling */
 
 /* Only keep essential overrides for agenda view */
 .agenda-item.note-item {
@@ -3809,27 +3769,9 @@
     opacity: 0.8;
 }
 
-/* Flat list styles */
-.agenda-item-list.flat-list {
-    gap: 8px;
-}
+/* Flat list uses same card styling as grouped view */
 
-.agenda-item-list.flat-list .agenda-item {
-    border-radius: 8px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-}
-
-/* Task status specific styles */
-.agenda-item.task-item.done {
-    opacity: 0.6;
-    border-left-color: var(--color-base-40);
-}
-
-.agenda-item.task-item.done .item-title {
-    text-decoration: line-through;
-    color: var(--text-muted);
-}
+/* Task status styling handled by task-card component */
 
 /* Pomodoro View Styles */
 .pomodoro-view-container {

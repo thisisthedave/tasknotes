@@ -402,8 +402,7 @@ export class AgendaView extends ItemView {
             targetDate: date
         });
         
-        // Add agenda-specific styling
-        taskCard.classList.add('agenda-item', 'task-item');
+        // Task cards use their native styling
         
         // Add completion status class if task is completed
         if (this.plugin.statusManager.isCompletedStatus(task.status)) {
@@ -428,8 +427,7 @@ export class AgendaView extends ItemView {
             showDailyNoteBadge: false // Notes in agenda are contextual to date
         });
         
-        // Add agenda-specific styling
-        noteCard.classList.add('agenda-item', 'note-item');
+        // Note cards use their native styling
         
         // Add date if not grouping by date
         if (!this.groupByDate && date) {
