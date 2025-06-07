@@ -22,6 +22,7 @@ export class AgendaView extends ItemView {
     private daysToShow: number = 7;
     private groupByDate: boolean = true;
     private showOverdueOnToday: boolean = false;
+    private showNotes: boolean = true;
     private startDate: Date;
     
     // Filter system
@@ -150,7 +151,47 @@ export class AgendaView extends ItemView {
     private async createAgendaControls(container: HTMLElement) {
         const controlsContainer = container.createDiv({ cls: 'agenda-controls' });
         
-        // FilterBar container
+        // Header section with date range and navigation (like tasks view)
+        const headerSection = controlsContainer.createDiv({ cls: 'agenda-header-section' });
+        
+        const headerContent = headerSection.createDiv({ cls: 'agenda-header-content' });
+        
+        // Navigation controls
+        const prevButton = headerContent.createEl('button', {
+            cls: 'nav-arrow-button',
+            text: '‹',
+            attr: {
+                'aria-label': 'Previous period',
+                'title': 'Previous period (Left arrow)'
+            }
+        });
+        
+        // Current period display (large, styled like tasks view date)
+        const currentPeriodDisplay = headerContent.createDiv({ 
+            cls: 'agenda-period-title',
+            text: this.getCurrentPeriodText()
+        });
+        
+        const nextButton = headerContent.createEl('button', {
+            cls: 'nav-arrow-button',
+            text: '›',
+            attr: {
+                'aria-label': 'Next period',
+                'title': 'Next period (Right arrow)'
+            }
+        });
+        
+        prevButton.addEventListener('click', () => {
+            this.navigateToPreviousPeriod();
+            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
+        });
+        
+        nextButton.addEventListener('click', () => {
+            this.navigateToNextPeriod();
+            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
+        });
+        
+        // FilterBar section (like tasks view)
         const filterBarContainer = controlsContainer.createDiv({ cls: 'agenda-filter-bar-container' });
         
         // Get filter options from FilterService
@@ -180,66 +221,13 @@ export class AgendaView extends ItemView {
             this.refresh();
         });
         
-        // Row 1: Period Navigation
-        const navigationRow = controlsContainer.createDiv({ cls: 'controls-row navigation-row' });
+        // Settings section with period selector, today button, and toggles
+        const settingsSection = controlsContainer.createDiv({ cls: 'agenda-settings-section' });
         
-        // Navigation controls group
-        const navGroup = navigationRow.createDiv({ cls: 'nav-group' });
+        // Left side: Period selector and Today button
+        const leftControls = settingsSection.createDiv({ cls: 'agenda-left-controls' });
         
-        const prevButton = navGroup.createEl('button', {
-            cls: 'nav-arrow-button tasknotes-button',
-            text: '‹',
-            attr: {
-                'aria-label': 'Previous period',
-                'title': 'Previous period (Left arrow)'
-            }
-        });
-        
-        prevButton.addEventListener('click', () => {
-            this.navigateToPreviousPeriod();
-            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
-        });
-        
-        // Current period display
-        const currentPeriodDisplay = navGroup.createDiv({ 
-            cls: 'current-period-display',
-            text: this.getCurrentPeriodText()
-        });
-        
-        const nextButton = navGroup.createEl('button', {
-            cls: 'nav-arrow-button tasknotes-button',
-            text: '›',
-            attr: {
-                'aria-label': 'Next period',
-                'title': 'Next period (Right arrow)'
-            }
-        });
-        
-        nextButton.addEventListener('click', () => {
-            this.navigateToNextPeriod();
-            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
-        });
-        
-        const todayButton = navigationRow.createEl('button', {
-            text: 'Today',
-            cls: 'today-button tasknotes-button tasknotes-button-primary'
-        });
-        
-        todayButton.addEventListener('click', () => {
-            this.startDate = new Date();
-            this.refresh();
-            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
-        });
-        
-        // Row 2: View Options
-        const optionsRow = controlsContainer.createDiv({ cls: 'controls-row options-row' });
-        
-        // Period selector
-        const periodContainer = optionsRow.createDiv({ cls: 'option-group period-selector' });
-        
-        periodContainer.createEl('label', { text: 'Period:', cls: 'option-label' });
-        
-        const periodSelect = periodContainer.createEl('select', { cls: 'period-select' });
+        const periodSelect = leftControls.createEl('select', { cls: 'agenda-period-select' });
         const periods = [
             { value: '7', text: '7 days' },
             { value: '14', text: '14 days' },
@@ -274,21 +262,45 @@ export class AgendaView extends ItemView {
             currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
+        const todayButton = leftControls.createEl('button', {
+            text: 'Today',
+            cls: 'agenda-today-button'
+        });
         
-        // Show overdue tasks on today toggle
-        const overdueContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
+        todayButton.addEventListener('click', () => {
+            this.startDate = new Date();
+            this.refresh();
+            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
+        });
         
-        const overdueToggle = overdueContainer.createEl('label', { cls: 'toggle-label' });
+        // Right side: Toggles
+        const rightControls = settingsSection.createDiv({ cls: 'agenda-right-controls' });
         
+        // Show overdue tasks toggle
+        const overdueToggle = rightControls.createEl('label', { cls: 'agenda-toggle' });
         const overdueCheckbox = overdueToggle.createEl('input', { 
             type: 'checkbox',
-            cls: 'toggle-checkbox'
+            cls: 'agenda-toggle-checkbox'
         });
         overdueCheckbox.checked = this.showOverdueOnToday;
-        overdueToggle.createSpan({ text: 'Show overdue tasks on current date' });
+        overdueToggle.createSpan({ text: 'Overdue on today' });
         
         overdueCheckbox.addEventListener('change', () => {
             this.showOverdueOnToday = overdueCheckbox.checked;
+            this.refresh();
+        });
+        
+        // Show notes toggle
+        const notesToggle = rightControls.createEl('label', { cls: 'agenda-toggle' });
+        const notesCheckbox = notesToggle.createEl('input', { 
+            type: 'checkbox',
+            cls: 'agenda-toggle-checkbox'
+        });
+        notesCheckbox.checked = this.showNotes;
+        notesToggle.createSpan({ text: 'Show notes' });
+        
+        notesCheckbox.addEventListener('change', () => {
+            this.showNotes = notesCheckbox.checked;
             this.refresh();
         });
     }
@@ -390,14 +402,14 @@ export class AgendaView extends ItemView {
                     return false;
                 });
                 
-                // Filter notes for this date
-                const notesForDate = allNotes.filter(note => {
+                // Filter notes for this date (if notes are enabled)
+                const notesForDate = this.showNotes ? allNotes.filter(note => {
                     if (note.createdDate) {
                         const noteCreatedDate = note.createdDate.split('T')[0];
                         return noteCreatedDate === dateStr;
                     }
                     return false;
-                });
+                }) : [];
                 
                 return { date, tasks: tasksForDate, notes: notesForDate };
             });

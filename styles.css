@@ -3525,12 +3525,114 @@
 }
 
 .agenda-controls {
-    margin-bottom: 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--background-modifier-border);
+    gap: var(--cs-spacing-md);
+    margin-bottom: var(--cs-spacing-md);
+}
+
+/* Header section - styled like tasks view date header */
+.agenda-header-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--cs-spacing-sm) 0;
+}
+
+.agenda-header-content {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-sm);
+}
+
+.agenda-period-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-normal);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 0 var(--cs-spacing-sm);
+}
+
+.agenda-header-content .nav-arrow-button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: var(--cs-spacing-xs);
+    border-radius: var(--cs-radius-sm);
+    transition: all var(--cs-transition-fast);
+}
+
+.agenda-header-content .nav-arrow-button:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+/* Filter bar section - matches tasks view */
+.agenda-filter-bar-container {
+    /* Inherits styling from existing filter-bar styles */
+}
+
+/* Settings section */
+.agenda-settings-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--cs-spacing-md);
+    padding: var(--cs-spacing-sm) 0;
+}
+
+.agenda-left-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-sm);
+}
+
+.agenda-period-select {
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    min-width: 100px;
+}
+
+.agenda-today-button {
+    padding: 4px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+}
+
+.agenda-today-button:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--background-modifier-border-hover);
+}
+
+.agenda-right-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-md);
+}
+
+.agenda-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+    font-size: var(--cs-text-sm);
+    color: var(--text-normal);
+    cursor: pointer;
+}
+
+.agenda-toggle-checkbox {
+    margin: 0;
 }
 
 .agenda-nav {
