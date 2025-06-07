@@ -30,18 +30,18 @@ export class TaskCreationModal extends Modal {
 	}
 	
 	// Get existing contexts from cache for instant autocomplete
-	getExistingContexts(): Promise<string[]> {
+	async getExistingContexts(): Promise<string[]> {
 		// Use the new instant cache method for contexts
-		return Promise.resolve(this.plugin.cacheManager.getAllContexts());
+		return await this.plugin.cacheManager.getAllContexts();
 	}
 	
 	// Get existing tags from cache for instant autocomplete  
-	getExistingTags(): Promise<string[]> {
+	async getExistingTags(): Promise<string[]> {
 		// Use the new instant cache method for tags
-		const allTags = this.plugin.cacheManager.getAllTags();
+		const allTags = await this.plugin.cacheManager.getAllTags();
 		// Filter out the default task tag
 		const filteredTags = allTags.filter(tag => tag !== this.plugin.settings.taskTag);
-		return Promise.resolve(filteredTags);
+		return filteredTags;
 	}
   
 	onOpen() {

@@ -26,10 +26,7 @@ export class TaskListView extends ItemView {
     private taskListContainer: HTMLElement | null = null;
     private loadingIndicator: HTMLElement | null = null;
     
-    // Cached data
-    private cachedTasks: TaskInfo[] | null = null;
-    private lastTasksRefresh: number = 0;
-    private readonly TASKS_CACHE_TTL = 60000; // 1 minute TTL for tasks cache
+    // Removed redundant local caching - CacheManager is the single source of truth
     
     // Loading states
     private isTasksLoading: boolean = false;
@@ -73,10 +70,8 @@ export class TaskListView extends ItemView {
         this.listeners.forEach(unsubscribe => unsubscribe());
         this.listeners = [];
         
-        // Listen for date selection changes - force a full refresh when date changes
+        // Listen for date selection changes - refresh when date changes
         const dateListener = this.plugin.emitter.on(EVENT_DATE_SELECTED, () => {
-            this.cachedTasks = null;
-            this.lastTasksRefresh = 0;
             this.refresh(true); // Force refresh on date change
         });
         this.listeners.push(dateListener);
@@ -88,14 +83,14 @@ export class TaskListView extends ItemView {
         this.listeners.push(dataListener);
         
         // Listen for individual task updates
-        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, updatedTask }) => {
+        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, async ({ path, updatedTask }) => {
             if (!path || !updatedTask) {
                 console.error('EVENT_TASK_UPDATED received invalid data:', { path, updatedTask });
                 return;
             }
             
-            // Update the data in the view's local cache
-            this.updateTaskInCache(path, updatedTask);
+            // Update the data in the cache manager
+            await this.updateTaskInCache(path, updatedTask);
             // Update the single task element in the DOM without a full refresh
             this.updateTaskElementInDOM(path, updatedTask);
         });
@@ -114,10 +109,8 @@ export class TaskListView extends ItemView {
     
     async refresh(forceFullRefresh: boolean = false) {
         return perfMonitor.measure('task-list-refresh', async () => {
-            // If forcing a full refresh, clear the caches
+            // If forcing a full refresh, clear the task elements tracking
             if (forceFullRefresh) {
-                this.cachedTasks = null;
-                this.lastTasksRefresh = 0;
                 this.taskElements.clear();
             }
             
@@ -628,16 +621,6 @@ export class TaskListView extends ItemView {
                 this.isTasksLoading = true;
                 this.updateLoadingState();
                 
-                // Use cached tasks if available and not forcing refresh - important for UI stability
-                const now = Date.now();
-                if (!forceRefresh && 
-                    this.cachedTasks && 
-                    now - this.lastTasksRefresh < this.TASKS_CACHE_TTL) {
-                    // Wait a little bit before returning to allow temp UI changes to be visible
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    return [...this.cachedTasks]; // Return a copy to prevent modification of cache
-                }
-                
                 // Use request deduplication for cache requests
                 const cacheKey = `tasks-${format(this.plugin.selectedDate, 'yyyy-MM-dd')}-${forceRefresh}`;
                 const tasks = await this.plugin.requestDeduplicator.execute(
@@ -671,10 +654,6 @@ export class TaskListView extends ItemView {
                     // Then sort by priority using PriorityManager
                     return this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
                 });
-                
-                // Update cache and timestamp - we need a fresh cache 
-                this.cachedTasks = [...sortedResult];
-                this.lastTasksRefresh = now;
                 
                 return sortedResult;
             } finally {
@@ -825,26 +804,25 @@ export class TaskListView extends ItemView {
     
     
     /**
-     * Update a task in the cached tasks array
+     * Update a task in the cache manager
      */
-    private updateTaskInCache(taskPath: string, updatedTask: TaskInfo): void {
-        if (!this.cachedTasks || !taskPath || !updatedTask) {
-            console.error('updateTaskInCache called with invalid data:', { taskPath, updatedTask, hasCachedTasks: !!this.cachedTasks });
+    private async updateTaskInCache(taskPath: string, updatedTask: TaskInfo): Promise<void> {
+        if (!taskPath || !updatedTask) {
+            console.error('updateTaskInCache called with invalid data:', { taskPath, updatedTask });
             return;
         }
         
-        const index = this.cachedTasks.findIndex(t => t && t.path === taskPath);
-        if (index !== -1) {
-            this.cachedTasks[index] = updatedTask;
-        }
+        // Update the task directly in CacheManager - it will handle the cache update
+        await this.plugin.cacheManager.updateTaskInfoInCache(taskPath, updatedTask);
     }
     
     /**
      * Get current task from cache
      */
-    private getTaskFromCache(taskPath: string): TaskInfo | undefined {
-        if (!this.cachedTasks || !taskPath) return undefined;
-        return this.cachedTasks.find(t => t && t.path === taskPath);
+    private async getTaskFromCache(taskPath: string): Promise<TaskInfo | null> {
+        if (!taskPath) return null;
+        // Get task directly from CacheManager
+        return this.plugin.cacheManager.getTaskInfo(taskPath, false);
     }
     
     /**

@@ -98,6 +98,64 @@
     animation: task-fade-in 300ms ease-out;
 }
 
+/* ================================================
+   UNIFIED CARD BASE CLASS (BEM Methodology)
+   ================================================ */
+
+/* Base card class with common properties */
+.tasknotes-card {
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+    border-radius: var(--cs-radius-sm);
+    font-size: var(--cs-text-base);
+    line-height: 1.4;
+}
+
+.tasknotes-card:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--background-modifier-border-hover);
+}
+
+/* Card modifiers for different sizes */
+.tasknotes-card--compact {
+    padding: var(--cs-spacing-sm);
+    border-radius: var(--cs-radius-sm);
+}
+
+.tasknotes-card--normal {
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    border-radius: var(--cs-radius-sm);
+}
+
+.tasknotes-card--spacious {
+    padding: var(--cs-spacing-lg);
+    border-radius: var(--cs-radius-md);
+}
+
+/* Card modifiers for different shadows */
+.tasknotes-card--shadow-light {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.tasknotes-card--shadow-medium {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Card modifiers for layout */
+.tasknotes-card--flex {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--cs-spacing-sm);
+}
+
+.tasknotes-card--flex-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-sm);
+}
+
 /* Active time tracking indicator */
 .task-card.actively-tracked {
     position: relative;
@@ -1324,15 +1382,8 @@
 }
 
 .task-item {
-    padding: var(--cs-spacing-lg);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--cs-radius-md);
-    display: flex;
-    flex-direction: column;
-    gap: var(--cs-spacing-sm);
+    /* Extend base card with specific task item properties */
     transition: all var(--cs-transition-normal);
-    background-color: var(--background-primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
     margin-bottom: var(--cs-spacing-md);
     position: relative;
     overflow: hidden;
@@ -2365,13 +2416,7 @@
 }
 
 .note-item {
-    padding: var(--cs-spacing-sm);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--cs-radius-sm);
-    cursor: pointer;
-    transition: all var(--cs-transition-fast);
-    background-color: var(--background-primary);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    /* Extend base card with specific note card properties */
     transform: translateZ(0); /* Hardware acceleration */
     height: auto;
     min-height: fit-content;
@@ -3986,24 +4031,9 @@
    ================================================ */
 
 .task-card {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--cs-spacing-sm);
-    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
-    border: 1px solid var(--background-modifier-border);
+    /* Extend base card with specific task card properties */
     border-left: 3px solid var(--priority-color, var(--text-muted));
-    border-radius: var(--cs-radius-sm);
-    background: var(--background-primary);
-    cursor: pointer;
-    transition: all var(--cs-transition-fast);
-    font-size: var(--cs-text-base);
-    line-height: 1.4;
     min-height: calc(var(--cs-touch-target) + var(--cs-spacing-sm));
-}
-
-.task-card:hover {
-    background: var(--background-modifier-hover);
-    border-color: var(--background-modifier-border-hover);
 }
 
 .task-card.completed .task-title {

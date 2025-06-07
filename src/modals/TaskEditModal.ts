@@ -52,7 +52,7 @@ export class TaskEditModal extends Modal {
         contentEl.createEl('h2', { text: 'Edit Task' });
 
         // Load autocomplete suggestions
-        this.loadSuggestions();
+        await this.loadSuggestions();
 
         // Title with character count
         this.createFormGroup(contentEl, 'Title', (container) => {
@@ -269,13 +269,13 @@ export class TaskEditModal extends Modal {
     
     
     // Load suggestions for autocomplete using instant cache methods
-    private loadSuggestions() {
+    private async loadSuggestions() {
         try {
             // Use instant cache methods for contexts and tags
-            this.existingContexts = this.plugin.cacheManager.getAllContexts();
+            this.existingContexts = await this.plugin.cacheManager.getAllContexts();
             
             // Filter out the default task tag from tags
-            const allTags = this.plugin.cacheManager.getAllTags();
+            const allTags = await this.plugin.cacheManager.getAllTags();
             this.existingTags = allTags.filter(tag => tag !== this.plugin.settings.taskTag);
         } catch (error) {
             // Provide fallback suggestions on error

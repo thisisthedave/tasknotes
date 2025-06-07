@@ -15,10 +15,7 @@ export class NotesView extends ItemView {
     // UI elements
     private loadingIndicator: HTMLElement | null = null;
     
-    // Cached data
-    private cachedNotes: NoteInfo[] | null = null;
-    private lastNotesRefresh: number = 0;
-    private readonly NOTES_CACHE_TTL = 60000; // 1 minute TTL for notes cache
+    // Removed redundant local caching - CacheManager is the single source of truth
     
     // Loading states
     private isNotesLoading: boolean = false;
@@ -53,8 +50,6 @@ export class NotesView extends ItemView {
         
         // Listen for date selection changes - force a full refresh when date changes
         const dateListener = this.plugin.emitter.on(EVENT_DATE_SELECTED, () => {
-            this.cachedNotes = null;
-            this.lastNotesRefresh = 0;
             this.refresh(true); // Force refresh on date change
         });
         this.listeners.push(dateListener);
@@ -77,11 +72,7 @@ export class NotesView extends ItemView {
     }
     
     async refresh(forceFullRefresh: boolean = false) {
-        // If forcing a full refresh, clear the caches
-        if (forceFullRefresh) {
-            this.cachedNotes = null;
-            this.lastNotesRefresh = 0;
-        }
+        // Force refresh is handled by CacheManager
         
         // Try to preserve scroll position if not forcing full refresh
         const existingContainer = this.contentEl.querySelector('.tasknotes-container');
@@ -95,7 +86,7 @@ export class NotesView extends ItemView {
         
         // Clear and prepare the content element
         this.contentEl.empty();
-        await this.render();
+        await this.render(forceFullRefresh);
         
         // Restore scroll position
         if (scrollTop > 0) {
@@ -106,14 +97,14 @@ export class NotesView extends ItemView {
         }
     }
     
-    async render() {
+    async render(forceRefresh: boolean = false) {
         const container = this.contentEl.createDiv({ cls: 'tasknotes-container notes-view-container' });
         
         // Create header with current date information
         this.createHeader(container);
         
         // Create notes content
-        await this.createNotesContent(container);
+        await this.createNotesContent(container, forceRefresh);
     }
     
     createHeader(container: HTMLElement) {
@@ -146,9 +137,7 @@ export class NotesView extends ItemView {
             refreshButton.textContent = 'Refreshing...';
             
             try {
-                // Force refresh the notes cache
-                this.cachedNotes = null;
-                this.lastNotesRefresh = 0;
+                // Force refresh through CacheManager
                 await this.refresh(true);
             } finally {
                 refreshButton.classList.remove('is-loading');
@@ -158,7 +147,7 @@ export class NotesView extends ItemView {
         });
     }
     
-    async createNotesContent(container: HTMLElement) {
+    async createNotesContent(container: HTMLElement, forceRefresh: boolean = false) {
         // Notes list
         const notesList = container.createDiv({ cls: 'notes-list' });
         
@@ -173,7 +162,7 @@ export class NotesView extends ItemView {
         this.updateLoadingState();
         
         // Get notes for the current view
-        const notes = await this.getNotesForView();
+        const notes = await this.getNotesForView(forceRefresh);
         
         // Hide loading state
         this.isNotesLoading = false;
@@ -226,16 +215,6 @@ export class NotesView extends ItemView {
             this.isNotesLoading = true;
             this.updateLoadingState();
             
-            // Use cached notes if available and not forcing refresh
-            const now = Date.now();
-            if (!forceRefresh && 
-                this.cachedNotes && 
-                now - this.lastNotesRefresh < this.NOTES_CACHE_TTL) {
-                // Wait a little bit before returning to allow temp UI changes to be visible
-                await new Promise(resolve => setTimeout(resolve, 100));
-                return [...this.cachedNotes]; // Return a copy to prevent modification of cache
-            }
-            
             // Use the CacheManager to get notes information for the specific date
             const notes = await this.plugin.cacheManager.getNotesForDate(this.plugin.selectedDate, forceRefresh);
             
@@ -244,10 +223,6 @@ export class NotesView extends ItemView {
             
             // Sort notes by title
             const sortedResult = filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
-            
-            // Update cache and timestamp
-            this.cachedNotes = [...sortedResult];
-            this.lastNotesRefresh = now;
             
             return sortedResult;
         } finally {

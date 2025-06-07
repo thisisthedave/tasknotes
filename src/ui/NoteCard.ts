@@ -26,7 +26,7 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
     const opts = { ...DEFAULT_NOTE_CARD_OPTIONS, ...options };
     
     const item = document.createElement('div');
-    item.className = 'note-item tasknotes-card';
+    item.className = 'tasknotes-card tasknotes-card--compact tasknotes-card--shadow-light note-item';
     item.dataset.notePath = note.path;
     
     // Check if this is a daily note

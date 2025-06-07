@@ -593,8 +593,11 @@ export class CacheManager {
      * Update task indexes when task info changes
      */
     private updateTaskIndexes(path: string, taskInfo: TaskInfo): void {
-        // Remove from old indexes first
-        this.removeFromIndexes(path, 'task');
+        // Get old task info for targeted removal
+        const oldTaskInfo = this.taskInfoCache.get(path);
+        
+        // Remove from old indexes using targeted removal
+        this.removeFromIndexes(path, 'task', oldTaskInfo);
         
         // Add to new indexes
         if (taskInfo.due) {
@@ -641,8 +644,11 @@ export class CacheManager {
      * Update note indexes when note info changes
      */
     private updateNoteIndexes(path: string, noteInfo: NoteInfo): void {
-        // Remove from old indexes
-        this.removeFromIndexes(path, 'note');
+        // Get old note info for targeted removal
+        const oldNoteInfo = this.noteInfoCache.get(path);
+        
+        // Remove from old indexes using targeted removal
+        this.removeFromIndexes(path, 'note', oldNoteInfo);
         
         // Add to new indexes
         if (noteInfo.createdDate) {
@@ -676,50 +682,110 @@ export class CacheManager {
     }
     
     /**
-     * Remove file from all indexes
+     * Remove file from indexes using targeted removal when old data is available
      */
-    private removeFromIndexes(path: string, type?: 'task' | 'note'): void {
-        // Remove from date indexes
-        for (const [dateStr, paths] of this.tasksByDate) {
-            paths.delete(path);
-            if (paths.size === 0) {
-                this.tasksByDate.delete(dateStr);
+    private removeFromIndexes(path: string, type?: 'task' | 'note', oldData?: TaskInfo | NoteInfo): void {
+        if (oldData && type === 'task') {
+            // Targeted removal for tasks using old task data
+            const oldTask = oldData as TaskInfo;
+            
+            // Remove from specific date index
+            if (oldTask.due) {
+                const dateStr = oldTask.due;
+                const pathSet = this.tasksByDate.get(dateStr);
+                if (pathSet) {
+                    pathSet.delete(path);
+                    if (pathSet.size === 0) {
+                        this.tasksByDate.delete(dateStr);
+                    }
+                }
+            }
+            
+            // Remove from specific status index
+            if (oldTask.status) {
+                const pathSet = this.tasksByStatus.get(oldTask.status);
+                if (pathSet) {
+                    pathSet.delete(path);
+                    if (pathSet.size === 0) {
+                        this.tasksByStatus.delete(oldTask.status);
+                    }
+                }
+            }
+            
+            // Remove from specific priority index
+            if (oldTask.priority) {
+                const pathSet = this.tasksByPriority.get(oldTask.priority);
+                if (pathSet) {
+                    pathSet.delete(path);
+                    if (pathSet.size === 0) {
+                        this.tasksByPriority.delete(oldTask.priority);
+                    }
+                }
+            }
+            
+            // Rebuild canonical sets to ensure consistency
+            this.rebuildCanonicalSets();
+            
+        } else if (oldData && type === 'note') {
+            // Targeted removal for notes using old note data
+            const oldNote = oldData as NoteInfo;
+            
+            if (oldNote.createdDate) {
+                const dateStr = oldNote.createdDate.split('T')[0];
+                const pathSet = this.notesByDate.get(dateStr);
+                if (pathSet) {
+                    pathSet.delete(path);
+                    if (pathSet.size === 0) {
+                        this.notesByDate.delete(dateStr);
+                    }
+                }
+            }
+            
+        } else {
+            // Fallback to full scan when old data is not available
+            // This maintains backward compatibility for cases where old data isn't known
+            
+            // Remove from all date indexes
+            for (const [dateStr, paths] of this.tasksByDate) {
+                paths.delete(path);
+                if (paths.size === 0) {
+                    this.tasksByDate.delete(dateStr);
+                }
+            }
+            
+            for (const [dateStr, paths] of this.notesByDate) {
+                paths.delete(path);
+                if (paths.size === 0) {
+                    this.notesByDate.delete(dateStr);
+                }
+            }
+            
+            // Remove from other task indexes
+            for (const [status, paths] of this.tasksByStatus) {
+                paths.delete(path);
+                if (paths.size === 0) {
+                    this.tasksByStatus.delete(status);
+                }
+            }
+            
+            for (const [priority, paths] of this.tasksByPriority) {
+                paths.delete(path);
+                if (paths.size === 0) {
+                    this.tasksByPriority.delete(priority);
+                }
+            }
+            
+            // For canonical sets, rebuild when a task is removed
+            if (type === 'task') {
+                this.rebuildCanonicalSets();
             }
         }
         
-        for (const [dateStr, paths] of this.notesByDate) {
-            paths.delete(path);
-            if (paths.size === 0) {
-                this.notesByDate.delete(dateStr);
-            }
-        }
-        
-        // Remove from other task indexes
-        for (const [status, paths] of this.tasksByStatus) {
-            paths.delete(path);
-            if (paths.size === 0) {
-                this.tasksByStatus.delete(status);
-            }
-        }
-        
-        for (const [priority, paths] of this.tasksByPriority) {
-            paths.delete(path);
-            if (paths.size === 0) {
-                this.tasksByPriority.delete(priority);
-            }
-        }
-        
-        // Remove from daily notes if applicable
+        // Remove from daily notes if applicable (this doesn't need old data)
         const fileName = path.split('/').pop() || '';
         if (/^\d{4}-\d{2}-\d{2}\.md$/.test(fileName)) {
             const dateStr = fileName.replace('.md', '');
             this.dailyNotes.delete(dateStr);
-        }
-        
-        // For canonical sets, we need to rebuild them completely when a task is removed
-        // This is simpler and more reliable than trying to track individual removals
-        if (type === 'task') {
-            this.rebuildCanonicalSets();
         }
     }
     
@@ -1061,14 +1127,16 @@ export class CacheManager {
     /**
      * Get all unique contexts across all tasks (sorted)
      */
-    getAllContexts(): string[] {
+    async getAllContexts(): Promise<string[]> {
+        await this.ensureInitialized();
         return Array.from(this.allContexts).sort();
     }
     
     /**
      * Get all unique tags across all tasks (sorted)
      */
-    getAllTags(): string[] {
+    async getAllTags(): Promise<string[]> {
+        await this.ensureInitialized();
         return Array.from(this.allTags).sort();
     }
     
