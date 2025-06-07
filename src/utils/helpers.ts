@@ -32,13 +32,14 @@ export function debounce<T extends (...args: any[]) => any>(
  */
 export async function ensureFolderExists(vault: Vault, folderPath: string): Promise<void> {
 	try {
-		const folders = folderPath.split('/').filter(folder => folder.length > 0);
+		const normalizedFolderPath = normalizePath(folderPath);
+		const folders = normalizedFolderPath.split('/').filter(folder => folder.length > 0);
 		let currentPath = '';
 		
 		for (const folder of folders) {
 			currentPath = currentPath ? `${currentPath}/${folder}` : folder;
-			const exists = await vault.adapter.exists(currentPath);
-			if (!exists) {
+			const abstractFile = vault.getAbstractFileByPath(currentPath);
+			if (!abstractFile) {
 				await vault.createFolder(currentPath);
 			}
 		}

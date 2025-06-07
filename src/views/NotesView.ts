@@ -1,4 +1,4 @@
-import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf, Setting } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
@@ -114,7 +114,9 @@ export class NotesView extends ItemView {
         
         // Display selected date
         const formattedDate = format(this.plugin.selectedDate, 'EEEE, MMMM d, yyyy');
-        headerContainer.createEl('h2', { text: formattedDate });
+        new Setting(headerContainer)
+            .setName(formattedDate)
+            .setHeading();
         
         // Add actions
         const actionsContainer = headerContainer.createDiv({ cls: 'detail-view-actions' });

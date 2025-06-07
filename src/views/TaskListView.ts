@@ -1,4 +1,4 @@
-import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf, Setting } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
@@ -231,7 +231,9 @@ export class TaskListView extends ItemView {
         
         // Display selected date
         const formattedDate = format(this.plugin.selectedDate, 'EEEE, MMMM d, yyyy');
-        headerContainer.createEl('h2', { text: formattedDate });
+        new Setting(headerContainer)
+            .setName(formattedDate)
+            .setHeading();
         
         // Add actions
         const actionsContainer = headerContainer.createDiv({ cls: 'detail-view-actions' });
@@ -411,10 +413,10 @@ export class TaskListView extends ItemView {
             
             // Add group header (skip only if grouping is 'none' and group name is 'all')
             if (!(this.currentQuery.groupKey === 'none' && groupName === 'all')) {
-                const groupHeader = groupSection.createEl('h4', { 
-                    cls: 'task-group-header',
-                    text: this.formatGroupName(groupName)
-                });
+                const groupHeaderSetting = new Setting(groupSection)
+                    .setName(this.formatGroupName(groupName))
+                    .setHeading();
+                groupHeaderSetting.settingEl.addClass('task-group-header');
             }
             
             // Create task cards container

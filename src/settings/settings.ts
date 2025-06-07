@@ -325,7 +325,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const warningIcon = warning.createEl('strong', { text: '⚠️ Warning:' });
 		warning.createSpan({ text: ' TaskNotes will read AND write using these property names. Changing these after creating tasks may cause inconsistencies.' });
 		
-		container.createEl('h3', { text: 'Field mapping' });
+		new Setting(container)
+			.setName('Field mapping')
+			.setHeading();
 		container.createEl('p', { 
 			text: 'Configure which frontmatter properties TaskNotes should use for each field.'
 		});
@@ -386,7 +388,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 	private renderStatusesTab(): void {
 		const container = this.tabContents['statuses'];
 		
-		container.createEl('h3', { text: 'Task statuses' });
+		new Setting(container)
+			.setName('Task statuses')
+			.setHeading();
 		container.createEl('p', { 
 			text: 'Define the statuses available for your tasks. The order determines the cycling sequence.'
 		});
@@ -492,7 +496,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 	private renderPrioritiesTab(): void {
 		const container = this.tabContents['priorities'];
 		
-		container.createEl('h3', { text: 'Task priorities' });
+		new Setting(container)
+			.setName('Task priorities')
+			.setHeading();
 		container.createEl('p', { 
 			text: 'Define the priority levels for your tasks. Higher weight = higher priority.'
 		});

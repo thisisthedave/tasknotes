@@ -1,4 +1,4 @@
-import { TFile, Vault } from 'obsidian';
+import { TFile, Vault, normalizePath } from 'obsidian';
 import { TaskInfo, NoteInfo, IndexedFile, FileEventHandlers } from '../types';
 import { extractNoteInfo, extractTaskInfo, debounce } from './helpers';
 import { FieldMapper } from '../services/FieldMapper';
@@ -76,7 +76,7 @@ export class CacheManager {
         this.excludedFolders = excludedFolders 
             ? excludedFolders.split(',').map(folder => folder.trim())
             : [];
-        this.dailyNotesPath = dailyNotesPath.replace(/^\/+|\/+$/g, '');
+        this.dailyNotesPath = normalizePath(dailyNotesPath);
         this.dailyNoteTemplatePath = dailyNoteTemplatePath;
         this.fieldMapper = fieldMapper || null;
         
@@ -493,7 +493,6 @@ export class CacheManager {
         try {
             await this.initializationPromise;
             this.initialized = true;
-            console.log('CacheManager: Initialization completed successfully');
         } catch (error) {
             console.error('CacheManager: Initialization failed:', error);
             // Reset the promise so it can be retried
@@ -692,7 +691,7 @@ export class CacheManager {
      * Update daily notes index
      */
     private updateDailyNotesIndex(path: string): void {
-        const normalizedPath = this.dailyNotesPath.replace(/^\/+|\/+$/g, '');
+        const normalizedPath = normalizePath(this.dailyNotesPath);
         
         // Check if this file is in the daily notes folder with correct format
         const isInDailyNotesFolder = 
@@ -1042,7 +1041,7 @@ export class CacheManager {
                 : [];
         }
         if (dailyNotesPath !== undefined) {
-            this.dailyNotesPath = dailyNotesPath.replace(/^\/+|\/+$/g, '');
+            this.dailyNotesPath = normalizePath(dailyNotesPath);
         }
         if (dailyNoteTemplatePath !== undefined) {
             this.dailyNoteTemplatePath = dailyNoteTemplatePath;
@@ -1120,7 +1119,7 @@ export class CacheManager {
         
         // Get all files and filter for daily notes in the specified month
         const allFiles = this.vault.getMarkdownFiles();
-        const normalizedPath = this.dailyNotesPath.replace(/^\/+|\/+$/g, '');
+        const normalizedPath = normalizePath(this.dailyNotesPath);
         
         for (const file of allFiles) {
             const path = file.path;

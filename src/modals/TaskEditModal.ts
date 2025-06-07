@@ -1,4 +1,4 @@
-import { App, Notice, TFile } from 'obsidian';
+import { App, Notice, TFile, Setting } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { BaseTaskModal } from './BaseTaskModal';
@@ -33,7 +33,9 @@ export class TaskEditModal extends BaseTaskModal {
     async onOpen() {
         const { contentEl } = this;
         contentEl.addClass('task-edit-modal');
-        contentEl.createEl('h2', { text: 'Edit Task' });
+        new Setting(contentEl)
+            .setName('Edit task')
+            .setHeading();
 
         // Initialize form data and cache autocomplete data
         this.initializeFormData();
@@ -118,7 +120,7 @@ export class TaskEditModal extends BaseTaskModal {
         
         // Open Note button
         const openButton = buttonContainer.createEl('button', { 
-            text: 'Open Note', 
+            text: 'Open note', 
             cls: 'open-note-button' 
         });
         openButton.addEventListener('click', () => {

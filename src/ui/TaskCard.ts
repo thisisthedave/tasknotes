@@ -250,7 +250,7 @@ async function showTaskContextMenu(event: MouseEvent, taskPath: string, plugin: 
         
         // Set Due Date
         menu.addItem((item) => {
-            item.setTitle('Set Due Date...');
+            item.setTitle('Set due date...');
             item.setIcon('calendar');
             item.onClick(() => {
                 // Use the fresh task data that showTaskContextMenu just fetched

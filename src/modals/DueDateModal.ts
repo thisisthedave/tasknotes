@@ -18,7 +18,9 @@ export class DueDateModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
 
-        contentEl.createEl('h2', { text: 'Set Due Date' });
+        new Setting(contentEl)
+            .setName('Set due date')
+            .setHeading();
 
         // Task title display
         contentEl.createEl('p', { 
@@ -53,7 +55,9 @@ export class DueDateModal extends Modal {
 
         // Quick date buttons
         const quickDatesContainer = contentEl.createDiv({ cls: 'quick-dates-container' });
-        quickDatesContainer.createEl('h4', { text: 'Quick Options' });
+        new Setting(quickDatesContainer)
+            .setName('Quick options')
+            .setHeading();
 
         const buttonsContainer = quickDatesContainer.createDiv({ cls: 'quick-date-buttons' });
 
@@ -70,7 +74,7 @@ export class DueDateModal extends Modal {
             });
 
         // Next week button
-        buttonsContainer.createEl('button', { text: 'Next Week', cls: 'quick-date-btn' })
+        buttonsContainer.createEl('button', { text: 'Next week', cls: 'quick-date-btn' })
             .addEventListener('click', () => {
                 this.dueDateInput.value = format(add(new Date(), { weeks: 1 }), 'yyyy-MM-dd');
             });

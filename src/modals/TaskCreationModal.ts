@@ -1,4 +1,4 @@
-import { App, Notice, TFile } from 'obsidian';
+import { App, Notice, TFile, Setting } from 'obsidian';
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import TaskNotesPlugin from '../main';
@@ -30,7 +30,9 @@ export class TaskCreationModal extends BaseTaskModal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.addClass('task-creation-modal');
-		contentEl.createEl('h2', { text: 'Create new task' });
+		new Setting(contentEl)
+			.setName('Create new task')
+			.setHeading();
 
 		// Initialize form data
 		this.initializeFormData();

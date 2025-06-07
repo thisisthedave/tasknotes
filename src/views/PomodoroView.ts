@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, Setting } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     POMODORO_VIEW_TYPE,
@@ -113,7 +113,9 @@ export class PomodoroView extends ItemView {
         
         // Header
         const header = container.createDiv({ cls: 'pomodoro-header' });
-        header.createEl('h2', { text: 'Pomodoro timer' });
+        new Setting(header)
+            .setName('Pomodoro timer')
+            .setHeading();
         
         // Timer display
         const timerSection = container.createDiv({ cls: 'pomodoro-timer-section' });
@@ -135,7 +137,7 @@ export class PomodoroView extends ItemView {
         });
         
         // Add click handler for task selector button
-        this.taskSelectButton.addEventListener('click', async () => {
+        this.registerDomEvent(this.taskSelectButton, 'click', async () => {
             await this.openTaskSelector();
         });
         
@@ -145,7 +147,7 @@ export class PomodoroView extends ItemView {
             text: 'Clear'
         });
         
-        clearButton.addEventListener('click', async () => {
+        this.registerDomEvent(clearButton, 'click', async () => {
             await this.selectTask(null);
         });
         
@@ -192,7 +194,9 @@ export class PomodoroView extends ItemView {
         
         // Statistics
         const statsSection = container.createDiv({ cls: 'pomodoro-stats-section' });
-        statsSection.createEl('h3', { text: 'Today\'s progress' });
+        new Setting(statsSection)
+            .setName('Today\'s progress')
+            .setHeading();
         this.statsDisplay = statsSection.createDiv({ cls: 'pomodoro-stats' });
         
         // Create stat elements and cache references
@@ -209,7 +213,7 @@ export class PomodoroView extends ItemView {
         minutesStat.createSpan({ cls: 'pomodoro-stat-label', text: 'Minutes focused' });
         
         // Add event listeners
-        this.startButton.addEventListener('click', async () => {
+        this.registerDomEvent(this.startButton, 'click', async () => {
             // Prevent double clicks
             if (this.startButton!.hasClass('is-loading')) return;
             this.startButton!.addClass('is-loading');
@@ -226,23 +230,23 @@ export class PomodoroView extends ItemView {
             }
         });
         
-        this.pauseButton.addEventListener('click', () => {
+        this.registerDomEvent(this.pauseButton, 'click', () => {
             this.plugin.pomodoroService.pausePomodoro();
         });
         
-        this.stopButton.addEventListener('click', () => {
+        this.registerDomEvent(this.stopButton, 'click', () => {
             this.plugin.pomodoroService.stopPomodoro();
         });
         
-        workButton.addEventListener('click', async () => {
+        this.registerDomEvent(workButton, 'click', async () => {
             await this.plugin.pomodoroService.startPomodoro(this.currentSelectedTask || undefined);
         });
         
-        shortBreakButton.addEventListener('click', () => {
+        this.registerDomEvent(shortBreakButton, 'click', () => {
             this.plugin.pomodoroService.startBreak(false);
         });
         
-        longBreakButton.addEventListener('click', () => {
+        this.registerDomEvent(longBreakButton, 'click', () => {
             this.plugin.pomodoroService.startBreak(true);
         });
         
