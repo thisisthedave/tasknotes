@@ -304,10 +304,7 @@ export class CacheManager {
             
             // If we have no indexed task files either, rebuild the cache
             if (allIndexedPaths.length === 0 && !forceRefresh) {
-                console.log('CacheManager: No tasks found in cache, rebuilding index...');
-                console.log(`CacheManager: Before rebuild - taskInfoCache: ${this.taskInfoCache.size}, indexedFilesCache: ${this.indexedFilesCache.size}`);
                 await this.initializeCache();
-                console.log(`CacheManager: After rebuild - taskInfoCache: ${this.taskInfoCache.size}, indexedFilesCache: ${this.indexedFilesCache.size}`);
                 
                 // Try again after rebuild
                 const rebuiltIndexedPaths = Array.from(this.indexedFilesCache.keys())
@@ -505,7 +502,6 @@ export class CacheManager {
         
         // Get all markdown files
         const files = this.vault.getMarkdownFiles();
-        console.log(`CacheManager: Initializing cache with ${files.length} files`);
         
         // Process files in batches for better responsiveness
         const batchSize = 50;
@@ -515,7 +511,6 @@ export class CacheManager {
         }
         
         const end = performance.now();
-        console.log(`CacheManager: Cache initialized in ${(end - start).toFixed(2)}ms with ${this.taskInfoCache.size} tasks`);
         
         // Notify subscribers
         this.notifySubscribers('cache-initialized', {
@@ -559,12 +554,7 @@ export class CacheManager {
             
             // Debug logging for task detection
             if (frontmatter?.tags && Array.isArray(frontmatter.tags)) {
-                if (isTask) {
-                    console.log(`CacheManager: Found task file: ${file.path} (tags: ${frontmatter.tags.join(', ')})`);
-                } else if (frontmatter.tags.length > 0) {
-                    // Only log if it has tags but isn't a task (to avoid spam)
-                    console.log(`CacheManager: Non-task file with tags: ${file.path} (tags: ${frontmatter.tags.join(', ')}, looking for: ${this.taskTag})`);
-                }
+                // File has tags - processing handled above
             }
             
             // Create indexed file entry
@@ -872,8 +862,6 @@ export class CacheManager {
         
         if (recentUpdateTime && (now - recentUpdateTime) < CacheManager.RECENT_UPDATE_WINDOW) {
             // Skip cache clearing for recent programmatic updates to prevent race conditions
-            console.log(`CacheManager: Skipping cache clear for ${file.path} due to recent programmatic update`);
-            
             // Clean up old tracking entries
             this.recentUpdates.delete(file.path);
             

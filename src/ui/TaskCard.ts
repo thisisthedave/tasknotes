@@ -198,8 +198,6 @@ async function showTaskContextMenu(event: MouseEvent, taskPath: string, plugin: 
             return;
         }
         
-        // Debug: Log the task state when creating context menu
-        console.log(`Context menu for ${taskPath}: archived=${task.archived}, status=${task.status}`);
         
         const menu = new Menu();
         

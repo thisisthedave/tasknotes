@@ -477,7 +477,6 @@ export class AgendaView extends ItemView {
                     groupByDate: this.groupByDate,
                     targetDate: this.startDate
                 });
-                console.log(`AgendaView: Successfully updated DOM for task ${taskPath}`);
             } catch (error) {
                 console.error(`AgendaView: Error updating DOM for task ${taskPath}:`, error);
                 // If update fails, trigger a full refresh to recover
@@ -486,14 +485,11 @@ export class AgendaView extends ItemView {
         } else if (taskElement && !shouldBeVisible) {
             // Task should be hidden - remove it from the DOM
             taskElement.remove();
-            console.log(`AgendaView: Removed task ${taskPath} from DOM (archived)`);
         } else if (!taskElement && shouldBeVisible) {
             // Task element not found but should be visible - might be a new task
-            console.log(`AgendaView: No element found for task ${taskPath}, triggering refresh`);
             this.refresh();
         } else {
             // Task element not found and shouldn't be visible - nothing to do
-            console.log(`AgendaView: No element found for task ${taskPath}, skipping update (filtered)`);
         }
     }
     

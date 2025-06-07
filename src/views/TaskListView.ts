@@ -779,7 +779,6 @@ export class TaskListView extends ItemView {
         const taskElement = this.taskElements.get(taskPath);
         if (!taskElement) {
             // Task element not found for path - this is normal for new tasks or filtered tasks
-            console.log(`TaskListView: No element found for task ${taskPath}, skipping DOM update`);
             return;
         }
         
@@ -794,7 +793,6 @@ export class TaskListView extends ItemView {
                 groupByDate: false,
                 targetDate: this.plugin.selectedDate
             });
-            console.log(`TaskListView: Successfully updated DOM for task ${taskPath}`);
         } catch (error) {
             console.error(`TaskListView: Error updating DOM for task ${taskPath}:`, error);
             // If update fails, trigger a full refresh to recover
