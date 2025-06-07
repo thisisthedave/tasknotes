@@ -191,7 +191,7 @@ export class AgendaView extends ItemView {
             text: '‹',
             attr: {
                 'aria-label': 'Previous period',
-                'title': 'Previous period (Left arrow or H key)'
+                'title': 'Previous period (Left arrow)'
             }
         });
         
@@ -211,7 +211,7 @@ export class AgendaView extends ItemView {
             text: '›',
             attr: {
                 'aria-label': 'Next period',
-                'title': 'Next period (Right arrow or L key)'
+                'title': 'Next period (Right arrow)'
             }
         });
         
@@ -1001,9 +1001,8 @@ export class AgendaView extends ItemView {
             }
             
             switch (e.key) {
-                // Left arrow or h - previous period
+                // Left arrow - previous period
                 case 'ArrowLeft':
-                case 'h':
                     e.preventDefault();
                     this.navigateToPreviousPeriod();
                     // Update the period display
@@ -1013,9 +1012,8 @@ export class AgendaView extends ItemView {
                     }
                     break;
                     
-                // Right arrow or l - next period
+                // Right arrow - next period
                 case 'ArrowRight':
-                case 'l':
                     e.preventDefault();
                     this.navigateToNextPeriod();
                     // Update the period display
@@ -1023,44 +1021,6 @@ export class AgendaView extends ItemView {
                     if (nextPeriodDisplay) {
                         nextPeriodDisplay.textContent = this.getCurrentPeriodText();
                     }
-                    break;
-                    
-                // t - go to today
-                case 't':
-                case 'T':
-                    e.preventDefault();
-                    this.startDate = new Date();
-                    this.refresh();
-                    // Update the period display
-                    const todayPeriodDisplay = this.contentEl.querySelector('.current-period-display');
-                    if (todayPeriodDisplay) {
-                        todayPeriodDisplay.textContent = this.getCurrentPeriodText();
-                    }
-                    break;
-                    
-                // c - toggle archived tasks
-                case 'c':
-                case 'C':
-                    e.preventDefault();
-                    // Toggle showArchived in the current query
-                    this.currentQuery.showArchived = !this.currentQuery.showArchived;
-                    // Update FilterBar if available
-                    if (this.filterBar) {
-                        this.filterBar.updateQuery(this.currentQuery);
-                    }
-                    // Save state and refresh
-                    this.plugin.viewStateManager.setFilterState(AGENDA_VIEW_TYPE, this.currentQuery);
-                    this.refresh();
-                    break;
-                    
-                // o - toggle overdue tasks on today
-                case 'o':
-                case 'O':
-                    e.preventDefault();
-                    this.showOverdueOnToday = !this.showOverdueOnToday;
-                    const overdueCheckbox = this.contentEl.querySelector('.option-group.toggle-container .toggle-checkbox') as HTMLInputElement;
-                    if (overdueCheckbox) overdueCheckbox.checked = this.showOverdueOnToday;
-                    this.refresh();
                     break;
             }
         });

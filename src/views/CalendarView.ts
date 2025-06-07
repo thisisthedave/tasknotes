@@ -211,30 +211,26 @@ export class CalendarView extends ItemView {
             let newDate: Date | undefined = undefined;
             
             switch (e.key) {
-                // Left arrow or h - previous day
+                // Left arrow - previous day
                 case 'ArrowLeft':
-                case 'h':
                     newDate = new Date(currentDate);
                     newDate.setDate(currentDate.getDate() - 1);
                     break;
                     
-                // Right arrow or l - next day
+                // Right arrow - next day
                 case 'ArrowRight':
-                case 'l':
                     newDate = new Date(currentDate);
                     newDate.setDate(currentDate.getDate() + 1);
                     break;
                     
-                // Up arrow or k - previous week (same day)
+                // Up arrow - previous week (same day)
                 case 'ArrowUp':
-                case 'k':
                     newDate = new Date(currentDate);
                     newDate.setDate(currentDate.getDate() - 7);
                     break;
                     
-                // Down arrow or j - next week (same day)
+                // Down arrow - next week (same day)
                 case 'ArrowDown':
-                case 'j':
                     newDate = new Date(currentDate);
                     newDate.setDate(currentDate.getDate() + 7);
                     break;
@@ -243,39 +239,6 @@ export class CalendarView extends ItemView {
                 case 'Enter':
                     e.preventDefault();
                     this.plugin.navigateToDailyNote(currentDate);
-                    return;
-                    
-                // Number 1 key - switch to Tasks colorization
-                case '1':
-                    e.preventDefault();
-                    if (this.colorizeMode !== 'tasks') {
-                        await this.setColorizeMode('tasks');
-                        // Update the dropdown to match
-                        const dropdown = this.contentEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
-                        if (dropdown) dropdown.value = 'tasks';
-                    }
-                    return;
-                    
-                // Number 2 key - switch to Notes colorization
-                case '2':
-                    e.preventDefault();
-                    if (this.colorizeMode !== 'notes') {
-                        await this.setColorizeMode('notes');
-                        // Update the dropdown to match
-                        const dropdown = this.contentEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
-                        if (dropdown) dropdown.value = 'notes';
-                    }
-                    return;
-                    
-                // Number 3 key - switch to Daily Notes colorization
-                case '3':
-                    e.preventDefault();
-                    if (this.colorizeMode !== 'daily') {
-                        await this.setColorizeMode('daily');
-                        // Update the dropdown to match
-                        const dropdown = this.contentEl.querySelector('.colorize-mode-select') as HTMLSelectElement;
-                        if (dropdown) dropdown.value = 'daily';
-                    }
                     return;
                     
                 default:
@@ -417,14 +380,14 @@ export class CalendarView extends ItemView {
             this.navigateToPreviousPeriod();
         });
         prevButton.setAttribute('aria-label', 'Previous period');
-        prevButton.setAttribute('title', 'Previous period (left arrow or h key)');
+        prevButton.setAttribute('title', 'Previous period (left arrow)');
         
         const nextButton = navButtons.createEl('button', { text: '›', cls: 'nav-arrow-button' });
         nextButton.addEventListener('click', () => {
             this.navigateToNextPeriod();
         });
         nextButton.setAttribute('aria-label', 'Next period');
-        nextButton.setAttribute('title', 'Next period (right arrow or l key)');
+        nextButton.setAttribute('title', 'Next period (right arrow)');
         
         const currentPeriod = monthNavigationGroup.createEl('span', { 
             text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
@@ -438,16 +401,16 @@ export class CalendarView extends ItemView {
         const colorizeSelect = colorizeContainer.createEl('select', { 
             cls: 'colorize-mode-select',
             attr: {
-                'title': 'Change view (use keys 1, 2, 3 to switch)',
-                'aria-label': 'Change calendar view (use keys 1, 2, 3 to switch)'
+                'title': 'Change view',
+                'aria-label': 'Change calendar view'
             }
         });
         
-        // Add colorize mode options with keyboard shortcuts
+        // Add colorize mode options
         const modes = [
-            { value: 'tasks', text: 'Tasks (1)' },
-            { value: 'notes', text: 'Notes (2)' },
-            { value: 'daily', text: 'Daily notes (3)' }
+            { value: 'tasks', text: 'Tasks' },
+            { value: 'notes', text: 'Notes' },
+            { value: 'daily', text: 'Daily notes' }
         ];
         
         modes.forEach(mode => {
@@ -479,7 +442,7 @@ export class CalendarView extends ItemView {
             cls: 'today-button tasknotes-button tasknotes-button-primary',
             attr: {
                 'aria-label': 'Go to today',
-                'title': 'Go to today (T key)'
+                'title': 'Go to today'
             }
         });
         

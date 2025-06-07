@@ -131,6 +131,9 @@ export class FilterBar extends EventEmitter {
     private renderSortControls(parent: HTMLElement): void {
         const sortContainer = parent.createDiv('filter-bar-sort');
         
+        // Add label first
+        sortContainer.createSpan({ text: 'Sort:', cls: 'filter-bar-label' });
+        
         // Sort key dropdown
         this.sortSelect = sortContainer.createEl('select', {
             cls: 'filter-bar-select'
@@ -158,9 +161,6 @@ export class FilterBar extends EventEmitter {
             const newDirection: SortDirection = this.currentQuery.sortDirection === 'asc' ? 'desc' : 'asc';
             this.updateQueryField('sortDirection', newDirection);
         });
-
-        // Add label
-        sortContainer.createSpan({ text: 'Sort:', cls: 'filter-bar-label' });
     }
 
     /**
@@ -405,6 +405,12 @@ export class FilterBar extends EventEmitter {
      */
     private updateQueryField<K extends keyof FilterQuery>(field: K, value: FilterQuery[K]): void {
         this.currentQuery[field] = value;
+        
+        // Update specific UI elements based on the field that changed
+        if (field === 'sortDirection') {
+            this.updateSortDirectionButton();
+        }
+        
         this.updateActiveFiltersIndicator();
         this.emit('queryChange', { ...this.currentQuery });
     }
