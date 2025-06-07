@@ -4100,12 +4100,22 @@
    ================================================ */
 
 .task-edit-modal {
-    max-width: 600px;
+    max-width: 500px;
     width: 90vw;
+    min-width: 400px;
+    overflow-x: hidden;
+}
+
+.task-edit-modal * {
+    box-sizing: border-box;
 }
 
 .task-edit-modal .modal-content {
-    padding: var(--cs-spacing-lg);
+    padding: var(--cs-spacing-sm);
+    box-sizing: border-box;
+    overflow-x: hidden;
+    max-width: 100%;
+    width: 100%;
 }
 
 .task-edit-modal h2 {
@@ -4131,12 +4141,14 @@
 .task-edit-modal .form-group select,
 .task-edit-modal .form-group textarea {
     width: 100%;
+    max-width: 100%;
     padding: var(--cs-spacing-sm);
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--cs-radius-md);
     background: var(--background-primary);
     color: var(--text-normal);
     font-size: var(--cs-text-base);
+    box-sizing: border-box;
     transition: border-color var(--cs-transition-fast);
 }
 
@@ -4149,16 +4161,23 @@
 
 .task-edit-modal .input-with-counter {
     position: relative;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .task-edit-modal .character-counter {
     position: absolute;
-    right: var(--cs-spacing-sm);
+    right: var(--cs-spacing-xs);
     top: 50%;
     transform: translateY(-50%);
     font-size: var(--cs-text-xs);
     color: var(--text-muted);
     pointer-events: none;
+    white-space: nowrap;
+}
+
+.task-edit-modal .input-with-counter input {
+    padding-right: 60px !important;
 }
 
 .task-edit-modal .character-counter.warning {
@@ -4169,10 +4188,12 @@
     display: flex;
     align-items: center;
     gap: var(--cs-spacing-sm);
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .task-edit-modal .time-estimate-container input {
-    width: 120px;
+    width: 80px;
     flex-shrink: 0;
 }
 
@@ -4187,6 +4208,9 @@
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--cs-radius-md);
     background: var(--background-secondary);
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 .task-edit-modal .recurrence-options.is-hidden {
@@ -4201,7 +4225,7 @@
 
 .task-edit-modal .days-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
     gap: var(--cs-spacing-xs);
 }
 
@@ -4258,45 +4282,6 @@
     background: var(--interactive-accent-hover);
 }
 
-/* Two-column properties grid */
-.task-edit-modal .properties-grid {
-    margin-bottom: var(--cs-spacing-md);
-}
-
-.task-edit-modal .grid-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--cs-spacing-md);
-    margin-bottom: var(--cs-spacing-md);
-}
-
-.task-edit-modal .grid-form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.task-edit-modal .grid-form-group label {
-    margin-bottom: var(--cs-spacing-xs);
-    font-size: var(--cs-text-sm);
-    font-weight: 500;
-    color: var(--text-normal);
-}
-
-.task-edit-modal .grid-form-group input,
-.task-edit-modal .grid-form-group select {
-    padding: var(--cs-spacing-sm);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: var(--cs-radius-md);
-    background: var(--background-primary);
-    color: var(--text-normal);
-    font-size: var(--cs-text-base);
-}
-
-.task-edit-modal .grid-form-group input:focus,
-.task-edit-modal .grid-form-group select:focus {
-    outline: none;
-    border-color: var(--interactive-accent);
-}
 
 /* Modal footer with metadata and buttons */
 .task-edit-modal .modal-footer {
@@ -4317,15 +4302,8 @@
 .task-edit-modal .metadata-item {
     font-size: var(--cs-text-xs);
     color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    gap: var(--cs-spacing-xs);
 }
 
-.task-edit-modal .metadata-item::before {
-    content: "ℹ️";
-    font-size: var(--cs-text-sm);
-}
 
 .task-edit-modal .secondary-button {
     background: var(--background-secondary);
@@ -4337,12 +4315,66 @@
     background: var(--background-modifier-hover);
 }
 
+/* Autocomplete styling for task edit modal */
+.task-edit-modal .autocomplete-container {
+    position: relative;
+}
+
+.task-edit-modal .autocomplete-input {
+    width: 100%;
+    max-width: 100%;
+    padding: var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-md);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-base);
+    box-sizing: border-box;
+}
+
+.task-edit-modal .autocomplete-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
+
+.task-edit-modal .autocomplete-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-top: none;
+    border-radius: 0 0 var(--cs-radius-md) var(--cs-radius-md);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.task-edit-modal .autocomplete-suggestions.is-hidden {
+    display: none;
+}
+
+.task-edit-modal .autocomplete-suggestion {
+    padding: 0.5rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+    font-size: var(--cs-text-sm);
+    color: var(--text-normal);
+}
+
+.task-edit-modal .autocomplete-suggestion:hover,
+.task-edit-modal .autocomplete-suggestion.selected {
+    background: var(--background-modifier-hover);
+}
+
+.task-edit-modal .autocomplete-suggestion:last-child {
+    border-bottom: none;
+}
+
 /* Responsive layout for smaller screens */
 @media (max-width: 480px) {
-    .task-edit-modal .grid-row {
-        grid-template-columns: 1fr;
-        gap: var(--cs-spacing-sm);
-    }
     
     .task-edit-modal .modal-footer {
         flex-direction: column;

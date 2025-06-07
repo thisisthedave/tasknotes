@@ -86,12 +86,8 @@ export class TaskEditModal extends Modal {
             setTimeout(() => input.focus(), 50);
         });
 
-        // Two-column properties grid
-        const propertiesGrid = contentEl.createDiv({ cls: 'properties-grid' });
-        
-        // Row 1: Due Date and Status
-        const row1 = propertiesGrid.createDiv({ cls: 'grid-row' });
-        this.createGridFormGroup(row1, 'Due Date', (container) => {
+        // Due Date
+        this.createFormGroup(contentEl, 'Due Date', (container) => {
             const input = container.createEl('input', { 
                 type: 'date',
                 value: this.dueDate
@@ -101,8 +97,30 @@ export class TaskEditModal extends Modal {
                 this.dueDate = (e.target as HTMLInputElement).value;
             });
         });
-        
-        this.createGridFormGroup(row1, 'Status', (container) => {
+
+        // Priority
+        this.createFormGroup(contentEl, 'Priority', (container) => {
+            const select = container.createEl('select');
+            
+            const priorities = this.plugin.priorityManager.getPrioritiesByWeight();
+            
+            priorities.forEach(priorityConfig => {
+                const optEl = select.createEl('option', { 
+                    value: priorityConfig.value, 
+                    text: priorityConfig.label 
+                });
+                if (priorityConfig.value === this.priority) {
+                    optEl.selected = true;
+                }
+            });
+            
+            select.addEventListener('change', (e) => {
+                this.priority = (e.target as HTMLSelectElement).value;
+            });
+        });
+
+        // Status
+        this.createFormGroup(contentEl, 'Status', (container) => {
             const select = container.createEl('select');
             
             const statuses = this.plugin.statusManager.getStatusesByOrder();
@@ -122,29 +140,8 @@ export class TaskEditModal extends Modal {
             });
         });
 
-        // Row 2: Priority and Time Estimate
-        const row2 = propertiesGrid.createDiv({ cls: 'grid-row' });
-        this.createGridFormGroup(row2, 'Priority', (container) => {
-            const select = container.createEl('select');
-            
-            const priorities = this.plugin.priorityManager.getPrioritiesByWeight();
-            
-            priorities.forEach(priorityConfig => {
-                const optEl = select.createEl('option', { 
-                    value: priorityConfig.value, 
-                    text: priorityConfig.label 
-                });
-                if (priorityConfig.value === this.priority) {
-                    optEl.selected = true;
-                }
-            });
-            
-            select.addEventListener('change', (e) => {
-                this.priority = (e.target as HTMLSelectElement).value;
-            });
-        });
-        
-        this.createGridFormGroup(row2, 'Time Est', (container) => {
+        // Time Estimate
+        this.createFormGroup(contentEl, 'Time estimate', (container) => {
             const timeContainer = container.createDiv({ cls: 'time-estimate-container' });
             const input = timeContainer.createEl('input', { 
                 type: 'number',
@@ -270,12 +267,6 @@ export class TaskEditModal extends Modal {
         return group;
     }
     
-    createGridFormGroup(container: HTMLElement, label: string, inputCallback: (container: HTMLElement) => void) {
-        const group = container.createDiv({ cls: 'grid-form-group' });
-        group.createEl('label', { text: label });
-        inputCallback(group);
-        return group;
-    }
     
     // Load suggestions for autocomplete
     private async loadSuggestions() {
