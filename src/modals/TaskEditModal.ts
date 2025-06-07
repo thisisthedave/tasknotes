@@ -327,6 +327,7 @@ export class TaskEditModal extends BaseTaskModal {
             // Emit task updated event
             this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
                 path: this.task.path,
+                originalTask: this.task,
                 updatedTask: updatedTask
             });
 

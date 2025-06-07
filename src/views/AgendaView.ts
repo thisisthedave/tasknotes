@@ -72,7 +72,7 @@ export class AgendaView extends ItemView {
         this.listeners.push(dateListener);
         
         // Listen for individual task updates for granular DOM updates
-        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, updatedTask }) => {
+        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, originalTask, updatedTask }) => {
             this.refresh(); // Simplified - just refresh on task updates
         });
         this.listeners.push(taskUpdateListener);

@@ -65,7 +65,7 @@ export class KanbanView extends ItemView {
         const dataListener = this.plugin.emitter.on(EVENT_DATA_CHANGED, () => this.refresh());
         this.listeners.push(dataListener);
 
-        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, updatedTask }) => {
+        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, originalTask, updatedTask }) => {
             this.refresh(); // Simpler approach - just refresh on task updates
         });
         this.listeners.push(taskUpdateListener);
@@ -217,16 +217,16 @@ export class KanbanView extends ItemView {
         this.boardContainer.empty();
         this.taskElements.clear();
 
-        const boardEl = this.boardContainer.createDiv({ cls: 'kanban-board' });
-        
         // Get all possible columns from the grouped tasks
         const allColumns = Array.from(groupedTasks.keys()).sort();
 
-        // Render columns
-        allColumns.forEach(columnId => {
-            const columnTasks = groupedTasks.get(columnId) || [];
-            this.renderColumn(boardEl, columnId, columnTasks);
-        });
+        // Initialize column order if empty
+        if (this.columnOrder.length === 0) {
+            this.columnOrder = [...allColumns];
+        }
+
+        // Use the render method with order for consistency
+        this.renderBoardFromGroupedTasksWithOrder(groupedTasks);
     }
 
 
@@ -363,9 +363,61 @@ export class KanbanView extends ItemView {
     }
 
     private async renderBoardWithOrder() {
-        // This method is no longer used - FilterService handles grouping
-        // Keeping for potential future use with column reordering
-        console.log('renderBoardWithOrder is deprecated - using FilterService instead');
+        if (!this.boardContainer) return;
+        
+        try {
+            // Get fresh grouped tasks from FilterService
+            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
+            
+            // Re-render the board using the new column order
+            this.renderBoardFromGroupedTasksWithOrder(groupedTasks);
+            
+            // Update stats after rendering
+            const allTasks = Array.from(groupedTasks.values()).flat();
+            const statsContainer = this.contentEl.querySelector('.kanban-stats') as HTMLElement;
+            if (statsContainer) {
+                this.updateBoardStats(statsContainer, allTasks);
+            }
+        } catch (error) {
+            console.error("Error reordering Kanban board:", error);
+            // Fallback to regular refresh if reordering fails
+            this.refresh();
+        }
+    }
+
+    /**
+     * Render board with custom column order
+     */
+    private renderBoardFromGroupedTasksWithOrder(groupedTasks: Map<string, TaskInfo[]>) {
+        if (!this.boardContainer) return;
+
+        // Get or create board element
+        let boardEl = this.boardContainer.querySelector('.kanban-board') as HTMLElement;
+        if (!boardEl) {
+            boardEl = this.boardContainer.createDiv({ cls: 'kanban-board' });
+        } else {
+            boardEl.empty();
+        }
+        
+        this.taskElements.clear();
+        
+        // Render columns in the stored order first
+        this.columnOrder.forEach(columnId => {
+            if (groupedTasks.has(columnId)) {
+                const columnTasks = groupedTasks.get(columnId) || [];
+                this.renderColumn(boardEl, columnId, columnTasks);
+            }
+        });
+
+        // Add any new columns that aren't in our order yet
+        const allColumns = Array.from(groupedTasks.keys());
+        allColumns.forEach(columnId => {
+            if (!this.columnOrder.includes(columnId)) {
+                this.columnOrder.push(columnId);
+                const columnTasks = groupedTasks.get(columnId) || [];
+                this.renderColumn(boardEl, columnId, columnTasks);
+            }
+        });
     }
 
     private addDragHandlers(card: HTMLElement, task: TaskInfo) {

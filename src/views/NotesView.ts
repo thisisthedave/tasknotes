@@ -7,7 +7,7 @@ import {
     EVENT_DATE_SELECTED,
     EVENT_DATA_CHANGED
 } from '../types';
-import { createNoteCard } from '../ui/NoteCard';
+import { createNoteCard, updateNoteCard } from '../ui/NoteCard';
 
 export class NotesView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -172,28 +172,56 @@ export class NotesView extends ItemView {
             // Placeholder for empty notes list
             notesList.createEl('p', { text: 'No notes found for the selected date.' });
         } else {
-            // Create a div to hold all note items for quicker rendering
+            // Create a div to hold all note items
             const notesContainer = notesList.createDiv({ cls: 'notes-container' });
             
-            // Use document fragment for faster DOM operations
-            const fragment = document.createDocumentFragment();
-            
-            // Create note items using the NoteCard component
-            notes.forEach(note => {
-                const noteCard = createNoteCard(note, this.plugin, {
-                    showCreatedDate: true,
-                    showTags: true,
-                    showPath: false,
-                    maxTags: 5,
-                    showDailyNoteBadge: true
-                });
-                
-                fragment.appendChild(noteCard);
-            });
-            
-            // Append all notes at once
-            notesContainer.appendChild(fragment);
+            // Use DOMReconciler for efficient updates
+            this.renderNotesWithReconciler(notesContainer, notes);
         }
+    }
+    
+    /**
+     * Render notes using DOMReconciler for optimal performance
+     */
+    private renderNotesWithReconciler(container: HTMLElement, notes: NoteInfo[]) {
+        this.plugin.domReconciler.updateList<NoteInfo>(
+            container,
+            notes,
+            (note) => note.path, // Unique key
+            (note) => this.createNoteCardForReconciler(note), // Render new item
+            (element, note) => this.updateNoteCardForReconciler(element, note) // Update existing item
+        );
+    }
+
+    /**
+     * Create a note card for use with DOMReconciler
+     */
+    private createNoteCardForReconciler(note: NoteInfo): HTMLElement {
+        const noteCard = createNoteCard(note, this.plugin, {
+            showCreatedDate: true,
+            showTags: true,
+            showPath: false,
+            maxTags: 5,
+            showDailyNoteBadge: true
+        });
+        
+        // Ensure the key is set for reconciler
+        noteCard.dataset.key = note.path;
+        
+        return noteCard;
+    }
+
+    /**
+     * Update an existing note card for use with DOMReconciler
+     */
+    private updateNoteCardForReconciler(element: HTMLElement, note: NoteInfo): void {
+        updateNoteCard(element, note, this.plugin, {
+            showCreatedDate: true,
+            showTags: true,
+            showPath: false,
+            maxTags: 5,
+            showDailyNoteBadge: true
+        });
     }
     
     /**

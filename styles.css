@@ -1102,39 +1102,6 @@
     margin-bottom: 1rem;
 }
 
-/* DEPRECATED: Replaced by unified FilterBar system */
-/*
-.filters-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.filters-row.primary-filters {
-    justify-content: space-between;
-}
-
-.filters-row.organization-filters {
-    padding: 0.5rem;
-    background: var(--background-secondary);
-    border-radius: 4px;
-    border: 1px solid var(--background-modifier-border);
-    transition: all 0.2s ease;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.filter-group {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.filter-group select {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-}
-*/
 
 /* Toggle button for organization filters */
 .toggle-org-filters-button {

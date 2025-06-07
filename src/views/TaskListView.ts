@@ -93,9 +93,9 @@ export class TaskListView extends ItemView {
         this.listeners.push(dataListener);
         
         // Listen for individual task updates
-        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, async ({ path, updatedTask }) => {
+        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, async ({ path, originalTask, updatedTask }) => {
             if (!path || !updatedTask) {
-                console.error('EVENT_TASK_UPDATED received invalid data:', { path, updatedTask });
+                console.error('EVENT_TASK_UPDATED received invalid data:', { path, originalTask, updatedTask });
                 return;
             }
             
@@ -262,6 +262,9 @@ export class TaskListView extends ItemView {
         this.loadingIndicator.createDiv({ cls: 'loading-text', text: 'Loading tasks...' });
         this.loadingIndicator.addClass('is-hidden');
         
+        // Store reference to the task list container for future updates
+        this.taskListContainer = taskList;
+        
         // Show loading state if we're fetching data
         this.isTasksLoading = true;
         this.updateLoadingState();
@@ -272,9 +275,6 @@ export class TaskListView extends ItemView {
         // Hide loading state when done
         this.isTasksLoading = false;
         this.updateLoadingState();
-        
-        // Store reference to the task list container for future updates
-        this.taskListContainer = taskList;
     }
     
     /**
@@ -305,26 +305,77 @@ export class TaskListView extends ItemView {
         }
     }
 
-    // Helper method to render task items with grouping support
+    // Helper method to render task items with grouping support using DOMReconciler
     renderTaskItems(container: HTMLElement, groupedTasks: Map<string, TaskInfo[]>) {
-        // Clear the container and task elements tracking
-        container.empty();
-        this.taskElements.clear();
-        
         // Check if there are any tasks across all groups
         const totalTasks = Array.from(groupedTasks.values()).reduce((total, tasks) => total + tasks.length, 0);
         
         if (totalTasks === 0) {
-            // Placeholder for empty task list
+            // Clear everything and show placeholder
+            container.empty();
+            this.taskElements.clear();
             container.createEl('p', { text: 'No tasks found for the selected filters.' });
             return;
         }
+        
+        // Handle grouped vs non-grouped rendering differently
+        if (this.currentQuery.groupKey === 'none' && groupedTasks.has('all')) {
+            // Non-grouped: use DOMReconciler for the flat task list
+            const allTasks = groupedTasks.get('all') || [];
+            this.renderTaskListWithReconciler(container, allTasks);
+        } else {
+            // Grouped: render groups normally (groups change less frequently than individual tasks)
+            this.renderGroupedTasksWithReconciler(container, groupedTasks);
+        }
+    }
+
+    /**
+     * Render a flat task list using DOMReconciler for optimal performance
+     */
+    private renderTaskListWithReconciler(container: HTMLElement, tasks: TaskInfo[]) {
+        this.plugin.domReconciler.updateList<TaskInfo>(
+            container,
+            tasks,
+            (task) => task.path, // Unique key
+            (task) => this.createTaskCardForReconciler(task), // Render new item
+            (element, task) => this.updateTaskCardForReconciler(element, task) // Update existing item
+        );
+        
+        // Update task elements tracking
+        this.taskElements.clear();
+        Array.from(container.children).forEach(child => {
+            const taskPath = (child as HTMLElement).dataset.key;
+            if (taskPath) {
+                this.taskElements.set(taskPath, child as HTMLElement);
+            }
+        });
+    }
+
+    /**
+     * Render grouped tasks with reconciler optimization for individual groups
+     */
+    private renderGroupedTasksWithReconciler(container: HTMLElement, groupedTasks: Map<string, TaskInfo[]>) {
+        // Save scroll position
+        const scrollTop = container.scrollTop;
+        
+        // Clear container but preserve structure for groups that haven't changed
+        const existingGroups = new Map<string, HTMLElement>();
+        Array.from(container.children).forEach(child => {
+            const groupKey = (child as HTMLElement).dataset.group;
+            if (groupKey) {
+                existingGroups.set(groupKey, child as HTMLElement);
+            }
+        });
+        
+        // Clear container
+        container.empty();
+        this.taskElements.clear();
         
         // Render each group
         groupedTasks.forEach((tasks, groupName) => {
             if (tasks.length === 0) return;
             
-            // Create group section (only if we have groups other than 'all')
+            // Create group section
             const groupSection = container.createDiv({ cls: 'task-section task-group' });
             groupSection.setAttribute('data-group', groupName);
             
@@ -339,8 +390,60 @@ export class TaskListView extends ItemView {
             // Create task cards container
             const taskCardsContainer = groupSection.createDiv({ cls: 'tasks-container task-cards' });
             
-            // Render tasks using existing renderTaskGroup method
-            this.renderTaskGroup(taskCardsContainer, tasks);
+            // Use reconciler for this group's task list
+            this.plugin.domReconciler.updateList<TaskInfo>(
+                taskCardsContainer,
+                tasks,
+                (task) => task.path, // Unique key
+                (task) => this.createTaskCardForReconciler(task), // Render new item
+                (element, task) => this.updateTaskCardForReconciler(element, task) // Update existing item
+            );
+            
+            // Update task elements tracking for this group
+            Array.from(taskCardsContainer.children).forEach(child => {
+                const taskPath = (child as HTMLElement).dataset.key;
+                if (taskPath) {
+                    this.taskElements.set(taskPath, child as HTMLElement);
+                }
+            });
+        });
+        
+        // Restore scroll position
+        container.scrollTop = scrollTop;
+    }
+
+    /**
+     * Create a task card for use with DOMReconciler
+     */
+    private createTaskCardForReconciler(task: TaskInfo): HTMLElement {
+        const taskCard = createTaskCard(task, this.plugin, {
+            showDueDate: true,
+            showCheckbox: false, // TaskListView doesn't use checkboxes 
+            showArchiveButton: true,
+            showTimeTracking: true,
+            showRecurringControls: true,
+            groupByDate: false,
+            targetDate: this.plugin.selectedDate
+        });
+        
+        // Ensure the key is set for reconciler
+        taskCard.dataset.key = task.path;
+        
+        return taskCard;
+    }
+
+    /**
+     * Update an existing task card for use with DOMReconciler
+     */
+    private updateTaskCardForReconciler(element: HTMLElement, task: TaskInfo): void {
+        updateTaskCard(element, task, this.plugin, {
+            showDueDate: true,
+            showCheckbox: false, // TaskListView doesn't use checkboxes
+            showArchiveButton: true,
+            showTimeTracking: true,
+            showRecurringControls: true,
+            groupByDate: false,
+            targetDate: this.plugin.selectedDate
         });
     }
     
@@ -386,26 +489,6 @@ export class TaskListView extends ItemView {
         }
     }
     
-    // Helper to render a group of tasks
-    private renderTaskGroup(container: HTMLElement, tasks: TaskInfo[]) {
-        tasks.forEach(task => {
-            // Create the unified task card
-            const taskCard = createTaskCard(task, this.plugin, {
-                showDueDate: true,
-                showCheckbox: false, // TaskListView doesn't use checkboxes 
-                showArchiveButton: true,
-                showTimeTracking: true,
-                showRecurringControls: true,
-                groupByDate: false,
-                targetDate: this.plugin.selectedDate
-            });
-            
-            // Store reference to this task element for future updates
-            this.taskElements.set(task.path, taskCard);
-            
-            container.appendChild(taskCard);
-        });
-    }
     
     /**
      * Helper method to update the loading indicator visibility

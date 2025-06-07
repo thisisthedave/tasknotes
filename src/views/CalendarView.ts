@@ -4,6 +4,7 @@ import TaskNotesPlugin from '../main';
 import { 
     CALENDAR_VIEW_TYPE, 
     EVENT_DATA_CHANGED,
+    EVENT_TASK_UPDATED,
     TaskInfo, 
     NoteInfo, 
     TimeInfo,
@@ -46,6 +47,18 @@ export class CalendarView extends ItemView {
             this.refresh();
         });
         this.listeners.push(dataListener);
+        
+        // Listen for individual task updates for granular calendar updates
+        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, originalTask, updatedTask }) => {
+            if (!path || !updatedTask) {
+                console.error('EVENT_TASK_UPDATED received invalid data:', { path, originalTask, updatedTask });
+                return;
+            }
+            
+            // Perform granular calendar update for task changes
+            this.handleTaskUpdate(originalTask, updatedTask);
+        });
+        this.listeners.push(taskUpdateListener);
     }
   
     getViewType(): string {
@@ -953,6 +966,146 @@ export class CalendarView extends ItemView {
                 }
             }
         });
+    }
+    
+    /**
+     * Handle granular task updates without full calendar re-colorization
+     */
+    private handleTaskUpdate(originalTask: TaskInfo | undefined, updatedTask: TaskInfo) {
+        // Only perform granular updates if we're in tasks mode
+        if (this.colorizeMode !== 'tasks') {
+            return;
+        }
+        
+        // Get the dates that might be affected by this change
+        const affectedDates = new Set<string>();
+        
+        // Add original due date if it exists
+        if (originalTask?.due) {
+            affectedDates.add(format(new Date(originalTask.due), 'yyyy-MM-dd'));
+        }
+        
+        // Add new due date if it exists
+        if (updatedTask.due) {
+            affectedDates.add(format(new Date(updatedTask.due), 'yyyy-MM-dd'));
+        }
+        
+        // If no due dates are affected, nothing to update
+        if (affectedDates.size === 0) {
+            return;
+        }
+        
+        // Update only the affected calendar cells
+        this.updateCalendarCellsForDates(Array.from(affectedDates));
+    }
+    
+    /**
+     * Update specific calendar cells for given dates
+     */
+    private async updateCalendarCellsForDates(dates: string[]) {
+        if (dates.length === 0) return;
+        
+        // Get current calendar data
+        const currentYear = this.plugin.selectedDate.getFullYear();
+        const currentMonth = this.plugin.selectedDate.getMonth();
+        const calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
+        const tasksCache = calendarData.tasks;
+        
+        // Find all calendar day elements
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
+        
+        // Update each affected date
+        dates.forEach(dateKey => {
+            const targetDate = new Date(dateKey);
+            
+            // Skip dates that are not in the current visible month
+            if (targetDate.getFullYear() !== currentYear || 
+                (Math.abs(targetDate.getMonth() - currentMonth) > 1)) {
+                return;
+            }
+            
+            // Find the corresponding calendar cell
+            calendarDays.forEach(day => {
+                const dayEl = day as HTMLElement;
+                const dateText = dayEl.innerText.trim();
+                
+                if (!dateText || isNaN(parseInt(dateText))) return;
+                
+                // Determine the actual date this cell represents
+                const cellDate = this.getCellDate(dayEl, parseInt(dateText), currentYear, currentMonth);
+                
+                if (cellDate && format(cellDate, 'yyyy-MM-dd') === dateKey) {
+                    this.updateSingleCalendarCell(dayEl, dateKey, tasksCache);
+                }
+            });
+        });
+    }
+    
+    /**
+     * Update a single calendar cell with task data
+     */
+    private updateSingleCalendarCell(dayEl: HTMLElement, dateKey: string, tasksCache: Map<string, any>) {
+        // Remove existing task indicators and classes
+        dayEl.querySelectorAll('.task-indicator').forEach(el => el.remove());
+        dayEl.classList.remove('has-tasks', 'has-completed-tasks', 'has-archived-tasks');
+        
+        // Get task info for this date
+        const taskInfo = tasksCache.get(dateKey);
+        
+        if (taskInfo && taskInfo.hasDue) {
+            // Create indicator element
+            const indicator = document.createElement('div');
+            indicator.className = 'task-indicator';
+            
+            // Different styling for completed, due, and archived tasks
+            let taskStatus = '';
+            if (taskInfo.hasArchived) {
+                // Archived tasks get a different style
+                dayEl.classList.add('has-archived-tasks');
+                indicator.classList.add('archived-tasks');
+                taskStatus = 'Archived';
+            } else if (taskInfo.hasCompleted) {
+                // Completed tasks
+                dayEl.classList.add('has-completed-tasks');
+                indicator.classList.add('completed-tasks');
+                taskStatus = 'Completed';
+            } else {
+                // Due tasks
+                dayEl.classList.add('has-tasks');
+                indicator.classList.add('due-tasks');
+                taskStatus = 'Due';
+            }
+            
+            // Add tooltip with task count information
+            indicator.setAttribute('aria-label', `${taskStatus} tasks (${taskInfo.count})`);
+            indicator.setAttribute('title', `${taskStatus} tasks (${taskInfo.count})`);
+            
+            // Add indicator to the day cell
+            dayEl.appendChild(indicator);
+        }
+    }
+    
+    /**
+     * Get the actual date that a calendar cell represents
+     */
+    private getCellDate(dayEl: HTMLElement, dayNum: number, currentYear: number, currentMonth: number): Date | null {
+        // Determine which month this cell actually represents
+        let actualMonth = currentMonth;
+        
+        if (dayEl.classList.contains('outside-month')) {
+            if (dayNum > 15) { // Probably previous month
+                actualMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+            } else { // Probably next month
+                actualMonth = currentMonth === 11 ? 0 : currentMonth + 1;
+            }
+        }
+        
+        try {
+            return new Date(currentYear, actualMonth, dayNum);
+        } catch (error) {
+            console.warn('Invalid date in calendar cell:', { dayNum, actualMonth, currentYear });
+            return null;
+        }
     }
     
     // Helper methods for date calculations

@@ -78,6 +78,7 @@ export class TaskService {
         // Step 4: Notify system of change
         this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
             path: task.path,
+            originalTask: task,
             updatedTask: updatedTask as TaskInfo
         });
         
@@ -155,6 +156,7 @@ export class TaskService {
         // Step 4: Notify system of change
         this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
             path: task.path,
+            originalTask: task,
             updatedTask: updatedTask
         });
         
@@ -208,6 +210,7 @@ export class TaskService {
         // Step 4: Notify system of change
         this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
             path: task.path,
+            originalTask: task,
             updatedTask: updatedTask
         });
         
@@ -267,6 +270,7 @@ export class TaskService {
         // Step 4: Notify system of change
         this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
             path: task.path,
+            originalTask: task,
             updatedTask: updatedTask
         });
         
@@ -338,6 +342,7 @@ export class TaskService {
         // Step 4: Notify system of change
         this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
             path: task.path,
+            originalTask: task,
             updatedTask: updatedTask
         });
         
