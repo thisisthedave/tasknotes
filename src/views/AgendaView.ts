@@ -241,16 +241,33 @@ export class AgendaView extends ItemView {
         // Get date range
         const dates = this.getAgendaDates();
         
-        // Fetch all data
-        const dataPromises = dates.map(async date => {
-            const [tasks, notes] = await Promise.all([
-                this.plugin.cacheManager.getTaskInfoForDate(date),
-                this.plugin.cacheManager.getNotesForDate(date)
-            ]);
-            return { date, tasks, notes };
-        });
+        // Fetch all tasks and notes once, then group by date in memory
+        const [allTasks, allNotes] = await Promise.all([
+            this.plugin.cacheManager.getTasksForDate(new Date(), false),
+            this.plugin.cacheManager.getAllNotes()
+        ]);
         
-        const agendaData = await Promise.all(dataPromises);
+        // Group data by date
+        const agendaData = dates.map(date => {
+            const dateStr = format(date, 'yyyy-MM-dd');
+            
+            // Filter tasks for this date
+            const tasksForDate = allTasks.filter(task => {
+                // Handle recurring tasks
+                if (task.recurrence) {
+                    return isRecurringTaskDueOn(task, date);
+                }
+                // Handle regular tasks with due dates
+                return task.due === dateStr;
+            });
+            
+            // Filter notes for this date
+            const notesForDate = allNotes.filter(note => {
+                return note.created === dateStr || note.date === dateStr;
+            });
+            
+            return { date, tasks: tasksForDate, notes: notesForDate };
+        });
         
         // Group items by date if enabled
         if (this.groupByDate) {

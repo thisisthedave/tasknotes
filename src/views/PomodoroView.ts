@@ -328,25 +328,11 @@ export class PomodoroView extends ItemView {
         try {
             const lastTaskPath = await this.plugin.pomodoroService.getLastSelectedTaskPath();
             if (lastTaskPath) {
-                // Try to find the task by path
-                const today = new Date();
+                // Use the optimized getTaskByPath method
+                const task = await this.plugin.cacheManager.getTaskByPath(lastTaskPath);
                 
-                // Search in tasks from the last week to today and next week
-                for (let i = -7; i <= 7; i++) {
-                    const date = new Date(today);
-                    date.setDate(today.getDate() + i);
-                    
-                    try {
-                        const dayTasks = await this.plugin.cacheManager.getTaskInfoForDate(date);
-                        const task = dayTasks.find(t => t.path === lastTaskPath);
-                        
-                        if (task && task.status !== 'done' && !task.archived) {
-                            await this.selectTask(task);
-                            return;
-                        }
-                    } catch (error) {
-                        // Continue searching
-                    }
+                if (task && task.status !== 'done' && !task.archived) {
+                    await this.selectTask(task);
                 }
             }
         } catch (error) {

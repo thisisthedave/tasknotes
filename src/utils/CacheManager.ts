@@ -1152,6 +1152,30 @@ export class CacheManager {
     }
     
     /**
+     * Get all notes (for AgendaView optimization)
+     */
+    async getAllNotes(): Promise<NoteInfo[]> {
+        await this.ensureInitialized();
+        return Array.from(this.noteInfoCache.values());
+    }
+    
+    /**
+     * Get task info by path (for PomodoroView optimization)
+     */
+    async getTaskByPath(path: string): Promise<TaskInfo | null> {
+        await this.ensureInitialized();
+        
+        // Check cache first
+        if (this.taskInfoCache.has(path)) {
+            this.stats.cacheHits++;
+            return this.taskInfoCache.get(path)!;
+        }
+        
+        // If not in cache, try to load it
+        return this.getTaskInfo(path, false);
+    }
+    
+    /**
      * Get cache statistics
      */
     getStats(): {
