@@ -1,5 +1,5 @@
 import { Notice, TFile, ItemView, WorkspaceLeaf, Menu } from 'obsidian';
-import { format, addDays, startOfWeek, endOfWeek, isToday, isSameDay } from 'date-fns';
+import { format, addDays, startOfWeek, endOfWeek, isToday, isSameDay, isBefore, parseISO } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
     AGENDA_VIEW_TYPE,
@@ -21,6 +21,7 @@ export class AgendaView extends ItemView {
     // View settings
     private daysToShow: number = 7;
     private groupByDate: boolean = true;
+    private showOverdueOnToday: boolean = false;
     private startDate: Date;
     
     // Filter system
@@ -196,6 +197,7 @@ export class AgendaView extends ItemView {
         
         prevButton.addEventListener('click', () => {
             this.navigateToPreviousPeriod();
+            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
         // Current period display
@@ -215,6 +217,7 @@ export class AgendaView extends ItemView {
         
         nextButton.addEventListener('click', () => {
             this.navigateToNextPeriod();
+            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
         const todayButton = navigationRow.createEl('button', {
@@ -225,6 +228,7 @@ export class AgendaView extends ItemView {
         todayButton.addEventListener('click', () => {
             this.startDate = new Date();
             this.refresh();
+            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
         // Row 2: View Options
@@ -271,20 +275,20 @@ export class AgendaView extends ItemView {
         });
         
         
-        // Group by date toggle
-        const groupingContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
+        // Show overdue tasks on today toggle
+        const overdueContainer = optionsRow.createDiv({ cls: 'option-group toggle-container' });
         
-        const groupingToggle = groupingContainer.createEl('label', { cls: 'toggle-label' });
+        const overdueToggle = overdueContainer.createEl('label', { cls: 'toggle-label' });
         
-        const groupingCheckbox = groupingToggle.createEl('input', { 
+        const overdueCheckbox = overdueToggle.createEl('input', { 
             type: 'checkbox',
             cls: 'toggle-checkbox'
         });
-        groupingCheckbox.checked = this.groupByDate;
-        groupingToggle.createSpan({ text: 'Group by date' });
+        overdueCheckbox.checked = this.showOverdueOnToday;
+        overdueToggle.createSpan({ text: 'Show overdue tasks on current date' });
         
-        groupingCheckbox.addEventListener('change', () => {
-            this.groupByDate = groupingCheckbox.checked;
+        overdueCheckbox.addEventListener('change', () => {
+            this.showOverdueOnToday = overdueCheckbox.checked;
             this.refresh();
         });
     }
@@ -318,7 +322,42 @@ export class AgendaView extends ItemView {
             const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
             
             // Flatten the grouped tasks since we'll re-group by date
-            const allTasks = Array.from(groupedTasks.values()).flat();
+            let allTasks = Array.from(groupedTasks.values()).flat();
+            
+            // If showing overdue tasks on today, get additional overdue tasks
+            if (this.showOverdueOnToday) {
+                const today = new Date();
+                const todayStr = format(today, 'yyyy-MM-dd');
+                
+                // Check if today is in our date range
+                const dates = this.getAgendaDates();
+                const hasTodayInRange = dates.some(date => format(date, 'yyyy-MM-dd') === todayStr);
+                
+                if (hasTodayInRange) {
+                    // Get all tasks (without date filtering) to find overdue ones
+                    const queryForOverdue = { ...this.currentQuery };
+                    delete queryForOverdue.dateRange; // Remove date range filter
+                    
+                    const allTasksGrouped = await this.plugin.filterService.getGroupedTasks(queryForOverdue);
+                    const allTasksFlat = Array.from(allTasksGrouped.values()).flat();
+                    
+                    // Find overdue tasks that aren't already included
+                    const overdueTasks = allTasksFlat.filter(task => {
+                        if (!task.due || task.recurrence) return false; // Skip tasks without due dates or recurring tasks
+                        
+                        const taskDueDate = parseISO(task.due);
+                        const isOverdue = isBefore(taskDueDate, today);
+                        const notAlreadyIncluded = !allTasks.some(existingTask => 
+                            existingTask.path === task.path && existingTask.title === task.title
+                        );
+                        
+                        return isOverdue && notAlreadyIncluded;
+                    });
+                    
+                    // Add overdue tasks to the list
+                    allTasks = [...allTasks, ...overdueTasks];
+                }
+            }
             
             // Get all notes for the date range (FilterService doesn't handle notes yet)
             const allNotes = await this.plugin.cacheManager.getAllNotes();
@@ -330,14 +369,25 @@ export class AgendaView extends ItemView {
             const agendaData = dates.map(date => {
                 const dateStr = format(date, 'yyyy-MM-dd');
                 
-                // Filter tasks for this date (already filtered by FilterService date range)
+                // Filter tasks for this date
                 const tasksForDate = allTasks.filter(task => {
                     // Handle recurring tasks
                     if (task.recurrence) {
                         return isRecurringTaskDueOn(task, date);
                     }
-                    // Handle regular tasks with due dates
-                    return task.due === dateStr;
+                    
+                    // Handle regular tasks with due dates for this specific date
+                    if (task.due === dateStr) {
+                        return true;
+                    }
+                    
+                    // If showing overdue tasks and this is today, include overdue tasks
+                    if (this.showOverdueOnToday && isToday(date) && task.due) {
+                        const taskDueDate = parseISO(task.due);
+                        return isBefore(taskDueDate, date);
+                    }
+                    
+                    return false;
                 });
                 
                 // Filter notes for this date
@@ -381,7 +431,18 @@ export class AgendaView extends ItemView {
                     return isRecurringTaskDueOn(task, dayData.date);
                 }
                 
-                return task.due === dateStr;
+                // Handle regular tasks with due dates for this specific date
+                if (task.due === dateStr) {
+                    return true;
+                }
+                
+                // If showing overdue tasks and this is today, include overdue tasks
+                if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
+                    const taskDueDate = parseISO(task.due);
+                    return isBefore(taskDueDate, dayData.date);
+                }
+                
+                return false;
             });
             
             const hasItems = tasksForDate.length > 0 || dayData.notes.length > 0;
@@ -441,11 +502,19 @@ export class AgendaView extends ItemView {
             
             dayData.tasks.forEach(task => {
                 // Archived filtering already handled by FilterService
+                let shouldInclude = false;
+                
                 if (task.recurrence) {
-                    if (isRecurringTaskDueOn(task, dayData.date)) {
-                        allItems.push({ type: 'task', item: task, date: dayData.date });
-                    }
+                    shouldInclude = isRecurringTaskDueOn(task, dayData.date);
                 } else if (task.due === dateStr) {
+                    shouldInclude = true;
+                } else if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
+                    // If showing overdue tasks and this is today, include overdue tasks
+                    const taskDueDate = parseISO(task.due);
+                    shouldInclude = isBefore(taskDueDate, dayData.date);
+                }
+                
+                if (shouldInclude) {
                     allItems.push({ type: 'task', item: task, date: dayData.date });
                 }
             });
@@ -551,12 +620,25 @@ export class AgendaView extends ItemView {
         agendaData.forEach(dayData => {
             const dateStr = format(dayData.date, 'yyyy-MM-dd');
             
-            // Filter tasks for this date
+            // Filter tasks for this date - use the same logic as the main filtering
             const tasksForDate = dayData.tasks.filter(task => {
+                // Handle recurring tasks
                 if (task.recurrence) {
                     return isRecurringTaskDueOn(task, dayData.date);
                 }
-                return task.due === dateStr;
+                
+                // Handle regular tasks with due dates for this specific date
+                if (task.due === dateStr) {
+                    return true;
+                }
+                
+                // If showing overdue tasks and this is today, include overdue tasks
+                if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
+                    const taskDueDate = parseISO(task.due);
+                    return isBefore(taskDueDate, dayData.date);
+                }
+                
+                return false;
             });
             
             const hasItems = tasksForDate.length > 0 || dayData.notes.length > 0;
@@ -626,11 +708,19 @@ export class AgendaView extends ItemView {
             const dateStr = format(dayData.date, 'yyyy-MM-dd');
             
             dayData.tasks.forEach(task => {
+                let shouldInclude = false;
+                
                 if (task.recurrence) {
-                    if (isRecurringTaskDueOn(task, dayData.date)) {
-                        allItems.push({ type: 'task', item: task, date: dayData.date });
-                    }
+                    shouldInclude = isRecurringTaskDueOn(task, dayData.date);
                 } else if (task.due === dateStr) {
+                    shouldInclude = true;
+                } else if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
+                    // If showing overdue tasks and this is today, include overdue tasks
+                    const taskDueDate = parseISO(task.due);
+                    shouldInclude = isBefore(taskDueDate, dayData.date);
+                }
+                
+                if (shouldInclude) {
                     allItems.push({ type: 'task', item: task, date: dayData.date });
                 }
             });
@@ -916,6 +1006,11 @@ export class AgendaView extends ItemView {
                 case 'h':
                     e.preventDefault();
                     this.navigateToPreviousPeriod();
+                    // Update the period display
+                    const currentPeriodDisplay = this.contentEl.querySelector('.current-period-display');
+                    if (currentPeriodDisplay) {
+                        currentPeriodDisplay.textContent = this.getCurrentPeriodText();
+                    }
                     break;
                     
                 // Right arrow or l - next period
@@ -923,6 +1018,11 @@ export class AgendaView extends ItemView {
                 case 'l':
                     e.preventDefault();
                     this.navigateToNextPeriod();
+                    // Update the period display
+                    const nextPeriodDisplay = this.contentEl.querySelector('.current-period-display');
+                    if (nextPeriodDisplay) {
+                        nextPeriodDisplay.textContent = this.getCurrentPeriodText();
+                    }
                     break;
                     
                 // t - go to today
@@ -931,16 +1031,11 @@ export class AgendaView extends ItemView {
                     e.preventDefault();
                     this.startDate = new Date();
                     this.refresh();
-                    break;
-                    
-                // g - toggle grouping
-                case 'g':
-                case 'G':
-                    e.preventDefault();
-                    this.groupByDate = !this.groupByDate;
-                    const groupingCheckbox = this.contentEl.querySelector('.option-group.toggle-container:last-child .toggle-checkbox') as HTMLInputElement;
-                    if (groupingCheckbox) groupingCheckbox.checked = this.groupByDate;
-                    this.refresh();
+                    // Update the period display
+                    const todayPeriodDisplay = this.contentEl.querySelector('.current-period-display');
+                    if (todayPeriodDisplay) {
+                        todayPeriodDisplay.textContent = this.getCurrentPeriodText();
+                    }
                     break;
                     
                 // c - toggle archived tasks
@@ -955,6 +1050,16 @@ export class AgendaView extends ItemView {
                     }
                     // Save state and refresh
                     this.plugin.viewStateManager.setFilterState(AGENDA_VIEW_TYPE, this.currentQuery);
+                    this.refresh();
+                    break;
+                    
+                // o - toggle overdue tasks on today
+                case 'o':
+                case 'O':
+                    e.preventDefault();
+                    this.showOverdueOnToday = !this.showOverdueOnToday;
+                    const overdueCheckbox = this.contentEl.querySelector('.option-group.toggle-container .toggle-checkbox') as HTMLInputElement;
+                    if (overdueCheckbox) overdueCheckbox.checked = this.showOverdueOnToday;
                     this.refresh();
                     break;
             }

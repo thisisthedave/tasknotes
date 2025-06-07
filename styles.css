@@ -3594,6 +3594,17 @@
     margin-top: 16px;
 }
 
+/* Task and note card spacing in agenda view */
+.agenda-content .task-card,
+.agenda-content .note-card {
+    margin-bottom: var(--cs-spacing-sm);
+}
+
+.agenda-content .task-card:last-child,
+.agenda-content .note-card:last-child {
+    margin-bottom: 0;
+}
+
 .agenda-day-header {
     display: flex;
     justify-content: space-between;
