@@ -356,32 +356,28 @@ export class PomodoroView extends ItemView {
     
     private async updateTaskButtonFromPath(taskPath: string) {
         try {
-            // Try to get task info for display
-            const today = new Date();
+            // Use the cache manager as the single source of truth
+            const task = await this.plugin.cacheManager.getTaskInfo(taskPath);
             
-            for (let i = -7; i <= 7; i++) {
-                const date = new Date(today);
-                date.setDate(today.getDate() + i);
-                
-                try {
-                    const dayTasks = await this.plugin.cacheManager.getTaskInfoForDate(date);
-                    const task = dayTasks.find(t => t.path === taskPath);
-                    
-                    if (task) {
-                        this.currentSelectedTask = task;
-                        if (this.taskSelectButton) {
-                            const displayText = task.title.length > 30 
-                                ? task.title.substring(0, 27) + '...' 
-                                : task.title;
-                            this.taskSelectButton.textContent = displayText;
-                            this.taskSelectButton.title = task.title;
-                            this.taskSelectButton.removeClass('pomodoro-no-task');
-                        }
-                        return;
-                    }
-                } catch (error) {
-                    // Continue searching
+            if (task) {
+                this.currentSelectedTask = task;
+                if (this.taskSelectButton) {
+                    const displayText = task.title.length > 30 
+                        ? task.title.substring(0, 27) + '...' 
+                        : task.title;
+                    this.taskSelectButton.textContent = displayText;
+                    this.taskSelectButton.title = task.title;
+                    this.taskSelectButton.removeClass('pomodoro-no-task');
                 }
+                return;
+            }
+            
+            // Task not found - reset to no task selected
+            this.currentSelectedTask = null;
+            if (this.taskSelectButton) {
+                this.taskSelectButton.textContent = 'Select Task';
+                this.taskSelectButton.title = '';
+                this.taskSelectButton.addClass('pomodoro-no-task');
             }
         } catch (error) {
             console.error('Error updating task button from path:', error);

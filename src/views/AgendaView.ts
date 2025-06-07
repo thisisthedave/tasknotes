@@ -467,6 +467,13 @@ export class AgendaView extends ItemView {
         const shouldBeVisible = this.showArchived || !updatedTask.archived;
         
         if (taskElement && shouldBeVisible) {
+            // Check if the task's date group has changed
+            if (this.hasTaskMovedDateGroups(taskPath, updatedTask)) {
+                // Task has moved to a different date group, trigger full refresh
+                this.debounceRefresh();
+                return;
+            }
+
             try {
                 // Update the existing task card
                 updateTaskCard(taskElement, updatedTask, this.plugin, {
@@ -486,11 +493,52 @@ export class AgendaView extends ItemView {
             // Task should be hidden - remove it from the DOM
             taskElement.remove();
         } else if (!taskElement && shouldBeVisible) {
-            // Task element not found but should be visible - might be a new task
-            this.refresh();
+            // Task element not found but should be visible - might be a new task or moved groups
+            this.debounceRefresh();
         } else {
             // Task element not found and shouldn't be visible - nothing to do
         }
+    }
+
+    // Debounced refresh to avoid multiple rapid refreshes
+    private refreshTimeout: NodeJS.Timeout | null = null;
+    private debounceRefresh() {
+        if (this.refreshTimeout) {
+            clearTimeout(this.refreshTimeout);
+        }
+        this.refreshTimeout = setTimeout(() => {
+            this.refresh();
+            this.refreshTimeout = null;
+        }, 150);
+    }
+
+    /**
+     * Check if a task has moved to a different date group in the agenda
+     */
+    private hasTaskMovedDateGroups(taskPath: string, updatedTask: TaskInfo): boolean {
+        // Find the current date group for this task
+        const currentDateSection = this.contentEl.querySelector(`[data-task-path="${taskPath}"]`)?.closest('.agenda-day');
+        if (!currentDateSection) return false;
+
+        const currentDateStr = currentDateSection.getAttribute('data-date');
+        if (!currentDateStr) return false;
+
+        // Check what date this task should belong to now
+        const taskDate = this.getTaskDateGroup(updatedTask);
+        const newDateStr = format(taskDate, 'yyyy-MM-dd');
+
+        return currentDateStr !== newDateStr;
+    }
+
+    /**
+     * Get the date group a task should belong to
+     */
+    private getTaskDateGroup(task: TaskInfo): Date {
+        // For agenda view, tasks are grouped by their due date or today if no due date
+        if (task.due) {
+            return new Date(task.due);
+        }
+        return new Date(); // Today
     }
     
     

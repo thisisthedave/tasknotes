@@ -778,7 +778,15 @@ export class TaskListView extends ItemView {
     private updateTaskElementInDOM(taskPath: string, updatedTask: TaskInfo): void {
         const taskElement = this.taskElements.get(taskPath);
         if (!taskElement) {
-            // Task element not found for path - this is normal for new tasks or filtered tasks
+            // Task not currently in view, a refresh might be needed if it now matches filters
+            this.debounceRefresh();
+            return;
+        }
+        
+        // Check if the task's group or visibility has changed
+        if (this.hasTaskMovedGroups(taskElement, updatedTask)) {
+            // Task has moved to a new group or changed visibility, trigger full refresh
+            this.debounceRefresh();
             return;
         }
         
@@ -797,6 +805,54 @@ export class TaskListView extends ItemView {
             console.error(`TaskListView: Error updating DOM for task ${taskPath}:`, error);
             // If update fails, trigger a full refresh to recover
             this.refresh();
+        }
+    }
+
+    // Debounced refresh to avoid multiple rapid refreshes
+    private refreshTimeout: NodeJS.Timeout | null = null;
+    private debounceRefresh() {
+        if (this.refreshTimeout) {
+            clearTimeout(this.refreshTimeout);
+        }
+        this.refreshTimeout = setTimeout(() => {
+            this.refresh();
+            this.refreshTimeout = null;
+        }, 150);
+    }
+
+    /**
+     * Check if a task has moved to a different group or changed visibility
+     */
+    private hasTaskMovedGroups(taskElement: HTMLElement, updatedTask: TaskInfo): boolean {
+        // Get current group from DOM structure
+        const currentGroup = taskElement.closest('.task-group');
+        if (!currentGroup) return false;
+        
+        const currentGroupKey = currentGroup.getAttribute('data-group');
+        if (!currentGroupKey) return false;
+
+        // Determine what group this task should belong to now
+        const newGroupKey = this.getTaskGroupKey(updatedTask);
+        
+        return currentGroupKey !== newGroupKey;
+    }
+    
+    /**
+     * Get the group key for a task based on current grouping
+     */
+    private getTaskGroupKey(task: TaskInfo): string {
+        switch (this.groupKey) {
+            case 'status':
+                return task.status;
+            case 'priority':
+                return task.priority;
+            case 'context':
+                const contexts = task.contexts || [];
+                return contexts.length > 0 ? contexts[0] : 'No Context';
+            case 'due':
+                return task.due || 'No Due Date';
+            default:
+                return 'All';
         }
     }
     

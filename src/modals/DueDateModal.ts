@@ -1,4 +1,5 @@
-import { App, Modal, Setting, moment } from 'obsidian';
+import { App, Modal, Setting } from 'obsidian';
+import { format, add, isValid, parse } from 'date-fns';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 
@@ -59,19 +60,19 @@ export class DueDateModal extends Modal {
         // Today button
         buttonsContainer.createEl('button', { text: 'Today', cls: 'quick-date-btn' })
             .addEventListener('click', () => {
-                this.dueDateInput.value = moment().format('YYYY-MM-DD');
+                this.dueDateInput.value = format(new Date(), 'yyyy-MM-dd');
             });
 
         // Tomorrow button
         buttonsContainer.createEl('button', { text: 'Tomorrow', cls: 'quick-date-btn' })
             .addEventListener('click', () => {
-                this.dueDateInput.value = moment().add(1, 'day').format('YYYY-MM-DD');
+                this.dueDateInput.value = format(add(new Date(), { days: 1 }), 'yyyy-MM-dd');
             });
 
         // Next week button
         buttonsContainer.createEl('button', { text: 'Next Week', cls: 'quick-date-btn' })
             .addEventListener('click', () => {
-                this.dueDateInput.value = moment().add(1, 'week').format('YYYY-MM-DD');
+                this.dueDateInput.value = format(add(new Date(), { weeks: 1 }), 'yyyy-MM-dd');
             });
 
         // Clear button
@@ -99,7 +100,7 @@ export class DueDateModal extends Modal {
         const dateValue = this.dueDateInput.value.trim();
         
         // Validate date format if not empty
-        if (dateValue && !moment(dateValue, 'YYYY-MM-DD', true).isValid()) {
+        if (dateValue && !isValid(parse(dateValue, 'yyyy-MM-dd', new Date()))) {
             // Show error message
             const errorEl = this.contentEl.createEl('div', { 
                 text: 'Please enter a valid date in YYYY-MM-DD format',
