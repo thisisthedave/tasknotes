@@ -643,18 +643,8 @@ export class TaskListView extends ItemView {
                 const tasks = await this.plugin.requestDeduplicator.execute(
                     cacheKey,
                     async () => {
-                        // Try unified cache manager first
-                        try {
-                            const cachedTasks = await this.plugin.cacheManager.getTasksForDate(this.plugin.selectedDate, forceRefresh);
-                            if (cachedTasks.length > 0) {
-                                return cachedTasks;
-                            }
-                        } catch (error) {
-                            console.warn('Failed to get tasks from unified cache manager:', error);
-                        }
-                        
-                        // Use CacheManager
-                        return this.plugin.cacheManager.getTaskInfoForDate(this.plugin.selectedDate, forceRefresh);
+                        // Use unified cache manager (getTaskInfoForDate is just an alias for getTasksForDate)
+                        return this.plugin.cacheManager.getTasksForDate(this.plugin.selectedDate, forceRefresh);
                     }
                 );
                 

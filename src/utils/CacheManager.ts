@@ -50,6 +50,10 @@ export class CacheManager {
     private eventHandlers: FileEventHandlers = {};
     private subscribers: Map<string, Set<(data: any) => void>> = new Map();
     
+    // Initialization state
+    private initializationPromise: Promise<void> | null = null;
+    private isInitialized: boolean = false;
+    
     constructor(
         vault: Vault, 
         taskTag: string, 
@@ -265,14 +269,24 @@ export class CacheManager {
      * The date parameter is kept for compatibility but filtering should happen in the view layer
      */
     async getTasksForDate(date: Date, forceRefresh = false): Promise<TaskInfo[]> {
+        // Ensure cache is initialized first
+        await this.ensureInitialized();
+        
         // Return ALL tasks, not filtered by date - let the view layer handle filtering
         // Return all tasks for flexible filtering in views
         const results: TaskInfo[] = [];
         
+        // If forcing refresh, clear caches first
+        if (forceRefresh) {
+            this.clearAllCaches();
+            await this.performInitialization();
+            this.isInitialized = true;
+        }
+        
         // Get all task paths from the indexed files cache
         const allTaskPaths = Array.from(this.taskInfoCache.keys());
         
-        // If we don't have cached tasks, load them from indexed files
+        // If we don't have cached tasks, try to load them from indexed files
         if (allTaskPaths.length === 0) {
             const allIndexedPaths = Array.from(this.indexedFilesCache.keys())
                 .filter(path => {
@@ -280,16 +294,43 @@ export class CacheManager {
                     return indexed?.isTask;
                 });
             
-            // Process in batches for better performance
-            const batchSize = 20;
-            for (let i = 0; i < allIndexedPaths.length; i += batchSize) {
-                const batch = allIndexedPaths.slice(i, i + batchSize);
-                const batchPromises = batch.map(path => this.getTaskInfo(path, forceRefresh));
-                const batchResults = await Promise.all(batchPromises);
+            // If we have no indexed task files either, rebuild the cache
+            if (allIndexedPaths.length === 0 && !forceRefresh) {
+                console.log('CacheManager: No tasks found in cache, rebuilding index...');
+                console.log(`CacheManager: Before rebuild - taskInfoCache: ${this.taskInfoCache.size}, indexedFilesCache: ${this.indexedFilesCache.size}`);
+                await this.initializeCache();
+                console.log(`CacheManager: After rebuild - taskInfoCache: ${this.taskInfoCache.size}, indexedFilesCache: ${this.indexedFilesCache.size}`);
                 
-                batchResults.forEach(task => {
-                    if (task) results.push(task);
-                });
+                // Try again after rebuild
+                const rebuiltIndexedPaths = Array.from(this.indexedFilesCache.keys())
+                    .filter(path => {
+                        const indexed = this.indexedFilesCache.get(path);
+                        return indexed?.isTask;
+                    });
+                
+                // Process rebuilt indexed files
+                const batchSize = 20;
+                for (let i = 0; i < rebuiltIndexedPaths.length; i += batchSize) {
+                    const batch = rebuiltIndexedPaths.slice(i, i + batchSize);
+                    const batchPromises = batch.map(path => this.getTaskInfo(path, true));
+                    const batchResults = await Promise.all(batchPromises);
+                    
+                    batchResults.forEach(task => {
+                        if (task) results.push(task);
+                    });
+                }
+            } else {
+                // Process existing indexed files
+                const batchSize = 20;
+                for (let i = 0; i < allIndexedPaths.length; i += batchSize) {
+                    const batch = allIndexedPaths.slice(i, i + batchSize);
+                    const batchPromises = batch.map(path => this.getTaskInfo(path, forceRefresh));
+                    const batchResults = await Promise.all(batchPromises);
+                    
+                    batchResults.forEach(task => {
+                        if (task) results.push(task);
+                    });
+                }
             }
         } else {
             // Use cached task info
@@ -305,6 +346,8 @@ export class CacheManager {
      * Get tasks that are due on a specific date (for calendar highlighting)
      */
     async getTasksDueOnDate(date: Date): Promise<TaskInfo[]> {
+        // Ensure cache is initialized first
+        await this.ensureInitialized();
         const dateStr = date.toISOString().split('T')[0];
         const taskPaths = this.tasksByDate.get(dateStr) || new Set();
         const results: TaskInfo[] = [];
@@ -330,6 +373,8 @@ export class CacheManager {
      * Get notes for a specific date
      */
     async getNotesForDate(date: Date, forceRefresh = false): Promise<NoteInfo[]> {
+        // Ensure cache is initialized first
+        await this.ensureInitialized();
         const dateStr = date.toISOString().split('T')[0];
         const notePaths = this.notesByDate.get(dateStr) || new Set();
         const results: NoteInfo[] = [];
@@ -424,6 +469,27 @@ export class CacheManager {
      * Initialize the cache by scanning all markdown files
      */
     async initializeCache(): Promise<void> {
+        // If initialization is already in progress, return the existing promise
+        if (this.initializationPromise) {
+            return this.initializationPromise;
+        }
+        
+        // Create and store the initialization promise
+        this.initializationPromise = this.performInitialization();
+        
+        try {
+            await this.initializationPromise;
+            this.isInitialized = true;
+            console.log('CacheManager: Initialization completed successfully');
+        } catch (error) {
+            console.error('CacheManager: Initialization failed:', error);
+            // Reset the promise so it can be retried
+            this.initializationPromise = null;
+            throw error;
+        }
+    }
+    
+    private async performInitialization(): Promise<void> {
         const start = performance.now();
         
         // Clear existing caches
@@ -431,6 +497,7 @@ export class CacheManager {
         
         // Get all markdown files
         const files = this.vault.getMarkdownFiles();
+        console.log(`CacheManager: Initializing cache with ${files.length} files`);
         
         // Process files in batches for better responsiveness
         const batchSize = 50;
@@ -440,6 +507,7 @@ export class CacheManager {
         }
         
         const end = performance.now();
+        console.log(`CacheManager: Cache initialized in ${(end - start).toFixed(2)}ms with ${this.taskInfoCache.size} tasks`);
         
         // Notify subscribers
         this.notifySubscribers('cache-initialized', {
@@ -447,6 +515,22 @@ export class CacheManager {
             noteCount: this.noteInfoCache.size,
             duration: end - start
         });
+    }
+    
+    /**
+     * Ensure cache is initialized before proceeding with operations
+     */
+    private async ensureInitialized(): Promise<void> {
+        if (this.isInitialized) {
+            return;
+        }
+        
+        if (this.initializationPromise) {
+            await this.initializationPromise;
+        } else {
+            // If no initialization is in progress, start it
+            await this.initializeCache();
+        }
     }
     
     /**
@@ -464,6 +548,16 @@ export class CacheManager {
             // Check if this is a task file
             const frontmatter = this.extractFrontmatter(content, file.path);
             const isTask = frontmatter?.tags?.includes(this.taskTag);
+            
+            // Debug logging for task detection
+            if (frontmatter?.tags && Array.isArray(frontmatter.tags)) {
+                if (isTask) {
+                    console.log(`CacheManager: Found task file: ${file.path} (tags: ${frontmatter.tags.join(', ')})`);
+                } else if (frontmatter.tags.length > 0) {
+                    // Only log if it has tags but isn't a task (to avoid spam)
+                    console.log(`CacheManager: Non-task file with tags: ${file.path} (tags: ${frontmatter.tags.join(', ')}, looking for: ${this.taskTag})`);
+                }
+            }
             
             // Create indexed file entry
             const indexedFile: IndexedFile = {
@@ -718,6 +812,10 @@ export class CacheManager {
         this.tasksByStatus.clear();
         this.tasksByPriority.clear();
         this.dailyNotes.clear();
+        
+        // Reset initialization state
+        this.isInitialized = false;
+        this.initializationPromise = null;
     }
     
     /**

@@ -106,8 +106,8 @@ export default class TaskNotesPlugin extends Plugin {
 			this.fieldMapper
 		);
 		
-		// Initialize cache asynchronously
-		perfMonitor.measure('cache-initialization', async () => {
+		// Initialize cache and wait for completion
+		await perfMonitor.measure('cache-initialization', async () => {
 			await this.cacheManager.initializeCache();
 		});
 		
