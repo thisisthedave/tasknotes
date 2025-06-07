@@ -4034,6 +4034,23 @@
     /* Extend base card with specific task card properties */
     border-left: 3px solid var(--priority-color, var(--text-muted));
     min-height: calc(var(--cs-touch-target) + var(--cs-spacing-sm));
+    /* Ensure core properties are inherited from base classes */
+    display: flex;
+    align-items: flex-start;
+    gap: var(--cs-spacing-sm);
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+    font-size: var(--cs-text-base);
+    line-height: 1.4;
+}
+
+.task-card:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--background-modifier-border-hover);
 }
 
 .task-card.completed .task-title {

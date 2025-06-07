@@ -54,6 +54,10 @@ export class CacheManager {
     private eventHandlers: FileEventHandlers = {};
     private subscribers: Map<string, Set<(data: any) => void>> = new Map();
     
+    // Track recent programmatic updates to prevent file event interference
+    private recentUpdates: Map<string, number> = new Map(); // path -> timestamp
+    private static readonly RECENT_UPDATE_WINDOW = 1000; // 1 second
+    
     // Initialization state
     private initializationPromise: Promise<void> | null = null;
     private isInitialized: boolean = false;
@@ -862,6 +866,22 @@ export class CacheManager {
      * Handle file update events
      */
     private async handleFileUpdate(file: TFile): Promise<void> {
+        // Check if this file was recently updated programmatically
+        const recentUpdateTime = this.recentUpdates.get(file.path);
+        const now = Date.now();
+        
+        if (recentUpdateTime && (now - recentUpdateTime) < CacheManager.RECENT_UPDATE_WINDOW) {
+            // Skip cache clearing for recent programmatic updates to prevent race conditions
+            console.log(`CacheManager: Skipping cache clear for ${file.path} due to recent programmatic update`);
+            
+            // Clean up old tracking entries
+            this.recentUpdates.delete(file.path);
+            
+            // Still notify subscribers but don't clear cache
+            this.notifySubscribers('file-updated', { path: file.path });
+            return;
+        }
+        
         // Clear caches for this file
         this.clearCacheEntry(file.path);
         
@@ -1037,6 +1057,9 @@ export class CacheManager {
      * after successful file writes to ensure the cache reflects the new state.
      */
     async updateTaskInfoInCache(path: string, taskInfo: TaskInfo | null): Promise<void> {
+        // Track this as a recent programmatic update
+        this.recentUpdates.set(path, Date.now());
+        
         if (taskInfo) {
             // Update the dateModified timestamp to reflect the current time
             const updatedTaskInfo: TaskInfo = {

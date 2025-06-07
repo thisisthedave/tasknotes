@@ -164,21 +164,8 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         const path = card.dataset.taskPath;
         if (!path) return;
 
-        try {
-            // Force a refresh from the file to get the absolute latest state for the context menu.
-            // A right-click is a user action where a slight delay for I/O is acceptable.
-            const latestTask = await plugin.cacheManager.getTaskInfo(path, true); 
-            if (latestTask) {
-                showTaskContextMenu(e, latestTask, plugin, targetDate);
-            } else {
-                // Fallback to the task data from when the card was rendered if cache fails
-                console.warn(`Could not refetch task info for ${path}, context menu may be stale.`);
-                showTaskContextMenu(e, task, plugin, targetDate);
-            }
-        } catch (error) {
-            console.error(`Error fetching latest task info for context menu for ${path}:`, error);
-            showTaskContextMenu(e, task, plugin, targetDate); // Fallback on any error
-        }
+        // Pass the file path to the context menu - it will fetch fresh data
+        await showTaskContextMenu(e, path, plugin, targetDate);
     });
     
     // Hover preview
@@ -202,116 +189,137 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
 /**
  * Show context menu for task card
  */
-function showTaskContextMenu(event: MouseEvent, task: TaskInfo, plugin: TaskNotesPlugin, targetDate: Date) {
-    const menu = new Menu();
-    
-    // Direct status options (no submenu to avoid issues)
-    plugin.statusManager.getAllStatuses().forEach(statusConfig => {
+async function showTaskContextMenu(event: MouseEvent, taskPath: string, plugin: TaskNotesPlugin, targetDate: Date) {
+    try {
+        // Always fetch fresh task data - ignore any stale captured data
+        const task = await plugin.cacheManager.getTaskInfo(taskPath);
+        if (!task) {
+            console.error(`No task found for path: ${taskPath}`);
+            return;
+        }
+        
+        // Debug: Log the task state when creating context menu
+        console.log(`Context menu for ${taskPath}: archived=${task.archived}, status=${task.status}`);
+        
+        const menu = new Menu();
+        
+        // Direct status options (no submenu to avoid issues)
+        plugin.statusManager.getAllStatuses().forEach(statusConfig => {
+            menu.addItem((item) => {
+                const isSelected = task.status === statusConfig.value;
+                item.setTitle(`${isSelected ? '✓ ' : ''}${statusConfig.label}`);
+                item.setIcon('circle');
+                if (isSelected) {
+                    item.setIcon('check-circle');
+                }
+                item.onClick(async () => {
+                    try {
+                        // Use the fresh task data that showTaskContextMenu just fetched
+                        await plugin.updateTaskProperty(task, 'status', statusConfig.value);
+                    } catch (error) {
+                        // Error handling and user feedback is now handled by the wrapper method
+                        console.error('Error updating task status:', error);
+                    }
+                });
+            });
+        });
+        
+        menu.addSeparator();
+        
+        // Direct priority options (no submenu to avoid issues)
+        plugin.priorityManager.getPrioritiesByWeight().forEach(priorityConfig => {
+            menu.addItem((item) => {
+                const isSelected = task.priority === priorityConfig.value;
+                item.setTitle(`${isSelected ? '✓ ' : ''}Priority: ${priorityConfig.label}`);
+                item.setIcon('flag');
+                if (isSelected) {
+                    item.setIcon('flag-triangle-right');
+                }
+                item.onClick(async () => {
+                    try {
+                        // Use the fresh task data that showTaskContextMenu just fetched
+                        await plugin.updateTaskProperty(task, 'priority', priorityConfig.value);
+                    } catch (error) {
+                        // Error handling and user feedback is now handled by the wrapper method
+                        console.error('Error updating task priority:', error);
+                    }
+                });
+            });
+        });
+        
+        menu.addSeparator();
+        
+        // Set Due Date
         menu.addItem((item) => {
-            const isSelected = task.status === statusConfig.value;
-            item.setTitle(`${isSelected ? '✓ ' : ''}${statusConfig.label}`);
-            item.setIcon('circle');
-            if (isSelected) {
-                item.setIcon('check-circle');
-            }
+            item.setTitle('Set Due Date...');
+            item.setIcon('calendar');
+            item.onClick(() => {
+                // Use the fresh task data that showTaskContextMenu just fetched
+                plugin.openDueDateModal(task);
+            });
+        });
+        
+        menu.addSeparator();
+        
+        // Time Tracking - determine current state from fresh task data
+        menu.addItem((item) => {
+            const activeSession = plugin.getActiveTimeSession(task);
+            item.setTitle(activeSession ? 'Stop Time Tracking' : 'Start Time Tracking');
+            item.setIcon(activeSession ? 'pause' : 'play');
             item.onClick(async () => {
-                try {
-                    await plugin.updateTaskProperty(task, 'status', statusConfig.value);
-                } catch (error) {
-                    // Error handling and user feedback is now handled by the wrapper method
-                    console.error('Error updating task status:', error);
+                // Use the fresh task data that showTaskContextMenu just fetched
+                const activeSession = plugin.getActiveTimeSession(task);
+                if (activeSession) {
+                    await plugin.stopTimeTracking(task);
+                } else {
+                    await plugin.startTimeTracking(task);
                 }
             });
         });
-    });
-    
-    menu.addSeparator();
-    
-    // Direct priority options (no submenu to avoid issues)
-    plugin.priorityManager.getPrioritiesByWeight().forEach(priorityConfig => {
+        
+        // Archive/Unarchive
         menu.addItem((item) => {
-            const isSelected = task.priority === priorityConfig.value;
-            item.setTitle(`${isSelected ? '✓ ' : ''}Priority: ${priorityConfig.label}`);
-            item.setIcon('flag');
-            if (isSelected) {
-                item.setIcon('flag-triangle-right');
-            }
+            item.setTitle(task.archived ? 'Unarchive' : 'Archive');
+            item.setIcon(task.archived ? 'archive-restore' : 'archive');
             item.onClick(async () => {
                 try {
-                    await plugin.updateTaskProperty(task, 'priority', priorityConfig.value);
+                    // Use the fresh task data that showTaskContextMenu just fetched
+                    await plugin.toggleTaskArchive(task);
                 } catch (error) {
                     // Error handling and user feedback is now handled by the wrapper method
-                    console.error('Error updating task priority:', error);
+                    console.error('Error toggling task archive:', error);
                 }
             });
         });
-    });
-    
-    menu.addSeparator();
-    
-    // Set Due Date
-    menu.addItem((item) => {
-        item.setTitle('Set Due Date...');
-        item.setIcon('calendar');
-        item.onClick(() => {
-            plugin.openDueDateModal(task);
+        
+        menu.addSeparator();
+        
+        // Open Note
+        menu.addItem((item) => {
+            item.setTitle('Open Note');
+            item.setIcon('file-text');
+            item.onClick(() => {
+                const file = plugin.app.vault.getAbstractFileByPath(taskPath);
+                if (file instanceof TFile) {
+                    plugin.app.workspace.getLeaf(false).openFile(file);
+                }
+            });
         });
-    });
-    
-    menu.addSeparator();
-    
-    // Time Tracking
-    const activeSession = plugin.getActiveTimeSession(task);
-    menu.addItem((item) => {
-        item.setTitle(activeSession ? 'Stop Time Tracking' : 'Start Time Tracking');
-        item.setIcon(activeSession ? 'pause' : 'play');
-        item.onClick(async () => {
-            if (activeSession) {
-                await plugin.stopTimeTracking(task);
-            } else {
-                await plugin.startTimeTracking(task);
-            }
+        
+        // Copy Task Title
+        menu.addItem((item) => {
+            item.setTitle('Copy Task Title');
+            item.setIcon('copy');
+            item.onClick(() => {
+                // Use the fresh task data that showTaskContextMenu just fetched
+                navigator.clipboard.writeText(task.title);
+            });
         });
-    });
     
-    // Archive/Unarchive
-    menu.addItem((item) => {
-        item.setTitle(task.archived ? 'Unarchive' : 'Archive');
-        item.setIcon(task.archived ? 'archive-restore' : 'archive');
-        item.onClick(async () => {
-            try {
-                await plugin.toggleTaskArchive(task);
-            } catch (error) {
-                // Error handling and user feedback is now handled by the wrapper method
-                console.error('Error toggling task archive:', error);
-            }
-        });
-    });
-    
-    menu.addSeparator();
-    
-    // Open Note
-    menu.addItem((item) => {
-        item.setTitle('Open Note');
-        item.setIcon('file-text');
-        item.onClick(() => {
-            const file = plugin.app.vault.getAbstractFileByPath(task.path);
-            if (file instanceof TFile) {
-                plugin.app.workspace.getLeaf(false).openFile(file);
-            }
-        });
-    });
-    
-    // Copy Task Title
-    menu.addItem((item) => {
-        item.setTitle('Copy Task Title');
-        item.setIcon('copy');
-        item.onClick(() => {
-            navigator.clipboard.writeText(task.title);
-        });
-    });
-    
-    menu.showAtMouseEvent(event);
+        menu.showAtMouseEvent(event);
+    } catch (error) {
+        console.error(`Error creating context menu for task ${taskPath}:`, error);
+    }
 }
 
 /**
