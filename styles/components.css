@@ -35,6 +35,11 @@
     color: var(--text-normal);
 }
 
+.task-title.completed {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
 .task-title.task-priority-high {
     color: var(--text-error);
     border-left-color: var(--text-error);

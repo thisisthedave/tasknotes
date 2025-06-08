@@ -843,6 +843,21 @@
     padding: 0;
 }
 
+/* Completed task styling */
+.task-item.task-completed {
+    opacity: 0.7;
+}
+
+.task-item.task-completed .task-item-title,
+.task-title.completed {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.task-item.task-completed .task-item-title:hover {
+    color: var(--text-muted);
+}
+
 /* Style for the refresh button */
 .refresh-tasks-button {
     background-color: var(--background-secondary);
