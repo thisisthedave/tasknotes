@@ -193,6 +193,9 @@ export class AgendaView extends ItemView {
         // FilterBar section (like tasks view)
         const filterBarContainer = controlsContainer.createDiv({ cls: 'agenda-filter-bar-container' });
         
+        // Wait for cache to be initialized with actual data
+        await this.waitForCacheReady();
+        
         // Get filter options from FilterService
         const filterOptions = await this.plugin.filterService.getFilterOptions();
         
@@ -210,6 +213,12 @@ export class AgendaView extends ItemView {
                 allowedGroupKeys: ['none'] // Only none allowed since we group by date
             }
         );
+        
+        // Initialize FilterBar (placeholder for future cache-ready initialization)
+        await this.filterBar.initialize();
+        
+        // Set up cache refresh mechanism for FilterBar
+        this.filterBar.setupCacheRefresh(this.plugin.cacheManager, this.plugin.filterService);
         
         // Listen for filter changes
         this.filterBar.on('queryChange', (newQuery: FilterQuery) => {
@@ -1007,5 +1016,23 @@ export class AgendaView extends ItemView {
     private isThisViewActive(): boolean {
         const activeView = this.app.workspace.getActiveViewOfType(AgendaView);
         return activeView === this;
+    }
+    
+    /**
+     * Wait for cache to be ready with actual data
+     */
+    private async waitForCacheReady(): Promise<void> {
+        // First check if cache is already initialized
+        if (this.plugin.cacheManager.isInitialized()) {
+            return;
+        }
+        
+        // If not initialized, wait for the cache-initialized event
+        return new Promise((resolve) => {
+            const unsubscribe = this.plugin.cacheManager.subscribe('cache-initialized', () => {
+                unsubscribe();
+                resolve();
+            });
+        });
     }
 }

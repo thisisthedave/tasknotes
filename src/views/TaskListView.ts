@@ -256,6 +256,9 @@ export class TaskListView extends ItemView {
         // Create FilterBar container
         const filterBarContainer = container.createDiv({ cls: 'filter-bar-container' });
         
+        // Wait for cache to be initialized with actual data
+        await this.waitForCacheReady();
+        
         // Get filter options from FilterService
         const filterOptions = await this.plugin.filterService.getFilterOptions();
         
@@ -274,6 +277,12 @@ export class TaskListView extends ItemView {
                 allowedGroupKeys: ['none', 'status', 'priority', 'context', 'due']
             }
         );
+        
+        // Initialize FilterBar (placeholder for future cache-ready initialization)
+        await this.filterBar.initialize();
+        
+        // Set up cache refresh mechanism for FilterBar
+        this.filterBar.setupCacheRefresh(this.plugin.cacheManager, this.plugin.filterService);
         
         // Listen for filter changes
         this.filterBar.on('queryChange', (newQuery: FilterQuery) => {
@@ -550,5 +559,23 @@ export class TaskListView extends ItemView {
         if (file instanceof TFile) {
             this.app.workspace.getLeaf(false).openFile(file);
         }
+    }
+    
+    /**
+     * Wait for cache to be ready with actual data
+     */
+    private async waitForCacheReady(): Promise<void> {
+        // First check if cache is already initialized
+        if (this.plugin.cacheManager.isInitialized()) {
+            return;
+        }
+        
+        // If not initialized, wait for the cache-initialized event
+        return new Promise((resolve) => {
+            const unsubscribe = this.plugin.cacheManager.subscribe('cache-initialized', () => {
+                unsubscribe();
+                resolve();
+            });
+        });
     }
 }

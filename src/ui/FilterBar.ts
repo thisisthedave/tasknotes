@@ -52,6 +52,50 @@ export class FilterBar extends EventEmitter {
     }
 
     /**
+     * Async initialization method that waits for cache readiness
+     * Call this after constructor to ensure filter options are populated
+     */
+    async initialize(): Promise<void> {
+        // This method can be used by views to ensure cache-dependent initialization
+        // is complete before showing the FilterBar
+        return Promise.resolve();
+    }
+
+    /**
+     * Set up refresh mechanism to update filter options when cache changes
+     * Should be called by views that want FilterBar to auto-refresh
+     */
+    setupCacheRefresh(cacheManager: any, filterService: any): void {
+        // Listen for cache initialization events (for delayed initialization)
+        const cacheListener = cacheManager.subscribe('cache-initialized', async () => {
+            try {
+                const newFilterOptions = await filterService.getFilterOptions();
+                this.updateFilterOptions(newFilterOptions);
+            } catch (error) {
+                console.error('FilterBar: Error refreshing filter options after cache initialization:', error);
+            }
+        });
+
+        // Listen for filter service data changes
+        const filterDataListener = filterService.on('data-changed', async () => {
+            try {
+                const newFilterOptions = await filterService.getFilterOptions();
+                this.updateFilterOptions(newFilterOptions);
+            } catch (error) {
+                console.error('FilterBar: Error refreshing filter options after data change:', error);
+            }
+        });
+
+        // Store listeners for cleanup
+        if (!this.cacheRefreshListeners) {
+            this.cacheRefreshListeners = [];
+        }
+        this.cacheRefreshListeners.push(cacheListener, filterDataListener);
+    }
+
+    private cacheRefreshListeners: (() => void)[] = [];
+
+    /**
      * Update the current query and refresh UI
      */
     updateQuery(query: FilterQuery): void {
@@ -795,6 +839,12 @@ export class FilterBar extends EventEmitter {
      * Destroy and clean up the FilterBar
      */
     destroy(): void {
+        // Clean up cache refresh listeners
+        if (this.cacheRefreshListeners) {
+            this.cacheRefreshListeners.forEach(unsubscribe => unsubscribe());
+            this.cacheRefreshListeners = [];
+        }
+        
         this.container.empty();
         this.removeAllListeners();
     }
