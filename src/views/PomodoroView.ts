@@ -17,6 +17,8 @@ export class PomodoroView extends ItemView {
     // UI elements
     private timerDisplay: HTMLElement | null = null;
     private statusDisplay: HTMLElement | null = null;
+    private progressCircle: SVGCircleElement | null = null;
+    private progressContainer: HTMLElement | null = null;
     private startButton: HTMLButtonElement | null = null;
     private pauseButton: HTMLButtonElement | null = null;
     private stopButton: HTMLButtonElement | null = null;
@@ -96,6 +98,8 @@ export class PomodoroView extends ItemView {
         // Clear cached references to prevent memory leaks
         this.timerDisplay = null;
         this.statusDisplay = null;
+        this.progressCircle = null;
+        this.progressContainer = null;
         this.startButton = null;
         this.pauseButton = null;
         this.stopButton = null;
@@ -117,9 +121,52 @@ export class PomodoroView extends ItemView {
             .setName('Pomodoro timer')
             .setHeading();
         
-        // Timer display
+        // Timer display with progress circle
         const timerSection = container.createDiv({ cls: 'pomodoro-timer-section' });
-        this.timerDisplay = timerSection.createDiv({ cls: 'pomodoro-timer-display', text: '25:00' });
+        
+        // Create progress circle container
+        this.progressContainer = timerSection.createDiv({ cls: 'pomodoro-progress-container' });
+        
+        // Create SVG progress circle
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'pomodoro-progress-svg');
+        svg.setAttribute('width', '240');
+        svg.setAttribute('height', '240');
+        svg.setAttribute('viewBox', '0 0 240 240');
+        this.progressContainer.appendChild(svg);
+        
+        // Background circle
+        const bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bgCircle.setAttributeNS(null, 'cx', '120');
+        bgCircle.setAttributeNS(null, 'cy', '120');
+        bgCircle.setAttributeNS(null, 'r', '110');
+        bgCircle.setAttributeNS(null, 'fill', 'none');
+        bgCircle.setAttributeNS(null, 'stroke', 'var(--background-modifier-border)');
+        bgCircle.setAttributeNS(null, 'stroke-width', '4');
+        svg.appendChild(bgCircle);
+        
+        // Progress circle
+        this.progressCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle') as SVGCircleElement;
+        this.progressCircle.setAttributeNS(null, 'cx', '120');
+        this.progressCircle.setAttributeNS(null, 'cy', '120');
+        this.progressCircle.setAttributeNS(null, 'r', '110');
+        this.progressCircle.setAttributeNS(null, 'fill', 'none');
+        this.progressCircle.setAttributeNS(null, 'stroke', 'var(--interactive-accent)');
+        this.progressCircle.setAttributeNS(null, 'stroke-width', '6');
+        this.progressCircle.setAttributeNS(null, 'stroke-linecap', 'round');
+        this.progressCircle.setAttributeNS(null, 'stroke-dasharray', '691.15'); // 2 * π * 110
+        this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', '691.15');
+        this.progressCircle.setAttributeNS(null, 'transform', 'rotate(-90 120 120)');
+        this.progressCircle.addClass('pomodoro-progress-circle');
+        svg.appendChild(this.progressCircle);
+        
+        // Timer display overlay
+        const timerOverlay = this.progressContainer.createDiv({ cls: 'pomodoro-timer-overlay' });
+        
+        // Timer display
+        this.timerDisplay = timerOverlay.createDiv({ cls: 'pomodoro-timer-display', text: '25:00' });
+        
+        // Status display
         this.statusDisplay = timerSection.createDiv({ cls: 'pomodoro-status', text: 'Ready to start' });
         
         // Task display
@@ -379,8 +426,10 @@ export class PomodoroView extends ItemView {
     private updateDisplay(session?: PomodoroSession, task?: TaskInfo) {
         const state = this.plugin.pomodoroService.getState();
         
-        // Update timer
+        // Update timer and progress
         this.updateTimer(state.timeRemaining);
+        this.updateProgress(state);
+        
         
         // Update status
         if (this.statusDisplay) {
@@ -389,6 +438,9 @@ export class PomodoroView extends ItemView {
                                state.currentSession.type === 'short-break' ? 'Short break' : 'Long break';
                 this.statusDisplay.textContent = typeText;
                 this.statusDisplay.className = `pomodoro-status pomodoro-status-${state.currentSession.type}`;
+            } else if (state.currentSession && !state.isRunning) {
+                this.statusDisplay.textContent = 'Paused';
+                this.statusDisplay.className = `pomodoro-status pomodoro-status-paused`;
             } else {
                 this.statusDisplay.textContent = 'Ready to start';
                 this.statusDisplay.className = 'pomodoro-status';
@@ -464,6 +516,44 @@ export class PomodoroView extends ItemView {
             } else {
                 this.timerDisplay.removeClass('pomodoro-timer-warning');
             }
+        }
+    }
+    
+    private updateProgress(state: any) {
+        if (!this.progressCircle || !state.currentSession) {
+            // No session active, reset progress
+            if (this.progressCircle) {
+                this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', '691.15');
+                this.progressCircle.removeClass('pomodoro-progress-work');
+                this.progressCircle.removeClass('pomodoro-progress-short-break');
+                this.progressCircle.removeClass('pomodoro-progress-long-break');
+            }
+            return;
+        }
+        
+        // Calculate progress
+        const totalDuration = state.currentSession.duration * 60; // Convert to seconds
+        const elapsed = totalDuration - state.timeRemaining;
+        const progress = Math.max(0, Math.min(1, elapsed / totalDuration));
+        
+        // Calculate stroke-dashoffset (circumference = 691.15)
+        const circumference = 691.15;
+        const offset = circumference - (progress * circumference);
+        
+        // Update progress circle
+        this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', offset.toString());
+        
+        // Update color based on session type
+        this.progressCircle.removeClass('pomodoro-progress-work');
+        this.progressCircle.removeClass('pomodoro-progress-short-break');
+        this.progressCircle.removeClass('pomodoro-progress-long-break');
+        this.progressCircle.addClass(`pomodoro-progress-${state.currentSession.type}`);
+        
+        // Add warning class for last minute
+        if (state.timeRemaining <= 60 && state.timeRemaining > 0) {
+            this.progressCircle.addClass('pomodoro-progress-warning');
+        } else {
+            this.progressCircle.removeClass('pomodoro-progress-warning');
         }
     }
     

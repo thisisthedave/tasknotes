@@ -3906,14 +3906,6 @@
     margin-bottom: var(--cs-spacing-xl);
 }
 
-.pomodoro-timer-display {
-    font-size: 4rem;
-    font-weight: 300;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
-    color: var(--text-normal);
-    margin-bottom: var(--cs-spacing-sm);
-}
 
 .pomodoro-status {
     font-size: var(--cs-text-md);
@@ -4097,6 +4089,135 @@
     background: var(--background-primary);
     color: var(--text-normal);
     font-size: var(--cs-text-sm);
+}
+
+/* Enhanced Pomodoro Visual Styles */
+.pomodoro-progress-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--cs-spacing-lg);
+}
+
+.pomodoro-progress-svg {
+    transform: rotate(-90deg);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.pomodoro-progress-circle {
+    transition: stroke-dashoffset 0.3s ease, stroke 0.2s ease;
+    will-change: stroke-dashoffset;
+}
+
+.pomodoro-progress-work {
+    stroke: #e74c3c;
+}
+
+.pomodoro-progress-short-break {
+    stroke: #3498db;
+}
+
+.pomodoro-progress-long-break {
+    stroke: #2ecc71;
+}
+
+.pomodoro-progress-warning {
+    animation: pomodoro-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes pomodoro-pulse {
+    from {
+        stroke-opacity: 0.7;
+    }
+    to {
+        stroke-opacity: 1;
+    }
+}
+
+.pomodoro-timer-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.pomodoro-session-badge {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-lg);
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    margin-bottom: var(--cs-spacing-sm);
+    font-size: var(--cs-text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all var(--cs-transition-fast);
+}
+
+.pomodoro-session-text {
+    display: block;
+}
+
+.pomodoro-badge-work {
+    background: rgba(231, 76, 60, 0.1);
+    border-color: rgba(231, 76, 60, 0.3);
+    color: #e74c3c;
+}
+
+.pomodoro-badge-short-break {
+    background: rgba(52, 152, 219, 0.1);
+    border-color: rgba(52, 152, 219, 0.3);
+    color: #3498db;
+}
+
+.pomodoro-badge-long-break {
+    background: rgba(46, 204, 113, 0.1);
+    border-color: rgba(46, 204, 113, 0.3);
+    color: #2ecc71;
+}
+
+.pomodoro-badge-ready {
+    background: var(--background-secondary);
+    border-color: var(--background-modifier-border);
+    color: var(--text-muted);
+}
+
+/* Enhanced timer display */
+.pomodoro-timer-display {
+    font-size: 3.5rem;
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    color: var(--text-normal);
+    text-align: center;
+    line-height: 1;
+    transition: color var(--cs-transition-fast);
+}
+
+.pomodoro-timer-warning {
+    color: #e74c3c;
+    animation: pomodoro-timer-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes pomodoro-timer-pulse {
+    from {
+        opacity: 0.8;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Enhanced status display */
+.pomodoro-status-paused {
+    color: #f39c12;
+    background: rgba(243, 156, 18, 0.1);
 }
 
 /* ================================================
