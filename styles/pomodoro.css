@@ -221,34 +221,100 @@
     /* Extends .cs-btn .cs-btn--secondary */
 }
 
-/* Control Buttons */
-.pomodoro-controls {
-    /* Uses .cs-flex .cs-flex--center .cs-gap--sm */
+/* Control Section - Main container for all controls */
+.pomodoro-control-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-lg);
+    padding: var(--cs-spacing-lg) 0;
+    border-top: 1px solid var(--background-modifier-border);
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin: var(--cs-spacing-md) 0;
+}
+
+/* Primary Controls - Main timer buttons */
+.pomodoro-primary-controls {
     display: flex;
     justify-content: center;
-    gap: var(--cs-spacing-sm);
+    gap: var(--cs-spacing-md);
     padding: var(--cs-spacing-sm) 0;
 }
 
+/* Quick Start Section */
+.pomodoro-quick-start-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-sm);
+    align-items: center;
+}
+
+.pomodoro-section-label {
+    font-size: var(--cs-text-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+    margin-bottom: var(--cs-spacing-xs);
+}
+
 .pomodoro-start-button {
-    /* Extends .cs-btn .cs-btn--primary .cs-btn--lg */
-    min-width: 100px;
+    min-width: 120px;
+    padding: var(--cs-spacing-md) var(--cs-spacing-lg);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: 1px solid var(--interactive-accent);
+    border-radius: var(--cs-radius-md);
+    font-size: var(--cs-text-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+}
+
+.pomodoro-start-button:hover {
+    background: var(--interactive-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .pomodoro-pause-button {
-    /* Extends .cs-btn .cs-btn--lg */
+    min-width: 120px;
+    padding: var(--cs-spacing-md) var(--cs-spacing-lg);
     background: var(--text-warning);
     color: var(--text-on-accent);
-    border-color: var(--text-warning);
-    min-width: 100px;
+    border: 1px solid var(--text-warning);
+    border-radius: var(--cs-radius-md);
+    font-size: var(--cs-text-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+}
+
+.pomodoro-pause-button:hover {
+    background: var(--text-warning);
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .pomodoro-stop-button {
-    /* Extends .cs-btn .cs-btn--lg */
+    min-width: 120px;
+    padding: var(--cs-spacing-md) var(--cs-spacing-lg);
     background: var(--text-error);
     color: var(--text-on-accent);
-    border-color: var(--text-error);
-    min-width: 100px;
+    border: 1px solid var(--text-error);
+    border-radius: var(--cs-radius-md);
+    font-size: var(--cs-text-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+}
+
+.pomodoro-stop-button:hover {
+    background: var(--text-error);
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .pomodoro-button.is-loading {
@@ -262,15 +328,62 @@
 
 /* Quick Actions */
 .pomodoro-quick-actions {
-    /* Uses .cs-flex .cs-flex--center .cs-gap--xs .cs-flex--wrap */
     display: flex;
     justify-content: center;
-    gap: var(--cs-spacing-xs);
+    gap: var(--cs-spacing-sm);
     flex-wrap: wrap;
+    max-width: 400px;
+    margin: 0 auto;
 }
 
 .pomodoro-quick-button {
-    /* Extends .cs-btn .cs-btn--Sm .cs-ctn--secondary */
+    flex: 1;
+    min-width: 120px;
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-md);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+}
+
+.pomodoro-quick-button:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+    transform: translateY(-1px);
+}
+
+.pomodoro-work-button {
+    border-color: var(--cs-color-status-in-progress, var(--interactive-accent));
+    color: var(--cs-color-status-in-progress, var(--interactive-accent));
+}
+
+.pomodoro-work-button:hover {
+    background: var(--cs-color-status-in-progress, var(--interactive-accent));
+    color: var(--text-on-accent);
+}
+
+.pomodoro-short-break-button {
+    border-color: var(--cs-color-priority-medium, #10B981);
+    color: var(--cs-color-priority-medium, #10B981);
+}
+
+.pomodoro-short-break-button:hover {
+    background: var(--cs-color-priority-medium, #10B981);
+    color: white;
+}
+
+.pomodoro-long-break-button {
+    border-color: var(--cs-color-priority-high, #3B82F6);
+    color: var(--cs-color-priority-high, #3B82F6);
+}
+
+.pomodoro-long-break-button:hover {
+    background: var(--cs-color-priority-high, #3B82F6);
+    color: white;
 }
 
 /* Statistics Section */
@@ -509,24 +622,34 @@
         font-size: 2rem;
     }
     
-    .pomodoro-controls {
-        flex-direction: column;
-        align-items: center;
+    .pomodoro-control-section {
+        gap: var(--cs-spacing-md);
+        padding: var(--cs-spacing-md) 0;
     }
     
-    .pomodoro-button {
+    .pomodoro-primary-controls {
+        flex-direction: column;
+        align-items: center;
+        gap: var(--cs-spacing-sm);
+    }
+    
+    .pomodoro-start-button,
+    .pomodoro-pause-button,
+    .pomodoro-stop-button {
         width: 100%;
-        max-width: 200px;
+        max-width: 250px;
     }
     
     .pomodoro-quick-actions {
         flex-direction: column;
         align-items: center;
+        gap: var(--cs-spacing-sm);
+        max-width: 250px;
     }
     
     .pomodoro-quick-button {
         width: 100%;
-        max-width: 200px;
+        min-width: auto;
     }
     
     .pomodoro-stats {

@@ -115,11 +115,6 @@ export class PomodoroView extends ItemView {
     async render() {
         const container = this.contentEl.createDiv({ cls: 'tasknotes-container pomodoro-view-container' });
         
-        // Header
-        const header = container.createDiv({ cls: 'pomodoro-header' });
-        new Setting(header)
-            .setName('Pomodoro timer')
-            .setHeading();
         
         // Timer display with progress circle
         const timerSection = container.createDiv({ cls: 'pomodoro-timer-section' });
@@ -201,42 +196,48 @@ export class PomodoroView extends ItemView {
         // Load and restore last selected task
         this.restoreLastSelectedTask();
         
-        // Control buttons
-        const controls = container.createDiv({ cls: 'pomodoro-controls' });
+        // Main control section
+        const controlSection = container.createDiv({ cls: 'pomodoro-control-section' });
         
-        this.startButton = controls.createEl('button', { 
+        // Primary controls (main timer controls)
+        const primaryControls = controlSection.createDiv({ cls: 'pomodoro-primary-controls' });
+        
+        this.startButton = primaryControls.createEl('button', { 
             text: 'Start', 
             cls: 'pomodoro-button pomodoro-start-button'
         });
         
-        this.pauseButton = controls.createEl('button', { 
+        this.pauseButton = primaryControls.createEl('button', { 
             text: 'Pause', 
             cls: 'pomodoro-button pomodoro-pause-button'
         });
         this.pauseButton.addClass('is-hidden');
         
-        this.stopButton = controls.createEl('button', { 
+        this.stopButton = primaryControls.createEl('button', { 
             text: 'Stop', 
             cls: 'pomodoro-button pomodoro-stop-button'
         });
         this.stopButton.addClass('is-hidden');
         
-        // Quick actions
-        const quickActions = container.createDiv({ cls: 'pomodoro-quick-actions' });
+        // Quick start actions (grouped together)
+        const quickStartSection = controlSection.createDiv({ cls: 'pomodoro-quick-start-section' });
+        const quickStartLabel = quickStartSection.createDiv({ cls: 'pomodoro-section-label', text: 'Quick Start' });
+        
+        const quickActions = quickStartSection.createDiv({ cls: 'pomodoro-quick-actions' });
         
         const workButton = quickActions.createEl('button', {
-            text: 'Start work',
-            cls: 'pomodoro-quick-button'
+            text: 'Work Session',
+            cls: 'pomodoro-quick-button pomodoro-work-button'
         });
         
         const shortBreakButton = quickActions.createEl('button', {
-            text: 'Short break',
-            cls: 'pomodoro-quick-button'
+            text: 'Short Break',
+            cls: 'pomodoro-quick-button pomodoro-short-break-button'
         });
         
         const longBreakButton = quickActions.createEl('button', {
-            text: 'Long break',
-            cls: 'pomodoro-quick-button'
+            text: 'Long Break',
+            cls: 'pomodoro-quick-button pomodoro-long-break-button'
         });
         
         // Statistics
