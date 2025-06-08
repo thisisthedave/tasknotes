@@ -1,33 +1,250 @@
-/* Design System Variables */
+/* Material 3 Expressive Design System Variables (2025) */
 :root {
-    /* Denser spacing scale (3px base for more compact layouts) */
-    --cs-spacing-xs: 3px;
-    --cs-spacing-sm: 6px;
-    --cs-spacing-md: 12px;
-    --cs-spacing-lg: 18px;
-    --cs-spacing-xl: 24px;
+    /* ================================================
+       SPACING SYSTEM - Optimized 4dp Grid Base for Compact Design
+       ================================================ */
     
-    /* Minimal border radius */
-    --cs-radius-sm: 2px;
-    --cs-radius-md: 3px;
-    --cs-radius-lg: 4px;
+    /* Material 3 Expressive spacing tokens - more compact for desktop */
+    --cs-spacing-xs: 2px;    /* 0.5 units - tighter for compact design */
+    --cs-spacing-sm: 4px;    /* 1 unit - reduced base grid */
+    --cs-spacing-md: 8px;    /* 2 units - more compact */
+    --cs-spacing-lg: 12px;   /* 3 units - reduced from 24px */
+    --cs-spacing-xl: 16px;   /* 4 units - more compact */
+    --cs-spacing-xxl: 24px;  /* 6 units - significantly reduced */
     
-    /* Touch target minimum */
-    --cs-touch-target: 36px;
+    /* ================================================
+       MATERIAL 3 EXPRESSIVE ELEVATION SYSTEM
+       ================================================ */
     
-    /* Smaller indicator sizes for density */
-    --cs-indicator-sm: 4px;
-    --cs-indicator-md: 6px;
-    --cs-indicator-lg: 8px;
+    /* Enhanced elevation shadows with more personality and depth */
+    --cs-elevation-0: none;
+    --cs-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06);
+    --cs-elevation-2: 0 2px 4px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+    --cs-elevation-3: 0 3px 6px rgba(0, 0, 0, 0.12), 0 3px 9px rgba(0, 0, 0, 0.08);
+    --cs-elevation-4: 0 4px 8px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+    --cs-elevation-5: 0 6px 12px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.08);
     
-    /* Faster transitions for responsiveness */
-    --cs-transition-fast: 120ms ease;
-    --cs-transition-normal: 200ms ease;
+    /* Expressive shadow variants for enhanced emotional expression */
+    --cs-elevation-soft: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+    --cs-elevation-warm: 0 3px 12px rgba(255, 107, 53, 0.08), 0 2px 6px rgba(255, 107, 53, 0.04);
+    --cs-elevation-cool: 0 3px 12px rgba(59, 130, 246, 0.08), 0 2px 6px rgba(59, 130, 246, 0.04);
     
-    /* Typography scale for information density */
-    --cs-text-xs: 0.65rem;
-    --cs-text-sm: 0.75rem;
-    --cs-text-base: 0.8rem;
-    --cs-text-md: 0.85rem;
-    --cs-text-lg: 0.9rem;
+    /* Surface container colors for elevation */
+    --cs-surface-container-lowest: var(--background-primary);
+    --cs-surface-container-low: var(--background-primary-alt);
+    --cs-surface-container: var(--background-secondary);
+    --cs-surface-container-high: var(--background-secondary-alt);
+    --cs-surface-container-highest: var(--background-modifier-cover);
+    
+    /* ================================================
+       MATERIAL 3 EXPRESSIVE TYPOGRAPHY SCALE
+       ================================================ */
+    
+    /* Display - More expressive and compact for desktop use */
+    --cs-text-display-large: 2.75rem;   /* 44px - reduced from 56px */
+    --cs-text-display-medium: 2.25rem;  /* 36px - reduced from 45px */
+    --cs-text-display-small: 1.875rem;  /* 30px - reduced from 36px */
+    
+    /* Headlines - Optimized for desktop density */
+    --cs-text-headline-large: 1.75rem;    /* 28px - reduced from 32px */
+    --cs-text-headline-medium: 1.5rem;    /* 24px - reduced from 28px */
+    --cs-text-headline-small: 1.25rem;    /* 20px - reduced from 24px */
+    
+    /* Titles - Compact yet readable */
+    --cs-text-title-large: 1.125rem;   /* 18px - reduced from 22px */
+    --cs-text-title-medium: 0.875rem;  /* 14px - reduced from 16px */
+    --cs-text-title-small: 0.75rem;    /* 12px - reduced from 14px */
+    
+    /* Body - Optimized for readability and compactness */
+    --cs-text-body-large: 0.875rem;    /* 14px - reduced from 16px */
+    --cs-text-body-medium: 0.75rem;    /* 12px - reduced from 14px */
+    --cs-text-body-small: 0.6875rem;   /* 11px - slightly reduced */
+    
+    /* Labels - Compact component text */
+    --cs-text-label-large: 0.75rem;    /* 12px - reduced from 14px */
+    --cs-text-label-medium: 0.6875rem; /* 11px - slightly reduced */
+    --cs-text-label-small: 0.625rem;   /* 10px - more compact */
+    
+    /* Legacy typography for compatibility */
+    --cs-text-xs: var(--cs-text-label-small);
+    --cs-text-sm: var(--cs-text-label-medium);
+    --cs-text-base: var(--cs-text-body-medium);
+    --cs-text-md: var(--cs-text-body-large);
+    --cs-text-lg: var(--cs-text-title-medium);
+    --cs-text-xl: var(--cs-text-title-large);
+    --cs-text-2xl: var(--cs-text-headline-small);
+    
+    /* ================================================
+       EXPRESSIVE BORDER RADIUS SYSTEM
+       ================================================ */
+    
+    /* Material 3 Expressive corner radius tokens - more dynamic and personality-driven */
+    --cs-radius-xs: 2px;    /* Extra small - more subtle */
+    --cs-radius-sm: 6px;    /* Small - slightly more rounded */
+    --cs-radius-md: 10px;   /* Medium - more organic feel */
+    --cs-radius-lg: 14px;   /* Large - enhanced personality */
+    --cs-radius-xl: 20px;   /* Extra large - more expressive */
+    --cs-radius-xxl: 28px;  /* Extra extra large - bold expression */
+    --cs-radius-full: 50%;  /* Full/pill - unchanged */
+    
+    /* Expressive radius variations for emotional design */
+    --cs-radius-organic: 12px 8px 14px 6px;  /* Organic, hand-drawn feel */
+    --cs-radius-playful: 16px 4px 16px 4px;  /* Playful asymmetry */
+    
+    /* ================================================
+       COMPACT COMPONENT SIZING
+       ================================================ */
+    
+    /* Touch targets - Optimized for desktop with compact design */
+    --cs-touch-target: 36px;     /* Reduced from 48px for compactness */
+    --cs-touch-target-lg: 44px;  /* Reduced from 56px */
+    --cs-touch-target-dense: 28px;  /* More compact dense layouts */
+    
+    /* Button heights - More compact for desktop */
+    --cs-button-height-sm: 24px;  /* Reduced from 32px */
+    --cs-button-height-md: 32px;  /* Reduced from 40px */
+    --cs-button-height-lg: var(--cs-touch-target);
+    
+    /* Input heights - Compact but usable */
+    --cs-input-height-sm: 24px;   /* Reduced from 32px */
+    --cs-input-height-md: 32px;   /* Reduced from 40px */
+    --cs-input-height-lg: var(--cs-touch-target);
+    
+    /* Icon sizes - Proportionally adjusted */
+    --cs-icon-sm: 14px;   /* Reduced from 16px */
+    --cs-icon-md: 20px;   /* Reduced from 24px */
+    --cs-icon-lg: 28px;   /* Reduced from 32px */
+    
+    /* ================================================
+       EXPRESSIVE MOTION PHYSICS SYSTEM
+       ================================================ */
+    
+    /* Material 3 Expressive motion tokens - enhanced with spatial springs */
+    --cs-motion-duration-instant: 25ms;   /* Near-instant feedback */
+    --cs-motion-duration-short1: 75ms;    /* Very quick interactions */
+    --cs-motion-duration-short2: 120ms;   /* Quick interactions */
+    --cs-motion-duration-short3: 180ms;   /* Standard interactions */
+    --cs-motion-duration-short4: 240ms;   /* Slightly longer interactions */
+    --cs-motion-duration-medium1: 300ms;  /* Medium duration */
+    --cs-motion-duration-medium2: 360ms;  /* Medium-long duration */
+    --cs-motion-duration-medium3: 420ms;  /* Longer interactions */
+    --cs-motion-duration-medium4: 480ms;  /* Long interactions */
+    --cs-motion-duration-long1: 540ms;    /* Very long interactions */
+    --cs-motion-duration-long2: 600ms;    /* Extra long */
+    
+    /* Enhanced easing curves for more natural, physics-based motion */
+    --cs-motion-easing-linear: cubic-bezier(0, 0, 1, 1);
+    --cs-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+    --cs-motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+    --cs-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+    --cs-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+    --cs-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+    --cs-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+    
+    /* New expressive easing curves for spatial springs and natural motion */
+    --cs-motion-easing-spring-light: cubic-bezier(0.175, 0.885, 0.32, 1.1);
+    --cs-motion-easing-spring-medium: cubic-bezier(0.175, 0.885, 0.32, 1.175);
+    --cs-motion-easing-spring-heavy: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --cs-motion-easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --cs-motion-easing-elastic: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    
+    /* Enhanced transition tokens with expressive motion */
+    --cs-transition-instant: var(--cs-motion-duration-instant) var(--cs-motion-easing-standard);
+    --cs-transition-fast: var(--cs-motion-duration-short2) var(--cs-motion-easing-spring-light);
+    --cs-transition-normal: var(--cs-motion-duration-short3) var(--cs-motion-easing-spring-medium);
+    --cs-transition-slow: var(--cs-motion-duration-medium1) var(--cs-motion-easing-emphasized);
+    --cs-transition-expressive: var(--cs-motion-duration-short4) var(--cs-motion-easing-bounce);
+    --cs-transition-elastic: var(--cs-motion-duration-medium2) var(--cs-motion-easing-elastic);
+    
+    /* ================================================
+       STATE SYSTEM
+       ================================================ */
+    
+    /* Opacity values for different states */
+    --cs-state-hover: 0.08;
+    --cs-state-focus: 0.12;
+    --cs-state-pressed: 0.16;
+    --cs-state-dragged: 0.16;
+    --cs-state-disabled: 0.38;
+    
+    /* ================================================
+       Z-INDEX SYSTEM
+       ================================================ */
+    
+    /* Layer hierarchy for proper stacking */
+    --cs-z-base: 0;
+    --cs-z-sticky: 100;
+    --cs-z-fixed: 200;
+    --cs-z-overlay: 300;
+    --cs-z-dropdown: 1000;
+    --cs-z-tooltip: 2000;
+    --cs-z-modal: 3000;
+    --cs-z-notification: 4000;
+    
+    /* Enhanced Expressive Color Palette for Emotional Design */
+    /* Vibrant blue scale - more saturated and expressive */
+    --cs-blue-100: #e1f4ff;
+    --cs-blue-200: #b8e6ff;
+    --cs-blue-300: #7dd3fc;
+    --cs-blue-400: #38bdf8;
+    --cs-blue-500: #0ea5e9;
+    --cs-blue-600: #0284c7;
+    --cs-blue-700: #0369a1;
+    
+    /* Expressive purple scale with more personality */
+    --cs-purple-100: #f3e8ff;
+    --cs-purple-200: #e9d5ff;
+    --cs-purple-300: #c084fc;
+    --cs-purple-400: #a855f7;
+    --cs-purple-500: #9333ea;
+    --cs-purple-600: #7c3aed;
+    
+    /* Warm neutrals with subtle personality */
+    --cs-gray-100: #f8fafc;
+    --cs-gray-200: #f1f5f9;
+    --cs-gray-300: #e2e8f0;
+    --cs-gray-400: #cbd5e1;
+    --cs-gray-500: #94a3b8;
+    --cs-gray-600: #64748b;
+    --cs-gray-700: #475569;
+    
+    /* New expressive accent colors for enhanced emotional range */
+    --cs-amber-400: #fbbf24;
+    --cs-amber-500: #f59e0b;
+    --cs-emerald-400: #34d399;
+    --cs-emerald-500: #10b981;
+    --cs-rose-400: #fb7185;
+    --cs-rose-500: #f43f5e;
+    
+    /* Fixed semantic usage for UI elements (not user-customizable) */
+    /* Notes heatmap - blue intensities for calendar */
+    --cs-color-notes-light: var(--cs-blue-300);
+    --cs-color-notes-medium: var(--cs-blue-400);
+    --cs-color-notes-heavy: var(--cs-blue-500);
+    
+    /* Special item colors (daily notes, recurring) */
+    --cs-color-daily-note: var(--cs-purple-300);
+    --cs-color-recurring: var(--cs-purple-400);
+    
+    /* Archived/inactive content */
+    --cs-color-archived: var(--cs-gray-500);
+    
+    /* Note: Status and Priority colors are user-customizable via settings */
+    /* They are injected as CSS variables: --status-{value}-color and --priority-{value}-color */
+    /* Default fallbacks for when custom colors aren't loaded yet */
+    --cs-color-status-fallback: var(--text-muted);
+    --cs-color-priority-fallback: var(--text-muted);
+    
+    /* Legacy component sizing - using updated values from above */
+    
+    /* Z-index scale */
+    --cs-z-dropdown: 1000;
+    --cs-z-modal: 2000;
+    --cs-z-tooltip: 3000;
+    
+    /* Shadow system */
+    --cs-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --cs-shadow-md: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+    --cs-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --cs-shadow-xl: 0 6px 12px rgba(0, 0, 0, 0.25);
 }

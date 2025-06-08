@@ -1,0 +1,563 @@
+/* Material Design 3 Enhanced Agenda View */
+
+/* Main Container */
+.agenda-view-container {
+    padding: var(--cs-spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-md);
+    max-width: 100%;
+    background: var(--cs-surface-container-lowest);
+    border-radius: var(--cs-radius-lg);
+}
+
+/* Header Structure */
+.agenda-header-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--cs-spacing-md) 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
+    margin-bottom: var(--cs-spacing-md);
+    position: relative;
+}
+
+.agenda-header-content {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-lg);
+}
+
+/* Period Title - Material Design headline style */
+.agenda-period-title {
+    font-size: var(--cs-text-headline-small);
+    font-weight: 500;
+    color: var(--text-normal);
+    text-align: center;
+    min-width: 240px;
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+}
+
+/* Navigation Arrows - Material Design icon buttons */
+.nav-arrow-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--cs-touch-target);
+    height: var(--cs-touch-target);
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-normal);
+    font-size: 1.25rem;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
+    overflow: hidden;
+}
+
+.nav-arrow-button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
+}
+
+.nav-arrow-button:hover::before {
+    opacity: var(--cs-state-hover);
+}
+
+.nav-arrow-button:focus-visible {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+
+.nav-arrow-button:active {
+    transform: scale(0.95);
+}
+
+.nav-arrow-button:active::before {
+    opacity: var(--cs-state-pressed);
+}
+
+/* Settings Section - Material Design surface container */
+.agenda-settings-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--cs-spacing-md);
+    background: var(--cs-surface-container);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
+    border-radius: var(--cs-radius-lg);
+    gap: var(--cs-spacing-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--cs-spacing-md);
+    box-shadow: var(--cs-elevation-1);
+}
+
+.agenda-left-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-sm);
+}
+
+.agenda-right-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-md);
+}
+
+/* Period Selector - Material Design select field */
+.agenda-period-select {
+    appearance: none;
+    padding: var(--cs-spacing-sm) var(--cs-spacing-lg) var(--cs-spacing-sm) var(--cs-spacing-md);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 0.38, transparent);
+    border-radius: var(--cs-radius-sm);
+    background: var(--cs-surface-container-highest);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right var(--cs-spacing-sm) center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    color: var(--text-normal);
+    font-family: inherit;
+    font-size: var(--cs-text-body-medium);
+    font-weight: 400;
+    min-width: 120px;
+    min-height: var(--cs-input-height-md);
+    cursor: pointer;
+    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
+}
+
+.agenda-period-select:hover {
+    border-color: var(--text-normal);
+    background-color: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), var(--cs-surface-container-highest));
+}
+
+.agenda-period-select:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    background-color: color-mix(in srgb, var(--interactive-accent) var(--cs-state-focus), var(--cs-surface-container-highest));
+}
+
+/* Today Button - Material Design filled tonal button */
+.agenda-today-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--cs-spacing-xs);
+    padding: 0 var(--cs-spacing-lg);
+    border: none;
+    border-radius: var(--cs-radius-lg);
+    background: var(--cs-surface-container-highest);
+    color: var(--text-normal);
+    font-family: inherit;
+    font-size: var(--cs-text-label-large);
+    font-weight: 500;
+    line-height: 1.25;
+    min-height: var(--cs-button-height-md);
+    cursor: pointer;
+    user-select: none;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
+    overflow: hidden;
+}
+
+.agenda-today-button:hover {
+    background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), var(--cs-surface-container-highest));
+    box-shadow: var(--cs-elevation-1);
+}
+
+.agenda-today-button:focus-visible {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+
+.agenda-today-button:active {
+    background: color-mix(in srgb, var(--text-normal) var(--cs-state-pressed), var(--cs-surface-container-highest));
+    transform: scale(0.98);
+}
+
+/* Toggle Controls - Material Design checkbox style */
+.agenda-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cs-spacing-sm);
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--cs-text-body-medium);
+    color: var(--text-normal);
+    padding: var(--cs-spacing-sm);
+    border-radius: var(--cs-radius-md);
+    transition: background-color var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
+    line-height: 1.5;
+}
+
+.agenda-toggle:hover {
+    background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), transparent);
+}
+
+.agenda-toggle-checkbox {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    margin: 0;
+}
+
+.agenda-toggle .checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid color-mix(in srgb, var(--text-normal) 0.6, transparent);
+    border-radius: var(--cs-radius-xs);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
+    flex-shrink: 0;
+}
+
+.agenda-toggle input:checked + .checkmark {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+}
+
+.agenda-toggle input:checked + .checkmark::after {
+    content: '✓';
+    color: var(--text-on-accent);
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.agenda-toggle:hover .checkmark {
+    border-color: var(--interactive-accent);
+    background: color-mix(in srgb, var(--interactive-accent) var(--cs-state-hover), transparent);
+}
+
+/* Content Area */
+.agenda-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-sm);
+}
+
+/* Day Headers - Material Design section headers */
+.agenda-day-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--cs-spacing-md) 0 var(--cs-spacing-sm);
+    margin-bottom: var(--cs-spacing-sm);
+    border-bottom: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
+    position: relative;
+}
+
+.day-header-text {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-sm);
+}
+
+.day-name {
+    font-size: var(--cs-text-title-medium);
+    font-weight: 500;
+    color: var(--text-normal);
+    letter-spacing: 0.01em;
+    line-height: 1.4;
+}
+
+/* Today Badge - Material Design filled badge */
+.day-name.today-badge {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    padding: var(--cs-spacing-xs) var(--cs-spacing-md);
+    border-radius: var(--cs-radius-lg);
+    font-size: var(--cs-text-label-large);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+    min-height: 28px;
+    box-shadow: var(--cs-elevation-1);
+}
+
+.day-date {
+    font-size: var(--cs-text-body-medium);
+    color: var(--text-muted);
+    font-weight: 400;
+    letter-spacing: 0.01em;
+}
+
+/* Item Count Badge - Material Design secondary badge */
+.item-count-badge {
+    background: var(--cs-surface-container-high);
+    color: var(--text-normal);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
+    border-radius: var(--cs-radius-lg);
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    font-size: var(--cs-text-label-small);
+    font-weight: 500;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
+    text-align: center;
+}
+
+/* Empty States - Material Design empty state card */
+.empty-agenda-message {
+    padding: var(--cs-spacing-xxl) var(--cs-spacing-lg);
+    text-align: center;
+    background: var(--cs-surface-container);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
+    border-radius: var(--cs-radius-xl);
+    margin: var(--cs-spacing-lg) 0;
+    box-shadow: var(--cs-elevation-1);
+}
+
+.empty-agenda-message p {
+    margin: 0 0 var(--cs-spacing-md) 0;
+    color: var(--text-muted);
+    font-size: var(--cs-text-body-large);
+    line-height: 1.5;
+    font-weight: 400;
+}
+
+.empty-agenda-message p:last-child {
+    margin-bottom: 0;
+}
+
+.empty-tip {
+    font-style: italic;
+    font-size: var(--cs-text-body-medium) !important;
+    color: var(--text-muted);
+    margin-top: var(--cs-spacing-sm) !important;
+}
+
+.empty-tip span {
+    font-weight: 500;
+    color: var(--text-normal);
+    font-style: normal;
+}
+
+/* Flat List Layout */
+.agenda-item-list.flat-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-xs);
+}
+
+.agenda-item-list.flat-list .task-card,
+.agenda-item-list.flat-list .note-card {
+    border-left: 3px solid var(--interactive-accent);
+    padding-left: var(--cs-spacing-sm);
+}
+
+.agenda-item-list.flat-list .note-date {
+    display: inline-block;
+    margin-left: var(--cs-spacing-sm);
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    background: var(--background-secondary);
+    border-radius: var(--cs-radius-sm);
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Task and Note Cards in Agenda - Minimal view-specific styling */
+.agenda-content .task-card,
+.agenda-content .note-card {
+    margin-bottom: var(--cs-spacing-sm);
+}
+
+.agenda-content .task-card:hover,
+.agenda-content .note-card:hover {
+    transform: translateY(-2px);
+    background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), var(--cs-surface-container-low));
+}
+
+.agenda-content .note-card:hover {
+    box-shadow: var(--cs-elevation-2);
+}
+
+.agenda-content .task-card.done {
+    opacity: 0.75;
+    background: var(--cs-surface-container-highest);
+    border-color: color-mix(in srgb, var(--text-normal) 0.06, transparent);
+}
+
+.agenda-content .task-card.done:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* Priority Indicators for Agenda Task Cards - Material 3 Expressive */
+.agenda-content .task-card {
+    /* Ensure priority border is visible by default with a fallback color */
+    border-left-color: var(--priority-color, var(--text-muted));
+}
+
+/* Priority-specific styling for agenda task cards */
+.agenda-content .task-card.priority-high,
+.agenda-content .task-card[data-priority="high"] {
+    border-left-color: var(--priority-high-color, var(--text-error));
+    box-shadow: var(--cs-elevation-1), inset 3px 0 0 var(--priority-high-color, var(--text-error));
+}
+
+.agenda-content .task-card.priority-normal,
+.agenda-content .task-card.priority-medium,
+.agenda-content .task-card[data-priority="normal"],
+.agenda-content .task-card[data-priority="medium"] {
+    border-left-color: var(--priority-normal-color, var(--interactive-accent));
+    box-shadow: var(--cs-elevation-1), inset 3px 0 0 var(--priority-normal-color, var(--interactive-accent));
+}
+
+.agenda-content .task-card.priority-low,
+.agenda-content .task-card[data-priority="low"] {
+    border-left-color: var(--priority-low-color, var(--text-muted));
+    box-shadow: var(--cs-elevation-1), inset 3px 0 0 var(--priority-low-color, var(--text-muted));
+}
+
+/* Enhanced priority visibility on hover */
+.agenda-content .task-card:hover {
+    box-shadow: var(--cs-elevation-2), inset 3px 0 0 var(--priority-color, var(--text-muted));
+}
+
+/* Loading States - Material Design loading card */
+.cache-loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--cs-spacing-sm);
+    padding: var(--cs-spacing-lg);
+    color: var(--text-muted);
+    font-size: var(--cs-text-body-medium);
+    font-style: italic;
+    font-weight: 400;
+    background: var(--cs-surface-container);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
+    border-radius: var(--cs-radius-lg);
+    margin-bottom: var(--cs-spacing-md);
+    box-shadow: var(--cs-elevation-1);
+}
+
+.cache-loading-indicator::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid color-mix(in srgb, var(--text-muted) 0.3, transparent);
+    border-top: 2px solid var(--text-muted);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    flex-shrink: 0;
+}
+
+/* Error States - Material Design error card */
+.error-message {
+    padding: var(--cs-spacing-lg);
+    text-align: center;
+    color: var(--text-error);
+    background: color-mix(in srgb, var(--text-error) 0.05, var(--cs-surface-container));
+    border: 1px solid color-mix(in srgb, var(--text-error) 0.3, transparent);
+    border-radius: var(--cs-radius-lg);
+    font-size: var(--cs-text-body-medium);
+    font-weight: 500;
+    line-height: 1.5;
+    box-shadow: var(--cs-elevation-1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .agenda-view-container {
+        padding: var(--cs-spacing-sm);
+    }
+    
+    .agenda-header-content {
+        gap: var(--cs-spacing-sm);
+    }
+    
+    .agenda-period-title {
+        font-size: var(--cs-text-lg);
+        min-width: 150px;
+    }
+    
+    .nav-arrow-button {
+        min-width: 36px;
+        min-height: 36px;
+        font-size: 1.1rem;
+    }
+    
+    .agenda-settings-section {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--cs-spacing-sm);
+    }
+    
+    .agenda-left-controls,
+    .agenda-right-controls {
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    .agenda-right-controls {
+        gap: var(--cs-spacing-sm);
+    }
+    
+    .agenda-day-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--cs-spacing-xs);
+    }
+    
+    .day-header-text {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .item-count-badge {
+        align-self: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .agenda-header-content {
+        gap: var(--cs-spacing-xs);
+    }
+    
+    .agenda-period-title {
+        font-size: var(--cs-text-base);
+        min-width: 120px;
+    }
+    
+    .nav-arrow-button {
+        min-width: 32px;
+        min-height: 32px;
+        font-size: 1rem;
+    }
+    
+    .agenda-left-controls,
+    .agenda-right-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .agenda-toggle {
+        justify-content: space-between;
+    }
+}
