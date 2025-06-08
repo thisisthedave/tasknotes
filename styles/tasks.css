@@ -601,26 +601,21 @@
     font-weight: bold;
 }
 
-/* Recurring task styles - Material Design recurring indicator */
-.task-item.task-recurring {
-    border: 1px solid var(--cs-color-recurring);
-    background: color-mix(in srgb, var(--cs-color-recurring) 0.05, var(--cs-surface-container-low));
-    position: relative;
+/* Task cards priority left border - make thicker for better visibility */
+.tasknotes-card.task-card {
+    border-left-width: 2px;
 }
 
-.task-item.task-recurring::before {
-    background: var(--cs-color-recurring);
-    box-shadow: 0 0 8px color-mix(in srgb, var(--cs-color-recurring) 0.3, transparent);
-}
 
-.task-item.task-recurring::after {
+.tasknotes-card.task-recurring::after {
     content: '♾';
     position: absolute;
     top: var(--cs-spacing-xs);
     right: var(--cs-spacing-xs);
     color: var(--cs-color-recurring);
     font-size: 16px;
-    opacity: 0.7;
+    opacity: 1;
+    z-index: 1;
 }
 
 .task-recurring-icon {

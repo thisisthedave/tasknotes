@@ -40,7 +40,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
     const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
     const isRecurring = !!task.recurrence;
-    card.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''} ${isRecurring ? 'recurring-task' : ''}`;
+    card.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''} ${isRecurring ? 'task-recurring' : ''}`;
     card.dataset.taskPath = task.path;
     
     // Apply priority as left border color
@@ -373,7 +373,7 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
     const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
     const isRecurring = !!task.recurrence;
-    element.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''} ${isRecurring ? 'recurring-task' : ''}`;
+    element.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''} ${isRecurring ? 'task-recurring' : ''}`;
     
     // Update priority border color
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);

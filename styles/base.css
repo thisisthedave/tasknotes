@@ -212,14 +212,13 @@
 .cs-btn--filled:hover {
     background: var(--interactive-accent-hover);
     box-shadow: var(--cs-elevation-2);
-    transform: translateY(-2px) scale(1.02);
+    transform: translateY(-1px);
 }
 
 .cs-btn--filled:active {
     background: var(--interactive-accent);
     box-shadow: var(--cs-elevation-1);
-    transform: translateY(0) scale(0.98);
-    transition: all var(--cs-transition-instant);
+    transform: translateY(0);
 }
 
 /* Outlined Button - Secondary actions */
@@ -262,15 +261,14 @@
 
 .cs-btn--elevated:hover {
     background: color-mix(in srgb, var(--interactive-accent) var(--cs-state-hover), var(--cs-surface-container-low));
-    box-shadow: var(--cs-elevation-3);
-    transform: translateY(-3px) scale(1.03);
+    box-shadow: var(--cs-elevation-2);
+    transform: translateY(-1px);
 }
 
 .cs-btn--elevated:active {
     background: color-mix(in srgb, var(--interactive-accent) var(--cs-state-pressed), var(--cs-surface-container-low));
     box-shadow: var(--cs-elevation-1);
-    transform: translateY(-1px) scale(0.98);
-    transition: all var(--cs-transition-instant);
+    transform: translateY(0);
 }
 
 /* Tonal Button - Surface with tint */
@@ -300,14 +298,13 @@
 }
 
 .cs-btn--fab:hover {
-    box-shadow: var(--cs-elevation-4);
-    transform: translateY(-3px) scale(1.05);
+    box-shadow: var(--cs-elevation-3);
+    transform: translateY(-2px);
 }
 
 .cs-btn--fab:active {
-    box-shadow: var(--cs-elevation-3);
-    transform: translateY(-1px) scale(0.95);
-    transition: all var(--cs-transition-instant);
+    box-shadow: var(--cs-elevation-2);
+    transform: translateY(0);
 }
 
 /* Small FAB */
@@ -559,75 +556,7 @@
     background: color-mix(in srgb, var(--text-error) var(--cs-state-focus), var(--cs-surface-container-highest));
 }
 
-/* Checkbox and Radio */
-.cs-checkbox,
-.cs-radio {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    cursor: pointer;
-    font-size: var(--cs-text-body-medium);
-    line-height: 1.5;
-    gap: var(--cs-spacing-sm);
-}
-
-.cs-checkbox input,
-.cs-radio input {
-    position: absolute;
-    opacity: 0;
-    cursor: pointer;
-}
-
-.cs-checkbox .checkmark,
-.cs-radio .checkmark {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--text-muted);
-    border-radius: var(--cs-radius-xs);
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
-    flex-shrink: 0;
-}
-
-.cs-radio .checkmark {
-    border-radius: 50%;
-}
-
-.cs-checkbox input:checked + .checkmark,
-.cs-radio input:checked + .checkmark {
-    background: var(--interactive-accent);
-    border-color: var(--interactive-accent);
-}
-
-.cs-checkbox input:checked + .checkmark::after {
-    content: '✓';
-    color: var(--text-on-accent);
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.cs-radio input:checked + .checkmark::after {
-    content: '';
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--text-on-accent);
-}
-
-.cs-checkbox:hover .checkmark,
-.cs-radio:hover .checkmark {
-    border-color: var(--interactive-accent);
-    background: color-mix(in srgb, var(--interactive-accent) var(--cs-state-hover), transparent);
-}
-
-.cs-checkbox input:disabled + .checkmark,
-.cs-radio input:disabled + .checkmark {
-    opacity: var(--cs-state-disabled);
-    cursor: not-allowed;
-}
+/* Removed all custom checkbox styling - let browser/theme handle checkboxes naturally */
 
 /* ================================================
    MATERIAL DESIGN 3 BADGE SYSTEM
@@ -805,15 +734,14 @@
 
 .cs-card--clickable:hover {
     background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), var(--cs-surface-container-low));
-    transform: translateY(-2px) scale(1.005);
+    transform: translateY(-1px);
     box-shadow: var(--cs-elevation-2);
 }
 
 .cs-card--clickable:active {
     background: color-mix(in srgb, var(--text-normal) var(--cs-state-pressed), var(--cs-surface-container-low));
-    transform: translateY(0) scale(0.998);
+    transform: translateY(0);
     box-shadow: var(--cs-elevation-1);
-    transition: all var(--cs-transition-instant);
 }
 
 .cs-card--clickable:focus-visible {

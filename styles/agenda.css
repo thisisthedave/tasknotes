@@ -187,61 +187,27 @@
     transform: scale(0.98);
 }
 
-/* Toggle Controls - Material Design checkbox style */
+/* Simplified Toggle Controls - Let native checkboxes show */
 .agenda-toggle {
-    position: relative;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: var(--cs-spacing-sm);
+    gap: var(--cs-spacing-md);
     cursor: pointer;
     user-select: none;
-    font-size: var(--cs-text-body-medium);
+    font-size: var(--font-ui-medium);
     color: var(--text-normal);
     padding: var(--cs-spacing-sm);
-    border-radius: var(--cs-radius-md);
-    transition: background-color var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
-    line-height: 1.5;
+    border-radius: var(--radius-m);
+    transition: background-color 0.2s ease;
 }
 
 .agenda-toggle:hover {
-    background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), transparent);
+    background: var(--background-modifier-hover);
 }
 
 .agenda-toggle-checkbox {
-    position: absolute;
-    opacity: 0;
-    cursor: pointer;
     margin: 0;
-}
-
-.agenda-toggle .checkmark {
-    width: 20px;
-    height: 20px;
-    border: 2px solid color-mix(in srgb, var(--text-normal) 0.6, transparent);
-    border-radius: var(--cs-radius-xs);
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
-    flex-shrink: 0;
-}
-
-.agenda-toggle input:checked + .checkmark {
-    background: var(--interactive-accent);
-    border-color: var(--interactive-accent);
-}
-
-.agenda-toggle input:checked + .checkmark::after {
-    content: '✓';
-    color: var(--text-on-accent);
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.agenda-toggle:hover .checkmark {
-    border-color: var(--interactive-accent);
-    background: color-mix(in srgb, var(--interactive-accent) var(--cs-state-hover), transparent);
+    cursor: pointer;
 }
 
 /* Content Area */
@@ -386,58 +352,7 @@
     margin-bottom: var(--cs-spacing-sm);
 }
 
-.agenda-content .task-card:hover,
-.agenda-content .note-card:hover {
-    transform: translateY(-2px);
-    background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), var(--cs-surface-container-low));
-}
-
-.agenda-content .note-card:hover {
-    box-shadow: var(--cs-elevation-2);
-}
-
-.agenda-content .task-card.done {
-    opacity: 0.75;
-    background: var(--cs-surface-container-highest);
-    border-color: color-mix(in srgb, var(--text-normal) 0.06, transparent);
-}
-
-.agenda-content .task-card.done:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-}
-
-/* Priority Indicators for Agenda Task Cards - Material 3 Expressive */
-.agenda-content .task-card {
-    /* Ensure priority border is visible by default with a fallback color */
-    border-left-color: var(--priority-color, var(--text-muted));
-}
-
-/* Priority-specific styling for agenda task cards */
-.agenda-content .task-card.priority-high,
-.agenda-content .task-card[data-priority="high"] {
-    border-left-color: var(--priority-high-color, var(--text-error));
-    box-shadow: var(--cs-elevation-1), inset 3px 0 0 var(--priority-high-color, var(--text-error));
-}
-
-.agenda-content .task-card.priority-normal,
-.agenda-content .task-card.priority-medium,
-.agenda-content .task-card[data-priority="normal"],
-.agenda-content .task-card[data-priority="medium"] {
-    border-left-color: var(--priority-normal-color, var(--interactive-accent));
-    box-shadow: var(--cs-elevation-1), inset 3px 0 0 var(--priority-normal-color, var(--interactive-accent));
-}
-
-.agenda-content .task-card.priority-low,
-.agenda-content .task-card[data-priority="low"] {
-    border-left-color: var(--priority-low-color, var(--text-muted));
-    box-shadow: var(--cs-elevation-1), inset 3px 0 0 var(--priority-low-color, var(--text-muted));
-}
-
-/* Enhanced priority visibility on hover */
-.agenda-content .task-card:hover {
-    box-shadow: var(--cs-elevation-2), inset 3px 0 0 var(--priority-color, var(--text-muted));
-}
+/* Removed all view-specific card styling - cards should be theme-independent */
 
 /* Loading States - Material Design loading card */
 .cache-loading-indicator {

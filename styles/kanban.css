@@ -237,19 +237,13 @@
     background: var(--background-modifier-hover);
 }
 
-/* Task card styles in Kanban */
+/* Task card layout in Kanban - minimal view-specific styling */
 .kanban-column-body .task-card {
     margin-bottom: var(--cs-spacing-sm);
-    transition: transform var(--cs-transition-fast), box-shadow var(--cs-transition-fast);
 }
 
 .kanban-column-body .task-card:last-child {
     margin-bottom: 0;
-}
-
-.kanban-column-body .task-card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .kanban-column-body .task-card.is-dragging {
@@ -260,10 +254,7 @@
     pointer-events: none;
 }
 
-/* Animation for task cards moving between columns */
-.kanban-column-body .task-card {
-    transition: transform var(--cs-transition-normal), opacity var(--cs-transition-normal);
-}
+/* Removed redundant animation - cards should handle their own transitions */
 
 /* Better visual feedback for drop zones */
 .kanban-column-body.is-dragover::before {

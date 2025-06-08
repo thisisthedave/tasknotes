@@ -24,10 +24,7 @@
     --cs-elevation-4: 0 4px 8px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
     --cs-elevation-5: 0 6px 12px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.08);
     
-    /* Expressive shadow variants for enhanced emotional expression */
-    --cs-elevation-soft: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
-    --cs-elevation-warm: 0 3px 12px rgba(255, 107, 53, 0.08), 0 2px 6px rgba(255, 107, 53, 0.04);
-    --cs-elevation-cool: 0 3px 12px rgba(59, 130, 246, 0.08), 0 2px 6px rgba(59, 130, 246, 0.04);
+    /* Removed expressive shadow variants - rely on standard elevation system */
     
     /* Surface container colors for elevation */
     --cs-surface-container-lowest: var(--background-primary);
@@ -87,9 +84,7 @@
     --cs-radius-xxl: 28px;  /* Extra extra large - bold expression */
     --cs-radius-full: 50%;  /* Full/pill - unchanged */
     
-    /* Expressive radius variations for emotional design */
-    --cs-radius-organic: 12px 8px 14px 6px;  /* Organic, hand-drawn feel */
-    --cs-radius-playful: 16px 4px 16px 4px;  /* Playful asymmetry */
+    /* Removed expressive radius variations - keep consistent radius system */
     
     /* ================================================
        COMPACT COMPONENT SIZING
@@ -141,20 +136,14 @@
     --cs-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
     --cs-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
     
-    /* New expressive easing curves for spatial springs and natural motion */
-    --cs-motion-easing-spring-light: cubic-bezier(0.175, 0.885, 0.32, 1.1);
-    --cs-motion-easing-spring-medium: cubic-bezier(0.175, 0.885, 0.32, 1.175);
-    --cs-motion-easing-spring-heavy: cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    --cs-motion-easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    --cs-motion-easing-elastic: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    /* Simplified motion system - keep only essential easing curves */
+    --cs-motion-easing-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
     
-    /* Enhanced transition tokens with expressive motion */
+    /* Simplified transition tokens */
     --cs-transition-instant: var(--cs-motion-duration-instant) var(--cs-motion-easing-standard);
-    --cs-transition-fast: var(--cs-motion-duration-short2) var(--cs-motion-easing-spring-light);
-    --cs-transition-normal: var(--cs-motion-duration-short3) var(--cs-motion-easing-spring-medium);
+    --cs-transition-fast: var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
+    --cs-transition-normal: var(--cs-motion-duration-short3) var(--cs-motion-easing-spring);
     --cs-transition-slow: var(--cs-motion-duration-medium1) var(--cs-motion-easing-emphasized);
-    --cs-transition-expressive: var(--cs-motion-duration-short4) var(--cs-motion-easing-bounce);
-    --cs-transition-elastic: var(--cs-motion-duration-medium2) var(--cs-motion-easing-elastic);
     
     /* ================================================
        STATE SYSTEM
@@ -181,40 +170,24 @@
     --cs-z-modal: 3000;
     --cs-z-notification: 4000;
     
-    /* Enhanced Expressive Color Palette for Emotional Design */
-    /* Vibrant blue scale - more saturated and expressive */
-    --cs-blue-100: #e1f4ff;
-    --cs-blue-200: #b8e6ff;
-    --cs-blue-300: #7dd3fc;
-    --cs-blue-400: #38bdf8;
-    --cs-blue-500: #0ea5e9;
-    --cs-blue-600: #0284c7;
-    --cs-blue-700: #0369a1;
+    /* Simplified Color System - Rely more on theme colors */
+    /* Only define colors when theme doesn't provide suitable alternatives */
     
-    /* Expressive purple scale with more personality */
-    --cs-purple-100: #f3e8ff;
-    --cs-purple-200: #e9d5ff;
-    --cs-purple-300: #c084fc;
-    --cs-purple-400: #a855f7;
-    --cs-purple-500: #9333ea;
-    --cs-purple-600: #7c3aed;
+    /* Blue scale for notes and information */
+    --cs-blue-300: var(--color-blue, #60a5fa);
+    --cs-blue-400: var(--color-blue, #3b82f6);
+    --cs-blue-500: var(--color-blue, #2563eb);
     
-    /* Warm neutrals with subtle personality */
-    --cs-gray-100: #f8fafc;
-    --cs-gray-200: #f1f5f9;
-    --cs-gray-300: #e2e8f0;
-    --cs-gray-400: #cbd5e1;
-    --cs-gray-500: #94a3b8;
-    --cs-gray-600: #64748b;
-    --cs-gray-700: #475569;
+    /* Purple scale for special items */
+    --cs-purple-300: var(--color-purple, #a78bfa);
+    --cs-purple-400: var(--color-purple, #8b5cf6);
+    --cs-purple-500: var(--color-purple, #7c3aed);
     
-    /* New expressive accent colors for enhanced emotional range */
-    --cs-amber-400: #fbbf24;
-    --cs-amber-500: #f59e0b;
-    --cs-emerald-400: #34d399;
-    --cs-emerald-500: #10b981;
-    --cs-rose-400: #fb7185;
-    --cs-rose-500: #f43f5e;
+    /* Use theme's muted colors */
+    --cs-gray-300: var(--background-modifier-border);
+    --cs-gray-400: var(--background-modifier-border-hover);
+    --cs-gray-500: var(--text-muted);
+    --cs-gray-600: var(--text-faint);
     
     /* Fixed semantic usage for UI elements (not user-customizable) */
     /* Notes heatmap - blue intensities for calendar */

@@ -1,393 +1,378 @@
-/* Material 3 Expressive Enhanced Modal System */
+/* ChronoSync Modals - Clean and Simple Styling */
 
-/* Base Modal Styles - More compact and expressive */
+/* ===== MODAL CONTAINERS ===== */
 .task-creation-modal,
 .task-edit-modal {
-    padding: var(--cs-spacing-lg);
+    padding: var(--size-4-4);
     max-width: 580px;
     width: 100%;
-    background: var(--cs-surface-container-high);
-    border-radius: var(--cs-radius-xl);
-    box-shadow: var(--cs-elevation-4);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
-    transform-origin: center;
-    animation: modal-enter var(--cs-motion-duration-medium2) var(--cs-motion-easing-spring-medium);
+    background: var(--background-primary);
 }
 
-@keyframes modal-enter {
-    0% { 
-        opacity: 0; 
-        transform: scale(0.95) translateY(20px);
-    }
-    100% { 
-        opacity: 1; 
-        transform: scale(1) translateY(0);
-    }
-}
-
-/* Modal Header - More compact Material 3 Expressive headline style */
+/* ===== MODAL HEADERS ===== */
 .task-creation-modal .setting-item-heading,
 .task-edit-modal .setting-item-heading {
-    font-size: var(--cs-text-headline-small);
-    font-weight: 500;
+    font-size: var(--font-ui-large);
+    font-weight: 600;
     color: var(--text-normal);
-    letter-spacing: 0.01em;
     line-height: 1.3;
-    border-bottom: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
-    margin-bottom: var(--cs-spacing-md);
-    padding-bottom: var(--cs-spacing-sm);
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--size-4-2);
+    padding-bottom: var(--size-2-2);
 }
 
-/* Form Groups - More compact Material 3 Expressive form field structure */
+/* ===== FORM STRUCTURE ===== */
 .task-creation-modal .form-group,
 .task-edit-modal .form-group {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: var(--cs-spacing-xs);
-    margin-bottom: var(--cs-spacing-md);
+    margin-bottom: var(--size-4-2);
 }
 
-.task-creation-modal .form-group label,
-.task-edit-modal .form-group label {
+.task-creation-modal .form-label,
+.task-creation-modal .form-group label {
     display: block;
-    font-size: var(--cs-text-label-large);
+    font-size: var(--font-ui-medium);
     font-weight: 500;
     color: var(--text-normal);
-    line-height: 1.4;
-    margin-bottom: var(--cs-spacing-xs);
+    margin-bottom: var(--size-2-1);
 }
 
-/* Input Fields - Material Design form controls */
-.task-creation-modal input,
-.task-creation-modal select,
-.task-creation-modal textarea,
-.task-edit-modal input,
-.task-edit-modal select,
-.task-edit-modal textarea {
-    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 0.38, transparent);
-    border-radius: var(--cs-radius-sm);
-    background: var(--cs-surface-container-highest);
+.task-edit-modal .form-label,
+.task-edit-modal .form-group label {
+    display: block;
+    font-size: var(--font-ui-smaller);
+    font-weight: 500;
+    color: var(--text-normal);
+    margin-bottom: var(--size-2-1);
+}
+
+.task-creation-modal .form-input-container,
+.task-edit-modal .form-input-container {
+    position: relative;
+}
+
+/* ===== FORM INPUTS ===== */
+.task-creation-modal .form-input,
+.task-creation-modal .form-select,
+.task-creation-modal .title-input,
+.task-creation-modal .time-estimate-input {
+    padding: var(--size-2-2) var(--size-2-3);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background: var(--background-primary);
     color: var(--text-normal);
     font-family: inherit;
-    font-size: var(--cs-text-body-large);
+    font-size: var(--font-ui-medium);
     font-weight: 400;
-    line-height: 1.5;
-    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
-    min-height: var(--cs-input-height-md);
+    line-height: 1.3;
+    transition: border-color 0.2s ease;
     width: 100%;
     box-sizing: border-box;
     outline: none;
 }
 
-.task-creation-modal input:hover,
-.task-creation-modal select:hover,
-.task-creation-modal textarea:hover,
-.task-edit-modal input:hover,
-.task-edit-modal select:hover,
-.task-edit-modal textarea:hover {
-    border-color: var(--text-normal);
-    background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), var(--cs-surface-container-highest));
+.task-edit-modal .form-input,
+.task-edit-modal .form-select,
+.task-edit-modal .title-input,
+.task-edit-modal .time-estimate-input {
+    padding: var(--size-2-2) var(--size-2-3);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-family: inherit;
+    font-size: var(--font-ui-smaller);
+    font-weight: 400;
+    line-height: 1.3;
+    transition: border-color 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
 }
 
-.task-creation-modal input:focus,
-.task-creation-modal select:focus,
-.task-creation-modal textarea:focus,
-.task-edit-modal input:focus,
-.task-edit-modal select:focus,
-.task-edit-modal textarea:focus {
+.task-creation-modal .form-input:hover,
+.task-edit-modal .form-input:hover,
+.task-creation-modal .form-select:hover,
+.task-edit-modal .form-select:hover,
+.task-creation-modal .title-input:hover,
+.task-edit-modal .title-input:hover,
+.task-creation-modal .time-estimate-input:hover,
+.task-edit-modal .time-estimate-input:hover {
+    border-color: var(--background-modifier-border-hover);
+}
+
+.task-creation-modal .form-input:focus,
+.task-edit-modal .form-input:focus,
+.task-creation-modal .form-select:focus,
+.task-edit-modal .form-select:focus,
+.task-creation-modal .title-input:focus,
+.task-edit-modal .title-input:focus,
+.task-creation-modal .time-estimate-input:focus,
+.task-edit-modal .time-estimate-input:focus {
     border-color: var(--interactive-accent);
-    background: color-mix(in srgb, var(--interactive-accent) var(--cs-state-focus), var(--cs-surface-container-highest));
-    caret-color: var(--interactive-accent);
+    outline: none;
 }
 
-/* Character Counter - Material Design helper text */
+/* ===== CHARACTER COUNTER ===== */
 .task-creation-modal .character-counter,
-.task-edit-modal .character-counter {
+.task-edit-modal .character-counter,
+.task-creation-modal .char-counter,
+.task-edit-modal .char-counter {
     position: absolute;
     top: -1.4rem;
     right: 0;
-    font-size: var(--cs-text-label-medium);
+    font-size: var(--font-ui-smaller);
     color: var(--text-muted);
     font-weight: 400;
     line-height: 1.4;
 }
 
 .task-creation-modal .character-counter.warning,
-.task-edit-modal .character-counter.warning {
+.task-edit-modal .character-counter.warning,
+.task-creation-modal .char-counter.warning,
+.task-edit-modal .char-counter.warning {
     color: var(--text-error);
     font-weight: 500;
 }
 
-/* Autocomplete - Material Design menu */
+/* ===== AUTOCOMPLETE ===== */
 .task-creation-modal .autocomplete-suggestions,
 .task-edit-modal .autocomplete-suggestions {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: var(--cs-surface-container);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
-    border-radius: var(--cs-radius-md);
-    box-shadow: var(--cs-elevation-3);
-    z-index: var(--cs-z-dropdown);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    box-shadow: var(--shadow-s);
+    z-index: 1000;
     max-height: 240px;
     overflow-y: auto;
-    padding: var(--cs-spacing-xs) 0;
+    padding: var(--size-2-1) 0;
 }
 
-.task-creation-modal .autocomplete-suggestion,
-.task-edit-modal .autocomplete-suggestion {
-    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+.task-creation-modal .suggestion-item,
+.task-edit-modal .suggestion-item {
+    padding: var(--size-2-1) var(--size-2-3);
     cursor: pointer;
-    font-size: var(--cs-text-body-medium);
+    font-size: var(--font-ui-medium);
     color: var(--text-normal);
     line-height: 1.5;
-    transition: background-color var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
-    border-radius: var(--cs-radius-xs);
-    margin: 0 var(--cs-spacing-xs);
+    transition: background-color 0.2s ease;
 }
 
-.task-creation-modal .autocomplete-suggestion:hover,
-.task-creation-modal .autocomplete-suggestion.selected,
-.task-edit-modal .autocomplete-suggestion:hover,
-.task-edit-modal .autocomplete-suggestion.selected {
-    background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), transparent);
+.task-creation-modal .suggestion-item:hover,
+.task-edit-modal .suggestion-item:hover,
+.task-creation-modal .suggestion-item.selected,
+.task-edit-modal .suggestion-item.selected {
+    background: var(--background-modifier-hover);
 }
 
-/* Recurrence Pattern Group - Material Design surface container */
-.task-creation-modal .recurrence-pattern-group,
-.task-edit-modal .recurrence-pattern-group {
-    border: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
-    border-radius: var(--cs-radius-md);
-    padding: var(--cs-spacing-md);
-    background: var(--cs-surface-container);
-    margin-top: var(--cs-spacing-sm);
-    box-shadow: var(--cs-elevation-1);
-}
-
-/* Days of Week Selection - Material Design segmented buttons */
+/* ===== DAYS OF WEEK SELECTOR ===== */
 .task-creation-modal .days-of-week-container,
 .task-edit-modal .days-of-week-container {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: var(--cs-spacing-xs);
-    margin-top: var(--cs-spacing-sm);
-    padding: var(--cs-spacing-xs);
-    background: var(--cs-surface-container-highest);
-    border-radius: var(--cs-radius-lg);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
+    gap: var(--size-4-2);
+    margin-top: var(--size-2-3);
+    padding: var(--size-4-2);
+    background: var(--background-secondary);
+    border-radius: var(--radius-m);
+    border: 1px solid var(--background-modifier-border);
 }
 
-.task-creation-modal .day-button,
-.task-edit-modal .day-button {
-    position: relative;
+.task-creation-modal .day-checkbox-container,
+.task-edit-modal .day-checkbox-container {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: var(--cs-spacing-xs);
-    border: none;
-    border-radius: var(--cs-radius-sm);
-    background: transparent;
-    color: var(--text-normal);
-    font-family: inherit;
-    font-size: var(--cs-text-label-medium);
+    gap: var(--size-2-1);
+}
+
+.task-creation-modal .day-checkbox,
+.task-edit-modal .day-checkbox {
+    margin: 0;
+    cursor: pointer;
+}
+
+.task-creation-modal .day-label,
+.task-edit-modal .day-label {
+    font-size: var(--font-ui-small);
     font-weight: 500;
+    color: var(--text-normal);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    min-height: 32px;
+    letter-spacing: 0.05em;
     cursor: pointer;
     user-select: none;
-    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
 }
 
-.task-creation-modal .day-button:hover,
-.task-edit-modal .day-button:hover {
-    background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), transparent);
-}
-
-.task-creation-modal .day-button.selected,
-.task-edit-modal .day-button.selected {
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    box-shadow: var(--cs-elevation-1);
-}
-
-.task-creation-modal .day-button.selected:hover,
-.task-edit-modal .day-button.selected:hover {
-    background: var(--interactive-accent-hover);
-    box-shadow: var(--cs-elevation-2);
-}
-
-/* Time Estimate */
+/* ===== TIME ESTIMATE ===== */
 .task-creation-modal .time-estimate-container,
 .task-edit-modal .time-estimate-container {
     display: flex;
     align-items: center;
-    gap: var(--cs-spacing-sm);
+    gap: var(--size-2-2);
 }
 
-.task-creation-modal .time-estimate-container input,
-.task-edit-modal .time-estimate-container input {
+.task-creation-modal .time-estimate-input,
+.task-edit-modal .time-estimate-input {
     width: 80px;
     flex-shrink: 0;
 }
 
-/* Button Container - More compact Material 3 Expressive action layout */
-.task-creation-modal .button-container,
-.task-edit-modal .button-container {
-    display: flex;
-    gap: var(--cs-spacing-md);
-    justify-content: flex-end;
-    align-items: center;
-    margin-top: var(--cs-spacing-lg);
-    padding-top: var(--cs-spacing-md);
-    border-top: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
+.task-creation-modal .time-estimate-label,
+.task-edit-modal .time-estimate-label {
+    font-size: var(--font-ui-medium);
+    color: var(--text-muted);
 }
 
-/* Modal Buttons - Material Design button variants */
-.task-creation-modal .create-button,
-.task-creation-modal .save-button,
-.task-edit-modal .create-button,
-.task-edit-modal .save-button {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--cs-spacing-xs);
-    padding: 0 var(--cs-spacing-lg);
-    border: none;
-    border-radius: var(--cs-radius-lg);
-    background: var(--interactive-accent);
-    color: var(--text-on-accent);
-    font-family: inherit;
-    font-size: var(--cs-text-label-large);
-    font-weight: 500;
-    line-height: 1.25;
-    min-height: var(--cs-button-height-md);
-    cursor: pointer;
-    user-select: none;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
-    box-shadow: var(--cs-elevation-1);
+/* ===== FILENAME PREVIEW (Creation Modal Only) ===== */
+.task-creation-modal .filename-preview {
+    margin-top: var(--size-2-2);
+    padding: var(--size-2-2) var(--size-2-3);
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    font-size: var(--font-ui-small);
+    font-family: var(--font-monospace);
 }
 
-.task-creation-modal .create-button:hover,
-.task-creation-modal .save-button:hover,
-.task-edit-modal .create-button:hover,
-.task-edit-modal .save-button:hover {
-    background: var(--interactive-accent-hover);
-    box-shadow: var(--cs-elevation-2);
-    transform: translateY(-2px) scale(1.02);
-}
-
-.task-creation-modal .cancel-button,
-.task-edit-modal .cancel-button {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--cs-spacing-xs);
-    padding: 0 var(--cs-spacing-lg);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 0.38, transparent);
-    border-radius: var(--cs-radius-lg);
-    background: transparent;
+.task-creation-modal .filename-preview-valid {
     color: var(--text-normal);
-    font-family: inherit;
-    font-size: var(--cs-text-label-large);
-    font-weight: 500;
-    line-height: 1.25;
-    min-height: var(--cs-button-height-md);
-    cursor: pointer;
-    user-select: none;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
 }
 
-.task-creation-modal .cancel-button:hover,
-.task-edit-modal .cancel-button:hover {
-    background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), transparent);
-    border-color: var(--text-normal);
+.task-creation-modal .filename-preview-error {
+    color: var(--text-error);
+    background: var(--background-modifier-error);
 }
 
-.task-edit-modal .open-note-button {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--cs-spacing-xs);
-    padding: 0 var(--cs-spacing-md);
-    border: none;
-    border-radius: var(--cs-radius-lg);
-    background: transparent;
-    color: var(--interactive-accent);
-    font-family: inherit;
-    font-size: var(--cs-text-label-large);
-    font-weight: 500;
-    line-height: 1.25;
-    min-height: var(--cs-button-height-md);
-    cursor: pointer;
-    user-select: none;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: all var(--cs-motion-duration-short2) var(--cs-motion-easing-standard);
-}
-
-.task-edit-modal .open-note-button:hover {
-    background: color-mix(in srgb, var(--interactive-accent) var(--cs-state-hover), transparent);
-}
-
-/* Task Edit Modal Specific Styles - Material Design metadata section */
+/* ===== TASK METADATA (Edit Modal Only) ===== */
 .task-edit-modal .task-metadata-footer {
-    margin-top: var(--cs-spacing-lg);
-    padding-top: var(--cs-spacing-md);
-    border-top: 1px solid color-mix(in srgb, var(--text-normal) 0.12, transparent);
+    margin-top: var(--size-4-3);
+    padding-top: var(--size-4-2);
+    border-top: 1px solid var(--background-modifier-border);
 }
 
 .task-edit-modal .task-metadata {
     display: flex;
     flex-direction: column;
-    gap: var(--cs-spacing-sm);
+    gap: var(--size-2-3);
 }
 
 .task-edit-modal .metadata-item {
-    font-size: var(--cs-text-body-medium);
+    font-size: var(--font-ui-small);
     color: var(--text-muted);
-    line-height: 1.5;
-    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
-    background: var(--cs-surface-container);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 0.08, transparent);
-    border-radius: var(--cs-radius-md);
+    line-height: 1.4;
+    padding: var(--size-2-3) var(--size-4-2);
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
     font-weight: 400;
 }
 
-/* Responsive Design - Enhanced for compact mobile experience */
+/* ===== BUTTONS ===== */
+.task-creation-modal .button-container,
+.task-edit-modal .button-container {
+    display: flex;
+    gap: var(--size-4-2);
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: var(--size-4-3);
+    padding-top: var(--size-4-2);
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Primary Action Buttons */
+.task-creation-modal .create-button,
+.task-edit-modal .save-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--size-2-1);
+    padding: var(--size-2-2) var(--size-4-2);
+    border: none;
+    border-radius: var(--radius-m);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    font-family: inherit;
+    font-size: var(--font-ui-medium);
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+.task-creation-modal .create-button:hover,
+.task-edit-modal .save-button:hover {
+    background: var(--interactive-accent-hover);
+}
+
+/* Secondary Action Buttons */
+.task-creation-modal .cancel-button,
+.task-edit-modal .cancel-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--size-2-1);
+    padding: var(--size-2-2) var(--size-4-2);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background: transparent;
+    color: var(--text-normal);
+    font-family: inherit;
+    font-size: var(--font-ui-medium);
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.task-creation-modal .cancel-button:hover,
+.task-edit-modal .cancel-button:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--background-modifier-border-hover);
+}
+
+/* Open Note Button (Edit Modal Only) */
+.task-edit-modal .open-note-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--size-2-1);
+    padding: var(--size-2-2) var(--size-4-2);
+    border: none;
+    border-radius: var(--radius-m);
+    background: transparent;
+    color: var(--interactive-accent);
+    font-family: inherit;
+    font-size: var(--font-ui-medium);
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.task-edit-modal .open-note-button:hover {
+    background: var(--background-modifier-hover);
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
     .task-creation-modal,
     .task-edit-modal {
-        padding: var(--cs-spacing-md);
+        padding: var(--size-4-2);
         max-width: 92vw;
-        border-radius: var(--cs-radius-lg);
     }
     
     .task-creation-modal .button-container,
     .task-edit-modal .button-container {
         flex-direction: column;
-        gap: var(--cs-spacing-sm);
+        gap: var(--size-2-2);
     }
     
     .task-creation-modal .days-of-week-container,
     .task-edit-modal .days-of-week-container {
         grid-template-columns: repeat(4, 1fr);
-        gap: var(--cs-spacing-xs);
-    }
-    
-    .task-creation-modal .form-group,
-    .task-edit-modal .form-group {
-        margin-bottom: var(--cs-spacing-sm);
+        gap: var(--size-2-2);
     }
 }
-

@@ -78,7 +78,6 @@
 
 .pomodoro-timer-display {
     font-size: 2.5rem;
-    font-weight: 600;
     color: var(--text-normal);
     text-align: center;
     font-family: var(--font-monospace);
@@ -88,7 +87,7 @@
 
 .pomodoro-timer-display.pomodoro-timer-warning {
     color: var(--text-error);
-    animation: timer-pulse 1s infinite;
+    animation: timer-pulse 2s infinite;
 }
 
 @keyframes timer-pulse {
@@ -125,6 +124,9 @@
 /* Task Display */
 .pomodoro-task-display {
     min-height: 60px;
+    min-width: 300px;
+    width: auto;
+    margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -132,6 +134,30 @@
     background: var(--background-secondary);
     border-radius: var(--cs-radius-md);
     border: 1px solid var(--background-modifier-border);
+    overflow: hidden;
+    max-height: 200px;
+    opacity: 1;
+    transform: translateY(0);
+    transition: all var(--cs-motion-duration-medium1) var(--cs-motion-easing-emphasized);
+}
+
+/* Hide task display when empty with slide animation */
+.pomodoro-task-display:empty {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-20px);
+    margin: 0 auto;
+    padding: 0 var(--cs-spacing-md);
+    min-height: 0;
+}
+
+.pomodoro-task-display.pomodoro-no-task {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-20px);
+    margin: 0 auto;
+    padding: 0 var(--cs-spacing-md);
+    min-height: 0;
 }
 
 .pomodoro-current-task {
@@ -162,6 +188,9 @@
     display: flex;
     flex-direction: column;
     gap: var(--cs-spacing-sm);
+    max-width: 400px;
+    width: auto;
+    margin: 0 auto;
 }
 
 .pomodoro-task-selector label {
@@ -241,7 +270,7 @@
 }
 
 .pomodoro-quick-button {
-    /* Extends .cs-btn .cs-btn--sm .cs-btn--secondary */
+    /* Extends .cs-btn .cs-btn--Sm .cs-ctn--secondary */
 }
 
 /* Statistics Section */

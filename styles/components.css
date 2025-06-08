@@ -452,22 +452,20 @@
     color: var(--text-normal);
 }
 
-/* Unified Card Styles - Material 3 Expressive with compact design */
+/* Unified Card Styles - Theme-dependent and compact */
 .tasknotes-card {
     padding: var(--cs-spacing-sm);
-    border-radius: var(--cs-radius-md);
+    border-radius: var(--radius-m);
     border: 1px solid var(--background-modifier-border);
     background-color: var(--background-primary);
-    box-shadow: var(--cs-elevation-1);
-    transition: all var(--cs-transition-normal);
-    transform-origin: center;
-    will-change: transform, box-shadow;
+    transition: all var(--cs-transition-fast);
+    cursor: pointer;
 }
 
 .tasknotes-card:hover {
     background-color: var(--background-modifier-hover);
-    transform: translateY(-2px) scale(1.005);
-    box-shadow: var(--cs-elevation-2);
+    border-color: var(--background-modifier-border-hover);
+    transform: translateY(-1px);
 }
 
 .tasknotes-card-header {
