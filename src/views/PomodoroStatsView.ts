@@ -26,7 +26,7 @@ export class PomodoroStatsView extends ItemView {
     }
     
     getDisplayText(): string {
-        return 'Pomodoro Stats';
+        return 'Pomodoro stats';
     }
     
     getIcon(): string {
@@ -48,7 +48,7 @@ export class PomodoroStatsView extends ItemView {
         // Header
         const header = container.createDiv({ cls: 'pomodoro-stats-header' });
         new Setting(header)
-            .setName('Pomodoro Statistics')
+            .setName('Pomodoro statistics')
             .setHeading();
         
         // Refresh button
@@ -70,21 +70,21 @@ export class PomodoroStatsView extends ItemView {
         // This week's stats
         const weekSection = container.createDiv({ cls: 'pomodoro-stats-section' });
         new Setting(weekSection)
-            .setName('This Week')
+            .setName('This week')
             .setHeading();
         this.weekStatsEl = weekSection.createDiv({ cls: 'pomodoro-stats-grid' });
         
         // Overall stats
         const overallSection = container.createDiv({ cls: 'pomodoro-stats-section' });
         new Setting(overallSection)
-            .setName('All Time')
+            .setName('All time')
             .setHeading();
         this.overallStatsEl = overallSection.createDiv({ cls: 'pomodoro-stats-grid' });
         
         // Recent sessions
         const recentSection = container.createDiv({ cls: 'pomodoro-stats-section' });
         new Setting(recentSection)
-            .setName('Recent Sessions')
+            .setName('Recent sessions')
             .setHeading();
         this.recentSessionsEl = recentSection.createDiv({ cls: 'pomodoro-recent-sessions' });
         
