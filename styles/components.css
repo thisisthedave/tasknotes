@@ -452,20 +452,48 @@
     color: var(--text-normal);
 }
 
-/* Unified Card Styles - Theme-dependent and compact */
+/* Unified Card Styles - Theme-dependent and compact - List format */
 .tasknotes-card {
     padding: var(--cs-spacing-sm);
-    border-radius: var(--radius-m);
+    border-radius: 0;
     border: 1px solid var(--background-modifier-border);
+    border-bottom: 1px solid var(--background-modifier-border);
     background-color: var(--background-primary);
     transition: all var(--cs-transition-fast);
     cursor: pointer;
+    margin-bottom: 0;
 }
 
 .tasknotes-card:hover {
     background-color: var(--background-modifier-hover);
     border-color: var(--background-modifier-border-hover);
-    transform: translateY(-1px);
+    transform: none;
+}
+
+/* First task card gets top border radius */
+.tasknotes-card:first-child {
+    border-radius: var(--radius-m) var(--radius-m) 0 0;
+}
+
+/* Last task card gets bottom border radius */
+.tasknotes-card:last-child {
+    border-radius: 0 0 var(--radius-m) var(--radius-m);
+}
+
+/* Single task card gets full border radius */
+.tasknotes-card:first-child:last-child {
+    border-radius: var(--radius-m);
+}
+
+/* Status indicator dot */
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: var(--cs-spacing-xs);
+    flex-shrink: 0;
+    background-color: var(--text-muted);
 }
 
 .tasknotes-card-header {

@@ -956,6 +956,9 @@
     display: flex;
     align-items: flex-start;
     gap: var(--cs-spacing-sm);
+    margin-bottom: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .tasknotes-card--flex-column {

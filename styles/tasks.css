@@ -8,13 +8,19 @@
     border-radius: var(--cs-radius-md);
 }
 
-/* Tasks container with Material 3 Expressive card grid - more compact */
+/* Tasks container with Material 3 Expressive card grid - list format with no gaps */
 .tasks-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: var(--cs-spacing-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
     padding: 0;
     contain: layout style;
+}
+
+/* Ensure task cards container has no gaps */
+.tasks-container.task-cards {
+    gap: 0;
+    margin: 0;
 }
 
 /* Task sections - Material 3 Expressive section headers with compact spacing */
@@ -55,10 +61,11 @@
     position: relative;
     background: var(--cs-surface-container-low);
     border: 1px solid color-mix(in srgb, var(--text-normal) 0.08, transparent);
-    border-radius: var(--cs-radius-lg);
+    border-radius: 0;
     padding: var(--cs-spacing-md);
-    margin-bottom: var(--cs-spacing-md);
-    box-shadow: var(--cs-elevation-1);
+    margin-bottom: 0;
+    box-shadow: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-normal) 0.08, transparent);
     transition: all var(--cs-motion-duration-short3) var(--cs-motion-easing-standard);
     overflow: hidden;
     cursor: pointer;
@@ -75,7 +82,7 @@
     transform: scaleX(0);
     transform-origin: left;
     transition: transform var(--cs-motion-duration-short3) var(--cs-motion-easing-emphasized);
-    border-radius: var(--cs-radius-lg) var(--cs-radius-lg) 0 0;
+    border-radius: 0;
 }
 
 /* Priority-based top borders - Material Design colors */
@@ -96,9 +103,9 @@
 
 .task-item:hover {
     background: color-mix(in srgb, var(--text-normal) var(--cs-state-hover), var(--cs-surface-container-low));
-    box-shadow: var(--cs-elevation-2);
+    box-shadow: none;
     border-color: color-mix(in srgb, var(--text-normal) 0.12, transparent);
-    transform: translateY(-2px);
+    transform: none;
 }
 
 .task-item:hover::before {
@@ -111,8 +118,25 @@
 }
 
 .task-item:active {
-    transform: translateY(0);
-    box-shadow: var(--cs-elevation-1);
+    transform: none;
+    box-shadow: none;
+}
+
+/* First task item gets top border radius */
+.task-item:first-child {
+    border-radius: var(--cs-radius-lg) var(--cs-radius-lg) 0 0;
+    border-top: 1px solid color-mix(in srgb, var(--text-normal) 0.08, transparent);
+}
+
+/* Last task item gets bottom border radius and removes bottom border */
+.task-item:last-child {
+    border-radius: 0 0 var(--cs-radius-lg) var(--cs-radius-lg);
+    border-bottom: 1px solid color-mix(in srgb, var(--text-normal) 0.08, transparent);
+}
+
+/* Single task item gets full border radius */
+.task-item:first-child:last-child {
+    border-radius: var(--cs-radius-lg);
 }
 
 /* Priority-based top border on hover - for custom priority colors */
