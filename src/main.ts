@@ -380,9 +380,9 @@ export default class TaskNotesPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'convert-to-tasknote',
-			name: 'Convert to TaskNote',
+			name: 'Convert task to TaskNote',
 			editorCallback: (editor: Editor) => {
-				this.convertTasksPluginToTaskNote(editor);
+				this.convertTaskToTaskNote(editor);
 			}
 		});
 
@@ -790,9 +790,9 @@ private injectCustomStyles(): void {
 	}
 
 	/**
-	 * Convert Tasks plugin syntax on current line to TaskNotes task
+	 * Convert any checkbox task on current line to TaskNotes task
 	 */
-	convertTasksPluginToTaskNote(editor: Editor): void {
+	convertTaskToTaskNote(editor: Editor): void {
 		try {
 			const cursor = editor.getCursor();
 			const currentLine = editor.getLine(cursor.line);
@@ -815,22 +815,18 @@ private injectCustomStyles(): void {
 				return;
 			}
 			
-			// Check if this line contains Tasks plugin emoji syntax
-			if (!TasksPluginParser.isTasksPluginFormat(currentLine)) {
-				new Notice('Current line does not contain Tasks plugin emoji format. Use "Create new task" for regular tasks.');
-				return;
-			}
-			
 			// Prepare conversion options
 			const conversionOptions: TaskConversionOptions = {
-				parsedData: taskLineInfo.parsedData
+				parsedData: taskLineInfo.parsedData,
+				editor: editor,
+				lineNumber: cursor.line
 			};
 			
 			// Open TaskCreationModal with pre-populated data
 			new TaskCreationModal(this.app, this, conversionOptions).open();
 			
 		} catch (error) {
-			console.error('Error converting Tasks plugin task:', error);
+			console.error('Error converting task:', error);
 			new Notice('Failed to convert task. Please try again.');
 		}
 	}

@@ -10,6 +10,8 @@ import { ParsedTaskData } from '../utils/TasksPluginParser';
 
 export interface TaskConversionOptions {
 	parsedData?: ParsedTaskData;
+	editor?: Editor;
+	lineNumber?: number;
 }
 
 export class TaskCreationModal extends BaseTaskModal {
@@ -269,14 +271,6 @@ export class TaskCreationModal extends BaseTaskModal {
 		createButton.addEventListener('click', () => {
 			this.createTask();
 		});
-
-		const saveAndInsertButton = buttonContainer.createEl('button', { 
-			text: 'Save and insert to current note', 
-			cls: 'create-button' 
-		});
-		saveAndInsertButton.addEventListener('click', () => {
-			this.createTaskAndInsert();
-		});
 		
 		const cancelButton = buttonContainer.createEl('button', { 
 			text: 'Cancel', 
@@ -324,6 +318,12 @@ export class TaskCreationModal extends BaseTaskModal {
 
 		try {
 			const file = await this.performTaskCreation();
+			
+			// If this is a conversion, replace the original line with a link
+			if (this.conversionOptions.editor && this.conversionOptions.lineNumber !== undefined) {
+				await this.replaceOriginalTaskLine(file);
+			}
+			
 			new Notice(`Task created: ${this.title}`);
 			this.close();
 		} catch (error) {
@@ -333,50 +333,24 @@ export class TaskCreationModal extends BaseTaskModal {
 	}
 
 	/**
-	 * Create task and insert link to current note
+	 * Replace the original Tasks Plugin line with a link to the new TaskNote
 	 */
-	async createTaskAndInsert(): Promise<void> {
-		// First create the task (reuse existing validation and creation logic)
-		if (!await this.validateAndPrepareTask()) {
+	private async replaceOriginalTaskLine(file: TFile): Promise<void> {
+		if (!this.conversionOptions.editor || this.conversionOptions.lineNumber === undefined) {
 			return;
 		}
 
-		try {
-			const file = await this.performTaskCreation();
-			
-			// Insert link to current note
-			await this.insertLinkToCurrentNote(file);
-			
-			new Notice(`Task created and link inserted: ${this.title}`);
-			this.close();
-			
-		} catch (error) {
-			console.error('Failed to create task and insert link:', error);
-			new Notice('Failed to create task and insert link');
-		}
-	}
-
-	/**
-	 * Insert link to task in the currently active note
-	 */
-	private async insertLinkToCurrentNote(file: TFile): Promise<void> {
-		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-		if (!activeView) {
-			new Notice('No active note to insert link into');
-			return;
-		}
-
-		const editor = activeView.editor;
-		const cursor = editor.getCursor();
+		const editor = this.conversionOptions.editor;
+		const lineNumber = this.conversionOptions.lineNumber;
 		
-		// Insert link on the next line
-		const linkText = `[[${file.path}|${this.title}]]`;
-		const insertPosition = { line: cursor.line + 1, ch: 0 };
+		// Create link text with hyphen prefix
+		const linkText = `- [[${file.path}|${this.title}]]`;
 		
-		editor.replaceRange(`${linkText}\n`, insertPosition);
+		// Replace the entire line with the link
+		const lineStart = { line: lineNumber, ch: 0 };
+		const lineEnd = { line: lineNumber, ch: editor.getLine(lineNumber).length };
 		
-		// Move cursor to end of inserted text
-		editor.setCursor({ line: cursor.line + 1, ch: linkText.length });
+		editor.replaceRange(linkText, lineStart, lineEnd);
 	}
 
 	/**
