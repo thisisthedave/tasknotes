@@ -418,6 +418,7 @@ export class CacheManager {
         tasks: Map<string, {
             count: number,
             hasDue: boolean,
+            hasScheduled: boolean,
             hasCompleted: boolean,
             hasArchived: boolean
         }>,
@@ -431,6 +432,7 @@ export class CacheManager {
         const tasksMap = new Map<string, {
             count: number,
             hasDue: boolean,
+            hasScheduled: boolean,
             hasCompleted: boolean,
             hasArchived: boolean
         }>();
@@ -459,7 +461,8 @@ export class CacheManager {
                     
                     tasksMap.set(dateStr, {
                         count: validTasks.length,
-                        hasDue: hasDue || hasScheduled, // Show indicator for both due and scheduled
+                        hasDue: hasDue,
+                        hasScheduled: hasScheduled,
                         hasCompleted: validTasks.some(t => t.status === 'done'),
                         hasArchived: validTasks.some(t => t.archived)
                     });

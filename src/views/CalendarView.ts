@@ -825,12 +825,13 @@ export class CalendarView extends ItemView {
                 // Get task info for this date
                 const taskInfo = tasksCache.get(dateKey);
                 
-                if (taskInfo && taskInfo.hasDue) {
+                if (taskInfo && (taskInfo.hasDue || taskInfo.hasScheduled)) {
                     // Create indicator element
                     const indicator = document.createElement('div');
                     indicator.className = 'task-indicator';
                     
-                    // Different styling for completed, due, and archived tasks
+                    // Different styling for completed, due, scheduled, and archived tasks
+                    // Priority order: archived > completed > due > scheduled
                     let taskStatus = '';
                     if (taskInfo.hasArchived) {
                         // Archived tasks get a different style
@@ -842,11 +843,16 @@ export class CalendarView extends ItemView {
                         day.classList.add('has-completed-tasks');
                         indicator.classList.add('completed-tasks');
                         taskStatus = 'Completed';
-                    } else {
-                        // Due tasks
+                    } else if (taskInfo.hasDue) {
+                        // Due tasks (prioritized over scheduled)
                         day.classList.add('has-tasks');
                         indicator.classList.add('due-tasks');
                         taskStatus = 'Due';
+                    } else if (taskInfo.hasScheduled) {
+                        // Scheduled tasks
+                        day.classList.add('has-scheduled-tasks');
+                        indicator.classList.add('scheduled-tasks');
+                        taskStatus = 'Scheduled';
                     }
                     
                     // Add tooltip with task count information
@@ -955,7 +961,17 @@ export class CalendarView extends ItemView {
             affectedDates.add(format(new Date(updatedTask.due), 'yyyy-MM-dd'));
         }
         
-        // If no due dates are affected, nothing to update
+        // Add original scheduled date if it exists
+        if (originalTask?.scheduled) {
+            affectedDates.add(format(new Date(originalTask.scheduled), 'yyyy-MM-dd'));
+        }
+        
+        // Add new scheduled date if it exists
+        if (updatedTask.scheduled) {
+            affectedDates.add(format(new Date(updatedTask.scheduled), 'yyyy-MM-dd'));
+        }
+        
+        // If no dates are affected, nothing to update
         if (affectedDates.size === 0) {
             return;
         }
@@ -1012,17 +1028,18 @@ export class CalendarView extends ItemView {
     private updateSingleCalendarCell(dayEl: HTMLElement, dateKey: string, tasksCache: Map<string, any>) {
         // Remove existing task indicators and classes
         dayEl.querySelectorAll('.task-indicator').forEach(el => el.remove());
-        dayEl.classList.remove('has-tasks', 'has-completed-tasks', 'has-archived-tasks');
+        dayEl.classList.remove('has-tasks', 'has-scheduled-tasks', 'has-completed-tasks', 'has-archived-tasks');
         
         // Get task info for this date
         const taskInfo = tasksCache.get(dateKey);
         
-        if (taskInfo && taskInfo.hasDue) {
+        if (taskInfo && (taskInfo.hasDue || taskInfo.hasScheduled)) {
             // Create indicator element
             const indicator = document.createElement('div');
             indicator.className = 'task-indicator';
             
-            // Different styling for completed, due, and archived tasks
+            // Different styling for completed, due, scheduled, and archived tasks
+            // Priority order: archived > completed > due > scheduled
             let taskStatus = '';
             if (taskInfo.hasArchived) {
                 // Archived tasks get a different style
@@ -1034,11 +1051,16 @@ export class CalendarView extends ItemView {
                 dayEl.classList.add('has-completed-tasks');
                 indicator.classList.add('completed-tasks');
                 taskStatus = 'Completed';
-            } else {
-                // Due tasks
+            } else if (taskInfo.hasDue) {
+                // Due tasks (prioritized over scheduled)
                 dayEl.classList.add('has-tasks');
                 indicator.classList.add('due-tasks');
                 taskStatus = 'Due';
+            } else if (taskInfo.hasScheduled) {
+                // Scheduled tasks
+                dayEl.classList.add('has-scheduled-tasks');
+                indicator.classList.add('scheduled-tasks');
+                taskStatus = 'Scheduled';
             }
             
             // Add tooltip with task count information
