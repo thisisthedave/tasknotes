@@ -211,7 +211,7 @@ export class FilterBar extends EventEmitter {
      */
     private renderAdvancedFiltersPanel(): void {
         this.advancedFiltersPanel = this.container.createDiv('filter-bar-advanced');
-        this.advancedFiltersPanel.style.display = 'none';
+        this.advancedFiltersPanel.addClass('is-hidden');
 
         // Status filter
         this.renderStatusFilter();
@@ -488,9 +488,9 @@ export class FilterBar extends EventEmitter {
 
         if (activeCount > 0) {
             this.activeFiltersIndicator.textContent = `(${activeCount})`;
-            this.activeFiltersIndicator.style.display = '';
+            this.activeFiltersIndicator.classList.remove('is-hidden');
         } else {
-            this.activeFiltersIndicator.style.display = 'none';
+            this.activeFiltersIndicator.classList.add('is-hidden');
         }
     }
 
@@ -500,8 +500,8 @@ export class FilterBar extends EventEmitter {
     private toggleAdvancedFilters(): void {
         if (!this.advancedFiltersPanel) return;
 
-        const isVisible = this.advancedFiltersPanel.style.display !== 'none';
-        this.advancedFiltersPanel.style.display = isVisible ? 'none' : 'block';
+        const isVisible = !this.advancedFiltersPanel.classList.contains('is-hidden');
+        this.advancedFiltersPanel.classList.toggle('is-hidden', isVisible);
         
         if (this.advancedFiltersButton) {
             this.advancedFiltersButton.classList.toggle('active', !isVisible);
@@ -531,7 +531,7 @@ export class FilterBar extends EventEmitter {
         if (!select) return;
 
         const selectedValues = currentSelection || [];
-        select.innerHTML = '';
+        select.empty();
 
         options.forEach(option => {
             const optionEl = select.createEl('option', {
@@ -550,7 +550,7 @@ export class FilterBar extends EventEmitter {
         if (!statusContainer) return;
 
         const selectedStatus = this.currentQuery.status || 'all';
-        statusContainer.innerHTML = '';
+        statusContainer.empty();
 
         // Add "All" and "Open" options first
         const specialOptions = [
@@ -614,7 +614,7 @@ export class FilterBar extends EventEmitter {
         if (!priorityContainer) return;
 
         const selectedPriorities = this.currentQuery.priorities || [];
-        priorityContainer.innerHTML = '';
+        priorityContainer.empty();
 
         this.filterOptions.priorities.forEach(priority => {
             const checkboxWrapper = priorityContainer.createDiv('filter-bar-checkbox-wrapper');
@@ -647,7 +647,7 @@ export class FilterBar extends EventEmitter {
         if (!contextContainer) return;
 
         const selectedContexts = this.currentQuery.contexts || [];
-        contextContainer.innerHTML = '';
+        contextContainer.empty();
 
         this.filterOptions.contexts.forEach(context => {
             const checkboxWrapper = contextContainer.createDiv('filter-bar-checkbox-wrapper');

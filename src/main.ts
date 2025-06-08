@@ -767,14 +767,13 @@ export default class TaskNotesPlugin extends Plugin {
 				const month = date.getMonth();
 				
 				// Rebuild the daily notes cache for this month
-				this.cacheManager.rebuildDailyNotesCache(year, month)
-					.then(() => {
-						// Notify views that data has changed to trigger a UI refresh
-						this.notifyDataChanged(dailyNotePath, false, true);
-					})
-					.catch(e => {
-						console.error('Error rebuilding daily notes cache:', e);
-					});
+				try {
+					await this.cacheManager.rebuildDailyNotesCache(year, month);
+					// Notify views that data has changed to trigger a UI refresh
+					this.notifyDataChanged(dailyNotePath, false, true);
+				} catch (e) {
+					console.error('Error rebuilding daily notes cache:', e);
+				}
 			}
 		}
 	}
@@ -982,11 +981,14 @@ private injectCustomStyles(): void {
 	/**
 	 * Opens a simple due date modal (placeholder for now)
 	 */
-	openDueDateModal(task: TaskInfo) {
-		import('./modals/DueDateModal').then(({ DueDateModal }) => {
+	async openDueDateModal(task: TaskInfo) {
+		try {
+			const { DueDateModal } = await import('./modals/DueDateModal');
 			const modal = new DueDateModal(this.app, task, this);
 			modal.open();
-		}).catch(console.error);
+		} catch (error) {
+			console.error('Error loading DueDateModal:', error);
+		}
 	}
 
 }

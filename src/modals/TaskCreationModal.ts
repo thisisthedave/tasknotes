@@ -26,6 +26,15 @@ export class TaskCreationModal extends BaseTaskModal {
 		const selectedDate = this.plugin.selectedDate || new Date();
 		this.dueDate = format(selectedDate, 'yyyy-MM-dd');
 	}
+
+	private async cacheAutocompleteData(): Promise<void> {
+		try {
+			this.existingContexts = await this.getExistingContexts();
+			this.existingTags = await this.getExistingTags();
+		} catch (error) {
+			console.error('Error caching autocomplete data:', error);
+		}
+	}
   
 	onOpen() {
 		const { contentEl } = this;
@@ -38,8 +47,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		this.initializeFormData();
 
 		// Cache autocomplete data
-		this.getExistingContexts().then(contexts => this.existingContexts = contexts);
-		this.getExistingTags().then(tags => this.existingTags = tags);
+		this.cacheAutocompleteData();
 		
 		// Title with character count and filename preview updates
 		this.createFormGroup(contentEl, 'Title', (container) => {

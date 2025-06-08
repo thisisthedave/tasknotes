@@ -69,6 +69,7 @@ export class AgendaView extends ItemView {
         // Listen for date selection changes
         const dateListener = this.plugin.emitter.on(EVENT_DATE_SELECTED, (date: Date) => {
             this.startDate = new Date(date);
+            this.updatePeriodDisplay();
             this.refresh();
         });
         this.listeners.push(dateListener);
@@ -183,12 +184,10 @@ export class AgendaView extends ItemView {
         
         prevButton.addEventListener('click', () => {
             this.navigateToPreviousPeriod();
-            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
         nextButton.addEventListener('click', () => {
             this.navigateToNextPeriod();
-            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
         // FilterBar section (like tasks view)
@@ -258,8 +257,6 @@ export class AgendaView extends ItemView {
             this.currentQuery.dateRange = this.getDateRange();
             
             this.refresh();
-            // Update the period display
-            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
         const todayButton = leftControls.createEl('button', {
@@ -270,7 +267,6 @@ export class AgendaView extends ItemView {
         todayButton.addEventListener('click', () => {
             this.startDate = new Date();
             this.refresh();
-            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         });
         
         // Right side: Toggles
@@ -948,6 +944,7 @@ export class AgendaView extends ItemView {
         // Update the date range in the query
         this.currentQuery.dateRange = this.getDateRange();
         
+        this.updatePeriodDisplay();
         this.refresh();
     }
     
@@ -963,7 +960,15 @@ export class AgendaView extends ItemView {
         // Update the date range in the query
         this.currentQuery.dateRange = this.getDateRange();
         
+        this.updatePeriodDisplay();
         this.refresh();
+    }
+    
+    private updatePeriodDisplay(): void {
+        const currentPeriodDisplay = this.contentEl.querySelector('.agenda-period-title');
+        if (currentPeriodDisplay) {
+            currentPeriodDisplay.textContent = this.getCurrentPeriodText();
+        }
     }
     
     private getCurrentPeriodText(): string {
@@ -1017,22 +1022,12 @@ export class AgendaView extends ItemView {
                 case 'ArrowLeft':
                     e.preventDefault();
                     this.navigateToPreviousPeriod();
-                    // Update the period display
-                    const currentPeriodDisplay = this.contentEl.querySelector('.current-period-display');
-                    if (currentPeriodDisplay) {
-                        currentPeriodDisplay.textContent = this.getCurrentPeriodText();
-                    }
                     break;
                     
                 // Right arrow - next period
                 case 'ArrowRight':
                     e.preventDefault();
                     this.navigateToNextPeriod();
-                    // Update the period display
-                    const nextPeriodDisplay = this.contentEl.querySelector('.current-period-display');
-                    if (nextPeriodDisplay) {
-                        nextPeriodDisplay.textContent = this.getCurrentPeriodText();
-                    }
                     break;
             }
         });
