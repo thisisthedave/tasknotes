@@ -245,16 +245,32 @@ export class FilterService extends EventEmitter {
                     return false;
                 }
             }
-            // For tasks with due dates, use existing logic
-            else if (task.due) {
-                const taskDate = new Date(task.due);
+            // For tasks with due dates or scheduled dates, check if either falls within range
+            else if (task.due || task.scheduled) {
                 const startDate = new Date(query.dateRange.start);
                 const endDate = new Date(query.dateRange.end);
+                let inRange = false;
                 
-                // If includeOverdue is true and this task is overdue, don't filter it out by date
-                if (query.includeOverdue && taskDate < new Date()) {
-                    // This is an overdue task and we want to include overdue tasks, so don't filter by date range
-                } else if (taskDate < startDate || taskDate > endDate) {
+                // Check due date
+                if (task.due) {
+                    const dueDate = new Date(task.due);
+                    if (query.includeOverdue && dueDate < new Date()) {
+                        // This is an overdue task and we want to include overdue tasks
+                        inRange = true;
+                    } else if (dueDate >= startDate && dueDate <= endDate) {
+                        inRange = true;
+                    }
+                }
+                
+                // Check scheduled date if due date doesn't qualify
+                if (!inRange && task.scheduled) {
+                    const scheduledDate = new Date(task.scheduled);
+                    if (scheduledDate >= startDate && scheduledDate <= endDate) {
+                        inRange = true;
+                    }
+                }
+                
+                if (!inRange) {
                     return false;
                 }
             }
@@ -273,6 +289,9 @@ export class FilterService extends EventEmitter {
             switch (sortKey) {
                 case 'due':
                     comparison = this.compareDates(a.due, b.due);
+                    break;
+                case 'scheduled':
+                    comparison = this.compareDates(a.scheduled, b.scheduled);
                     break;
                 case 'priority':
                     comparison = this.comparePriorities(a.priority, b.priority);
@@ -336,6 +355,9 @@ export class FilterService extends EventEmitter {
                     break;
                 case 'due':
                     groupValue = this.getDueDateGroup(task, targetDate);
+                    break;
+                case 'scheduled':
+                    groupValue = this.getScheduledDateGroup(task, targetDate);
                     break;
                 default:
                     groupValue = 'unknown';
@@ -414,6 +436,36 @@ export class FilterService extends EventEmitter {
         if (dueDateOnly.getTime() === today.getTime()) return 'Today';
         if (dueDateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow';
         if (dueDateOnly <= thisWeek) return 'This week';
+        
+        return 'Later';
+    }
+
+    private getScheduledDateGroup(task: TaskInfo, targetDate?: Date): string {
+        if (!task.scheduled) return 'No scheduled date';
+        return this.getScheduledDateGroupFromDate(task.scheduled);
+    }
+    
+    /**
+     * Helper method to get scheduled date group from a specific date string
+     */
+    private getScheduledDateGroupFromDate(scheduledDate: string): string {
+        const scheduled = new Date(scheduledDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const thisWeek = new Date(today);
+        thisWeek.setDate(thisWeek.getDate() + 7);
+
+        const scheduledDateOnly = new Date(scheduled);
+        scheduledDateOnly.setHours(0, 0, 0, 0);
+
+        if (scheduledDateOnly < today) return 'Past scheduled';
+        if (scheduledDateOnly.getTime() === today.getTime()) return 'Today';
+        if (scheduledDateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow';
+        if (scheduledDateOnly <= thisWeek) return 'This week';
         
         return 'Later';
     }

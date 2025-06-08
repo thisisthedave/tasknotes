@@ -46,7 +46,7 @@ export class AgendaView extends ItemView {
             priorities: undefined,
             dateRange: this.getDateRange(),
             showArchived: false,
-            sortKey: 'due',
+            sortKey: 'scheduled',
             sortDirection: 'asc',
             groupKey: 'none' // Agenda groups by date internally
         };
@@ -209,7 +209,7 @@ export class AgendaView extends ItemView {
                 showGroupBy: false, // Agenda groups by date internally
                 showSortBy: true,
                 showAdvancedFilters: true,
-                allowedSortKeys: ['due', 'priority', 'title'],
+                allowedSortKeys: ['due', 'scheduled', 'priority', 'title'],
                 allowedGroupKeys: ['none'] // Only none allowed since we group by date
             }
         );
@@ -369,6 +369,11 @@ export class AgendaView extends ItemView {
                         return true;
                     }
                     
+                    // Handle regular tasks with scheduled dates for this specific date
+                    if (task.scheduled === dateStr) {
+                        return true;
+                    }
+                    
                     // If showing overdue tasks and this is today, include overdue tasks
                     if (this.showOverdueOnToday && isToday(date) && task.due) {
                         const taskDueDate = parseISO(task.due);
@@ -421,6 +426,11 @@ export class AgendaView extends ItemView {
                 
                 // Handle regular tasks with due dates for this specific date
                 if (task.due === dateStr) {
+                    return true;
+                }
+                
+                // Handle regular tasks with scheduled dates for this specific date
+                if (task.scheduled === dateStr) {
                     return true;
                 }
                 
@@ -477,7 +487,7 @@ export class AgendaView extends ItemView {
                 cls: 'empty-tip'
             });
             tipMessage.createEl('span', { text: 'Tip: ' });
-            tipMessage.appendChild(document.createTextNode('Create tasks with due dates or add notes to see them here.'));
+            tipMessage.appendChild(document.createTextNode('Create tasks with due or scheduled dates, or add notes to see them here.'));
         }
     }
     
@@ -495,6 +505,8 @@ export class AgendaView extends ItemView {
                 if (task.recurrence) {
                     shouldInclude = isRecurringTaskDueOn(task, dayData.date);
                 } else if (task.due === dateStr) {
+                    shouldInclude = true;
+                } else if (task.scheduled === dateStr) {
                     shouldInclude = true;
                 } else if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
                     // If showing overdue tasks and this is today, include overdue tasks
@@ -620,6 +632,11 @@ export class AgendaView extends ItemView {
                     return true;
                 }
                 
+                // Handle regular tasks with scheduled dates for this specific date
+                if (task.scheduled === dateStr) {
+                    return true;
+                }
+                
                 // If showing overdue tasks and this is today, include overdue tasks
                 if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
                     const taskDueDate = parseISO(task.due);
@@ -671,7 +688,7 @@ export class AgendaView extends ItemView {
             emptyMessage.createEl('p', { text: 'No items scheduled for this period.' });
             const tipMessage = emptyMessage.createEl('p', { cls: 'empty-tip' });
             tipMessage.createEl('span', { text: 'Tip: ' });
-            tipMessage.appendChild(document.createTextNode('Create tasks with due dates or add notes to see them here.'));
+            tipMessage.appendChild(document.createTextNode('Create tasks with due or scheduled dates, or add notes to see them here.'));
             return;
         }
         
@@ -701,6 +718,8 @@ export class AgendaView extends ItemView {
                 if (task.recurrence) {
                     shouldInclude = isRecurringTaskDueOn(task, dayData.date);
                 } else if (task.due === dateStr) {
+                    shouldInclude = true;
+                } else if (task.scheduled === dateStr) {
                     shouldInclude = true;
                 } else if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
                     // If showing overdue tasks and this is today, include overdue tasks

@@ -415,6 +415,7 @@ export function extractTaskInfo(
 						status: mappedTask.status || 'open',
 						priority: mappedTask.priority || 'normal',
 						due: mappedTask.due,
+						scheduled: mappedTask.scheduled,
 						path,
 						archived: mappedTask.archived || false,
 						tags: mappedTask.tags || [],
@@ -423,7 +424,9 @@ export function extractTaskInfo(
 						complete_instances: mappedTask.complete_instances,
 						completedDate: mappedTask.completedDate,
 						timeEstimate: mappedTask.timeEstimate,
-												timeEntries: mappedTask.timeEntries
+						timeEntries: mappedTask.timeEntries,
+						dateCreated: mappedTask.dateCreated,
+						dateModified: mappedTask.dateModified
 					};
 					
 					return taskInfo;
@@ -437,6 +440,7 @@ export function extractTaskInfo(
 						status: mappedTask.status || 'open',
 						priority: mappedTask.priority || 'normal',
 						due: mappedTask.due,
+						scheduled: mappedTask.scheduled,
 						path,
 						archived: mappedTask.archived || false,
 						tags: mappedTask.tags || [],

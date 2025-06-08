@@ -39,6 +39,7 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	status: 'status',
 	priority: 'priority',
 	due: 'due',
+	scheduled: 'scheduled',
 	contexts: 'contexts',
 	timeEstimate: 'timeEstimate',
 	completedDate: 'completedDate',

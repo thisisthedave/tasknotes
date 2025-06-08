@@ -7,6 +7,7 @@ export abstract class BaseTaskModal extends Modal {
     // Form field properties
     title: string = '';
     dueDate: string = '';
+    scheduledDate: string = '';
     priority: string = 'normal';
     status: string = 'open';
     contexts: string = '';
@@ -300,6 +301,19 @@ export abstract class BaseTaskModal extends Modal {
 
         input.addEventListener('change', (e) => {
             this.dueDate = (e.target as HTMLInputElement).value;
+        });
+    }
+
+    protected createScheduledDateInput(container: HTMLElement): void {
+        const input = container.createEl('input', {
+            type: 'date',
+            cls: 'form-input'
+        });
+
+        input.value = this.scheduledDate;
+
+        input.addEventListener('change', (e) => {
+            this.scheduledDate = (e.target as HTMLInputElement).value;
         });
     }
 

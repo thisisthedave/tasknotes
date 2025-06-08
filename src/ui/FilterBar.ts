@@ -767,6 +767,7 @@ export class FilterBar extends EventEmitter {
     private getSortKeyLabel(key: TaskSortKey): string {
         const labels: Record<TaskSortKey, string> = {
             'due': 'Due date',
+            'scheduled': 'Scheduled date',
             'priority': 'Priority',
             'title': 'Title'
         };
@@ -782,7 +783,8 @@ export class FilterBar extends EventEmitter {
             'status': 'Status',
             'priority': 'Priority',
             'context': 'Context',
-            'due': 'Due date'
+            'due': 'Due date',
+            'scheduled': 'Scheduled date'
         };
         return labels[key] || key;
     }

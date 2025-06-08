@@ -16,6 +16,7 @@ export class TaskEditModal extends BaseTaskModal {
         // Initialize form fields with current task data
         this.title = this.task.title;
         this.dueDate = this.task.due || '';
+        this.scheduledDate = this.task.scheduled || '';
         this.priority = this.task.priority;
         this.status = this.task.status;
         this.contexts = this.task.contexts ? this.task.contexts.join(', ') : '';
@@ -57,6 +58,11 @@ export class TaskEditModal extends BaseTaskModal {
         // Due Date
         this.createFormGroup(contentEl, 'Due date', (container) => {
             this.createDueDateInput(container);
+        });
+
+        // Scheduled Date
+        this.createFormGroup(contentEl, 'Scheduled date', (container) => {
+            this.createScheduledDateInput(container);
         });
 
         // Priority
@@ -243,6 +249,12 @@ export class TaskEditModal extends BaseTaskModal {
                     frontmatter.due = this.dueDate;
                 } else {
                     delete frontmatter.due;
+                }
+
+                if (this.scheduledDate) {
+                    frontmatter.scheduled = this.scheduledDate;
+                } else {
+                    delete frontmatter.scheduled;
                 }
 
                 if (contextsArray.length > 0) {

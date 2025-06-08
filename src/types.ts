@@ -24,8 +24,8 @@ export type ColorizeMode = 'tasks' | 'notes' | 'daily';
 export type CalendarDisplayMode = 'month' | 'agenda';
 
 // Task sorting and grouping types
-export type TaskSortKey = 'due' | 'priority' | 'title';
-export type TaskGroupKey = 'none' | 'priority' | 'context' | 'due' | 'status';
+export type TaskSortKey = 'due' | 'scheduled' | 'priority' | 'title';
+export type TaskGroupKey = 'none' | 'priority' | 'context' | 'due' | 'scheduled' | 'status';
 export type SortDirection = 'asc' | 'desc';
 
 // Unified filtering system types
@@ -79,6 +79,7 @@ export interface TaskInfo {
 	status: string;
 	priority: string;
 	due?: string;
+	scheduled?: string; // Date (YYYY-MM-DD) when task is scheduled to be worked on
 	path: string;
 	archived: boolean;
 	tags?: string[];
@@ -136,6 +137,7 @@ export interface TaskFrontmatter {
 	dateModified: string;
 	status: 'open' | 'in-progress' | 'done';
 	due?: string;
+	scheduled?: string;
 	tags: string[];
 	priority: 'low' | 'normal' | 'high';
 	contexts?: string[];
@@ -204,6 +206,7 @@ export interface FieldMapping {
 	status: string;
 	priority: string;
 	due: string;
+	scheduled: string;
 	contexts: string;
 	timeEstimate: string;
 	completedDate: string;

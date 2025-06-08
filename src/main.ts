@@ -760,6 +760,16 @@ private injectCustomStyles(): void {
 			console.error('Error loading DueDateModal:', error);
 		}
 	}
+
+	async openScheduledDateModal(task: TaskInfo) {
+		try {
+			const { ScheduledDateModal } = await import('./modals/ScheduledDateModal');
+			const modal = new ScheduledDateModal(this.app, task, this);
+			modal.open();
+		} catch (error) {
+			console.error('Error loading ScheduledDateModal:', error);
+		}
+	}
 	
 	/**
 	 * Refreshes the TaskNotes cache by clearing all cached data and re-initializing

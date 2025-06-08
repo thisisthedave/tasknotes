@@ -40,6 +40,10 @@ export class FieldMapper {
             mapped.due = frontmatter[this.mapping.due];
         }
         
+        if (frontmatter[this.mapping.scheduled] !== undefined) {
+            mapped.scheduled = frontmatter[this.mapping.scheduled];
+        }
+        
         if (frontmatter[this.mapping.contexts] !== undefined) {
             const contexts = frontmatter[this.mapping.contexts];
             // Ensure contexts is always an array
@@ -102,6 +106,10 @@ export class FieldMapper {
         
         if (taskData.due !== undefined) {
             frontmatter[this.mapping.due] = taskData.due;
+        }
+        
+        if (taskData.scheduled !== undefined) {
+            frontmatter[this.mapping.scheduled] = taskData.scheduled;
         }
         
         if (taskData.contexts !== undefined) {

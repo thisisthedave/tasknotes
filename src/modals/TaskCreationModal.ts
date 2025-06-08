@@ -41,6 +41,9 @@ export class TaskCreationModal extends BaseTaskModal {
 			// Pre-populate due date with selected date from calendar or today
 			const selectedDate = this.plugin.selectedDate || new Date();
 			this.dueDate = format(selectedDate, 'yyyy-MM-dd');
+			
+			// Initialize scheduled date as empty by default
+			this.scheduledDate = '';
 		}
 	}
 
@@ -50,6 +53,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		this.priority = data.priority || this.plugin.settings.defaultTaskPriority;
 		this.status = data.status || this.plugin.settings.defaultTaskStatus;
 		this.dueDate = data.dueDate || ''; // Always reset due date
+		this.scheduledDate = ''; // Always reset scheduled date for converted tasks
 		this.details = ''; // Reset details too
 		
 		// Update input field if it exists
@@ -191,6 +195,11 @@ export class TaskCreationModal extends BaseTaskModal {
 		// Due Date
 		this.createFormGroup(contentEl, 'Due date', (container) => {
 			this.createDueDateInputWithRef(container);
+		});
+		
+		// Scheduled Date
+		this.createFormGroup(contentEl, 'Scheduled date', (container) => {
+			this.createScheduledDateInput(container);
 		});
 		
 		// Priority
@@ -436,6 +445,10 @@ export class TaskCreationModal extends BaseTaskModal {
 
 		if (this.dueDate) {
 			frontmatter.due = this.dueDate;
+		}
+
+		if (this.scheduledDate) {
+			frontmatter.scheduled = this.scheduledDate;
 		}
 
 		if (contextsArray.length > 0) {

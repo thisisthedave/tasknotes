@@ -125,6 +125,22 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         }
     }
     
+    // Scheduled date (if has scheduled date)
+    if (task.scheduled) {
+        const scheduledDate = new Date(task.scheduled);
+        const today = new Date();
+        const isToday = scheduledDate.toDateString() === today.toDateString();
+        const isPast = scheduledDate < today;
+        
+        if (isToday) {
+            metadataItems.push('Scheduled: Today');
+        } else if (isPast) {
+            metadataItems.push(`Scheduled: ${format(scheduledDate, 'MMM d')} (past)`);
+        } else {
+            metadataItems.push(`Scheduled: ${format(scheduledDate, 'MMM d')}`);
+        }
+    }
+    
     // Contexts (if has contexts)
     if (task.contexts && task.contexts.length > 0) {
         metadataItems.push(`@${task.contexts.join(', @')}`);
@@ -294,6 +310,16 @@ async function showTaskContextMenu(event: MouseEvent, taskPath: string, plugin: 
             });
         });
         
+        // Set Scheduled Date
+        menu.addItem((item) => {
+            item.setTitle('Set scheduled date...');
+            item.setIcon('calendar-clock');
+            item.onClick(() => {
+                // Use the fresh task data that showTaskContextMenu just fetched
+                plugin.openScheduledDateModal(task);
+            });
+        });
+        
         menu.addSeparator();
         
         // Time Tracking - determine current state from fresh task data
@@ -444,6 +470,22 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
                 metadataItems.push(`Due: ${format(dueDate, 'MMM d')} (overdue)`);
             } else {
                 metadataItems.push(`Due: ${format(dueDate, 'MMM d')}`);
+            }
+        }
+        
+        // Scheduled date (if has scheduled date)
+        if (task.scheduled) {
+            const scheduledDate = new Date(task.scheduled);
+            const today = new Date();
+            const isToday = scheduledDate.toDateString() === today.toDateString();
+            const isPast = scheduledDate < today;
+            
+            if (isToday) {
+                metadataItems.push('Scheduled: Today');
+            } else if (isPast) {
+                metadataItems.push(`Scheduled: ${format(scheduledDate, 'MMM d')} (past)`);
+            } else {
+                metadataItems.push(`Scheduled: ${format(scheduledDate, 'MMM d')}`);
             }
         }
         

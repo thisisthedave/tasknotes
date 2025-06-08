@@ -20,7 +20,7 @@ export class CacheManager {
     private indexedFilesCache: Map<string, IndexedFile> = new Map();
     
     // Index caches for fast lookups
-    private tasksByDate: Map<string, Set<string>> = new Map(); // date -> task paths
+    private tasksByDate: Map<string, Set<string>> = new Map(); // date -> task paths (due OR scheduled dates)
     private notesByDate: Map<string, Set<string>> = new Map(); // date -> note paths
     private tasksByStatus: Map<string, Set<string>> = new Map(); // status -> task paths
     private tasksByPriority: Map<string, Set<string>> = new Map(); // priority -> task paths
@@ -357,7 +357,7 @@ export class CacheManager {
     }
     
     /**
-     * Get tasks that are due on a specific date (for calendar highlighting)
+     * Get tasks that are due or scheduled on a specific date (for calendar highlighting)
      */
     async getTasksDueOnDate(date: Date): Promise<TaskInfo[]> {
         // Ensure cache is initialized first
@@ -453,9 +453,13 @@ export class CacheManager {
                 
                 const validTasks = taskInfos.filter(Boolean) as TaskInfo[];
                 if (validTasks.length > 0) {
+                    // Check if any tasks have due dates or scheduled dates for this date
+                    const hasDue = validTasks.some(t => t.due === dateStr);
+                    const hasScheduled = validTasks.some(t => t.scheduled === dateStr);
+                    
                     tasksMap.set(dateStr, {
                         count: validTasks.length,
-                        hasDue: true,
+                        hasDue: hasDue || hasScheduled, // Show indicator for both due and scheduled
                         hasCompleted: validTasks.some(t => t.status === 'done'),
                         hasArchived: validTasks.some(t => t.archived)
                     });
@@ -639,6 +643,15 @@ export class CacheManager {
             this.tasksByDate.get(dateStr)!.add(path);
         }
         
+        // Add scheduled date to the same index
+        if (taskInfo.scheduled) {
+            const dateStr = taskInfo.scheduled;
+            if (!this.tasksByDate.has(dateStr)) {
+                this.tasksByDate.set(dateStr, new Set());
+            }
+            this.tasksByDate.get(dateStr)!.add(path);
+        }
+        
         if (taskInfo.status) {
             if (!this.tasksByStatus.has(taskInfo.status)) {
                 this.tasksByStatus.set(taskInfo.status, new Set());
@@ -723,9 +736,21 @@ export class CacheManager {
             // Targeted removal for tasks using old task data
             const oldTask = oldData as TaskInfo;
             
-            // Remove from specific date index
+            // Remove from specific date index (due date)
             if (oldTask.due) {
                 const dateStr = oldTask.due;
+                const pathSet = this.tasksByDate.get(dateStr);
+                if (pathSet) {
+                    pathSet.delete(path);
+                    if (pathSet.size === 0) {
+                        this.tasksByDate.delete(dateStr);
+                    }
+                }
+            }
+            
+            // Remove from specific date index (scheduled date)
+            if (oldTask.scheduled) {
+                const dateStr = oldTask.scheduled;
                 const pathSet = this.tasksByDate.get(dateStr);
                 if (pathSet) {
                     pathSet.delete(path);
@@ -1100,36 +1125,47 @@ export class CacheManager {
      * after successful file writes to ensure the cache reflects the new state.
      */
     async updateTaskInfoInCache(path: string, taskInfo: TaskInfo | null): Promise<void> {
-        // Track this as a recent programmatic update
-        this.recentUpdates.set(path, Date.now());
-        
-        if (taskInfo) {
-            // Update the dateModified timestamp to reflect the current time
-            const updatedTaskInfo: TaskInfo = {
-                ...taskInfo,
-                dateModified: new Date().toISOString()
-            };
+        try {
+            // Track this as a recent programmatic update
+            this.recentUpdates.set(path, Date.now());
             
-            // Update the task info cache with the new authoritative data
-            this.taskInfoCache.set(path, updatedTaskInfo);
-            
-            // Update the indexed files cache
-            this.indexedFilesCache.set(path, {
-                path,
-                mtime: Date.now(),
-                ctime: Date.now(),
-                isTask: true,
-                tags: updatedTaskInfo.tags || [],
-                cachedInfo: updatedTaskInfo
-            });
-            
-            // Update all indexes including canonical sets
-            this.updateTaskIndexes(path, updatedTaskInfo);
-        } else {
-            // Remove from all caches and indexes
-            this.taskInfoCache.delete(path);
-            this.indexedFilesCache.delete(path);
-            this.removeFromIndexes(path, 'task');
+            if (taskInfo) {
+                // Get old task info for atomic scheduled date index updates
+                const oldTaskInfo = this.taskInfoCache.get(path);
+                
+                // Update the dateModified timestamp to reflect the current time
+                const updatedTaskInfo: TaskInfo = {
+                    ...taskInfo,
+                    dateModified: new Date().toISOString()
+                };
+                
+                // Update the task info cache with the new authoritative data
+                this.taskInfoCache.set(path, updatedTaskInfo);
+                
+                // Update the indexed files cache
+                this.indexedFilesCache.set(path, {
+                    path,
+                    mtime: Date.now(),
+                    ctime: Date.now(),
+                    isTask: true,
+                    tags: updatedTaskInfo.tags || [],
+                    cachedInfo: updatedTaskInfo
+                });
+                
+                // Update all indexes including canonical sets (with old task info for atomic updates)
+                this.updateTaskIndexes(path, updatedTaskInfo);
+            } else {
+                // Get old task info for proper cleanup
+                const oldTaskInfo = this.taskInfoCache.get(path);
+                
+                // Remove from all caches and indexes
+                this.taskInfoCache.delete(path);
+                this.indexedFilesCache.delete(path);
+                this.removeFromIndexes(path, 'task', oldTaskInfo);
+            }
+        } catch (error) {
+            console.error(`Error updating task info in cache for ${path}:`, error);
+            throw error;
         }
     }
     
@@ -1194,24 +1230,39 @@ export class CacheManager {
      * Get all unique contexts across all tasks (sorted)
      */
     async getAllContexts(): Promise<string[]> {
-        await this.ensureInitialized();
-        return Array.from(this.allContexts).sort();
+        try {
+            await this.ensureInitialized();
+            return Array.from(this.allContexts).sort();
+        } catch (error) {
+            console.error('Error getting all contexts:', error);
+            return [];
+        }
     }
     
     /**
      * Get all unique tags across all tasks (sorted)
      */
     async getAllTags(): Promise<string[]> {
-        await this.ensureInitialized();
-        return Array.from(this.allTags).sort();
+        try {
+            await this.ensureInitialized();
+            return Array.from(this.allTags).sort();
+        } catch (error) {
+            console.error('Error getting all tags:', error);
+            return [];
+        }
     }
     
     /**
      * Get all notes (for AgendaView optimization)
      */
     async getAllNotes(): Promise<NoteInfo[]> {
-        await this.ensureInitialized();
-        return Array.from(this.noteInfoCache.values());
+        try {
+            await this.ensureInitialized();
+            return Array.from(this.noteInfoCache.values());
+        } catch (error) {
+            console.error('Error getting all notes:', error);
+            return [];
+        }
     }
     
     /**
@@ -1245,10 +1296,44 @@ export class CacheManager {
     }
     
     /**
-     * Get task paths by date for FilterService optimization
+     * Get task paths by date for FilterService optimization (includes both due and scheduled dates)
      */
     getTaskPathsByDate(date: string): Set<string> {
         return this.tasksByDate.get(date) || new Set();
+    }
+    
+    /**
+     * Get task paths that have due dates on a specific date
+     */
+    getTaskPathsByDueDate(date: string): Set<string> {
+        const allPaths = this.tasksByDate.get(date) || new Set();
+        const duePaths = new Set<string>();
+        
+        for (const path of allPaths) {
+            const taskInfo = this.taskInfoCache.get(path);
+            if (taskInfo?.due === date) {
+                duePaths.add(path);
+            }
+        }
+        
+        return duePaths;
+    }
+    
+    /**
+     * Get task paths that have scheduled dates on a specific date
+     */
+    getTaskPathsByScheduledDate(date: string): Set<string> {
+        const allPaths = this.tasksByDate.get(date) || new Set();
+        const scheduledPaths = new Set<string>();
+        
+        for (const path of allPaths) {
+            const taskInfo = this.taskInfoCache.get(path);
+            if (taskInfo?.scheduled === date) {
+                scheduledPaths.add(path);
+            }
+        }
+        
+        return scheduledPaths;
     }
     
     /**
@@ -1317,6 +1402,63 @@ export class CacheManager {
     }
 
     /**
+     * Get all dates that have tasks (either due or scheduled)
+     */
+    getAllTaskDates(): string[] {
+        return Array.from(this.tasksByDate.keys()).sort();
+    }
+    
+    /**
+     * Check if a specific date has any tasks (due or scheduled)
+     */
+    hasTasksOnDate(date: string): boolean {
+        const paths = this.tasksByDate.get(date);
+        return paths !== undefined && paths.size > 0;
+    }
+    
+    /**
+     * Get count of tasks on a specific date (due or scheduled)
+     */
+    getTaskCountOnDate(date: string): number {
+        const paths = this.tasksByDate.get(date);
+        return paths ? paths.size : 0;
+    }
+    
+    /**
+     * Clear scheduled date from task index when scheduled date changes
+     */
+    private clearScheduledDateFromIndex(path: string, oldScheduledDate: string): void {
+        try {
+            const pathSet = this.tasksByDate.get(oldScheduledDate);
+            if (pathSet) {
+                pathSet.delete(path);
+                if (pathSet.size === 0) {
+                    this.tasksByDate.delete(oldScheduledDate);
+                }
+            }
+        } catch (error) {
+            console.error(`Error clearing scheduled date from index for ${path}:`, error);
+        }
+    }
+    
+    /**
+     * Clear due date from task index when due date changes
+     */
+    private clearDueDateFromIndex(path: string, oldDueDate: string): void {
+        try {
+            const pathSet = this.tasksByDate.get(oldDueDate);
+            if (pathSet) {
+                pathSet.delete(path);
+                if (pathSet.size === 0) {
+                    this.tasksByDate.delete(oldDueDate);
+                }
+            }
+        } catch (error) {
+            console.error(`Error clearing due date from index for ${path}:`, error);
+        }
+    }
+    
+    /**
      * Get cache statistics
      */
     getStats(): {
@@ -1328,6 +1470,7 @@ export class CacheManager {
         tasksCached: number;
         notesCached: number;
         filesCached: number;
+        datesWithTasks: number;
     } {
         const total = this.stats.cacheHits + this.stats.cacheMisses;
         return {
@@ -1335,7 +1478,8 @@ export class CacheManager {
             hitRatio: total > 0 ? this.stats.cacheHits / total : 0,
             tasksCached: this.taskInfoCache.size,
             notesCached: this.noteInfoCache.size,
-            filesCached: this.fileContentCache.size
+            filesCached: this.fileContentCache.size,
+            datesWithTasks: this.tasksByDate.size
         };
     }
     
