@@ -176,9 +176,25 @@ export interface PomodoroState {
 	isRunning: boolean;
 	currentSession?: PomodoroSession;
 	timeRemaining: number; // seconds
-	pomodorosCompleted: number; // today's count
-	currentStreak: number; // consecutive pomodoros
-	totalMinutesToday: number; // total focused minutes today
+}
+
+export interface PomodoroSessionHistory {
+	id: string;
+	startTime: string; // ISO datetime
+	endTime: string; // ISO datetime when completed
+	duration: number; // actual duration in minutes
+	plannedDuration: number; // originally planned duration in minutes
+	type: 'work' | 'short-break' | 'long-break';
+	taskPath?: string; // optional task association
+	completed: boolean; // true if session finished normally, false if interrupted
+}
+
+export interface PomodoroHistoryStats {
+	pomodorosCompleted: number;
+	currentStreak: number;
+	totalMinutes: number;
+	averageSessionLength: number;
+	completionRate: number; // percentage of sessions completed vs interrupted
 }
 
 // Field mapping and customization types

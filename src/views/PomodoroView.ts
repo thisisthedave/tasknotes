@@ -299,7 +299,9 @@ export class PomodoroView extends ItemView {
         
         // Initial display update
         this.updateDisplay();
-        this.updateStats();
+        this.updateStats().catch(error => {
+            console.error('Failed to update initial stats:', error);
+        });
         
         // Update initial timer based on current state
         const state = this.plugin.pomodoroService.getState();
@@ -499,7 +501,9 @@ export class PomodoroView extends ItemView {
             }
         }
         
-        this.updateStats();
+        this.updateStats().catch(error => {
+            console.error('Failed to update stats:', error);
+        });
     }
     
     private updateTimer(seconds: number) {
@@ -557,21 +561,29 @@ export class PomodoroView extends ItemView {
         }
     }
     
-    private updateStats() {
-        const state = this.plugin.pomodoroService.getState();
-        const totalMinutes = this.plugin.pomodoroService.getTotalMinutesToday();
-        
-        // Update only if values changed to avoid unnecessary DOM updates
-        if (this.statElements.pomodoros && this.statElements.pomodoros.textContent !== state.pomodorosCompleted.toString()) {
-            this.statElements.pomodoros.textContent = state.pomodorosCompleted.toString();
-        }
-        
-        if (this.statElements.streak && this.statElements.streak.textContent !== state.currentStreak.toString()) {
-            this.statElements.streak.textContent = state.currentStreak.toString();
-        }
-        
-        if (this.statElements.minutes && this.statElements.minutes.textContent !== totalMinutes.toString()) {
-            this.statElements.minutes.textContent = totalMinutes.toString();
+    private async updateStats() {
+        try {
+            // Get reliable stats from session history
+            const stats = await this.plugin.pomodoroService.getTodayStats();
+            
+            // Update only if values changed to avoid unnecessary DOM updates
+            if (this.statElements.pomodoros && this.statElements.pomodoros.textContent !== stats.pomodorosCompleted.toString()) {
+                this.statElements.pomodoros.textContent = stats.pomodorosCompleted.toString();
+            }
+            
+            if (this.statElements.streak && this.statElements.streak.textContent !== stats.currentStreak.toString()) {
+                this.statElements.streak.textContent = stats.currentStreak.toString();
+            }
+            
+            if (this.statElements.minutes && this.statElements.minutes.textContent !== stats.totalMinutes.toString()) {
+                this.statElements.minutes.textContent = stats.totalMinutes.toString();
+            }
+        } catch (error) {
+            console.error('Failed to update stats:', error);
+            // Fallback to show zeros if stats loading fails
+            if (this.statElements.pomodoros) this.statElements.pomodoros.textContent = '0';
+            if (this.statElements.streak) this.statElements.streak.textContent = '0';
+            if (this.statElements.minutes) this.statElements.minutes.textContent = '0';
         }
     }
     

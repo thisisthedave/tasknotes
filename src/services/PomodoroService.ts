@@ -3,7 +3,9 @@ import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
     PomodoroSession, 
-    PomodoroState, 
+    PomodoroState,
+    PomodoroSessionHistory,
+    PomodoroHistoryStats,
     EVENT_POMODORO_START, 
     EVENT_POMODORO_COMPLETE, 
     EVENT_POMODORO_INTERRUPT, 
@@ -24,10 +26,7 @@ export class PomodoroService {
         this.plugin = plugin;
         this.state = {
             isRunning: false,
-            timeRemaining: plugin.settings.pomodoroWorkDuration * 60, // Default work duration in seconds
-            pomodorosCompleted: 0,
-            currentStreak: 0,
-            totalMinutesToday: 0
+            timeRemaining: plugin.settings.pomodoroWorkDuration * 60 // Default work duration in seconds
         };
     }
 
@@ -55,19 +54,12 @@ export class PomodoroService {
                 this.state = data.pomodoroState;
                 
                 // Validate loaded state
-                this.state.pomodorosCompleted = Math.max(0, this.state.pomodorosCompleted || 0);
-                this.state.currentStreak = Math.max(0, this.state.currentStreak || 0);
-                this.state.totalMinutesToday = Math.max(0, this.state.totalMinutesToday || 0);
                 this.state.timeRemaining = Math.max(0, this.state.timeRemaining || 0);
                 
-                // Reset daily counter if it's a new day
+                // Clear any stale session from previous day
                 const today = format(new Date(), 'yyyy-MM-dd');
                 const lastDate = data.lastPomodoroDate;
                 if (lastDate !== today) {
-                    this.state.pomodorosCompleted = 0;
-                    this.state.currentStreak = 0;
-                    this.state.totalMinutesToday = 0;
-                    // Clear any stale session from previous day
                     if (this.state.currentSession) {
                         this.state.currentSession = undefined;
                         this.state.isRunning = false;
@@ -99,10 +91,7 @@ export class PomodoroService {
             // Reset to clean state on error
             this.state = {
                 isRunning: false,
-                timeRemaining: this.plugin.settings.pomodoroWorkDuration * 60,
-                pomodorosCompleted: 0,
-                currentStreak: 0,
-                totalMinutesToday: 0
+                timeRemaining: this.plugin.settings.pomodoroWorkDuration * 60
             };
         }
     }
@@ -267,6 +256,9 @@ export class PomodoroService {
         if (this.state.currentSession) {
             this.state.currentSession.interrupted = true;
             this.state.currentSession.endTime = new Date().toISOString();
+            
+            // Add interrupted session to history
+            await this.addSessionToHistory(this.state.currentSession);
         }
 
         this.plugin.emitter.emit(EVENT_POMODORO_INTERRUPT, { session: this.state.currentSession });
@@ -385,12 +377,8 @@ export class PomodoroService {
         session.completed = true;
         session.endTime = new Date().toISOString();
 
-        // Update counters for work sessions
+        // Stop time tracking on task if applicable for work sessions
         if (session.type === 'work') {
-            this.state.pomodorosCompleted++;
-            this.state.currentStreak++;
-            this.state.totalMinutesToday += session.duration; // Add actual duration
-            
             // Stop time tracking on task if applicable
             if (session.taskPath) {
                 try {
@@ -407,9 +395,20 @@ export class PomodoroService {
             await this.updateDailyNotePomodoros();
         }
 
-        // Determine next session
-        const shouldTakeLongBreak = session.type === 'work' && 
-            this.state.currentStreak % this.plugin.settings.pomodoroLongBreakInterval === 0;
+        // Determine next session based on session history
+        let shouldTakeLongBreak = false;
+        if (session.type === 'work') {
+            try {
+                const stats = await this.getTodayStats();
+                shouldTakeLongBreak = stats.pomodorosCompleted % this.plugin.settings.pomodoroLongBreakInterval === 0;
+            } catch (error) {
+                console.error('Failed to calculate break type:', error);
+                shouldTakeLongBreak = false;
+            }
+        }
+
+        // Add session to history
+        await this.addSessionToHistory(session);
 
         // Emit completion event
         this.plugin.emitter.emit(EVENT_POMODORO_COMPLETE, { 
@@ -558,16 +557,19 @@ export class PomodoroService {
         return this.state.timeRemaining;
     }
 
-    getPomodorosCompleted(): number {
-        return this.state.pomodorosCompleted;
+    async getPomodorosCompleted(): Promise<number> {
+        const stats = await this.getTodayStats();
+        return stats.pomodorosCompleted;
     }
 
-    getCurrentStreak(): number {
-        return this.state.currentStreak;
+    async getCurrentStreak(): Promise<number> {
+        const stats = await this.getTodayStats();
+        return stats.currentStreak;
     }
 
-    getTotalMinutesToday(): number {
-        return this.state.totalMinutesToday;
+    async getTotalMinutesToday(): Promise<number> {
+        const stats = await this.getTodayStats();
+        return stats.totalMinutes;
     }
 
     async assignTaskToCurrentSession(task?: TaskInfo) {
@@ -586,6 +588,102 @@ export class PomodoroService {
         });
     }
 
+
+    // Session History Management
+    async getSessionHistory(): Promise<PomodoroSessionHistory[]> {
+        try {
+            const data = await this.plugin.loadData();
+            return data?.pomodoroHistory || [];
+        } catch (error) {
+            console.error('Failed to load session history:', error);
+            return [];
+        }
+    }
+
+    async saveSessionHistory(history: PomodoroSessionHistory[]): Promise<void> {
+        try {
+            const data = await this.plugin.loadData() || {};
+            data.pomodoroHistory = history;
+            await this.plugin.saveData(data);
+        } catch (error) {
+            console.error('Failed to save session history:', error);
+        }
+    }
+
+    async addSessionToHistory(session: PomodoroSession): Promise<void> {
+        if (!session.endTime) {
+            console.warn('Cannot add session to history without end time');
+            return;
+        }
+
+        const startTime = new Date(session.startTime);
+        const endTime = new Date(session.endTime);
+        const actualDuration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // minutes
+
+        const historyEntry: PomodoroSessionHistory = {
+            id: session.id,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            duration: actualDuration,
+            plannedDuration: session.duration,
+            type: session.type,
+            taskPath: session.taskPath,
+            completed: session.completed && !session.interrupted
+        };
+
+        try {
+            const history = await this.getSessionHistory();
+            history.push(historyEntry);
+            await this.saveSessionHistory(history);
+        } catch (error) {
+            console.error('Failed to add session to history:', error);
+        }
+    }
+
+    async getStatsForDate(date: Date): Promise<PomodoroHistoryStats> {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const history = await this.getSessionHistory();
+        
+        // Filter sessions for the specific date
+        const dayHistory = history.filter(session => {
+            const sessionDate = format(new Date(session.startTime), 'yyyy-MM-dd');
+            return sessionDate === dateStr;
+        });
+
+        // Calculate stats for work sessions only
+        const workSessions = dayHistory.filter(session => session.type === 'work');
+        const completedWork = workSessions.filter(session => session.completed);
+
+        // Calculate current streak (consecutive completed work sessions from latest backwards)
+        let currentStreak = 0;
+        for (let i = workSessions.length - 1; i >= 0; i--) {
+            if (workSessions[i].completed) {
+                currentStreak++;
+            } else {
+                break;
+            }
+        }
+
+        const totalMinutes = completedWork.reduce((sum, session) => sum + session.duration, 0);
+        const averageSessionLength = completedWork.length > 0 
+            ? totalMinutes / completedWork.length 
+            : 0;
+        const completionRate = workSessions.length > 0 
+            ? (completedWork.length / workSessions.length) * 100 
+            : 0;
+
+        return {
+            pomodorosCompleted: completedWork.length,
+            currentStreak,
+            totalMinutes,
+            averageSessionLength: Math.round(averageSessionLength),
+            completionRate: Math.round(completionRate)
+        };
+    }
+
+    async getTodayStats(): Promise<PomodoroHistoryStats> {
+        return this.getStatsForDate(new Date());
+    }
 
     cleanup() {
         this.stopTimer();
