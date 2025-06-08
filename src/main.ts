@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath, Platform } from 'obsidian';
+import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath } from 'obsidian';
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import { 
@@ -186,17 +186,7 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		// Add ribbon icon
 		this.addRibbonIcon('calendar-days', 'Open calendar', async () => {
-			await this.activateLinkedViews();
-		});
-		
-		// Add ribbon icon for a side-by-side layout
-		this.addRibbonIcon('layout-grid', 'Open grid layout', async () => {
-			await this.createGridLayout();
-		});
-		
-		// Add ribbon icon for a tabs layout
-		this.addRibbonIcon('layout-tabs', 'Open tabs layout', async () => {
-			await this.createTabsLayout();
+			await this.activateCalendarView();
 		});
 
 		// Add commands
@@ -371,87 +361,12 @@ export default class TaskNotesPlugin extends Plugin {
 		});
 		
 		this.addCommand({
-			id: 'open-linked-views',
-			name: 'Open calendar with task view',
+			id: 'open-pomodoro-stats',
+			name: 'Open pomodoro statistics',
 			callback: async () => {
-				await this.activateLinkedViews();
+				await this.activatePomodoroStatsView();
 			}
 		});
-		
-		this.addCommand({
-			id: 'open-grid-layout',
-			name: 'Open in grid layout',
-			callback: async () => {
-				await this.createGridLayout();
-			}
-		});
-		
-		this.addCommand({
-			id: 'open-tabs-layout',
-			name: 'Open in tabs layout',
-			callback: async () => {
-				await this.createTabsLayout();
-			}
-		});
-		
-		// Popout window commands (desktop only)
-		if (this.app.workspace.openPopoutLeaf !== undefined) {
-			this.addCommand({
-				id: 'open-calendar-popout',
-				name: 'Open calendar in new window',
-				callback: async () => {
-					await this.openViewInPopout(CALENDAR_VIEW_TYPE);
-				}
-			});
-			
-			this.addCommand({
-				id: 'open-tasks-popout',
-				name: 'Open tasks in new window',
-				callback: async () => {
-					await this.openViewInPopout(TASK_LIST_VIEW_TYPE);
-				}
-			});
-			
-			this.addCommand({
-				id: 'open-notes-popout',
-				name: 'Open notes in new window',
-				callback: async () => {
-					await this.openViewInPopout(NOTES_VIEW_TYPE);
-				}
-			});
-			
-			this.addCommand({
-				id: 'open-agenda-popout',
-				name: 'Open agenda in new window',
-				callback: async () => {
-					await this.openViewInPopout(AGENDA_VIEW_TYPE);
-				}
-			});
-			
-			this.addCommand({
-				id: 'open-pomodoro-popout',
-				name: 'Open pomodoro timer in new window',
-				callback: async () => {
-					await this.openViewInPopout(POMODORO_VIEW_TYPE);
-				}
-			});
-			
-			this.addCommand({
-				id: 'open-pomodoro-stats',
-				name: 'Open pomodoro statistics',
-				callback: async () => {
-					await this.activatePomodoroStatsView();
-				}
-			});
-			
-			this.addCommand({
-				id: 'open-kanban-popout',
-				name: 'Open kanban board in new window',
-				callback: async () => {
-					await this.openViewInPopout(KANBAN_VIEW_TYPE);
-				}
-			});
-		}
 
 		// Task commands
 		this.addCommand({
@@ -498,6 +413,15 @@ export default class TaskNotesPlugin extends Plugin {
 				} else if (state.currentSession) {
 					await this.pomodoroService.resumePomodoro();
 				}
+			}
+		});
+		
+		// Cache management commands
+		this.addCommand({
+			id: 'refresh-cache',
+			name: 'Refresh TaskNotes cache',
+			callback: async () => {
+				await this.refreshCache();
 			}
 		});
 
@@ -557,188 +481,6 @@ export default class TaskNotesPlugin extends Plugin {
 		return this.activateView(KANBAN_VIEW_TYPE);
 	}
 	
-	// Open a view in a popout window
-	async openViewInPopout(viewType: string) {
-		const { workspace } = this.app;
-		
-		// Check if we're on desktop (mobile doesn't support popout windows)
-		if (Platform.isMobile) {
-			new Notice('Popout windows are only available on desktop');
-			return;
-		}
-		
-		try {
-			// Create a new popout window
-			const popoutLeaf = workspace.openPopoutLeaf({
-				size: { width: 800, height: 600 }
-			});
-			
-			// Set the view state for the popout leaf
-			await popoutLeaf.setViewState({
-				type: viewType,
-				active: true
-			});
-			
-			// Make the popout leaf active
-			workspace.setActiveLeaf(popoutLeaf, { focus: true });
-		} catch (error) {
-			console.error('Error opening popout window:', error);
-			new Notice('Failed to open view in new window');
-		}
-	}
-	
-	async activateLinkedViews() {
-		const { workspace } = this.app;
-		
-		// Clear existing views first
-		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
-		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
-		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
-		workspace.detachLeavesOfType(AGENDA_VIEW_TYPE);
-		workspace.detachLeavesOfType(POMODORO_VIEW_TYPE);
-		workspace.detachLeavesOfType(POMODORO_STATS_VIEW_TYPE);
-		workspace.detachLeavesOfType(KANBAN_VIEW_TYPE);
-		
-		// Create a calendar view
-		const calendarLeaf = workspace.getLeaf('tab');
-		await calendarLeaf.setViewState({
-			type: CALENDAR_VIEW_TYPE,
-			active: true
-		});
-		
-		// Create a tasks view in a new tab
-		const tasksLeaf = workspace.getLeaf('tab');
-		await tasksLeaf.setViewState({
-			type: TASK_LIST_VIEW_TYPE
-		});
-		
-		// Create a notes view in a new tab
-		const notesLeaf = workspace.getLeaf('tab');
-		await notesLeaf.setViewState({
-			type: NOTES_VIEW_TYPE
-		});
-		
-		// Create an agenda view in a new tab
-		const agendaLeaf = workspace.getLeaf('tab');
-		await agendaLeaf.setViewState({
-			type: AGENDA_VIEW_TYPE
-		});
-		
-		// Create a kanban view in a new tab
-		const kanbanLeaf = workspace.getLeaf('tab');
-		await kanbanLeaf.setViewState({
-			type: KANBAN_VIEW_TYPE
-		});
-		
-		// Group these leaves together for synchronized date selection
-		const groupName = 'tasknotes-views';
-		calendarLeaf.setGroup(groupName);
-		tasksLeaf.setGroup(groupName);
-		notesLeaf.setGroup(groupName);
-		agendaLeaf.setGroup(groupName);
-		kanbanLeaf.setGroup(groupName);
-		
-		// Make calendar the active view
-		workspace.setActiveLeaf(calendarLeaf, { focus: true });
-		
-		new Notice('Views created. You can drag and rearrange these tabs as needed.');
-	}
-	
-	/**
-	 * Creates a grid layout with calendar, tasks, and notes views arranged side by side
-	 * This creates a more complete workspace layout that users can then customize
-	 */
-	async createGridLayout() {
-		const { workspace } = this.app;
-		
-		// First, detach any existing views to start fresh
-		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
-		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
-		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
-		
-		// Create the main calendar view in the root split
-		// First, get a leaf in the main workspace area (this should be a tab)
-		let calendarLeaf = workspace.getLeaf('tab');
-		await calendarLeaf.setViewState({
-			type: CALENDAR_VIEW_TYPE,
-			active: true
-		});
-		
-		// Create the tasks view in a horizontal split below the calendar
-		workspace.setActiveLeaf(calendarLeaf, { focus: true });
-		const tasksLeaf = workspace.splitActiveLeaf('horizontal');
-		await tasksLeaf.setViewState({
-			type: TASK_LIST_VIEW_TYPE
-		});
-		
-		// Create the notes view in a vertical split next to the calendar
-		workspace.setActiveLeaf(calendarLeaf, { focus: true });
-		const notesLeaf = workspace.splitActiveLeaf('vertical');
-		await notesLeaf.setViewState({
-			type: NOTES_VIEW_TYPE
-		});
-		
-		// Group these leaves together
-		const groupName = 'tasknotes-grid';
-		calendarLeaf.setGroup(groupName);
-		tasksLeaf.setGroup(groupName);
-		notesLeaf.setGroup(groupName);
-		
-		// Set calendar as active at the end
-		workspace.setActiveLeaf(calendarLeaf, { focus: true });
-		
-		// Show a notice to let the user know they can rearrange the tabs
-		new Notice('Views created in grid layout. You can drag and rearrange these tabs freely.');
-	}
-	
-	/**
-	 * Creates a tabs-only layout with all views as tabs in the same container
-	 * This provides better tab draggability as they're all native Obsidian tabs
-	 */
-	async createTabsLayout() {
-		const { workspace } = this.app;
-		
-		// First, detach any existing views to start fresh
-		workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
-		workspace.detachLeavesOfType(TASK_LIST_VIEW_TYPE);
-		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
-		
-		// Create tabs for each view type in the main workspace
-		const firstLeaf = workspace.getLeaf('tab');
-		await firstLeaf.setViewState({
-			type: CALENDAR_VIEW_TYPE,
-			active: true
-		});
-		
-		// Wait for the view to be properly loaded before creating more tabs
-		await new Promise(resolve => requestAnimationFrame(resolve));
-		
-		// Create the second tab
-		const secondLeaf = workspace.getLeaf('tab');
-		await secondLeaf.setViewState({
-			type: TASK_LIST_VIEW_TYPE,
-		});
-		
-		// Wait for the second tab to load before creating the third
-		await new Promise(resolve => requestAnimationFrame(resolve));
-		
-		// Create the third tab
-		const thirdLeaf = workspace.getLeaf('tab');
-		await thirdLeaf.setViewState({
-			type: NOTES_VIEW_TYPE,
-		});
-		
-		// Group these views for synchronized date selection
-		const groupName = 'tasknotes-tabs';
-		firstLeaf.setGroup(groupName);
-		secondLeaf.setGroup(groupName);
-		thirdLeaf.setGroup(groupName);
-		
-		// Make the calendar view active 
-		workspace.setActiveLeaf(firstLeaf, { focus: true });
-		
-		new Notice('Tabs created. You can now freely drag and rearrange these tabs.');
-	}
 
 	getLeafOfType(viewType: string): WorkspaceLeaf | null {
 		const { workspace } = this.app;
@@ -1007,6 +749,34 @@ private injectCustomStyles(): void {
 			modal.open();
 		} catch (error) {
 			console.error('Error loading DueDateModal:', error);
+		}
+	}
+	
+	/**
+	 * Refreshes the TaskNotes cache by clearing all cached data and re-initializing
+	 */
+	async refreshCache(): Promise<void> {
+		try {
+			// Show loading notice
+			const loadingNotice = new Notice('Refreshing TaskNotes cache...', 0);
+			
+			// Clear all caches
+			this.cacheManager.clearAllCaches();
+			YAMLCache.clearCache();
+			
+			// Re-initialize the cache
+			await this.cacheManager.initializeCache();
+			
+			// Notify all views to refresh
+			this.notifyDataChanged(undefined, true, true);
+			
+			// Hide loading notice and show success
+			loadingNotice.hide();
+			new Notice('TaskNotes cache refreshed successfully');
+			
+		} catch (error) {
+			console.error('Error refreshing cache:', error);
+			new Notice('Failed to refresh cache. Please try again.');
 		}
 	}
 
