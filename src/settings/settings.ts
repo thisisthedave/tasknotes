@@ -391,9 +391,34 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName('Task statuses')
 			.setHeading();
+		
+		// Description section
 		container.createEl('p', { 
-			text: 'Define the statuses available for your tasks. The order determines the cycling sequence.'
+			text: 'Customize the status options available for your tasks. These statuses control the task lifecycle and determine when tasks are considered complete.'
 		});
+		
+		// Help section
+		const helpContainer = container.createDiv('settings-help-section');
+		helpContainer.createEl('h4', { text: 'How statuses work:' });
+		const helpList = helpContainer.createEl('ul');
+		helpList.createEl('li', { text: 'Value: The internal identifier stored in your task files (e.g., "in-progress")' });
+		helpList.createEl('li', { text: 'Label: The display name shown in the interface (e.g., "In Progress")' });
+		helpList.createEl('li', { text: 'Color: Visual indicator color for the status dot and badges' });
+		helpList.createEl('li', { text: 'Completed: When checked, tasks with this status are considered finished and may be filtered differently' });
+		
+		helpContainer.createEl('p', { 
+			text: 'The order below determines the sequence when cycling through statuses by clicking on task status badges.',
+			cls: 'settings-help-note'
+		});
+		
+		// Column headers
+		const headersRow = container.createDiv('settings-headers-row');
+		headersRow.createDiv('settings-header-spacer'); // For color indicator space
+		headersRow.createEl('span', { text: 'Value', cls: 'settings-column-header' });
+		headersRow.createEl('span', { text: 'Display Label', cls: 'settings-column-header' });
+		headersRow.createEl('span', { text: 'Color', cls: 'settings-column-header' });
+		headersRow.createEl('span', { text: 'Mark as Completed', cls: 'settings-column-header' });
+		headersRow.createDiv('settings-header-spacer'); // For delete button space
 		
 		// Status list
 		const statusList = container.createDiv('settings-list');
@@ -403,6 +428,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		// Add status button
 		new Setting(container)
 			.setName('Add new status')
+			.setDesc('Create a new status option for your tasks')
 			.addButton(button => button
 				.setButtonText('Add status')
 				.onClick(async () => {
@@ -411,6 +437,12 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					this.renderActiveTab();
 				}));
+		
+		// Validation note
+		container.createEl('p', { 
+			text: 'Note: You must have at least 2 statuses, and at least one status must be marked as "Completed".',
+			cls: 'settings-validation-note'
+		});
 	}
 	
 	private renderStatusList(container: HTMLElement): void {
