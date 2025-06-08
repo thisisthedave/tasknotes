@@ -1,4 +1,4 @@
-import { App, Notice, TFile, Setting } from 'obsidian';
+import { App, Notice, TFile, Setting, Editor, MarkdownView } from 'obsidian';
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import TaskNotesPlugin from '../main';
@@ -6,25 +6,100 @@ import { BaseTaskModal } from './BaseTaskModal';
 import { ensureFolderExists } from '../utils/helpers';
 import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
 import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
+import { ParsedTaskData } from '../utils/TasksPluginParser';
+
+export interface TaskConversionOptions {
+	parsedData?: ParsedTaskData;
+}
 
 export class TaskCreationModal extends BaseTaskModal {
 	details: string = '';
 	
 	// UI elements for filename preview
 	private filenamePreview: HTMLElement | null = null;
+	private dueDateInput: HTMLInputElement | null = null;
+
+	// Task conversion options
+	private conversionOptions: TaskConversionOptions;
   
-	constructor(app: App, plugin: TaskNotesPlugin) {
+	constructor(app: App, plugin: TaskNotesPlugin, conversionOptions?: TaskConversionOptions) {
 		super(app, plugin);
+		this.conversionOptions = conversionOptions || {};
 	}
 
 	protected initializeFormData(): void {
-		// Initialize with default values
-		this.priority = this.plugin.settings.defaultTaskPriority;
-		this.status = this.plugin.settings.defaultTaskStatus;
+		// Check if we have parsed data to pre-populate
+		if (this.conversionOptions.parsedData) {
+			this.populateFromParsedData(this.conversionOptions.parsedData);
+		} else {
+			// Initialize with default values
+			this.priority = this.plugin.settings.defaultTaskPriority;
+			this.status = this.plugin.settings.defaultTaskStatus;
+			
+			// Pre-populate due date with selected date from calendar or today
+			const selectedDate = this.plugin.selectedDate || new Date();
+			this.dueDate = format(selectedDate, 'yyyy-MM-dd');
+		}
+	}
+
+	private populateFromParsedData(data: ParsedTaskData): void {
+		// Reset all fields to ensure clean state for this conversion
+		this.title = data.title || '';
+		this.priority = data.priority || this.plugin.settings.defaultTaskPriority;
+		this.status = data.status || this.plugin.settings.defaultTaskStatus;
+		this.dueDate = data.dueDate || ''; // Always reset due date
+		this.details = ''; // Reset details too
 		
-		// Pre-populate due date with selected date from calendar or today
-		const selectedDate = this.plugin.selectedDate || new Date();
-		this.dueDate = format(selectedDate, 'yyyy-MM-dd');
+		// Update input field if it exists
+		if (this.dueDateInput) {
+			this.dueDateInput.value = this.dueDate;
+		}
+		
+		// Set other optional fields if available
+		if (data.scheduledDate) {
+			// Note: TaskNotes doesn't have scheduled date, but we could use start date
+			// or add it to details
+			this.details = `Scheduled: ${data.scheduledDate}\n${this.details}`.trim();
+		}
+		
+		if (data.startDate) {
+			// Note: TaskNotes doesn't have start date, add to details
+			this.details = `Start: ${data.startDate}\n${this.details}`.trim();
+		}
+		
+		if (data.createdDate) {
+			this.details = `Originally created: ${data.createdDate}\n${this.details}`.trim();
+		}
+		
+		if (data.doneDate) {
+			this.details = `Completed on: ${data.doneDate}\n${this.details}`.trim();
+		}
+		
+		// Handle recurrence
+		if (data.recurrence && data.recurrence !== 'none') {
+			// Map parsed recurrence to valid BaseTaskModal types
+			const validRecurrenceTypes: ('none' | 'daily' | 'weekly' | 'monthly' | 'yearly')[] = 
+				['none', 'daily', 'weekly', 'monthly', 'yearly'];
+			
+			if (validRecurrenceTypes.includes(data.recurrence as any)) {
+				this.recurrence = data.recurrence as 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+			} else {
+				// For custom recurrence patterns, add to details instead
+				this.details = `Recurrence: ${data.recurrence}\n${this.details}`.trim();
+			}
+			
+			if (data.recurrenceData) {
+				if (data.recurrenceData.days_of_week) {
+					this.daysOfWeek = data.recurrenceData.days_of_week;
+				}
+				if (data.recurrenceData.day_of_month) {
+					this.dayOfMonth = data.recurrenceData.day_of_month.toString();
+				}
+				if (data.recurrenceData.month_of_year) {
+					this.monthOfYear = data.recurrenceData.month_of_year.toString();
+				}
+			}
+		}
 	}
 
 	private async cacheAutocompleteData(): Promise<void> {
@@ -65,6 +140,13 @@ export class TaskCreationModal extends BaseTaskModal {
 				text: '0/200'
 			});
 			
+			// Set initial value if pre-populated
+			if (this.title) {
+				input.value = this.title;
+				this.updateCharCounter(counter, this.title.length, 200);
+				this.updateFilenamePreview();
+			}
+			
 			input.addEventListener('input', (e) => {
 				const value = (e.target as HTMLInputElement).value;
 				this.title = value;
@@ -93,6 +175,12 @@ export class TaskCreationModal extends BaseTaskModal {
 					rows: '3'
 				}
 			});
+			
+			// Set initial value if pre-populated
+			if (this.details) {
+				textarea.value = this.details;
+			}
+			
 			textarea.addEventListener('input', (e) => {
 				this.details = (e.target as HTMLTextAreaElement).value;
 			});
@@ -100,7 +188,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		
 		// Due Date
 		this.createFormGroup(contentEl, 'Due date', (container) => {
-			this.createDueDateInput(container);
+			this.createDueDateInputWithRef(container);
 		});
 		
 		// Priority
@@ -181,6 +269,14 @@ export class TaskCreationModal extends BaseTaskModal {
 		createButton.addEventListener('click', () => {
 			this.createTask();
 		});
+
+		const saveAndInsertButton = buttonContainer.createEl('button', { 
+			text: 'Save and insert to current note', 
+			cls: 'create-button' 
+		});
+		saveAndInsertButton.addEventListener('click', () => {
+			this.createTaskAndInsert();
+		});
 		
 		const cancelButton = buttonContainer.createEl('button', { 
 			text: 'Cancel', 
@@ -222,157 +318,239 @@ export class TaskCreationModal extends BaseTaskModal {
 	}
 
 	async createTask() {
+		if (!await this.validateAndPrepareTask()) {
+			return;
+		}
+
+		try {
+			const file = await this.performTaskCreation();
+			new Notice(`Task created: ${this.title}`);
+			this.close();
+		} catch (error) {
+			console.error('Failed to create task:', error);
+			new Notice('Failed to create task. Please try again.');
+		}
+	}
+
+	/**
+	 * Create task and insert link to current note
+	 */
+	async createTaskAndInsert(): Promise<void> {
+		// First create the task (reuse existing validation and creation logic)
+		if (!await this.validateAndPrepareTask()) {
+			return;
+		}
+
+		try {
+			const file = await this.performTaskCreation();
+			
+			// Insert link to current note
+			await this.insertLinkToCurrentNote(file);
+			
+			new Notice(`Task created and link inserted: ${this.title}`);
+			this.close();
+			
+		} catch (error) {
+			console.error('Failed to create task and insert link:', error);
+			new Notice('Failed to create task and insert link');
+		}
+	}
+
+	/**
+	 * Insert link to task in the currently active note
+	 */
+	private async insertLinkToCurrentNote(file: TFile): Promise<void> {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!activeView) {
+			new Notice('No active note to insert link into');
+			return;
+		}
+
+		const editor = activeView.editor;
+		const cursor = editor.getCursor();
+		
+		// Insert link on the next line
+		const linkText = `[[${file.path}|${this.title}]]`;
+		const insertPosition = { line: cursor.line + 1, ch: 0 };
+		
+		editor.replaceRange(`${linkText}\n`, insertPosition);
+		
+		// Move cursor to end of inserted text
+		editor.setCursor({ line: cursor.line + 1, ch: linkText.length });
+	}
+
+	/**
+	 * Validate form and prepare for task creation
+	 */
+	private async validateAndPrepareTask(): Promise<boolean> {
 		// Validate required fields
 		if (!this.title || !this.title.trim()) {
 			new Notice('Title is required');
-			return;
+			return false;
 		}
 
 		if (this.title.length > 200) {
 			new Notice('Title is too long (max 200 characters)');
-			return;
+			return false;
 		}
 
 		// Validate recurrence fields
 		if (this.recurrence === 'weekly' && this.daysOfWeek.length === 0) {
 			new Notice('Please select at least one day for weekly recurrence');
-			return;
+			return false;
 		}
 
 		if (this.recurrence === 'monthly' && (!this.dayOfMonth || parseInt(this.dayOfMonth) < 1 || parseInt(this.dayOfMonth) > 31)) {
 			new Notice('Please enter a valid day of month (1-31)');
-			return;
+			return false;
 		}
 
 		if (this.recurrence === 'yearly') {
 			if (!this.monthOfYear || !this.dayOfMonth) {
 				new Notice('Please select month and day for yearly recurrence');
-				return;
+				return false;
 			}
 			if (parseInt(this.dayOfMonth) < 1 || parseInt(this.dayOfMonth) > 31) {
 				new Notice('Please enter a valid day of month (1-31)');
-				return;
+				return false;
 			}
 		}
 
-		try {
-			// Prepare contexts and tags arrays
-			const contextsArray = this.contexts ? this.contexts.split(',').map(c => c.trim()).filter(c => c) : [];
-			const tagsArray = this.tags ? this.tags.split(',').map(t => t.trim()).filter(t => t) : [];
-			
-			// Add task tag
-			tagsArray.unshift(this.plugin.settings.taskTag);
+		return true;
+	}
 
-			// Generate filename
-			const filenameContext: FilenameContext = {
-				title: this.title,
-				priority: this.priority,
-				status: this.status,
-				date: new Date()
+	/**
+	 * Perform the actual task creation
+	 */
+	private async performTaskCreation(): Promise<TFile> {
+		// Prepare contexts and tags arrays
+		const contextsArray = this.contexts ? this.contexts.split(',').map(c => c.trim()).filter(c => c) : [];
+		const tagsArray = this.tags ? this.tags.split(',').map(t => t.trim()).filter(t => t) : [];
+		
+		// Add task tag
+		tagsArray.unshift(this.plugin.settings.taskTag);
+
+		// Generate filename
+		const filenameContext: FilenameContext = {
+			title: this.title,
+			priority: this.priority,
+			status: this.status,
+			date: new Date()
+		};
+
+		const baseFilename = generateTaskFilename(filenameContext, this.plugin.settings);
+		const folder = this.plugin.settings.tasksFolder || '';
+		
+		// Ensure folder exists
+		if (folder) {
+			await ensureFolderExists(this.app.vault, folder);
+		}
+		
+		// Generate unique filename
+		const uniqueFilename = await generateUniqueFilename(baseFilename, folder, this.app.vault);
+		const fullPath = folder ? `${folder}/${uniqueFilename}.md` : `${uniqueFilename}.md`;
+
+		// Prepare frontmatter
+		const frontmatter: any = {
+			title: this.title,
+			status: this.status,
+			priority: this.priority,
+			tags: tagsArray,
+			dateCreated: new Date().toISOString(),
+			dateModified: new Date().toISOString()
+		};
+
+		if (this.dueDate) {
+			frontmatter.due = this.dueDate;
+		}
+
+		if (contextsArray.length > 0) {
+			frontmatter.contexts = contextsArray;
+		}
+
+		if (this.timeEstimate > 0) {
+			frontmatter.timeEstimate = this.timeEstimate;
+		}
+
+		// Add recurrence data
+		if (this.recurrence !== 'none') {
+			frontmatter.recurrence = {
+				frequency: this.recurrence
 			};
 
-			const baseFilename = generateTaskFilename(filenameContext, this.plugin.settings);
-			const folder = this.plugin.settings.tasksFolder || '';
-			
-			// Ensure folder exists
-			if (folder) {
-				await ensureFolderExists(this.app.vault, folder);
-			}
-			
-			// Generate unique filename
-			const uniqueFilename = await generateUniqueFilename(baseFilename, folder, this.app.vault);
-			const fullPath = folder ? `${folder}/${uniqueFilename}.md` : `${uniqueFilename}.md`;
-
-			// Prepare frontmatter
-			const frontmatter: any = {
-				title: this.title,
-				status: this.status,
-				priority: this.priority,
-				tags: tagsArray,
-				dateCreated: new Date().toISOString(),
-				dateModified: new Date().toISOString()
-			};
-
-			if (this.dueDate) {
-				frontmatter.due = this.dueDate;
+			if (this.recurrence === 'weekly' && this.daysOfWeek.length > 0) {
+				// Convert full names to abbreviations for storage
+				frontmatter.recurrence.days_of_week = this.convertFullNamesToAbbreviations(this.daysOfWeek);
 			}
 
-			if (contextsArray.length > 0) {
-				frontmatter.contexts = contextsArray;
+			if (this.recurrence === 'monthly' && this.dayOfMonth) {
+				frontmatter.recurrence.day_of_month = parseInt(this.dayOfMonth);
 			}
 
-			if (this.timeEstimate > 0) {
-				frontmatter.timeEstimate = this.timeEstimate;
-			}
-
-			// Add recurrence data
-			if (this.recurrence !== 'none') {
-				frontmatter.recurrence = {
-					frequency: this.recurrence
-				};
-
-				if (this.recurrence === 'weekly' && this.daysOfWeek.length > 0) {
-					// Convert full names to abbreviations for storage
-					frontmatter.recurrence.days_of_week = this.convertFullNamesToAbbreviations(this.daysOfWeek);
+			if (this.recurrence === 'yearly') {
+				if (this.monthOfYear) {
+					frontmatter.recurrence.month_of_year = parseInt(this.monthOfYear);
 				}
-
-				if (this.recurrence === 'monthly' && this.dayOfMonth) {
+				if (this.dayOfMonth) {
 					frontmatter.recurrence.day_of_month = parseInt(this.dayOfMonth);
 				}
-
-				if (this.recurrence === 'yearly') {
-					if (this.monthOfYear) {
-						frontmatter.recurrence.month_of_year = parseInt(this.monthOfYear);
-					}
-					if (this.dayOfMonth) {
-						frontmatter.recurrence.day_of_month = parseInt(this.dayOfMonth);
-					}
-				}
 			}
-
-			// Prepare file content
-			const yamlHeader = YAML.stringify(frontmatter);
-			let content = `---\n${yamlHeader}---\n\n`;
-			
-			if (this.details && this.details.trim()) {
-				content += `${this.details.trim()}\n\n`;
-			}
-
-			// Create the file
-			const file = await this.app.vault.create(fullPath, content);
-
-			// Create TaskInfo object for cache and events
-			const taskInfo: TaskInfo = {
-				...frontmatter,
-				path: file.path,
-				tags: tagsArray,
-				archived: false
-			};
-
-			// Update cache proactively
-			await this.plugin.cacheManager.updateTaskInfoInCache(file.path, taskInfo);
-
-			// Emit task created event
-			this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-				path: file.path,
-				updatedTask: taskInfo
-			});
-
-			new Notice(`Task created: ${this.title}`);
-			this.close();
-
-			// If calendar view is open, update it to show the new task
-			const leaves = this.app.workspace.getLeavesOfType(CALENDAR_VIEW_TYPE);
-			if (leaves.length > 0) {
-				const calendarView = leaves[0].view as any;
-				if (calendarView && typeof calendarView.refresh === 'function') {
-					calendarView.refresh();
-				}
-			}
-
-		} catch (error) {
-			console.error('Failed to create task:', error);
-			new Notice('Failed to create task. Please try again.');
 		}
+
+		// Prepare file content
+		const yamlHeader = YAML.stringify(frontmatter);
+		let content = `---\n${yamlHeader}---\n\n`;
+		
+		if (this.details && this.details.trim()) {
+			content += `${this.details.trim()}\n\n`;
+		}
+
+		// Create the file
+		const file = await this.app.vault.create(fullPath, content);
+
+		// Create TaskInfo object for cache and events
+		const taskInfo: TaskInfo = {
+			...frontmatter,
+			path: file.path,
+			tags: tagsArray,
+			archived: false
+		};
+
+		// Update cache proactively
+		await this.plugin.cacheManager.updateTaskInfoInCache(file.path, taskInfo);
+
+		// Emit task created event
+		this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+			path: file.path,
+			updatedTask: taskInfo
+		});
+
+		// If calendar view is open, update it to show the new task
+		const leaves = this.app.workspace.getLeavesOfType(CALENDAR_VIEW_TYPE);
+		if (leaves.length > 0) {
+			const calendarView = leaves[0].view as any;
+			if (calendarView && typeof calendarView.refresh === 'function') {
+				calendarView.refresh();
+			}
+		}
+
+		return file;
+	}
+
+	/**
+	 * Create due date input with reference for later updates
+	 */
+	private createDueDateInputWithRef(container: HTMLElement): void {
+		this.dueDateInput = container.createEl('input', {
+			type: 'date',
+			cls: 'form-input'
+		});
+
+		// Set the value to the current dueDate property
+		this.dueDateInput.value = this.dueDate || '';
+
+		this.dueDateInput.addEventListener('change', (e) => {
+			this.dueDate = (e.target as HTMLInputElement).value;
+		});
 	}
 }

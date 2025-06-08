@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath } from 'obsidian';
+import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath, Editor, MarkdownView } from 'obsidian';
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import { 
@@ -29,7 +29,7 @@ import { AgendaView } from './views/AgendaView';
 import { PomodoroView } from './views/PomodoroView';
 import { PomodoroStatsView } from './views/PomodoroStatsView';
 import { KanbanView } from './views/KanbanView';
-import { TaskCreationModal } from './modals/TaskCreationModal';
+import { TaskCreationModal, TaskConversionOptions } from './modals/TaskCreationModal';
 import { TaskEditModal } from './modals/TaskEditModal';
 import { PomodoroService } from './services/PomodoroService';
 import { 
@@ -53,6 +53,7 @@ import { PriorityManager } from './services/PriorityManager';
 import { TaskService } from './services/TaskService';
 import { FilterService } from './services/FilterService';
 import { ViewStateManager } from './services/ViewStateManager';
+import { TasksPluginParser } from './utils/TasksPluginParser';
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -374,6 +375,14 @@ export default class TaskNotesPlugin extends Plugin {
 			name: 'Create new task',
 			callback: () => {
 				this.openTaskCreationModal();
+			}
+		});
+
+		this.addCommand({
+			id: 'convert-to-tasknote',
+			name: 'Convert to TaskNote',
+			editorCallback: (editor: Editor) => {
+				this.convertTasksPluginToTaskNote(editor);
 			}
 		});
 
@@ -777,6 +786,52 @@ private injectCustomStyles(): void {
 		} catch (error) {
 			console.error('Error refreshing cache:', error);
 			new Notice('Failed to refresh cache. Please try again.');
+		}
+	}
+
+	/**
+	 * Convert Tasks plugin syntax on current line to TaskNotes task
+	 */
+	convertTasksPluginToTaskNote(editor: Editor): void {
+		try {
+			const cursor = editor.getCursor();
+			const currentLine = editor.getLine(cursor.line);
+			
+			// Parse the current line for Tasks plugin format
+			const taskLineInfo = TasksPluginParser.parseTaskLine(currentLine);
+			
+			if (!taskLineInfo.isTaskLine) {
+				new Notice('Current line is not a task. Place cursor on a line with a checkbox task.');
+				return;
+			}
+			
+			if (taskLineInfo.error) {
+				new Notice(`Error parsing task: ${taskLineInfo.error}`);
+				return;
+			}
+			
+			if (!taskLineInfo.parsedData) {
+				new Notice('Failed to parse task data from current line.');
+				return;
+			}
+			
+			// Check if this line contains Tasks plugin emoji syntax
+			if (!TasksPluginParser.isTasksPluginFormat(currentLine)) {
+				new Notice('Current line does not contain Tasks plugin emoji format. Use "Create new task" for regular tasks.');
+				return;
+			}
+			
+			// Prepare conversion options
+			const conversionOptions: TaskConversionOptions = {
+				parsedData: taskLineInfo.parsedData
+			};
+			
+			// Open TaskCreationModal with pre-populated data
+			new TaskCreationModal(this.app, this, conversionOptions).open();
+			
+		} catch (error) {
+			console.error('Error converting Tasks plugin task:', error);
+			new Notice('Failed to convert task. Please try again.');
 		}
 	}
 

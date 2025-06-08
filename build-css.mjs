@@ -8,7 +8,10 @@ const CSS_FILES = [
     'styles/calendar.css',
     'styles/tasks.css',
     'styles/kanban.css',
-    'styles/filters.css'
+    'styles/filters.css',
+    'styles/agenda.css',
+    'styles/modals.css',
+    'styles/pomodoro.css'
 ];
 
 const MAIN_CSS_TEMPLATE = `/* TaskNotes Plugin Styles */
@@ -25,6 +28,9 @@ const MAIN_CSS_TEMPLATE = `/* TaskNotes Plugin Styles */
    - styles/tasks.css: Task list and task item specific styles
    - styles/kanban.css: Kanban board view specific styles
    - styles/filters.css: Unified filtering system styles
+   - styles/agenda.css: Agenda view specific styles
+   - styles/modals.css: Task creation and edit modal specific styles
+   - styles/pomodoro.css: Pomodoro view and stats view specific styles
    
    Run 'npm run build-css' to regenerate this file.
 */
