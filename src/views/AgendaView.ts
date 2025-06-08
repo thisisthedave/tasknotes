@@ -326,52 +326,23 @@ export class AgendaView extends ItemView {
             // Update the date range in the query
             this.currentQuery.dateRange = this.getDateRange();
             
-            // Get filtered tasks from FilterService
+            // Check if we should include overdue tasks (only if today is in range)
+            const today = new Date();
+            const todayStr = format(today, 'yyyy-MM-dd');
+            const dates = this.getAgendaDates();
+            const hasTodayInRange = dates.some(date => format(date, 'yyyy-MM-dd') === todayStr);
+            
+            // Set includeOverdue flag for efficient filtering
+            this.currentQuery.includeOverdue = this.showOverdueOnToday && hasTodayInRange;
+            
+            // Get filtered tasks from FilterService (now efficiently includes overdue if needed)
             const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
             
             // Flatten the grouped tasks since we'll re-group by date
-            let allTasks = Array.from(groupedTasks.values()).flat();
-            
-            // If showing overdue tasks on today, get additional overdue tasks
-            if (this.showOverdueOnToday) {
-                const today = new Date();
-                const todayStr = format(today, 'yyyy-MM-dd');
-                
-                // Check if today is in our date range
-                const dates = this.getAgendaDates();
-                const hasTodayInRange = dates.some(date => format(date, 'yyyy-MM-dd') === todayStr);
-                
-                if (hasTodayInRange) {
-                    // Get all tasks (without date filtering) to find overdue ones
-                    const queryForOverdue = { ...this.currentQuery };
-                    delete queryForOverdue.dateRange; // Remove date range filter
-                    
-                    const allTasksGrouped = await this.plugin.filterService.getGroupedTasks(queryForOverdue);
-                    const allTasksFlat = Array.from(allTasksGrouped.values()).flat();
-                    
-                    // Find overdue tasks that aren't already included
-                    const overdueTasks = allTasksFlat.filter(task => {
-                        if (!task.due || task.recurrence) return false; // Skip tasks without due dates or recurring tasks
-                        
-                        const taskDueDate = parseISO(task.due);
-                        const isOverdue = isBefore(taskDueDate, today);
-                        const notAlreadyIncluded = !allTasks.some(existingTask => 
-                            existingTask.path === task.path && existingTask.title === task.title
-                        );
-                        
-                        return isOverdue && notAlreadyIncluded;
-                    });
-                    
-                    // Add overdue tasks to the list
-                    allTasks = [...allTasks, ...overdueTasks];
-                }
-            }
+            const allTasks = Array.from(groupedTasks.values()).flat();
             
             // Get all notes for the date range (FilterService doesn't handle notes yet)
             const allNotes = await this.plugin.cacheManager.getAllNotes();
-            
-            // Get date range
-            const dates = this.getAgendaDates();
             
             // Group data by date
             const agendaData = dates.map(date => {

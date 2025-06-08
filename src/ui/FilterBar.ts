@@ -23,6 +23,8 @@ export class FilterBar extends EventEmitter {
     private advancedFiltersPanel?: HTMLElement;
     private archivedToggle?: HTMLInputElement;
     private activeFiltersIndicator?: HTMLElement;
+    private dateRangeStartInput?: HTMLInputElement;
+    private dateRangeEndInput?: HTMLInputElement;
 
     constructor(
         container: HTMLElement,
@@ -39,6 +41,7 @@ export class FilterBar extends EventEmitter {
             showGroupBy: true,
             showSortBy: true,
             showAdvancedFilters: true,
+            showDateRangePicker: false, // Default to false to avoid breaking existing views
             allowedSortKeys: ['due', 'priority', 'title'],
             allowedGroupKeys: ['none', 'status', 'priority', 'context', 'due'],
             ...config
@@ -189,6 +192,83 @@ export class FilterBar extends EventEmitter {
     }
 
     /**
+     * Render date range filter in advanced filters panel
+     */
+    private renderDateRangeFilter(): void {
+        const dateRangeContainer = this.advancedFiltersPanel!.createDiv('filter-bar-advanced-item');
+        dateRangeContainer.createSpan({ text: 'Date Range:', cls: 'filter-bar-label' });
+
+        const dateInputsContainer = dateRangeContainer.createDiv('filter-bar-date-inputs');
+
+        // Start date input
+        const startContainer = dateInputsContainer.createDiv('filter-bar-date-input-container');
+        startContainer.createSpan({ text: 'From:', cls: 'filter-bar-date-label' });
+        this.dateRangeStartInput = startContainer.createEl('input', {
+            type: 'date',
+            cls: 'filter-bar-date-input'
+        });
+
+        // End date input
+        const endContainer = dateInputsContainer.createDiv('filter-bar-date-input-container');
+        endContainer.createSpan({ text: 'To:', cls: 'filter-bar-date-label' });
+        this.dateRangeEndInput = endContainer.createEl('input', {
+            type: 'date',
+            cls: 'filter-bar-date-input'
+        });
+
+        // Clear button
+        const clearButton = dateInputsContainer.createEl('button', {
+            cls: 'filter-bar-date-clear',
+            text: 'Clear',
+            attr: { 'aria-label': 'Clear date range' }
+        });
+
+        // Event listeners
+        this.dateRangeStartInput.addEventListener('change', () => {
+            this.updateDateRange();
+        });
+
+        this.dateRangeEndInput.addEventListener('change', () => {
+            this.updateDateRange();
+        });
+
+        clearButton.addEventListener('click', () => {
+            this.clearDateRange();
+        });
+    }
+
+    /**
+     * Update date range in query
+     */
+    private updateDateRange(): void {
+        const startDate = this.dateRangeStartInput?.value;
+        const endDate = this.dateRangeEndInput?.value;
+
+        if (startDate && endDate) {
+            this.updateQueryField('dateRange', {
+                start: startDate,
+                end: endDate
+            });
+        } else if (!startDate && !endDate) {
+            this.updateQueryField('dateRange', undefined);
+        }
+        // If only one date is set, don't update the range yet
+    }
+
+    /**
+     * Clear date range inputs and query
+     */
+    private clearDateRange(): void {
+        if (this.dateRangeStartInput) {
+            this.dateRangeStartInput.value = '';
+        }
+        if (this.dateRangeEndInput) {
+            this.dateRangeEndInput.value = '';
+        }
+        this.updateQueryField('dateRange', undefined);
+    }
+
+    /**
      * Render advanced filters button
      */
     private renderAdvancedFiltersButton(parent: HTMLElement): void {
@@ -222,11 +302,13 @@ export class FilterBar extends EventEmitter {
         // Context filter
         this.renderContextFilter();
 
-        // Archived toggle
-        this.renderArchivedToggle();
+        // Date range filter
+        if (this.config.showDateRangePicker) {
+            this.renderDateRangeFilter();
+        }
 
-        // Date range filter (placeholder for future enhancement)
-        // this.renderDateRangeFilter();
+        // Archived toggle (after date range)
+        this.renderArchivedToggle();
     }
 
     /**
@@ -393,7 +475,7 @@ export class FilterBar extends EventEmitter {
             cls: 'filter-bar-checkbox'
         });
 
-        label.createSpan({ text: 'Show Archived' });
+        label.createSpan({ text: 'Show archived' });
 
         this.archivedToggle.addEventListener('change', () => {
             this.updateQueryField('showArchived', this.archivedToggle!.checked);
@@ -429,6 +511,17 @@ export class FilterBar extends EventEmitter {
 
         if (this.groupSelect) {
             this.groupSelect.value = this.currentQuery.groupKey;
+        }
+
+        // Update date range inputs
+        if (this.dateRangeStartInput && this.dateRangeEndInput) {
+            if (this.currentQuery.dateRange) {
+                this.dateRangeStartInput.value = this.currentQuery.dateRange.start;
+                this.dateRangeEndInput.value = this.currentQuery.dateRange.end;
+            } else {
+                this.dateRangeStartInput.value = '';
+                this.dateRangeEndInput.value = '';
+            }
         }
 
         // Update status radio buttons

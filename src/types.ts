@@ -38,6 +38,7 @@ export interface FilterQuery {
 		start: string; // YYYY-MM-DD
 		end: string;   // YYYY-MM-DD
 	};
+	includeOverdue?: boolean; // Include overdue tasks in addition to date range
 	showArchived: boolean;
 	
 	// Sorting
@@ -53,6 +54,7 @@ export interface FilterBarConfig {
 	showGroupBy?: boolean;
 	showSortBy?: boolean;
 	showAdvancedFilters?: boolean;
+	showDateRangePicker?: boolean;
 	allowedSortKeys?: TaskSortKey[];
 	allowedGroupKeys?: TaskGroupKey[];
 }

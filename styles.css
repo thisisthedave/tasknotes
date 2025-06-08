@@ -5695,13 +5695,71 @@
     }
 }
 
+/* Date Range Picker Styles */
+.filter-bar-date-inputs {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-sm);
+    flex-wrap: wrap;
+    margin-top: var(--cs-spacing-xs);
+}
+
+.filter-bar-date-input-container {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+}
+
+.filter-bar-date-label {
+    font-size: var(--cs-text-sm);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.filter-bar-date-input {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    min-width: 120px;
+}
+
+.filter-bar-date-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.filter-bar-date-clear {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    cursor: pointer;
+    transition: background-color var(--cs-transition-fast);
+}
+
+.filter-bar-date-clear:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.filter-bar-date-clear:active {
+    background-color: var(--background-modifier-active);
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
     .filter-control select,
     .filter-search-input,
     .filter-multiselect-button,
     .filter-advanced-toggle,
-    .filter-clear-button {
+    .filter-clear-button,
+    .filter-bar-date-input,
+    .filter-bar-date-clear {
         transition: none;
     }
     

@@ -168,6 +168,7 @@ export class KanbanView extends ItemView {
                 showGroupBy: true, // Allow changing grouping field
                 showSortBy: true,
                 showAdvancedFilters: true,
+                showDateRangePicker: true,
                 allowedSortKeys: ['priority', 'title', 'due'],
                 allowedGroupKeys: ['status', 'priority', 'context']
             }

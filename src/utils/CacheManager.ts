@@ -24,6 +24,7 @@ export class CacheManager {
     private notesByDate: Map<string, Set<string>> = new Map(); // date -> note paths
     private tasksByStatus: Map<string, Set<string>> = new Map(); // status -> task paths
     private tasksByPriority: Map<string, Set<string>> = new Map(); // priority -> task paths
+    private overdueTasks: Set<string> = new Set(); // paths of tasks that are overdue as of last cache update
     private dailyNotes: Set<string> = new Set(); // daily note paths in YYYY-MM-DD format
     
     // Canonical sets for tags and contexts
@@ -522,6 +523,9 @@ export class CacheManager {
             await Promise.all(batch.map(file => this.indexFile(file)));
         }
         
+        // Rebuild overdue tasks index for all cached tasks
+        this.rebuildOverdueTasksIndex();
+        
         const end = performance.now();
         
         // Notify subscribers
@@ -649,6 +653,9 @@ export class CacheManager {
             this.tasksByPriority.get(taskInfo.priority)!.add(path);
         }
         
+        // Update overdue tasks index
+        this.updateOverdueTaskIndex(path, taskInfo);
+        
         // Update canonical sets for tags and contexts
         if (taskInfo.tags && Array.isArray(taskInfo.tags)) {
             taskInfo.tags.forEach(tag => {
@@ -750,6 +757,17 @@ export class CacheManager {
                 }
             }
             
+            // Remove from overdue tasks index (targeted removal)
+            if (oldTask.due && !oldTask.recurrence) {
+                const taskDueDate = new Date(oldTask.due);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (taskDueDate < today) {
+                    this.overdueTasks.delete(path);
+                }
+            }
+            
             // Rebuild canonical sets to ensure consistency
             this.rebuildCanonicalSets();
             
@@ -801,6 +819,9 @@ export class CacheManager {
                     this.tasksByPriority.delete(priority);
                 }
             }
+            
+            // Remove from overdue tasks index (fallback removal)
+            this.overdueTasks.delete(path);
             
             // For canonical sets, rebuild when a task is removed
             if (type === 'task') {
@@ -971,6 +992,7 @@ export class CacheManager {
         this.notesByDate.clear();
         this.tasksByStatus.clear();
         this.tasksByPriority.clear();
+        this.overdueTasks.clear();
         this.dailyNotes.clear();
         this.allTags.clear();
         this.allContexts.clear();
@@ -1248,6 +1270,43 @@ export class CacheManager {
      */
     getAllPriorities(): string[] {
         return Array.from(this.tasksByPriority.keys()).sort();
+    }
+    
+    /**
+     * Get overdue task paths (cached)
+     */
+    getOverdueTaskPaths(): Set<string> {
+        return new Set(this.overdueTasks);
+    }
+    
+    /**
+     * Update overdue task index for a specific task
+     */
+    private updateOverdueTaskIndex(path: string, taskInfo: TaskInfo): void {
+        // Remove from overdue index first
+        this.overdueTasks.delete(path);
+        
+        // Add to overdue index if task is overdue
+        if (taskInfo.due && !taskInfo.recurrence) {
+            const taskDueDate = new Date(taskInfo.due);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Start of today
+            
+            if (taskDueDate < today) {
+                this.overdueTasks.add(path);
+            }
+        }
+    }
+    
+    /**
+     * Rebuild overdue tasks index for all cached tasks
+     */
+    private rebuildOverdueTasksIndex(): void {
+        this.overdueTasks.clear();
+        
+        for (const [path, taskInfo] of this.taskInfoCache) {
+            this.updateOverdueTaskIndex(path, taskInfo);
+        }
     }
     
     /**

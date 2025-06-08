@@ -63,9 +63,17 @@ export class FilterService extends EventEmitter {
             }
         }
 
-        // Strategy 3: Use date range if specified
+        // Strategy 3: Use date range if specified (with optional overdue tasks)
         if (query.dateRange) {
-            return this.getTaskPathsInDateRange(query.dateRange.start, query.dateRange.end);
+            const dateRangePaths = this.getTaskPathsInDateRange(query.dateRange.start, query.dateRange.end);
+            
+            // If includeOverdue is true, combine with overdue tasks
+            if (query.includeOverdue) {
+                const overduePaths = this.getOverdueTaskPaths();
+                return this.combineTaskPathSets([dateRangePaths, overduePaths]);
+            }
+            
+            return dateRangePaths;
         }
 
         // Strategy 4: Fallback to all tasks
@@ -88,6 +96,24 @@ export class FilterService extends EventEmitter {
         }
 
         return pathsInRange;
+    }
+
+    /**
+     * Get overdue task paths efficiently using the dedicated index
+     */
+    getOverdueTaskPaths(): Set<string> {
+        return this.cacheManager.getOverdueTaskPaths();
+    }
+
+    /**
+     * Combine multiple task path sets (e.g., date range + overdue)
+     */
+    private combineTaskPathSets(sets: Set<string>[]): Set<string> {
+        const combined = new Set<string>();
+        sets.forEach(set => {
+            set.forEach(path => combined.add(path));
+        });
+        return combined;
     }
 
     /**
@@ -173,7 +199,10 @@ export class FilterService extends EventEmitter {
             const startDate = new Date(query.dateRange.start);
             const endDate = new Date(query.dateRange.end);
             
-            if (taskDate < startDate || taskDate > endDate) {
+            // If includeOverdue is true and this task is overdue, don't filter it out by date
+            if (query.includeOverdue && taskDate < new Date()) {
+                // This is an overdue task and we want to include overdue tasks, so don't filter by date range
+            } else if (taskDate < startDate || taskDate > endDate) {
                 return false;
             }
         }
