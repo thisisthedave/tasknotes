@@ -367,8 +367,12 @@ export class KanbanView extends ItemView {
             }
         });
 
-        headerEl.addEventListener('dragleave', () => {
-            headerEl.classList.remove('column-drop-target');
+        headerEl.addEventListener('dragleave', (e) => {
+            // Only remove drop styling if we're actually leaving the header
+            // and not just moving to a child element
+            if (!headerEl.contains(e.relatedTarget as Node)) {
+                headerEl.classList.remove('column-drop-target');
+            }
         });
 
         headerEl.addEventListener('drop', async (e) => {
@@ -494,8 +498,12 @@ export class KanbanView extends ItemView {
             columnEl.classList.add('is-dragover');
         });
 
-        columnEl.addEventListener('dragleave', () => {
-            columnEl.classList.remove('is-dragover');
+        columnEl.addEventListener('dragleave', (e) => {
+            // Only remove drop styling if we're actually leaving the column
+            // and not just moving to a child element
+            if (!columnEl.contains(e.relatedTarget as Node)) {
+                columnEl.classList.remove('is-dragover');
+            }
         });
 
         columnEl.addEventListener('drop', async (e) => {
