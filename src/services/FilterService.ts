@@ -31,7 +31,7 @@ export class FilterService extends EventEmitter {
      */
     async getGroupedTasks(query: FilterQuery, targetDate?: Date): Promise<Map<string, TaskInfo[]>> {
         // Step 1: Get initial task set using best available index
-        let initialTaskPaths = this.getInitialTaskSet(query);
+        let initialTaskPaths = await this.getInitialTaskSet(query);
         
         // Step 2: Convert paths to TaskInfo objects with filtering
         const filteredTasks = await this.filterTasksByQuery(initialTaskPaths, query);
@@ -47,7 +47,7 @@ export class FilterService extends EventEmitter {
      * Get the smallest possible initial dataset using CacheManager indexes
      * Priority order: status > priority > date > all tasks
      */
-    private getInitialTaskSet(query: FilterQuery): Set<string> {
+    private async getInitialTaskSet(query: FilterQuery): Promise<Set<string>> {
         // Strategy 1: Use specific status index
         if (query.status && query.status !== 'all' && query.status !== 'open') {
             const statusPaths = this.cacheManager.getTaskPathsByStatus(query.status);
@@ -66,7 +66,7 @@ export class FilterService extends EventEmitter {
 
         // Strategy 3: Use date range if specified (with optional overdue tasks)
         if (query.dateRange) {
-            const dateRangePaths = this.getTaskPathsInDateRange(query.dateRange.start, query.dateRange.end);
+            const dateRangePaths = await this.getTaskPathsInDateRange(query.dateRange.start, query.dateRange.end);
             
             // If includeOverdue is true, combine with overdue tasks
             if (query.includeOverdue) {
@@ -84,16 +84,42 @@ export class FilterService extends EventEmitter {
     /**
      * Get task paths within a date range
      */
-    private getTaskPathsInDateRange(startDate: string, endDate: string): Set<string> {
+    private async getTaskPathsInDateRange(startDate: string, endDate: string): Promise<Set<string>> {
         const pathsInRange = new Set<string>();
         const start = new Date(startDate);
         const end = new Date(endDate);
 
-        // Iterate through each date in range
+        // Get tasks with due dates in the range (existing logic)
         for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
             const dateStr = date.toISOString().split('T')[0];
             const pathsForDate = this.cacheManager.getTaskPathsByDate(dateStr);
             pathsForDate.forEach(path => pathsInRange.add(path));
+        }
+
+        // Also check recurring tasks without due dates to see if they should appear in this range
+        const allTaskPaths = this.cacheManager.getAllTaskPaths();
+        
+        // Process paths in batches for better performance
+        const batchSize = 50;
+        const pathArray = Array.from(allTaskPaths);
+        
+        for (let i = 0; i < pathArray.length; i += batchSize) {
+            const batch = pathArray.slice(i, i + batchSize);
+            const batchTasks = await Promise.all(
+                batch.map(path => this.cacheManager.getCachedTaskInfo(path))
+            );
+            
+            for (const task of batchTasks) {
+                if (task && task.recurrence && !task.due) {
+                    // Check if this recurring task should appear on any date in the range
+                    for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+                        if (isRecurringTaskDueOn(task, date)) {
+                            pathsInRange.add(task.path);
+                            break; // No need to check more dates once we find a match
+                        }
+                    }
+                }
+            }
         }
 
         return pathsInRange;
