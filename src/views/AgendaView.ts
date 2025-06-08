@@ -336,7 +336,7 @@ export class AgendaView extends ItemView {
             this.currentQuery.includeOverdue = this.showOverdueOnToday && hasTodayInRange;
             
             // Get filtered tasks from FilterService (now efficiently includes overdue if needed)
-            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
+            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery, this.plugin.selectedDate);
             
             // Flatten the grouped tasks since we'll re-group by date
             const allTasks = Array.from(groupedTasks.values()).flat();

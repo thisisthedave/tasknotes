@@ -3,6 +3,7 @@ import { CacheManager } from '../utils/CacheManager';
 import { StatusManager } from './StatusManager';
 import { PriorityManager } from './PriorityManager';
 import { EventEmitter } from '../utils/EventEmitter';
+import { isRecurringTaskDueOn } from '../utils/helpers';
 
 /**
  * Unified filtering, sorting, and grouping service for all task views.
@@ -28,7 +29,7 @@ export class FilterService extends EventEmitter {
      * Main method to get filtered, sorted, and grouped tasks
      * Uses performance-optimized strategy starting with smallest dataset
      */
-    async getGroupedTasks(query: FilterQuery): Promise<Map<string, TaskInfo[]>> {
+    async getGroupedTasks(query: FilterQuery, targetDate?: Date): Promise<Map<string, TaskInfo[]>> {
         // Step 1: Get initial task set using best available index
         let initialTaskPaths = this.getInitialTaskSet(query);
         
@@ -39,7 +40,7 @@ export class FilterService extends EventEmitter {
         const sortedTasks = this.sortTasks(filteredTasks, query.sortKey, query.sortDirection);
         
         // Step 4: Group the sorted results
-        return this.groupTasks(sortedTasks, query.groupKey);
+        return this.groupTasks(sortedTasks, query.groupKey, targetDate);
     }
 
     /**
@@ -258,7 +259,7 @@ export class FilterService extends EventEmitter {
     /**
      * Group sorted tasks by specified criteria
      */
-    private groupTasks(tasks: TaskInfo[], groupKey: TaskGroupKey): Map<string, TaskInfo[]> {
+    private groupTasks(tasks: TaskInfo[], groupKey: TaskGroupKey, targetDate?: Date): Map<string, TaskInfo[]> {
         if (groupKey === 'none') {
             return new Map([['all', tasks]]);
         }
@@ -282,7 +283,7 @@ export class FilterService extends EventEmitter {
                         : 'none';
                     break;
                 case 'due':
-                    groupValue = this.getDueDateGroup(task.due);
+                    groupValue = this.getDueDateGroup(task, targetDate);
                     break;
                 default:
                     groupValue = 'unknown';
@@ -299,10 +300,51 @@ export class FilterService extends EventEmitter {
 
     /**
      * Get due date group for task (Today, Tomorrow, This Week, etc.)
+     * For recurring tasks, checks if the task is due on the target date
      */
-    private getDueDateGroup(dueDate?: string): string {
-        if (!dueDate) return 'No due date';
+    private getDueDateGroup(task: TaskInfo, targetDate?: Date): string {
+        // Use target date if provided, otherwise use today
+        const referenceDate = targetDate || new Date();
+        referenceDate.setHours(0, 0, 0, 0);
 
+        // For recurring tasks, check if due on the target date
+        if (task.recurrence) {
+            if (isRecurringTaskDueOn(task, referenceDate)) {
+                // If due on target date, determine which group based on target date vs today
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                
+                const thisWeek = new Date(today);
+                thisWeek.setDate(thisWeek.getDate() + 7);
+                
+                if (referenceDate.getTime() < today.getTime()) return 'Overdue';
+                if (referenceDate.getTime() === today.getTime()) return 'Today';
+                if (referenceDate.getTime() === tomorrow.getTime()) return 'Tomorrow';
+                if (referenceDate <= thisWeek) return 'This week';
+                
+                return 'Later';
+            } else {
+                // Recurring task not due on target date
+                // If it has an original due date, use that, otherwise no due date
+                if (task.due) {
+                    return this.getDueDateGroupFromDate(task.due);
+                }
+                return 'No due date';
+            }
+        }
+        
+        // Non-recurring task - use original logic
+        if (!task.due) return 'No due date';
+        return this.getDueDateGroupFromDate(task.due);
+    }
+    
+    /**
+     * Helper method to get due date group from a specific date string
+     */
+    private getDueDateGroupFromDate(dueDate: string): string {
         const due = new Date(dueDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);

@@ -321,7 +321,7 @@ export class TaskListView extends ItemView {
             this.updateLoadingState();
             
             // Get grouped tasks from FilterService
-            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
+            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery, this.plugin.selectedDate);
             
             // Render the grouped tasks
             this.renderTaskItems(this.taskListContainer, groupedTasks);
