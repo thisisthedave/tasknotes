@@ -24,7 +24,8 @@ export class TaskEditModal extends BaseTaskModal {
         this.recurrence = this.task.recurrence?.frequency || 'none';
         
         if (this.task.recurrence) {
-            this.daysOfWeek = this.task.recurrence.days_of_week || [];
+            // Convert stored abbreviations to full names for UI display
+            this.daysOfWeek = this.convertAbbreviationsToFullNames(this.task.recurrence.days_of_week || []);
             this.dayOfMonth = this.task.recurrence.day_of_month?.toString() || '';
             this.monthOfYear = this.task.recurrence.month_of_year?.toString() || '';
         }
@@ -272,7 +273,8 @@ export class TaskEditModal extends BaseTaskModal {
                     };
 
                     if (this.recurrence === 'weekly' && this.daysOfWeek.length > 0) {
-                        frontmatter.recurrence.days_of_week = this.daysOfWeek;
+                        // Convert full names back to abbreviations for storage
+                        frontmatter.recurrence.days_of_week = this.convertFullNamesToAbbreviations(this.daysOfWeek);
                     }
 
                     if (this.recurrence === 'monthly' && this.dayOfMonth) {

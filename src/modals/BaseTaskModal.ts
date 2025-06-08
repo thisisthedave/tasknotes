@@ -43,6 +43,35 @@ export abstract class BaseTaskModal extends Modal {
         return allTags.filter(tag => tag !== this.plugin.settings.taskTag);
     }
 
+    // Helper methods for day name conversion
+    protected convertAbbreviationsToFullNames(abbreviations: string[]): string[] {
+        const dayMap: Record<string, string> = {
+            'mon': 'Monday',
+            'tue': 'Tuesday', 
+            'wed': 'Wednesday',
+            'thu': 'Thursday',
+            'fri': 'Friday',
+            'sat': 'Saturday',
+            'sun': 'Sunday'
+        };
+        
+        return abbreviations.map(abbr => dayMap[abbr]).filter(Boolean);
+    }
+
+    protected convertFullNamesToAbbreviations(fullNames: string[]): string[] {
+        const dayMap: Record<string, string> = {
+            'Monday': 'mon',
+            'Tuesday': 'tue',
+            'Wednesday': 'wed', 
+            'Thursday': 'thu',
+            'Friday': 'fri',
+            'Saturday': 'sat',
+            'Sunday': 'sun'
+        };
+        
+        return fullNames.map(name => dayMap[name]).filter(Boolean);
+    }
+
     protected createFormGroup(container: HTMLElement, label: string, inputCallback: (container: HTMLElement) => void): HTMLElement {
         const formGroup = container.createDiv({ cls: 'form-group' });
         formGroup.createEl('label', { text: label, cls: 'form-label' });

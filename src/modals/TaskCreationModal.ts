@@ -312,7 +312,8 @@ export class TaskCreationModal extends BaseTaskModal {
 				};
 
 				if (this.recurrence === 'weekly' && this.daysOfWeek.length > 0) {
-					frontmatter.recurrence.days_of_week = this.daysOfWeek;
+					// Convert full names to abbreviations for storage
+					frontmatter.recurrence.days_of_week = this.convertFullNamesToAbbreviations(this.daysOfWeek);
 				}
 
 				if (this.recurrence === 'monthly' && this.dayOfMonth) {
