@@ -319,7 +319,7 @@ export class FilterService extends EventEmitter {
         if (dueDateOnly < today) return 'Overdue';
         if (dueDateOnly.getTime() === today.getTime()) return 'Today';
         if (dueDateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow';
-        if (dueDateOnly <= thisWeek) return 'This Week';
+        if (dueDateOnly <= thisWeek) return 'This week';
         
         return 'Later';
     }
@@ -353,7 +353,7 @@ export class FilterService extends EventEmitter {
                 
             case 'due':
                 // Sort by logical due date order
-                const dueDateOrder = ['Overdue', 'Today', 'Tomorrow', 'This Week', 'Later', 'No Due Date'];
+                const dueDateOrder = ['Overdue', 'Today', 'Tomorrow', 'This week', 'Later', 'No due date'];
                 sortedKeys = Array.from(groups.keys()).sort((a, b) => {
                     const indexA = dueDateOrder.indexOf(a);
                     const indexB = dueDateOrder.indexOf(b);

@@ -196,7 +196,7 @@ export class FilterBar extends EventEmitter {
      */
     private renderDateRangeFilter(): void {
         const dateRangeContainer = this.advancedFiltersPanel!.createDiv('filter-bar-advanced-item');
-        dateRangeContainer.createSpan({ text: 'Date Range:', cls: 'filter-bar-label' });
+        dateRangeContainer.createSpan({ text: 'Date range:', cls: 'filter-bar-label' });
 
         const dateInputsContainer = dateRangeContainer.createDiv('filter-bar-date-inputs');
 
@@ -323,7 +323,7 @@ export class FilterBar extends EventEmitter {
         // Add "All" and "Open" options first
         const specialOptions = [
             { value: 'all', text: 'All' },
-            { value: 'open', text: 'Open Tasks' }
+            { value: 'open', text: 'Open tasks' }
         ];
 
         specialOptions.forEach(option => {
@@ -648,7 +648,7 @@ export class FilterBar extends EventEmitter {
         // Add "All" and "Open" options first
         const specialOptions = [
             { value: 'all', text: 'All' },
-            { value: 'open', text: 'Open Tasks' }
+            { value: 'open', text: 'Open tasks' }
         ];
 
         specialOptions.forEach(option => {
@@ -770,7 +770,7 @@ export class FilterBar extends EventEmitter {
      */
     private getSortKeyLabel(key: TaskSortKey): string {
         const labels: Record<TaskSortKey, string> = {
-            'due': 'Due Date',
+            'due': 'Due date',
             'priority': 'Priority',
             'title': 'Title'
         };
@@ -786,7 +786,7 @@ export class FilterBar extends EventEmitter {
             'status': 'Status',
             'priority': 'Priority',
             'context': 'Context',
-            'due': 'Due Date'
+            'due': 'Due date'
         };
         return labels[key] || key;
     }
