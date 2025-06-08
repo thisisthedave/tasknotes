@@ -312,7 +312,7 @@ export class TaskEditModal extends BaseTaskModal {
                 dateModified: new Date().toISOString(),
                 recurrence: this.recurrence !== 'none' ? {
                     frequency: this.recurrence,
-                    days_of_week: this.recurrence === 'weekly' ? this.daysOfWeek : undefined,
+                    days_of_week: this.recurrence === 'weekly' ? this.convertFullNamesToAbbreviations(this.daysOfWeek) : undefined,
                     day_of_month: (this.recurrence === 'monthly' || this.recurrence === 'yearly') && this.dayOfMonth ? parseInt(this.dayOfMonth) : undefined,
                     month_of_year: this.recurrence === 'yearly' && this.monthOfYear ? parseInt(this.monthOfYear) : undefined
                 } : undefined
