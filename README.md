@@ -14,10 +14,13 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - Tasks stored as individual Markdown files with YAML frontmatter
 - Flexible filename formats: task title, zettelkasten ID, timestamp, or custom templates with live preview
 - Task properties include: title, status, priority, due date, contexts, tags, time estimates, and time tracking data
-- Support for recurring tasks (daily, weekly, monthly, yearly) with completion instance tracking
+- Support for recurring tasks (daily, weekly, monthly, yearly) with per-date completion tracking
+- Enhanced recurring task UI with visual indicators and date-specific completion controls
 - Built-in time tracking with multiple sessions per task
 - Archive functionality using tags to hide completed tasks while preserving history
-- Task filtering by status, context, due date, and grouping options
+- Advanced filtering with search, status, context, priority, date range, and overdue task support
+- Flexible grouping options (status, priority, context, due date) with intelligent sorting
+- Context menu interactions for quick task property changes
 
 ### Calendar Integration
 - Month view with agenda display showing tasks and notes
@@ -41,21 +44,30 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - Built-in Pomodoro timer with configurable work/break intervals
 - Task selection using Obsidian's native fuzzy search modal
 - Persistent task selection across sessions
-- Visual timer with progress indication and completion sounds
+- Enhanced visual timer with SVG progress circle and refined UI
 - Automatic break scheduling with customizable patterns
+- Persistent session history and detailed statistics tracking
+- Dedicated statistics view with completion metrics and trends
 - Integration with task time tracking
 
 ### Views and Layouts
+- **Calendar View**: Month calendar with agenda display and integrated controls
+- **Task List View**: Unified task management with advanced filtering and grouping
+- **Kanban Board**: Visual task management with drag-and-drop functionality and dynamic grouping
+- **Agenda View**: Combined daily overview of tasks and notes with timeline organization
+- **Notes View**: Dedicated note browser with date-based filtering
+- **Pomodoro Timer**: Focus timer with task integration and visual progress tracking
+- **Pomodoro Statistics**: Detailed productivity metrics and session history
+- **Popout Windows**: Desktop support for detaching any view into separate windows
 - **Grid Layout**: Side-by-side views with calendar/list on one side, file preview on the other
-- **Tabs Layout**: All views (Calendar, Tasks, Notes) as switchable tabs
-- **Popout Windows**: Desktop support for detaching views into separate windows
-- Synchronized date selection across all views
+- **Tabs Layout**: All views as switchable tabs with synchronized date selection
 
 ### Notes Organization
-- Separate notes view for non-task files
+- Dedicated notes view for non-task files with improved card layout
 - Date-based filtering to show notes created on specific days
+- Enhanced note display with consistent styling across views
 - Configurable folder exclusions
-- Integration with calendar for date-specific note viewing
+- Integration with calendar and agenda view for date-specific note viewing
 
 ### Customization System
 - **Field Mapping**: Customize YAML property names to match your existing workflow
@@ -97,12 +109,31 @@ All data is stored as YAML frontmatter in Markdown files, making it:
 
 ### Task Management and Interaction
 
-TaskNotes provides intuitive controls to interact with your tasks directly from the task list view:
+TaskNotes provides intuitive controls to interact with your tasks across multiple views:
 
-- Change a task's status using clickable status badges (cycles through your custom statuses)
-- Adjust task priority using clickable priority indicators (cycles through your custom priorities)
-- Set or change due dates using the date picker
-- Click on a task's title to open it for detailed editing
+**Task List View:**
+- Advanced filtering with search, status, context, priority, and date range options
+- Flexible grouping by status, priority, context, or due date
+- Click task titles to open detailed editing modal
+- Context menu (right-click) for quick property changes
+- Visual indicators for recurring tasks with date-specific completion status
+
+**Kanban Board:**
+- Visual task management with drag-and-drop functionality
+- Dynamic grouping by status, priority, or context
+- Search filtering across all columns
+- Real-time updates when tasks are moved between columns
+- Collapsible columns for better space management
+
+**Recurring Tasks:**
+- Enhanced visual distinction with special styling and indicators
+- Date-specific completion tracking using checkbox or context menu
+- Smart context menus that prevent conflicting status changes
+- Clear display of completion status for the current selected date
+
+**All Views:**
+- Change task status and priority using clickable badges (cycles through your custom options)
+- Set or change due dates using the enhanced date picker modal
 - All statuses and priorities are fully customizable with your own labels and colors
 
 ### Task Archiving
@@ -123,6 +154,9 @@ TaskNotes adds several commands to Obsidian's command palette:
 - **Create New Task**: Opens a modal to create a new task
 - **Go to Today's Note**: Navigates to or creates today's daily note
 - **Start Pomodoro Timer**: Starts the Pomodoro timer (with task selection if none selected)
+- **Open Pomodoro Statistics**: Opens the dedicated Pomodoro statistics view
+- **Open [View] in New Window**: Opens any TaskNotes view in a separate popout window
+- **Stop Active Timer**: Stops any currently running time tracking or Pomodoro session
 
 ### Folder Structure
 
@@ -281,6 +315,8 @@ Define custom priority levels with weight-based sorting:
 - Long break interval (default: every 4 pomodoros)
 - Auto-start breaks and work sessions
 - Sound notifications and volume control
+- Visual progress circle with enhanced timer display
+- Session history tracking and persistent statistics
 
 ## Development
 
