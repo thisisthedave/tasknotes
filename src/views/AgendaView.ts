@@ -41,7 +41,7 @@ export class AgendaView extends ItemView {
         const savedQuery = this.plugin.viewStateManager?.getFilterState(AGENDA_VIEW_TYPE);
         this.currentQuery = savedQuery || {
             searchQuery: undefined,
-            status: 'all',
+            statuses: undefined,
             contexts: undefined,
             priorities: undefined,
             dateRange: this.getDateRange(),

@@ -49,10 +49,20 @@ export class FilterService extends EventEmitter {
      */
     private async getInitialTaskSet(query: FilterQuery): Promise<Set<string>> {
         // Strategy 1: Use specific status index
-        if (query.status && query.status !== 'all' && query.status !== 'open') {
-            const statusPaths = this.cacheManager.getTaskPathsByStatus(query.status);
+        if (query.statuses && query.statuses.length === 1) {
+            const statusPaths = this.cacheManager.getTaskPathsByStatus(query.statuses[0]);
             if (statusPaths.size > 0) {
                 return statusPaths;
+            }
+        } else if (query.statuses && query.statuses.length > 1) {
+            // Multiple statuses: combine their index sets
+            const combinedPaths = new Set<string>();
+            for (const status of query.statuses) {
+                const statusPaths = this.cacheManager.getTaskPathsByStatus(status);
+                statusPaths.forEach(path => combinedPaths.add(path));
+            }
+            if (combinedPaths.size > 0) {
+                return combinedPaths;
             }
         }
 
@@ -187,14 +197,9 @@ export class FilterService extends EventEmitter {
         }
 
         // Status filter (if not already used for initial set)
-        if (query.status && query.status !== 'all') {
-            if (query.status === 'open') {
-                // 'open' means all non-completed tasks
-                const isCompleted = this.statusManager.isCompletedStatus(task.status);
-                if (isCompleted) {
-                    return false;
-                }
-            } else if (task.status !== query.status) {
+        if (query.statuses && query.statuses.length > 0) {
+            // Check if task status is in the selected statuses
+            if (!query.statuses.includes(task.status)) {
                 return false;
             }
         }
@@ -484,7 +489,7 @@ export class FilterService extends EventEmitter {
     createDefaultQuery(): FilterQuery {
         return {
             searchQuery: undefined,
-            status: 'all',
+            statuses: undefined,
             contexts: undefined,
             priorities: undefined,
             dateRange: undefined,
@@ -503,7 +508,7 @@ export class FilterService extends EventEmitter {
         
         return {
             searchQuery: query.searchQuery || defaultQuery.searchQuery,
-            status: query.status || defaultQuery.status,
+            statuses: query.statuses || defaultQuery.statuses,
             contexts: query.contexts || defaultQuery.contexts,
             priorities: query.priorities || defaultQuery.priorities,
             dateRange: query.dateRange || defaultQuery.dateRange,

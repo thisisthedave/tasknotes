@@ -22,3 +22,12 @@ data.json
 .DS_Store
 obsidian-developer-docs/
 .claude
+
+# Exclude video files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.flv
+*.wmv

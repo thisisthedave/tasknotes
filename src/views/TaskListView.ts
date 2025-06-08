@@ -49,7 +49,7 @@ export class TaskListView extends ItemView {
         const savedQuery = this.plugin.viewStateManager?.getFilterState(TASK_LIST_VIEW_TYPE);
         this.currentQuery = savedQuery || this.plugin.filterService?.createDefaultQuery() || {
             searchQuery: undefined,
-            status: 'all',
+            statuses: undefined,
             contexts: undefined,
             priorities: undefined,
             dateRange: undefined,

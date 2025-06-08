@@ -32,7 +32,7 @@ export type SortDirection = 'asc' | 'desc';
 export interface FilterQuery {
 	// Filtering
 	searchQuery?: string;
-	status?: 'all' | 'open' | 'archived' | string; // 'open' = all non-completed
+	statuses?: string[]; // Multiple status selection support
 	contexts?: string[];
 	priorities?: string[];
 	dateRange?: {

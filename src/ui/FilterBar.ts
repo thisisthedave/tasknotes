@@ -364,32 +364,6 @@ export class FilterBar extends EventEmitter {
 
         const statusCheckboxContainer = statusContainer.createDiv('filter-bar-checkbox-group');
 
-        // Add "All" and "Open" options first
-        const specialOptions = [
-            { value: 'all', text: 'All' },
-            { value: 'open', text: 'Open tasks' }
-        ];
-
-        specialOptions.forEach(option => {
-            const checkboxWrapper = statusCheckboxContainer.createDiv('filter-bar-checkbox-wrapper');
-            
-            const label = checkboxWrapper.createEl('label', {
-                cls: 'filter-bar-checkbox-label'
-            });
-
-            const checkbox = label.createEl('input', {
-                type: 'radio',
-                value: option.value,
-                cls: 'filter-bar-checkbox',
-                attr: { name: 'status-filter' }
-            });
-
-            label.createSpan({ text: option.text });
-
-            checkbox.addEventListener('change', () => {
-                this.updateStatusFilter();
-            });
-        });
 
         // Add specific status options
         this.filterOptions.statuses.forEach(status => {
@@ -400,10 +374,9 @@ export class FilterBar extends EventEmitter {
             });
 
             const checkbox = label.createEl('input', {
-                type: 'radio',
+                type: 'checkbox',
                 value: status,
-                cls: 'filter-bar-checkbox',
-                attr: { name: 'status-filter' }
+                cls: 'filter-bar-checkbox'
             });
 
             label.createSpan({ text: status });
@@ -415,14 +388,17 @@ export class FilterBar extends EventEmitter {
     }
 
     /**
-     * Update status filter based on radio button selection
+     * Update status filter based on checkbox selections
      */
     private updateStatusFilter(): void {
         const statusContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(1)');
-        const checkedRadio = statusContainer?.querySelector('input[type="radio"]:checked') as HTMLInputElement;
-        const selectedStatus = checkedRadio?.value || 'all';
-        this.updateQueryField('status', selectedStatus);
+        const checkboxes = statusContainer?.querySelectorAll('input[type="checkbox"]:checked') as NodeListOf<HTMLInputElement>;
+        const selectedStatuses = Array.from(checkboxes || []).map(cb => cb.value);
+        
+        // If no statuses selected, show all (undefined). Otherwise, filter by selected statuses.
+        this.updateQueryField('statuses', selectedStatuses.length > 0 ? selectedStatuses : undefined);
     }
+
 
     /**
      * Render priority filter
@@ -568,11 +544,16 @@ export class FilterBar extends EventEmitter {
             }
         }
 
-        // Update status radio buttons
+        // Update status checkboxes
         const statusContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(1)');
-        const statusRadios = statusContainer?.querySelectorAll('input[type="radio"]') as NodeListOf<HTMLInputElement>;
-        statusRadios?.forEach(radio => {
-            radio.checked = radio.value === (this.currentQuery.status || 'all');
+        const statusCheckboxes = statusContainer?.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+        statusCheckboxes?.forEach(checkbox => {
+            if (this.currentQuery.statuses) {
+                checkbox.checked = this.currentQuery.statuses.includes(checkbox.value);
+            } else {
+                // If no statuses selected, no checkboxes should be checked (show all)
+                checkbox.checked = false;
+            }
         });
 
         // Update priority checkboxes
@@ -617,7 +598,7 @@ export class FilterBar extends EventEmitter {
         let activeCount = 0;
         
         if (this.currentQuery.searchQuery) activeCount++;
-        if (this.currentQuery.status && this.currentQuery.status !== 'all') activeCount++;
+        if (this.currentQuery.statuses && this.currentQuery.statuses.length > 0) activeCount++;
         if (this.currentQuery.priorities && this.currentQuery.priorities.length > 0) activeCount++;
         if (this.currentQuery.contexts && this.currentQuery.contexts.length > 0) activeCount++;
         if (this.currentQuery.showArchived) activeCount++;
@@ -651,8 +632,8 @@ export class FilterBar extends EventEmitter {
     private rebuildAdvancedFilters(): void {
         if (!this.advancedFiltersPanel) return;
 
-        // Rebuild status radio buttons
-        this.rebuildStatusRadioButtons();
+        // Rebuild status checkboxes
+        this.rebuildStatusCheckboxes();
 
         // Rebuild priority checkboxes
         this.rebuildPriorityCheckboxes();
@@ -680,43 +661,15 @@ export class FilterBar extends EventEmitter {
     }
 
     /**
-     * Rebuild status radio buttons while preserving selection
+     * Rebuild status checkboxes while preserving selection
      */
-    private rebuildStatusRadioButtons(): void {
+    private rebuildStatusCheckboxes(): void {
         const statusContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(1) .filter-bar-checkbox-group');
         if (!statusContainer) return;
 
-        const selectedStatus = this.currentQuery.status || 'all';
+        const selectedStatuses = this.currentQuery.statuses || [];
         statusContainer.empty();
 
-        // Add "All" and "Open" options first
-        const specialOptions = [
-            { value: 'all', text: 'All' },
-            { value: 'open', text: 'Open tasks' }
-        ];
-
-        specialOptions.forEach(option => {
-            const checkboxWrapper = statusContainer.createDiv('filter-bar-checkbox-wrapper');
-            
-            const label = checkboxWrapper.createEl('label', {
-                cls: 'filter-bar-checkbox-label'
-            });
-
-            const checkbox = label.createEl('input', {
-                type: 'radio',
-                value: option.value,
-                cls: 'filter-bar-checkbox',
-                attr: { name: 'status-filter' }
-            });
-
-            checkbox.checked = option.value === selectedStatus;
-
-            label.createSpan({ text: option.text });
-
-            checkbox.addEventListener('change', () => {
-                this.updateStatusFilter();
-            });
-        });
 
         // Add specific status options
         this.filterOptions.statuses.forEach(status => {
@@ -727,13 +680,12 @@ export class FilterBar extends EventEmitter {
             });
 
             const checkbox = label.createEl('input', {
-                type: 'radio',
+                type: 'checkbox',
                 value: status,
-                cls: 'filter-bar-checkbox',
-                attr: { name: 'status-filter' }
+                cls: 'filter-bar-checkbox'
             });
 
-            checkbox.checked = status === selectedStatus;
+            checkbox.checked = selectedStatuses.includes(status);
 
             label.createSpan({ text: status });
 
