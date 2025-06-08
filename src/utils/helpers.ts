@@ -538,6 +538,34 @@ export function getEffectiveTaskStatus(task: any, date: Date): string {
 }
 
 /**
+ * Checks if a recurring task should be due on the current target date
+ */
+export function shouldShowRecurringTaskOnDate(task: TaskInfo, targetDate: Date): boolean {
+	if (!task.recurrence) return true; // Non-recurring tasks are always shown
+	
+	return isRecurringTaskDueOn(task, targetDate);
+}
+
+/**
+ * Gets the completion state text for a recurring task on a specific date
+ */
+export function getRecurringTaskCompletionText(task: TaskInfo, targetDate: Date): string {
+	if (!task.recurrence) return '';
+	
+	const dateStr = format(targetDate, 'yyyy-MM-dd');
+	const isCompleted = task.complete_instances?.includes(dateStr) || false;
+	
+	return isCompleted ? 'Completed for this date' : 'Not completed for this date';
+}
+
+/**
+ * Checks if a task should use recurring task UI behavior
+ */
+export function shouldUseRecurringTaskUI(task: TaskInfo): boolean {
+	return !!task.recurrence;
+}
+
+/**
  * Extracts note information from a note file's content
  */
 export function extractNoteInfo(content: string, path: string, file?: TFile): {title: string, tags: string[], path: string, createdDate?: string, lastModified?: number} | null {

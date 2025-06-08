@@ -301,7 +301,7 @@ export class FilterService extends EventEmitter {
      * Get due date group for task (Today, Tomorrow, This Week, etc.)
      */
     private getDueDateGroup(dueDate?: string): string {
-        if (!dueDate) return 'No Due Date';
+        if (!dueDate) return 'No due date';
 
         const due = new Date(dueDate);
         const today = new Date();

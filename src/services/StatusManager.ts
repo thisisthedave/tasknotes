@@ -93,6 +93,13 @@ export class StatusManager {
     }
 
     /**
+     * Get non-completion status configurations (for recurring tasks)
+     */
+    getNonCompletionStatuses(): StatusConfig[] {
+        return this.statuses.filter(s => !s.isCompleted);
+    }
+
+    /**
      * Update status configurations
      */
     updateStatuses(newStatuses: StatusConfig[]): void {

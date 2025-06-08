@@ -2,7 +2,7 @@ import { format } from 'date-fns';
 import { TFile, Menu } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
-import { calculateTotalTimeSpent, isRecurringTaskDueOn, getEffectiveTaskStatus } from '../utils/helpers';
+import { calculateTotalTimeSpent, isRecurringTaskDueOn, getEffectiveTaskStatus, shouldUseRecurringTaskUI, getRecurringTaskCompletionText } from '../utils/helpers';
 
 export interface TaskCardOptions {
     showDueDate: boolean;
@@ -39,7 +39,8 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     const card = document.createElement('div');
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
     const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
-    card.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''}`;
+    const isRecurring = !!task.recurrence;
+    card.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''} ${isRecurring ? 'recurring-task' : ''}`;
     card.dataset.taskPath = task.path;
     
     // Apply priority as left border color
@@ -77,6 +78,14 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     const statusDot = card.createEl('span', { cls: 'status-dot' });
     if (statusConfig) {
         statusDot.style.backgroundColor = statusConfig.color;
+    }
+    
+    // Recurring task indicator
+    if (task.recurrence) {
+        const recurringIndicator = card.createEl('span', { 
+            cls: 'recurring-indicator',
+            attr: { 'aria-label': `Recurring: ${task.recurrence.frequency}` }
+        });
     }
     
     // Main content container
@@ -202,8 +211,14 @@ async function showTaskContextMenu(event: MouseEvent, taskPath: string, plugin: 
         
         const menu = new Menu();
         
+        // For recurring tasks, only show non-completion statuses
+        // For regular tasks, show all statuses
+        const availableStatuses = task.recurrence 
+            ? plugin.statusManager.getNonCompletionStatuses()
+            : plugin.statusManager.getAllStatuses();
+        
         // Direct status options (no submenu to avoid issues)
-        plugin.statusManager.getAllStatuses().forEach(statusConfig => {
+        availableStatuses.forEach(statusConfig => {
             menu.addItem((item) => {
                 const isSelected = task.status === statusConfig.value;
                 item.setTitle(`${isSelected ? '✓ ' : ''}${statusConfig.label}`);
@@ -222,6 +237,27 @@ async function showTaskContextMenu(event: MouseEvent, taskPath: string, plugin: 
                 });
             });
         });
+        
+        // Add completion toggle for recurring tasks
+        if (task.recurrence) {
+            menu.addSeparator();
+            
+            // Check current completion status for this date
+            const dateStr = format(targetDate, 'yyyy-MM-dd');
+            const isCompletedForDate = task.complete_instances?.includes(dateStr) || false;
+            
+            menu.addItem((item) => {
+                item.setTitle(isCompletedForDate ? 'Mark incomplete for this date' : 'Mark complete for this date');
+                item.setIcon(isCompletedForDate ? 'x' : 'check');
+                item.onClick(async () => {
+                    try {
+                        await plugin.toggleRecurringTaskComplete(task, targetDate);
+                    } catch (error) {
+                        console.error('Error toggling recurring task completion:', error);
+                    }
+                });
+            });
+        }
         
         menu.addSeparator();
         
@@ -336,7 +372,8 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     // Update main element classes
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
     const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
-    element.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''}`;
+    const isRecurring = !!task.recurrence;
+    element.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''} ${isRecurring ? 'recurring-task' : ''}`;
     
     // Update priority border color
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);
@@ -358,6 +395,23 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         if (statusConfig) {
             statusDot.style.backgroundColor = statusConfig.color;
         }
+    }
+    
+    // Update recurring indicator
+    const existingRecurringIndicator = element.querySelector('.recurring-indicator');
+    if (task.recurrence && !existingRecurringIndicator) {
+        // Add recurring indicator if task is now recurring but didn't have one
+        const recurringIndicator = element.createEl('span', { 
+            cls: 'recurring-indicator',
+            attr: { 'aria-label': `Recurring: ${task.recurrence.frequency}` }
+        });
+        statusDot.insertAdjacentElement('afterend', recurringIndicator);
+    } else if (!task.recurrence && existingRecurringIndicator) {
+        // Remove recurring indicator if task is no longer recurring
+        existingRecurringIndicator.remove();
+    } else if (task.recurrence && existingRecurringIndicator) {
+        // Update existing recurring indicator
+        existingRecurringIndicator.setAttribute('aria-label', `Recurring: ${task.recurrence.frequency}`);
     }
     
     // Update title

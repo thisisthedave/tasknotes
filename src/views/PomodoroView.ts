@@ -241,9 +241,20 @@ export class PomodoroView extends ItemView {
         
         // Statistics
         const statsSection = container.createDiv({ cls: 'pomodoro-stats-section' });
-        new Setting(statsSection)
+        const statsHeader = statsSection.createDiv({ cls: 'pomodoro-stats-header' });
+        new Setting(statsHeader)
             .setName('Today\'s progress')
             .setHeading();
+        
+        const viewStatsButton = statsHeader.createEl('button', {
+            cls: 'pomodoro-view-stats-button',
+            text: 'View All Stats'
+        });
+        
+        this.registerDomEvent(viewStatsButton, 'click', async () => {
+            await this.plugin.activatePomodoroStatsView();
+        });
+        
         this.statsDisplay = statsSection.createDiv({ cls: 'pomodoro-stats' });
         
         // Create stat elements and cache references

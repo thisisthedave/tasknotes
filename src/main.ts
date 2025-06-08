@@ -12,6 +12,7 @@ import {
 	TASK_LIST_VIEW_TYPE,
 	AGENDA_VIEW_TYPE,
 	POMODORO_VIEW_TYPE,
+	POMODORO_STATS_VIEW_TYPE,
 	KANBAN_VIEW_TYPE,
 	TimeInfo,
 	TaskInfo,
@@ -26,6 +27,7 @@ import { TaskListView } from './views/TaskListView';
 import { NotesView } from './views/NotesView';
 import { AgendaView } from './views/AgendaView';
 import { PomodoroView } from './views/PomodoroView';
+import { PomodoroStatsView } from './views/PomodoroStatsView';
 import { KanbanView } from './views/KanbanView';
 import { TaskCreationModal } from './modals/TaskCreationModal';
 import { TaskEditModal } from './modals/TaskEditModal';
@@ -172,6 +174,10 @@ export default class TaskNotesPlugin extends Plugin {
 		this.registerView(
 			POMODORO_VIEW_TYPE,
 			(leaf) => new PomodoroView(leaf, this)
+		);
+		this.registerView(
+			POMODORO_STATS_VIEW_TYPE,
+			(leaf) => new PomodoroStatsView(leaf, this)
 		);
 		this.registerView(
 			KANBAN_VIEW_TYPE,
@@ -431,6 +437,14 @@ export default class TaskNotesPlugin extends Plugin {
 			});
 			
 			this.addCommand({
+				id: 'open-pomodoro-stats',
+				name: 'Open pomodoro statistics',
+				callback: async () => {
+					await this.activatePomodoroStatsView();
+				}
+			});
+			
+			this.addCommand({
 				id: 'open-kanban-popout',
 				name: 'Open kanban board in new window',
 				callback: async () => {
@@ -535,6 +549,10 @@ export default class TaskNotesPlugin extends Plugin {
 		return this.activateView(POMODORO_VIEW_TYPE);
 	}
 	
+	async activatePomodoroStatsView() {
+		return this.activateView(POMODORO_STATS_VIEW_TYPE);
+	}
+	
 	async activateKanbanView() {
 		return this.activateView(KANBAN_VIEW_TYPE);
 	}
@@ -578,6 +596,7 @@ export default class TaskNotesPlugin extends Plugin {
 		workspace.detachLeavesOfType(NOTES_VIEW_TYPE);
 		workspace.detachLeavesOfType(AGENDA_VIEW_TYPE);
 		workspace.detachLeavesOfType(POMODORO_VIEW_TYPE);
+		workspace.detachLeavesOfType(POMODORO_STATS_VIEW_TYPE);
 		workspace.detachLeavesOfType(KANBAN_VIEW_TYPE);
 		
 		// Create a calendar view
