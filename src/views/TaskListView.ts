@@ -1,10 +1,8 @@
 import { Notice, TFile, ItemView, WorkspaceLeaf, Setting } from 'obsidian';
-import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
     TASK_LIST_VIEW_TYPE, 
     TaskInfo, 
-    EVENT_DATE_SELECTED,
     EVENT_DATA_CHANGED,
     EVENT_TASK_UPDATED,
     FilterQuery
@@ -80,12 +78,6 @@ export class TaskListView extends ItemView {
         this.listeners.forEach(unsubscribe => unsubscribe());
         this.listeners = [];
         
-        // Listen for date selection changes - refresh when date changes
-        const dateListener = this.plugin.emitter.on(EVENT_DATE_SELECTED, () => {
-            this.refresh(true); // Force refresh on date change
-        });
-        this.listeners.push(dateListener);
-        
         // Listen for data changes
         const dataListener = this.plugin.emitter.on(EVENT_DATA_CHANGED, () => {
             this.refresh();
@@ -110,8 +102,7 @@ export class TaskListView extends ItemView {
                         showArchiveButton: true,
                         showTimeTracking: true,
                         showRecurringControls: true,
-                        groupByDate: false,
-                        targetDate: this.plugin.selectedDate
+                        groupByDate: false
                     });
                     
                     // Add update animation for real user updates
@@ -229,10 +220,9 @@ export class TaskListView extends ItemView {
     createHeader(container: HTMLElement) {
         const headerContainer = container.createDiv({ cls: 'detail-view-header' });
         
-        // Display selected date
-        const formattedDate = format(this.plugin.selectedDate, 'EEEE, MMMM d, yyyy');
+        // Display view title
         new Setting(headerContainer)
-            .setName(formattedDate)
+            .setName('All Tasks')
             .setHeading();
         
         // Add actions
@@ -330,7 +320,7 @@ export class TaskListView extends ItemView {
             this.updateLoadingState();
             
             // Get grouped tasks from FilterService
-            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery, this.plugin.selectedDate);
+            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
             
             // Render the grouped tasks
             this.renderTaskItems(this.taskListContainer, groupedTasks);
@@ -464,8 +454,7 @@ export class TaskListView extends ItemView {
             showArchiveButton: true,
             showTimeTracking: true,
             showRecurringControls: true,
-            groupByDate: false,
-            targetDate: this.plugin.selectedDate
+            groupByDate: false
         });
         
         // Ensure the key is set for reconciler
@@ -484,8 +473,7 @@ export class TaskListView extends ItemView {
             showArchiveButton: true,
             showTimeTracking: true,
             showRecurringControls: true,
-            groupByDate: false,
-            targetDate: this.plugin.selectedDate
+            groupByDate: false
         });
     }
     
