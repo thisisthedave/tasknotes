@@ -531,9 +531,34 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName('Task priorities')
 			.setHeading();
+		
+		// Description section
 		container.createEl('p', { 
-			text: 'Define the priority levels for your tasks. Higher weight = higher priority.'
+			text: 'Customize the priority levels available for your tasks. Priority weights determine sorting order and visual hierarchy in your task views.'
 		});
+		
+		// Help section
+		const helpContainer = container.createDiv('settings-help-section');
+		helpContainer.createEl('h4', { text: 'How priorities work:' });
+		const helpList = helpContainer.createEl('ul');
+		helpList.createEl('li', { text: 'Value: The internal identifier stored in your task files (e.g., "high")' });
+		helpList.createEl('li', { text: 'Display Label: The display name shown in the interface (e.g., "High Priority")' });
+		helpList.createEl('li', { text: 'Color: Visual indicator color for the priority dot and badges' });
+		helpList.createEl('li', { text: 'Weight: Numeric value for sorting (higher weights appear first in lists)' });
+		
+		helpContainer.createEl('p', { 
+			text: 'Tasks are automatically sorted by priority weight in descending order (highest weight first). Weights can be any positive number.',
+			cls: 'settings-help-note'
+		});
+		
+		// Column headers
+		const headersRow = container.createDiv('settings-headers-row');
+		headersRow.createDiv('settings-header-spacer'); // For color indicator space
+		headersRow.createEl('span', { text: 'Value', cls: 'settings-column-header' });
+		headersRow.createEl('span', { text: 'Display Label', cls: 'settings-column-header' });
+		headersRow.createEl('span', { text: 'Color', cls: 'settings-column-header' });
+		headersRow.createEl('span', { text: 'Weight', cls: 'settings-column-header' });
+		headersRow.createDiv('settings-header-spacer'); // For delete button space
 		
 		// Priority list
 		const priorityList = container.createDiv('settings-list');
@@ -543,6 +568,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		// Add priority button
 		new Setting(container)
 			.setName('Add new priority')
+			.setDesc('Create a new priority level for your tasks')
 			.addButton(button => button
 				.setButtonText('Add priority')
 				.onClick(async () => {
@@ -551,6 +577,12 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					this.renderActiveTab();
 				}));
+		
+		// Validation note
+		container.createEl('p', { 
+			text: 'Note: You must have at least 1 priority. Higher weights take precedence in sorting and visual hierarchy.',
+			cls: 'settings-validation-note'
+		});
 	}
 	
 	private renderPriorityList(container: HTMLElement): void {
@@ -590,7 +622,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			const weightInput = priorityRow.createEl('input', {
 				type: 'number',
 				value: priority.weight.toString(),
-				cls: 'settings-input weight-input'
+				cls: 'settings-input weight-input',
+				attr: { min: '0', step: '1' }
 			});
 			
 			// Delete button
