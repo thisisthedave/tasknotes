@@ -273,8 +273,8 @@ export class TaskListView extends ItemView {
                 showSortBy: true,
                 showAdvancedFilters: true,
                 showDateRangePicker: true,
-                allowedSortKeys: ['due', 'priority', 'title'],
-                allowedGroupKeys: ['none', 'status', 'priority', 'context', 'due']
+                allowedSortKeys: ['due', 'scheduled', 'priority', 'title'],
+                allowedGroupKeys: ['none', 'status', 'priority', 'context', 'due', 'scheduled']
             }
         );
         

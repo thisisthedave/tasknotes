@@ -21,6 +21,7 @@ export class KanbanView extends ItemView {
     private filterBar: FilterBar | null = null;
     private currentQuery: FilterQuery;
     private taskElements: Map<string, HTMLElement> = new Map();
+    private previousGroupKey: string | null = null;
 
     // Event listeners
     private listeners: (() => void)[] = [];
@@ -42,6 +43,9 @@ export class KanbanView extends ItemView {
             sortDirection: 'desc',
             groupKey: 'status' // Kanban default grouping
         };
+        
+        // Initialize previous group key to current state to avoid clearing on first load
+        this.previousGroupKey = this.currentQuery.groupKey;
         
         this.registerEvents();
     }
@@ -169,8 +173,8 @@ export class KanbanView extends ItemView {
                 showSortBy: true,
                 showAdvancedFilters: true,
                 showDateRangePicker: true,
-                allowedSortKeys: ['priority', 'title', 'due'],
-                allowedGroupKeys: ['status', 'priority', 'context']
+                allowedSortKeys: ['priority', 'title', 'due', 'scheduled'],
+                allowedGroupKeys: ['status', 'priority', 'context', 'scheduled']
             }
         );
         
@@ -221,6 +225,14 @@ export class KanbanView extends ItemView {
 
     private async loadAndRenderBoard() {
         if (!this.boardContainer) return;
+        
+        // Check if grouping type has changed - if so, clear the board completely
+        const currentGroupKey = this.currentQuery.groupKey;
+        if (this.previousGroupKey !== null && this.previousGroupKey !== currentGroupKey) {
+            this.boardContainer.empty();
+            this.columnOrder = [];
+        }
+        this.previousGroupKey = currentGroupKey;
         
         // Show loading indicator only if board is empty
         let loadingIndicator: HTMLElement | null = null;

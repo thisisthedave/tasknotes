@@ -507,6 +507,16 @@ export class FilterService extends EventEmitter {
                 });
                 break;
                 
+            case 'scheduled':
+                // Sort by logical scheduled date order
+                const scheduledDateOrder = ['Past scheduled', 'Today', 'Tomorrow', 'This week', 'Later', 'No scheduled date'];
+                sortedKeys = Array.from(groups.keys()).sort((a, b) => {
+                    const indexA = scheduledDateOrder.indexOf(a);
+                    const indexB = scheduledDateOrder.indexOf(b);
+                    return indexA - indexB;
+                });
+                break;
+                
             default:
                 // Alphabetical sort for contexts and others
                 sortedKeys = Array.from(groups.keys()).sort();
