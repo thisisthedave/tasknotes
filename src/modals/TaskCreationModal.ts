@@ -433,56 +433,49 @@ export class TaskCreationModal extends BaseTaskModal {
 		const uniqueFilename = await generateUniqueFilename(baseFilename, folder, this.app.vault);
 		const fullPath = folder ? `${folder}/${uniqueFilename}.md` : `${uniqueFilename}.md`;
 
-		// Prepare frontmatter
-		const frontmatter: any = {
+		// Create TaskInfo object with all the data
+		const taskData: Partial<TaskInfo> = {
 			title: this.title,
 			status: this.status,
 			priority: this.priority,
-			tags: tagsArray,
+			due: this.dueDate || undefined,
+			scheduled: this.scheduledDate || undefined,
+			contexts: contextsArray.length > 0 ? contextsArray : undefined,
+			timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
 			dateCreated: new Date().toISOString(),
 			dateModified: new Date().toISOString()
 		};
 
-		if (this.dueDate) {
-			frontmatter.due = this.dueDate;
-		}
-
-		if (this.scheduledDate) {
-			frontmatter.scheduled = this.scheduledDate;
-		}
-
-		if (contextsArray.length > 0) {
-			frontmatter.contexts = contextsArray;
-		}
-
-		if (this.timeEstimate > 0) {
-			frontmatter.timeEstimate = this.timeEstimate;
-		}
-
 		// Add recurrence data
 		if (this.recurrence !== 'none') {
-			frontmatter.recurrence = {
+			taskData.recurrence = {
 				frequency: this.recurrence
 			};
 
 			if (this.recurrence === 'weekly' && this.daysOfWeek.length > 0) {
 				// Convert full names to abbreviations for storage
-				frontmatter.recurrence.days_of_week = this.convertFullNamesToAbbreviations(this.daysOfWeek);
+				taskData.recurrence.days_of_week = this.convertFullNamesToAbbreviations(this.daysOfWeek);
 			}
 
 			if (this.recurrence === 'monthly' && this.dayOfMonth) {
-				frontmatter.recurrence.day_of_month = parseInt(this.dayOfMonth);
+				taskData.recurrence.day_of_month = parseInt(this.dayOfMonth);
 			}
 
 			if (this.recurrence === 'yearly') {
 				if (this.monthOfYear) {
-					frontmatter.recurrence.month_of_year = parseInt(this.monthOfYear);
+					taskData.recurrence.month_of_year = parseInt(this.monthOfYear);
 				}
 				if (this.dayOfMonth) {
-					frontmatter.recurrence.day_of_month = parseInt(this.dayOfMonth);
+					taskData.recurrence.day_of_month = parseInt(this.dayOfMonth);
 				}
 			}
 		}
+
+		// Use field mapper to convert to frontmatter with proper field mapping
+		const frontmatter = this.plugin.fieldMapper.mapToFrontmatter(taskData, this.plugin.settings.taskTag);
+		
+		// Tags are handled separately (not via field mapper)
+		frontmatter.tags = tagsArray;
 
 		// Prepare file content
 		const yamlHeader = YAML.stringify(frontmatter);

@@ -278,7 +278,32 @@ export default class TaskNotesPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loadedData = await this.loadData();
+		
+		// Deep merge settings with proper migration for nested objects
+		this.settings = {
+			...DEFAULT_SETTINGS,
+			...loadedData,
+			// Deep merge field mapping to ensure new fields get default values
+			fieldMapping: {
+				...DEFAULT_SETTINGS.fieldMapping,
+				...(loadedData?.fieldMapping || {})
+			},
+			// Deep merge custom statuses array
+			customStatuses: loadedData?.customStatuses || DEFAULT_SETTINGS.customStatuses,
+			// Deep merge custom priorities array  
+			customPriorities: loadedData?.customPriorities || DEFAULT_SETTINGS.customPriorities
+		};
+		
+		// Check if we added any new field mappings and save if needed
+		const hasNewFields = Object.keys(DEFAULT_SETTINGS.fieldMapping).some(key => 
+			!(loadedData?.fieldMapping?.[key])
+		);
+		
+		if (hasNewFields) {
+			// Save the migrated settings to include new field mappings
+			await this.saveData(this.settings);
+		}
 	}
 
 	async saveSettings() {

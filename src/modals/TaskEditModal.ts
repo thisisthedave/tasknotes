@@ -239,76 +239,91 @@ export class TaskEditModal extends BaseTaskModal {
 
             // Update the task file
             await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                frontmatter.title = this.title;
-                frontmatter.priority = this.priority;
-                frontmatter.status = this.status;
-                frontmatter.tags = tagsArray;
-                frontmatter.dateModified = new Date().toISOString();
-
-                if (this.dueDate) {
-                    frontmatter.due = this.dueDate;
-                } else {
-                    delete frontmatter.due;
-                }
-
-                if (this.scheduledDate) {
-                    frontmatter.scheduled = this.scheduledDate;
-                } else {
-                    delete frontmatter.scheduled;
-                }
-
-                if (contextsArray.length > 0) {
-                    frontmatter.contexts = contextsArray;
-                } else {
-                    delete frontmatter.contexts;
-                }
-
-                if (this.timeEstimate > 0) {
-                    frontmatter.timeEstimate = this.timeEstimate;
-                } else {
-                    delete frontmatter.timeEstimate;
-                }
+                // Create updated TaskInfo object
+                const updatedTaskData: Partial<TaskInfo> = {
+                    title: this.title,
+                    priority: this.priority,
+                    status: this.status,
+                    due: this.dueDate || undefined,
+                    scheduled: this.scheduledDate || undefined,
+                    contexts: contextsArray.length > 0 ? contextsArray : undefined,
+                    timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
+                    dateModified: new Date().toISOString()
+                };
 
                 // Handle completion date for status changes
                 if (this.plugin.statusManager.isCompletedStatus(this.status) && !this.task.recurrence) {
-                    if (!frontmatter.completedDate) {
-                        frontmatter.completedDate = format(new Date(), 'yyyy-MM-dd');
+                    if (!this.task.completedDate) {
+                        updatedTaskData.completedDate = format(new Date(), 'yyyy-MM-dd');
                     }
                 } else if (!this.plugin.statusManager.isCompletedStatus(this.status)) {
-                    delete frontmatter.completedDate;
+                    updatedTaskData.completedDate = undefined;
                 }
 
                 // Handle recurrence
                 if (this.recurrence !== 'none') {
-                    frontmatter.recurrence = {
+                    updatedTaskData.recurrence = {
                         frequency: this.recurrence
                     };
 
                     if (this.recurrence === 'weekly' && this.daysOfWeek.length > 0) {
                         // Convert full names back to abbreviations for storage
-                        frontmatter.recurrence.days_of_week = this.convertFullNamesToAbbreviations(this.daysOfWeek);
+                        updatedTaskData.recurrence.days_of_week = this.convertFullNamesToAbbreviations(this.daysOfWeek);
                     }
 
                     if (this.recurrence === 'monthly' && this.dayOfMonth) {
-                        frontmatter.recurrence.day_of_month = parseInt(this.dayOfMonth);
+                        updatedTaskData.recurrence.day_of_month = parseInt(this.dayOfMonth);
                     }
 
                     if (this.recurrence === 'yearly') {
                         if (this.monthOfYear) {
-                            frontmatter.recurrence.month_of_year = parseInt(this.monthOfYear);
+                            updatedTaskData.recurrence.month_of_year = parseInt(this.monthOfYear);
                         }
                         if (this.dayOfMonth) {
-                            frontmatter.recurrence.day_of_month = parseInt(this.dayOfMonth);
+                            updatedTaskData.recurrence.day_of_month = parseInt(this.dayOfMonth);
                         }
                     }
                 } else {
-                    delete frontmatter.recurrence;
+                    updatedTaskData.recurrence = undefined;
                 }
 
                 // Preserve complete_instances for recurring tasks
                 if (this.task.complete_instances) {
-                    frontmatter.complete_instances = this.task.complete_instances;
+                    updatedTaskData.complete_instances = this.task.complete_instances;
                 }
+
+                // Use field mapper to update frontmatter with proper field mapping
+                const mappedUpdates = this.plugin.fieldMapper.mapToFrontmatter(updatedTaskData, this.plugin.settings.taskTag);
+                
+                // Apply all updates to frontmatter
+                Object.keys(mappedUpdates).forEach(key => {
+                    if (mappedUpdates[key] !== undefined) {
+                        frontmatter[key] = mappedUpdates[key];
+                    }
+                });
+
+                // Remove fields that are now undefined
+                if (updatedTaskData.due === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('due')];
+                }
+                if (updatedTaskData.scheduled === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('scheduled')];
+                }
+                if (updatedTaskData.contexts === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('contexts')];
+                }
+                if (updatedTaskData.timeEstimate === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('timeEstimate')];
+                }
+                if (updatedTaskData.completedDate === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('completedDate')];
+                }
+                if (updatedTaskData.recurrence === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('recurrence')];
+                }
+
+                // Tags are handled separately (not via field mapper)
+                frontmatter.tags = tagsArray;
             });
 
             // Create updated TaskInfo for cache and events

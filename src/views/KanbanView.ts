@@ -174,7 +174,7 @@ export class KanbanView extends ItemView {
                 showAdvancedFilters: true,
                 showDateRangePicker: true,
                 allowedSortKeys: ['priority', 'title', 'due', 'scheduled'],
-                allowedGroupKeys: ['status', 'priority', 'context', 'scheduled']
+                allowedGroupKeys: ['status', 'priority', 'context']
             }
         );
         
