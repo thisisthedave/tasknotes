@@ -38,12 +38,12 @@ export class TaskCreationModal extends BaseTaskModal {
 			this.priority = this.plugin.settings.defaultTaskPriority;
 			this.status = this.plugin.settings.defaultTaskStatus;
 			
-			// Pre-populate due date with selected date from calendar or today
-			const selectedDate = this.plugin.selectedDate || new Date();
-			this.dueDate = format(selectedDate, 'yyyy-MM-dd');
+			// Leave due date empty by default
+			this.dueDate = '';
 			
-			// Initialize scheduled date as empty by default
-			this.scheduledDate = '';
+			// Pre-populate scheduled date with selected date from calendar or today
+			const selectedDate = this.plugin.selectedDate || new Date();
+			this.scheduledDate = format(selectedDate, 'yyyy-MM-dd');
 		}
 	}
 
