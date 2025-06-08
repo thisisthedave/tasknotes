@@ -356,39 +356,8 @@ export class KanbanView extends ItemView {
             headerEl.classList.remove('is-dragging-column');
         });
 
-        headerEl.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            if (e.dataTransfer) {
-                const data = e.dataTransfer.getData('text/plain');
-                if (data.startsWith('column:')) {
-                    e.dataTransfer.dropEffect = 'move';
-                    headerEl.classList.add('column-drop-target');
-                }
-            }
-        });
-
-        headerEl.addEventListener('dragleave', (e) => {
-            // Only remove drop styling if we're actually leaving the header
-            // and not just moving to a child element
-            if (!headerEl.contains(e.relatedTarget as Node)) {
-                headerEl.classList.remove('column-drop-target');
-            }
-        });
-
-        headerEl.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            headerEl.classList.remove('column-drop-target');
-
-            const data = e.dataTransfer?.getData('text/plain');
-            if (data?.startsWith('column:')) {
-                const sourceColumnId = data.replace('column:', '');
-                const targetColumnId = headerEl.dataset.columnId;
-
-                if (sourceColumnId && targetColumnId && sourceColumnId !== targetColumnId) {
-                    await this.reorderColumns(sourceColumnId, targetColumnId);
-                }
-            }
-        });
+        // Note: Drop handling is now handled by the column-level handlers
+        // to avoid conflicts between header and column drop zones
     }
 
     private columnOrder: string[] = [];
@@ -494,8 +463,17 @@ export class KanbanView extends ItemView {
             e.preventDefault();
             if (e.dataTransfer) {
                 e.dataTransfer.dropEffect = 'move';
+                
+                // Check if we're dragging a column by looking for the dragging column class
+                const draggingColumn = this.boardContainer?.querySelector('.is-dragging-column');
+                if (draggingColumn) {
+                    // We're dragging a column, use column drop styling
+                    columnEl.classList.add('column-drop-target');
+                } else {
+                    // We're dragging a task, use task drop styling
+                    columnEl.classList.add('is-dragover');
+                }
             }
-            columnEl.classList.add('is-dragover');
         });
 
         columnEl.addEventListener('dragleave', (e) => {
@@ -503,15 +481,42 @@ export class KanbanView extends ItemView {
             // and not just moving to a child element
             if (!columnEl.contains(e.relatedTarget as Node)) {
                 columnEl.classList.remove('is-dragover');
+                columnEl.classList.remove('column-drop-target');
             }
         });
 
         columnEl.addEventListener('drop', async (e) => {
             e.preventDefault();
-            columnEl.classList.remove('is-dragover');
+            e.stopPropagation(); // Prevent event bubbling
+            
+            // Remove drop styling from all columns (cleanup)
+            this.boardContainer?.querySelectorAll('.kanban-column.is-dragover, .kanban-column.column-drop-target').forEach(col => {
+                col.classList.remove('is-dragover', 'column-drop-target');
+            });
 
-            const taskPath = e.dataTransfer?.getData('text/plain');
-            const targetColumnId = columnEl.dataset.columnId;
+            const data = e.dataTransfer?.getData('text/plain');
+            
+            // Handle column reordering
+            if (data?.startsWith('column:')) {
+                const sourceColumnId = data.replace('column:', '');
+                const targetColumnId = columnEl.dataset.columnId;
+
+                if (sourceColumnId && targetColumnId && sourceColumnId !== targetColumnId) {
+                    await this.reorderColumns(sourceColumnId, targetColumnId);
+                }
+                return; // Exit early for column drops
+            }
+
+            // Handle task drops
+            const taskPath = data;
+            
+            // Find the target column - prefer the one with data attribute, fallback to finding parent
+            let targetColumnId = columnEl.dataset.columnId;
+            if (!targetColumnId) {
+                // If dropped on a child element, find the parent column
+                const parentColumn = (e.target as HTMLElement).closest('.kanban-column');
+                targetColumnId = parentColumn?.getAttribute('data-column-id') || undefined;
+            }
 
             if (taskPath && targetColumnId && targetColumnId !== 'uncategorized') {
                 // Get task from cache since we no longer maintain local tasks array

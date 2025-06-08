@@ -5345,27 +5345,39 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.kanban-column-header.column-drop-target {
+/* Header-specific drop target styling removed - now using column-level styling */
+
+/* Column-level drop target styling for board reordering */
+.kanban-column.column-drop-target {
     background: var(--background-modifier-hover);
     border: 2px dashed var(--color-accent);
     transform: scale(1.02);
     transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    position: relative;
 }
 
-.kanban-column-header.column-drop-target::after {
-    content: "Drop here to reorder";
+.kanban-column.column-drop-target .kanban-column-header {
+    background: transparent;
+    border: none;
+    transform: none;
+}
+
+.kanban-column.column-drop-target::before {
+    content: "Drop here to reorder column";
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     background: var(--color-accent);
     color: var(--text-on-accent);
-    padding: 4px 8px;
+    padding: 6px 12px;
     border-radius: 4px;
     font-size: 0.8em;
     font-weight: 500;
     z-index: 1000;
     pointer-events: none;
+    white-space: nowrap;
 }
 
 
