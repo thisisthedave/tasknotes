@@ -1,0 +1,33 @@
+/* Design System Variables */
+:root {
+    /* Denser spacing scale (3px base for more compact layouts) */
+    --cs-spacing-xs: 3px;
+    --cs-spacing-sm: 6px;
+    --cs-spacing-md: 12px;
+    --cs-spacing-lg: 18px;
+    --cs-spacing-xl: 24px;
+    
+    /* Minimal border radius */
+    --cs-radius-sm: 2px;
+    --cs-radius-md: 3px;
+    --cs-radius-lg: 4px;
+    
+    /* Touch target minimum */
+    --cs-touch-target: 36px;
+    
+    /* Smaller indicator sizes for density */
+    --cs-indicator-sm: 4px;
+    --cs-indicator-md: 6px;
+    --cs-indicator-lg: 8px;
+    
+    /* Faster transitions for responsiveness */
+    --cs-transition-fast: 120ms ease;
+    --cs-transition-normal: 200ms ease;
+    
+    /* Typography scale for information density */
+    --cs-text-xs: 0.65rem;
+    --cs-text-sm: 0.75rem;
+    --cs-text-base: 0.8rem;
+    --cs-text-md: 0.85rem;
+    --cs-text-lg: 0.9rem;
+}

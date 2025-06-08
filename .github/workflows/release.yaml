@@ -27,7 +27,7 @@ jobs:
         run: npm install
 
       - name: Build Plugin
-        run: npm run build
+        run: npm run build  # This includes CSS building via npm run build-css
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

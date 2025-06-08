@@ -1,0 +1,575 @@
+/* ===== UNIFIED FILTERING SYSTEM STYLES ===== */
+
+/* FilterBar Container */
+.filter-bar-container,
+.agenda-filter-bar-container,
+.kanban-filter-bar-container {
+    margin-bottom: var(--cs-spacing-md);
+    padding: var(--cs-spacing-md);
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-md);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* FilterBar Main Container */
+.filter-bar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-sm);
+}
+
+/* FilterBar Main Row */
+.filter-bar-main {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-md);
+    flex-wrap: wrap;
+}
+
+/* Search Section */
+.filter-bar-search {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-bar-search-input {
+    width: 100%;
+    padding: var(--cs-spacing-xs) var(--cs-spacing-md);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.filter-bar-search-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.filter-bar-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* Controls Section */
+.filter-bar-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-md);
+    flex-wrap: wrap;
+}
+
+/* Sort Controls */
+.filter-bar-sort {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+}
+
+.filter-bar-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.filter-bar-select {
+    padding: 6px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 13px;
+    min-width: 100px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-bar-select:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.filter-bar-select:hover {
+    border-color: var(--background-modifier-border-hover);
+}
+
+.filter-bar-sort-direction {
+    padding: 6px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    text-align: center;
+}
+
+.filter-bar-sort-direction:hover {
+    background: var(--background-modifier-hover);
+}
+
+.filter-bar-sort-direction:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+/* Group Controls */
+.filter-bar-group {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+}
+
+/* Toggle Controls */
+.filter-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+    cursor: pointer;
+    user-select: none;
+}
+
+.filter-toggle-checkbox {
+    margin: 0;
+    cursor: pointer;
+}
+
+.filter-toggle-label {
+    font-size: var(--cs-text-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.filter-toggle:hover .filter-toggle-label {
+    color: var(--text-normal);
+}
+
+/* Advanced Filters Toggle Button */
+.filter-bar-advanced-toggle {
+    padding: 6px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+    white-space: nowrap;
+}
+
+.filter-bar-advanced-toggle:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.filter-bar-advanced-toggle.active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.filter-bar-active-indicator {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-radius: 50%;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: 500;
+    margin-left: 4px;
+    line-height: 1;
+    min-width: 14px;
+    text-align: center;
+}
+
+/* Advanced Filters Panel */
+.filter-bar-advanced {
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: var(--cs-spacing-sm);
+    margin-top: var(--cs-spacing-sm);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--cs-spacing-md);
+}
+
+.filter-bar-advanced-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-xs);
+}
+
+.filter-bar-advanced-item .filter-bar-label {
+    margin-bottom: 4px;
+}
+
+.filter-bar-advanced-item .filter-bar-select {
+    min-width: auto;
+    width: 100%;
+}
+
+.filter-bar-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-normal);
+    user-select: none;
+}
+
+.filter-bar-checkbox {
+    margin: 0;
+    cursor: pointer;
+}
+
+/* Style radio buttons the same as checkboxes in filter groups */
+.filter-bar-checkbox-group input[type="radio"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+/* Checkbox Groups */
+.filter-bar-checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    padding: 6px;
+    background: var(--background-primary);
+}
+
+.filter-bar-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.filter-bar-checkbox-group .filter-bar-checkbox-label {
+    padding: 4px 6px;
+    border-radius: var(--cs-radius-sm);
+    transition: background-color 0.1s ease;
+    width: 100%;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-bar-checkbox-group .filter-bar-checkbox-label:hover {
+    background: var(--background-modifier-hover);
+}
+
+.filter-bar-checkbox-group .filter-bar-checkbox {
+    flex-shrink: 0;
+}
+
+/* Empty state for checkbox groups */
+.filter-bar-checkbox-group:empty::after {
+    content: "No options available";
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 12px;
+    padding: 8px;
+    text-align: center;
+}
+
+/* Multi-select Dropdowns */
+.filter-multiselect {
+    position: relative;
+    display: inline-block;
+}
+
+.filter-multiselect-button {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    min-width: 120px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--cs-spacing-xs);
+    transition: all 0.2s ease;
+}
+
+.filter-multiselect-button:hover {
+    border-color: var(--background-modifier-border-hover);
+}
+
+.filter-multiselect-button.active {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.filter-multiselect-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    box-shadow: var(--shadow-l);
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 2px;
+}
+
+.filter-multiselect-option {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+    font-size: var(--cs-text-sm);
+    transition: background-color 0.1s ease;
+}
+
+.filter-multiselect-option:hover {
+    background: var(--background-modifier-hover);
+}
+
+.filter-multiselect-option input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+/* Filter Chip/Badge Styles */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+    padding: 2px var(--cs-spacing-xs);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-radius: var(--cs-radius-sm);
+    font-size: var(--cs-text-xs);
+    font-weight: 500;
+}
+
+.filter-chip-remove {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    font-size: var(--cs-text-xs);
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.filter-chip-remove:hover {
+    opacity: 1;
+}
+
+/* Clear Filters Button */
+.filter-clear-button {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-muted);
+    font-size: var(--cs-text-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-clear-button:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.filter-clear-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .filter-bar-container,
+    .agenda-filter-bar-container,
+    .kanban-filter-bar-container {
+        padding: var(--cs-spacing-sm);
+    }
+    
+    .filter-bar-main {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--cs-spacing-sm);
+    }
+    
+    .filter-bar-search {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .filter-bar-controls {
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--cs-spacing-sm);
+    }
+    
+    .filter-bar-sort,
+    .filter-bar-group {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .filter-bar-select {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .filter-bar-advanced {
+        grid-template-columns: 1fr;
+        gap: var(--cs-spacing-sm);
+    }
+}
+
+@media (max-width: 480px) {
+    .filter-bar-controls {
+        flex-direction: column;
+    }
+    
+    .filter-bar-sort,
+    .filter-bar-group {
+        width: 100%;
+    }
+}
+
+/* Integration with existing view styles */
+.agenda-view-container .filter-bar-container {
+    margin-bottom: var(--cs-spacing-sm);
+}
+
+.kanban-view .filter-bar-container {
+    border-radius: var(--cs-radius-md) var(--cs-radius-md) 0 0;
+    border-bottom: none;
+}
+
+.task-list-view-container .filter-bar-container {
+    margin-top: var(--cs-spacing-md);
+}
+
+/* Dark mode adjustments */
+.theme-dark .filter-bar-container,
+.theme-dark .agenda-filter-bar-container,
+.theme-dark .kanban-filter-bar-container {
+    background: var(--background-primary-alt);
+}
+
+.theme-dark .filter-multiselect-dropdown {
+    background: var(--background-primary-alt);
+    border-color: var(--background-modifier-border);
+}
+
+.theme-dark .filter-advanced-toggle.active {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .filter-bar-container,
+    .agenda-filter-bar-container,
+    .kanban-filter-bar-container {
+        border-width: 2px;
+    }
+    
+    .filter-control select,
+    .filter-search-input,
+    .filter-multiselect-button {
+        border-width: 2px;
+    }
+}
+
+/* Date Range Picker Styles */
+.filter-bar-date-inputs {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-sm);
+    flex-wrap: wrap;
+    margin-top: var(--cs-spacing-xs);
+}
+
+.filter-bar-date-input-container {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-xs);
+}
+
+.filter-bar-date-label {
+    font-size: var(--cs-text-sm);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.filter-bar-date-input {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    min-width: 120px;
+}
+
+.filter-bar-date-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.filter-bar-date-clear {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    cursor: pointer;
+    transition: background-color var(--cs-transition-fast);
+}
+
+.filter-bar-date-clear:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.filter-bar-date-clear:active {
+    background-color: var(--background-modifier-active);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .filter-control select,
+    .filter-search-input,
+    .filter-multiselect-button,
+    .filter-advanced-toggle,
+    .filter-clear-button,
+    .filter-bar-date-input,
+    .filter-bar-date-clear {
+        transition: none;
+    }
+    
+    .filter-advanced-toggle .collapse-icon {
+        transition: none;
+    }
+}

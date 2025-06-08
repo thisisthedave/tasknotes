@@ -1,0 +1,192 @@
+/* Reduced motion support - scope to TaskNotes components only */
+@media (prefers-reduced-motion: reduce) {
+    .tasknotes-container *,
+    .tasknotes-card *,
+    .tasknotes-button * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Button click feedback - scope to TaskNotes buttons only */
+.tasknotes-container button:active:not(:disabled),
+.tasknotes-button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* Performance optimization animations */
+@keyframes task-flash {
+    0% { 
+        background-color: var(--interactive-accent-hover); 
+        transform: scale(1.02);
+    }
+    100% { 
+        background-color: transparent; 
+        transform: scale(1);
+    }
+}
+
+@keyframes task-pulse {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.8; 
+        transform: scale(1.01);
+    }
+}
+
+@keyframes task-fade-in {
+    0% { 
+        opacity: 0; 
+        transform: translateY(-4px);
+    }
+    100% { 
+        opacity: 1; 
+        transform: translateY(0);
+    }
+}
+
+@keyframes tracking-pulse {
+    0%, 100% { 
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.6;
+        transform: scale(1.01);
+    }
+}
+
+/* Task update animations */
+.task-flash {
+    animation: task-flash 1500ms ease-out;
+}
+
+.task-pulse {
+    animation: task-pulse 1000ms ease-in-out;
+}
+
+.task-fade-in {
+    animation: task-fade-in 300ms ease-out;
+}
+
+/* ================================================
+   UNIFIED CARD BASE CLASS (BEM Methodology)
+   ================================================ */
+
+/* Base card class with common properties */
+.tasknotes-card {
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+    border-radius: var(--cs-radius-sm);
+    font-size: var(--cs-text-base);
+    line-height: 1.4;
+}
+
+.tasknotes-card:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--background-modifier-border-hover);
+}
+
+/* Card modifiers for different sizes */
+.tasknotes-card--compact {
+    padding: var(--cs-spacing-sm);
+    border-radius: var(--cs-radius-sm);
+}
+
+.tasknotes-card--normal {
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    border-radius: var(--cs-radius-sm);
+}
+
+.tasknotes-card--spacious {
+    padding: var(--cs-spacing-lg);
+    border-radius: var(--cs-radius-md);
+}
+
+/* Card modifiers for different shadows */
+.tasknotes-card--shadow-light {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.tasknotes-card--shadow-medium {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Card modifiers for layout */
+.tasknotes-card--flex {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--cs-spacing-sm);
+}
+
+.tasknotes-card--flex-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-sm);
+}
+
+/* Active time tracking indicator */
+.task-card.actively-tracked {
+    position: relative;
+}
+
+.task-card.actively-tracked::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, var(--interactive-accent), var(--interactive-accent-hover));
+    border-radius: var(--radius-m);
+    z-index: -1;
+    animation: tracking-pulse 2s ease-in-out infinite;
+}
+
+/* Visual feedback for updates */
+.task-updated {
+    border-left: 3px solid var(--interactive-accent);
+    transition: border-left 1500ms ease-out;
+}
+
+/* Loading states optimization */
+.loading-indicator {
+    transition: opacity var(--cs-transition-fast);
+}
+
+.loading-indicator.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Performance-optimized DOM transitions */
+.tasknotes-card {
+    transition: transform var(--cs-transition-fast), box-shadow var(--cs-transition-fast);
+    will-change: transform, box-shadow;
+}
+
+.tasknotes-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Cache loading states */
+.cache-loading-indicator {
+    position: sticky;
+    top: 0;
+    background: var(--background-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--cs-radius-sm);
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    margin-bottom: var(--cs-spacing-md);
+    font-size: var(--cs-text-sm);
+    color: var(--text-muted);
+    z-index: 10;
+    animation: task-fade-in 300ms ease-out;
+}

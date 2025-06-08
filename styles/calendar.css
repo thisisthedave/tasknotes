@@ -1,0 +1,559 @@
+/* Main container for all views - denser layout */
+.tasknotes-container {
+    padding: var(--cs-spacing-sm);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    gap: var(--cs-spacing-sm);
+}
+
+/* Specific container styles for calendar and detail views */
+.calendar-view-container {
+    max-width: 100%;
+}
+
+.detail-view-container {
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Header for detail view - more compact */
+.detail-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--cs-spacing-xs);
+    padding: var(--cs-spacing-xs) 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+    opacity: 0.8;
+}
+
+.detail-view-actions {
+    display: flex;
+    gap: var(--cs-spacing-xs);
+    align-items: center;
+}
+
+.detail-view-header h2 {
+    margin: 0;
+    font-size: var(--cs-text-sm);
+    font-weight: 500;
+    color: var(--text-normal);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Week view prompt */
+.week-view-prompt {
+    text-align: center;
+    padding: 1rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Calendar Month View - more compact */
+.calendar-controls {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--cs-spacing-sm);
+    padding: var(--cs-spacing-xs);
+    background: var(--background-secondary);
+    border-radius: var(--cs-radius-sm);
+    gap: var(--cs-spacing-xs);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.calendar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.month-navigation-group {
+    display: flex;
+    align-items: center;
+    gap: var(--cs-spacing-sm);
+}
+
+.nav-button-group {
+    display: flex;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+    gap: 2px;
+}
+
+.nav-arrow-button {
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 0.9rem;
+    line-height: 1;
+    min-height: 24px;
+    min-width: 28px;
+    transition: opacity 0.15s ease;
+    opacity: 0.6;
+}
+
+.nav-arrow-button:first-child {
+    border-right: none;
+}
+
+.nav-arrow-button:hover {
+    background-color: transparent;
+    color: var(--text-normal);
+    opacity: 1;
+}
+
+/* Calendar colorize mode selector styling */
+.colorize-mode-container {
+    display: flex;
+    align-items: center;
+}
+
+.colorize-mode-select {
+    padding: 4px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    min-width: 100px;
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+}
+
+.colorize-mode-select:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--background-modifier-border-hover);
+    color: var(--text-normal);
+}
+
+.colorize-mode-select:focus {
+    border-color: transparent;
+    box-shadow: none;
+    outline: none;
+    opacity: 1;
+}
+
+.calendar-nav button {
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border-radius: 0;
+    font-size: 0.9rem;
+    min-height: 28px;
+    min-width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s ease;
+    box-shadow: none;
+    opacity: 0.6;
+}
+
+.calendar-nav button:hover {
+    background-color: transparent;
+    color: var(--text-normal);
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+    opacity: 1;
+}
+
+.today-button {
+    margin-left: auto;
+    background: transparent;
+    color: var(--text-faint);
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    min-height: 24px;
+    border: none;
+    font-weight: normal;
+    opacity: 0.7;
+    transition: opacity 0.15s ease;
+}
+
+.today-button:hover {
+    background-color: transparent;
+    color: var(--text-normal);
+    opacity: 1;
+}
+
+.current-month {
+    font-weight: 500;
+    font-size: 0.9rem;
+    min-width: 7rem;
+    text-align: center;
+    color: var(--text-normal);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.view-switcher {
+    display: flex;
+    gap: 2px;
+}
+
+.view-switcher button {
+    border-radius: 0;
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
+    transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.view-switcher button:hover {
+    opacity: 1;
+    color: var(--text-muted);
+}
+
+.view-switcher button.active {
+    background-color: transparent;
+    color: var(--text-normal);
+    opacity: 1;
+    font-weight: 500;
+    border-bottom: 1px solid var(--text-normal);
+}
+
+.calendar-grid-container {
+    margin-bottom: var(--cs-spacing-md);
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+}
+
+.calendar-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    overflow: hidden;
+}
+
+.calendar-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: var(--background-secondary);
+}
+
+.calendar-week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+}
+
+.calendar-day-header {
+    text-align: center;
+    font-weight: 500;
+    font-size: var(--cs-text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: var(--cs-spacing-xs);
+    color: var(--text-muted);
+    background: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.calendar-day {
+    position: relative;
+    min-height: 2rem;
+    padding: var(--cs-spacing-xs);
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--background-primary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    transition: all var(--cs-transition-fast);
+    font-size: var(--cs-text-sm);
+    font-weight: 500;
+}
+
+.calendar-day:hover {
+    background-color: var(--background-modifier-hover);
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+}
+
+.calendar-day.today {
+    background: transparent;
+    color: var(--interactive-accent);
+    font-weight: 600;
+    box-shadow: none;
+    position: relative;
+}
+
+.calendar-day.today::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--interactive-accent);
+}
+
+.calendar-day.selected,
+.week-day-header.selected {
+    border: 1px solid var(--interactive-accent);
+    font-weight: 500;
+    background-color: transparent;
+    box-shadow: none;
+}
+
+/* Style for dates that are selected but not today */
+.calendar-day.selected:not(.today),
+.week-day-header.selected:not(.today) {
+    background-color: var(--background-modifier-form-field);
+}
+
+/* Style for dates that are both today and selected */
+.calendar-day.today.selected,
+.week-day-header.today.selected {
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* Ensure selected state overrides content indicator borders */
+.calendar-day.selected.has-few-notes,
+.calendar-day.selected.has-some-notes,
+.calendar-day.selected.has-many-notes,
+.calendar-day.selected.has-tasks,
+.calendar-day.selected.has-completed-tasks,
+.calendar-day.selected.has-archived-tasks,
+.calendar-day.selected.has-daily-note {
+    border: 1px solid var(--interactive-accent);
+}
+
+.calendar-day.outside-month {
+    color: var(--text-faint);
+    background-color: transparent;
+    opacity: 0.3;
+}
+
+.day-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 2px;
+}
+
+.indicator-container {
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+.has-note {
+    background-color: var(--interactive-accent);
+}
+
+.has-task {
+    background-color: var(--text-error);
+}
+
+.is-important {
+    background-color: var(--text-warning);
+}
+
+/* Calendar day indicators */
+.calendar-day {
+    position: relative;
+}
+
+/* Base indicator styles - Hidden since we highlight the whole box */
+.note-indicator,
+.task-indicator,
+.daily-note-indicator {
+    display: none;
+}
+
+/* Position indicators differently to avoid overlap */
+.note-indicator {
+    width: 8px;
+    height: 8px;
+    bottom: 4px;
+    left: 30%;
+    transform: translateX(-50%);
+}
+
+.task-indicator {
+    width: 8px;
+    height: 8px;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.daily-note-indicator {
+    width: 8px;
+    height: 8px;
+    bottom: 4px;
+    left: 70%;
+    transform: translateX(-50%);
+}
+
+/* Hover effect for all indicators */
+.calendar-day:hover .note-indicator,
+.calendar-day:hover .task-indicator,
+.calendar-day:hover .daily-note-indicator {
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Notes heatmap indicators - blues of different intensity with better contrast */
+.note-indicator.few-notes {
+    background: linear-gradient(135deg, #7BA7E7, #5a8de3);
+    width: var(--cs-indicator-sm);
+    height: var(--cs-indicator-sm);
+}
+
+.note-indicator.some-notes {
+    background: linear-gradient(135deg, #4E82E4, #3670d9);
+    width: var(--cs-indicator-md);
+    height: var(--cs-indicator-md);
+}
+
+.note-indicator.many-notes {
+    background: linear-gradient(135deg, #2D65D0, #1e56c2);
+    width: var(--cs-indicator-lg);
+    height: var(--cs-indicator-lg);
+}
+
+/* Task indicators - reds for due, greens for completed, gray for archived */
+.task-indicator.due-tasks {
+    background: linear-gradient(135deg, #FF6B6B, var(--text-error));
+    width: var(--cs-indicator-md);
+    height: var(--cs-indicator-md);
+}
+
+.task-indicator.completed-tasks {
+    background: linear-gradient(135deg, #6FCF97, var(--text-success));
+    width: var(--cs-indicator-md);
+    height: var(--cs-indicator-md);
+}
+
+.task-indicator.archived-tasks {
+    background: var(--text-faint);
+    width: var(--cs-indicator-md);
+    height: var(--cs-indicator-md);
+    opacity: 0.8;
+}
+
+/* Daily note indicators - distinctive purple */
+.daily-note-indicator {
+    background-color: #9e74d0;
+    width: 7px;
+    height: 7px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+/* Add hover information for indicators - scope to TaskNotes components */
+.tasknotes-container [class$="-indicator"]:hover::after {
+    content: attr(aria-label);
+    position: absolute;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+
+/* Minimalist calendar day content indicators with color */
+.calendar-day.has-few-notes,
+.calendar-day.has-some-notes,
+.calendar-day.has-many-notes,
+.calendar-day.has-tasks,
+.calendar-day.has-completed-tasks,
+.calendar-day.has-archived-tasks,
+.calendar-day.has-daily-note {
+    font-weight: 500;
+    background-color: transparent;
+    border-top: 1px solid transparent;
+    border-right: 1px solid transparent;
+    border-bottom: 1px solid var(--background-modifier-border);
+    border-left: 1px solid transparent;
+}
+
+/* Enhanced color indicators - stronger and more visible */
+
+/* Notes heatmap - blue intensities with better contrast */
+.calendar-day.has-few-notes {
+    border-left: 3px solid #7BA7E7;
+    background: linear-gradient(to right, rgba(123, 167, 231, 0.1), transparent);
+}
+
+.calendar-day.has-some-notes {
+    border-left: 3px solid #4E82E4;
+    background: linear-gradient(to right, rgba(78, 130, 228, 0.15), transparent);
+}
+
+.calendar-day.has-many-notes {
+    border-left: 3px solid #2D65D0;
+    background: linear-gradient(to right, rgba(45, 101, 208, 0.2), transparent);
+}
+
+/* Task indicators - stronger visual presence */
+.calendar-day.has-tasks {
+    border-left: 3px solid var(--text-error);
+    background: linear-gradient(to right, rgba(255, 107, 107, 0.1), transparent);
+}
+
+.calendar-day.has-completed-tasks {
+    border-left: 3px solid var(--text-success);
+    background: linear-gradient(to right, rgba(111, 207, 151, 0.1), transparent);
+}
+
+.calendar-day.has-archived-tasks {
+    border-left: 3px solid var(--text-faint);
+    background: linear-gradient(to right, rgba(128, 128, 128, 0.05), transparent);
+}
+
+/* Daily note indicators - distinctive purple with gradient */
+.calendar-day.has-daily-note {
+    border-left: 3px solid #9e74d0;
+    background: linear-gradient(to right, rgba(158, 116, 208, 0.1), transparent);
+}
+
+/* Enhanced hover effects */
+.calendar-day.has-few-notes:hover,
+.calendar-day.has-some-notes:hover,
+.calendar-day.has-many-notes:hover,
+.calendar-day.has-tasks:hover,
+.calendar-day.has-completed-tasks:hover,
+.calendar-day.has-archived-tasks:hover,
+.calendar-day.has-daily-note:hover {
+    border-left-width: 4px;
+    transform: translateX(1px);
+}
