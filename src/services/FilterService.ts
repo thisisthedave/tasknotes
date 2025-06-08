@@ -195,16 +195,37 @@ export class FilterService extends EventEmitter {
         }
 
         // Date range filter (if not already used for initial set)
-        if (query.dateRange && task.due) {
-            const taskDate = new Date(task.due);
-            const startDate = new Date(query.dateRange.start);
-            const endDate = new Date(query.dateRange.end);
-            
-            // If includeOverdue is true and this task is overdue, don't filter it out by date
-            if (query.includeOverdue && taskDate < new Date()) {
-                // This is an overdue task and we want to include overdue tasks, so don't filter by date range
-            } else if (taskDate < startDate || taskDate > endDate) {
-                return false;
+        if (query.dateRange) {
+            // For recurring tasks without due dates, check if they appear on any date in range
+            if (task.recurrence && !task.due) {
+                const startDate = new Date(query.dateRange.start);
+                const endDate = new Date(query.dateRange.end);
+                
+                // Check each date in range to see if recurring task should appear
+                let appearsInRange = false;
+                for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+                    if (isRecurringTaskDueOn(task, date)) {
+                        appearsInRange = true;
+                        break;
+                    }
+                }
+                
+                if (!appearsInRange) {
+                    return false;
+                }
+            }
+            // For tasks with due dates, use existing logic
+            else if (task.due) {
+                const taskDate = new Date(task.due);
+                const startDate = new Date(query.dateRange.start);
+                const endDate = new Date(query.dateRange.end);
+                
+                // If includeOverdue is true and this task is overdue, don't filter it out by date
+                if (query.includeOverdue && taskDate < new Date()) {
+                    // This is an overdue task and we want to include overdue tasks, so don't filter by date range
+                } else if (taskDate < startDate || taskDate > endDate) {
+                    return false;
+                }
             }
         }
 
