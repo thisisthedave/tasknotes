@@ -57,7 +57,7 @@
 }
 
 .tasknotes-plugin .task-card__title {
-    font-size: var(--tn-font-size-md);
+    font-size: var(--tn-font-size-lg);
     font-weight: var(--tn-font-weight-normal);
     line-height: 1.3;
     color: var(--tn-text-normal);
@@ -308,7 +308,7 @@
 
 /* DEPRECATED - Use .task-card__title instead */
 .tasknotes-plugin .task-card .task-title {
-    font-size: var(--tn-font-size-md);
+    font-size: var(--tn-font-size-lg);
     font-weight: var(--tn-font-weight-normal);
     line-height: 1.3;
     color: var(--tn-text-normal);
@@ -580,7 +580,7 @@ span.tasknotes-plugin.task-inline-preview.task-inline-preview--completed,
     font-weight: 500;
     margin: 0;
     min-width: 0; /* Allow flex shrinking */
-    max-width: 120px; /* Prevent excessive expansion */
+    max-width: 300px; /* Allow longer task names */
 }
 
 /* Priority indicator */

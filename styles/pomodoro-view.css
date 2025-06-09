@@ -195,7 +195,7 @@
 }
 
 .tasknotes-plugin .pomodoro-view__task-label {
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     color: var(--tn-text-muted);
     font-weight: var(--tn-font-weight-medium);
 }
@@ -225,7 +225,7 @@
 }
 
 .tasknotes-plugin .pomodoro-view__task-selector-label {
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     font-weight: var(--tn-font-weight-medium);
     color: var(--tn-text-normal);
 }
@@ -248,7 +248,7 @@
     background: var(--tn-bg-primary);
     color: var(--tn-text-normal);
     cursor: pointer;
-    font-size: var(--tn-font-size-md);
+    font-size: var(--tn-font-size-lg);
     font-weight: var(--tn-font-weight-normal);
     transition: all var(--tn-transition-fast);
     min-height: var(--tn-button-height-md);
@@ -272,7 +272,7 @@
     background: var(--tn-bg-secondary);
     color: var(--tn-text-normal);
     cursor: pointer;
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     font-weight: var(--tn-font-weight-medium);
     transition: all var(--tn-transition-fast);
     min-height: var(--tn-button-height-md);
@@ -404,7 +404,7 @@
 }
 
 .tasknotes-plugin .pomodoro-view__section-label {
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     font-weight: var(--tn-font-weight-semibold);
     color: var(--tn-text-muted);
     text-transform: uppercase;
@@ -434,7 +434,7 @@
     border-radius: var(--tn-radius-md);
     background: var(--tn-bg-secondary);
     color: var(--tn-text-normal);
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     font-weight: var(--tn-font-weight-medium);
     cursor: pointer;
     transition: all var(--tn-transition-fast);
@@ -514,7 +514,7 @@
     background: var(--tn-bg-primary);
     color: var(--tn-text-normal);
     cursor: pointer;
-    font-size: var(--tn-font-size-xs);
+    font-size: var(--tn-font-size-sm);
     font-weight: var(--tn-font-weight-medium);
     transition: all var(--tn-transition-fast);
 }
@@ -551,7 +551,7 @@
 }
 
 .tasknotes-plugin .pomodoro-view__stat-label {
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     color: var(--tn-text-muted);
     font-weight: var(--tn-font-weight-medium);
 }

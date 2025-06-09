@@ -42,7 +42,7 @@
     color: var(--tn-bg-primary);
     border: none;
     border-radius: var(--tn-radius-sm);
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     font-weight: var(--tn-font-weight-medium);
     cursor: pointer;
     transition: all var(--tn-transition-fast);
@@ -134,7 +134,7 @@
     background: var(--tn-bg-secondary);
     border-radius: var(--tn-radius-md);
     font-weight: var(--tn-font-weight-medium);
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--tn-text-normal);
@@ -171,7 +171,7 @@
 }
 
 .tasknotes-plugin .task-list-view__empty-description {
-    font-size: var(--tn-font-size-md);
+    font-size: var(--tn-font-size-lg);
     line-height: 1.6;
     max-width: 400px;
 }

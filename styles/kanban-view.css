@@ -60,7 +60,7 @@
     background: var(--tn-interactive-accent);
     color: var(--tn-text-on-accent);
     font-family: inherit;
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     font-weight: var(--tn-font-weight-medium);
     line-height: 1.25;
     min-height: var(--tn-button-height-md);
@@ -98,7 +98,7 @@
     background: var(--tn-bg-secondary);
     border: 1px solid var(--tn-border-color);
     border-radius: var(--tn-radius-sm);
-    font-size: var(--tn-font-size-sm);
+    font-size: var(--tn-font-size-md);
     color: var(--tn-text-muted);
     font-weight: 400;
 }
@@ -282,7 +282,7 @@
 
 .tasknotes-plugin .kanban-view__column-title {
     font-weight: var(--tn-font-weight-semibold);
-    font-size: var(--tn-font-size-md);
+    font-size: var(--tn-font-size-lg);
     color: var(--tn-text-normal);
     line-height: 1.2;
     margin: 0;

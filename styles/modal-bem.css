@@ -49,7 +49,7 @@
 /* Form Labels */
 .tasknotes-plugin .modal-form__label {
     display: block;
-    font-size: var(--tn-font-size-md);
+    font-size: var(--tn-font-size-lg);
     font-weight: var(--tn-font-weight-medium);
     color: var(--tn-text-normal);
     margin-bottom: var(--tn-spacing-sm);
@@ -70,7 +70,7 @@
     background: var(--tn-bg-primary);
     color: var(--tn-text-normal);
     font-family: inherit;
-    font-size: var(--tn-font-size-md);
+    font-size: var(--tn-font-size-lg);
     font-weight: var(--tn-font-weight-normal);
     line-height: 1.4;
     transition: border-color var(--tn-transition-fast);
@@ -266,7 +266,7 @@
     padding: var(--tn-spacing-md) var(--tn-spacing-lg);
     border-radius: var(--tn-radius-md);
     font-family: inherit;
-    font-size: var(--tn-font-size-md);
+    font-size: var(--tn-font-size-lg);
     font-weight: var(--tn-font-weight-medium);
     cursor: pointer;
     user-select: none;
