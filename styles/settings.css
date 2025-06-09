@@ -1,0 +1,447 @@
+/* ===== SETTINGS.CSS ===== */
+/* Settings page styles for TaskNotes plugin */
+
+/* Settings tab navigation */
+.settings-tab-nav {
+    display: flex;
+    gap: var(--cs-spacing-xs);
+    margin-bottom: var(--cs-spacing-lg);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: var(--cs-spacing-sm);
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.settings-tab-button {
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    cursor: pointer;
+    font-size: var(--cs-text-sm);
+    font-weight: 500;
+    transition: all var(--cs-transition-fast);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.settings-tab-button:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--interactive-accent);
+}
+
+.settings-tab-button.active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+/* Tab content containers */
+.settings-tab-contents {
+    position: relative;
+    min-height: 400px;
+}
+
+.settings-tab-content {
+    display: none;
+}
+
+.settings-tab-content.active {
+    display: block;
+    animation: fadeInSettings 0.2s ease-in-out;
+}
+
+@keyframes fadeInSettings {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Warning and help sections */
+.settings-warning {
+    background: var(--background-modifier-error);
+    border: 1px solid var(--text-error);
+    border-radius: var(--cs-radius-sm);
+    padding: var(--cs-spacing-md);
+    margin-bottom: var(--cs-spacing-lg);
+    color: var(--text-error);
+    font-size: var(--cs-text-sm);
+    line-height: 1.4;
+}
+
+.settings-help-section {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    padding: var(--cs-spacing-md);
+    margin-bottom: var(--cs-spacing-lg);
+}
+
+.settings-help-section h4 {
+    margin: 0 0 var(--cs-spacing-sm) 0;
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    font-weight: 600;
+}
+
+.settings-help-section ul {
+    margin: 0;
+    padding-left: var(--cs-spacing-md);
+    color: var(--text-muted);
+    font-size: var(--cs-text-sm);
+    line-height: 1.4;
+}
+
+.settings-help-section li {
+    margin-bottom: var(--cs-spacing-xs);
+}
+
+.settings-help-note {
+    margin: var(--cs-spacing-sm) 0 0 0;
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.settings-validation-note {
+    margin: var(--cs-spacing-md) 0 0 0;
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    font-style: italic;
+    padding: var(--cs-spacing-sm);
+    background: var(--background-secondary);
+    border-radius: var(--cs-radius-sm);
+    border-left: 3px solid var(--interactive-accent);
+}
+
+/* Field mapping table */
+.settings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--cs-spacing-md) 0;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    overflow: hidden;
+}
+
+.settings-table th {
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-weight: 600;
+    font-size: var(--cs-text-sm);
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    text-align: left;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.settings-table td {
+    padding: var(--cs-spacing-sm) var(--cs-spacing-md);
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+    vertical-align: middle;
+}
+
+.settings-table tr:last-child td {
+    border-bottom: none;
+}
+
+.settings-table tr:hover {
+    background: var(--background-modifier-hover);
+}
+
+.settings-table input[type="text"] {
+    width: 100%;
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-xs);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    transition: border-color var(--cs-transition-fast);
+}
+
+.settings-table input[type="text"]:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+/* Status and Priority list styling */
+.settings-headers-row {
+    display: grid;
+    grid-template-columns: 24px 1fr 1fr 80px 1fr 40px;
+    gap: var(--cs-spacing-sm);
+    padding: var(--cs-spacing-sm) 0;
+    margin-bottom: var(--cs-spacing-xs);
+    align-items: center;
+    font-weight: 600;
+    font-size: var(--cs-text-xs);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.settings-column-header {
+    text-align: center;
+}
+
+.settings-header-spacer {
+    /* Empty spacer for alignment */
+}
+
+.settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cs-spacing-xs);
+    margin-bottom: var(--cs-spacing-lg);
+}
+
+.settings-item-row {
+    display: grid;
+    grid-template-columns: 24px 1fr 1fr 80px 1fr 40px;
+    gap: var(--cs-spacing-sm);
+    align-items: center;
+    padding: var(--cs-spacing-sm);
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-sm);
+    transition: all var(--cs-transition-fast);
+}
+
+.settings-item-row:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+}
+
+/* Color indicators */
+.settings-color-indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--indicator-color, var(--text-muted));
+    border: 2px solid var(--background-primary);
+    box-shadow: 0 0 0 1px var(--background-modifier-border);
+    flex-shrink: 0;
+}
+
+/* Input styling within item rows */
+.settings-input {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--cs-radius-xs);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--cs-text-sm);
+    transition: border-color var(--cs-transition-fast);
+}
+
+.settings-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.settings-input.value-input,
+.settings-input.label-input {
+    width: 100%;
+}
+
+.settings-input.color-input {
+    width: 60px;
+    height: 32px;
+    padding: 2px;
+    cursor: pointer;
+    border-radius: var(--cs-radius-xs);
+}
+
+.settings-input.weight-input {
+    width: 70px;
+    text-align: center;
+}
+
+/* Checkbox styling - removed all custom styling */
+
+/* Delete button */
+.settings-delete-button {
+    padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    background: var(--background-modifier-error);
+    color: var(--text-error);
+    border: 1px solid var(--text-error);
+    border-radius: var(--cs-radius-xs);
+    font-size: var(--cs-text-xs);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--cs-transition-fast);
+    white-space: nowrap;
+}
+
+.settings-delete-button:hover {
+    background: var(--text-error);
+    color: var(--text-on-accent);
+}
+
+.settings-delete-button:focus {
+    outline: 2px solid var(--text-error);
+    outline-offset: 2px;
+}
+
+/* Obsidian Setting component overrides for better integration */
+.setting-item {
+    border: none;
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+    padding: var(--cs-spacing-md) 0;
+    margin-bottom: 0;
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-item-info {
+    flex-grow: 1;
+}
+
+.setting-item-name {
+    font-weight: 500;
+    color: var(--text-normal);
+    font-size: var(--cs-text-base);
+    margin-bottom: var(--cs-spacing-xs);
+}
+
+.setting-item-description {
+    color: var(--text-muted);
+    font-size: var(--cs-text-sm);
+    line-height: 1.4;
+    margin: 0;
+}
+
+.setting-item-control {
+    flex-shrink: 0;
+    margin-left: var(--cs-spacing-md);
+}
+
+/* Heading styles */
+.setting-item.setting-item-heading {
+    padding-top: var(--cs-spacing-lg);
+    margin-top: var(--cs-spacing-lg);
+    border-top: 1px solid var(--background-modifier-border);
+    border-bottom: none;
+    padding-bottom: var(--cs-spacing-sm);
+}
+
+.setting-item.setting-item-heading:first-child {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.setting-item-heading .setting-item-name {
+    font-size: var(--cs-text-lg);
+    font-weight: 600;
+    color: var(--text-normal);
+    margin-bottom: 0;
+}
+
+
+
+
+
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .settings-tab-nav {
+        gap: var(--cs-spacing-xs);
+    }
+    
+    .settings-tab-button {
+        padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+        font-size: var(--cs-text-xs);
+    }
+    
+    .settings-headers-row {
+        grid-template-columns: 20px 1fr 1fr 60px 80px 32px;
+        gap: var(--cs-spacing-xs);
+    }
+    
+    .settings-item-row {
+        grid-template-columns: 20px 1fr 1fr 60px 80px 32px;
+        gap: var(--cs-spacing-xs);
+        padding: var(--cs-spacing-xs);
+    }
+    
+    .settings-input.color-input {
+        width: 50px;
+        height: 28px;
+    }
+    
+    .settings-input.weight-input {
+        width: 60px;
+    }
+    
+    .settings-table {
+        font-size: var(--cs-text-sm);
+    }
+    
+    .settings-table th,
+    .settings-table td {
+        padding: var(--cs-spacing-xs) var(--cs-spacing-sm);
+    }
+    
+}
+
+/* Dark mode adjustments */
+.theme-dark .settings-color-indicator {
+    box-shadow: 0 0 0 1px var(--background-modifier-border-hover);
+}
+
+.theme-dark .settings-table {
+    border-color: var(--background-modifier-border-hover);
+}
+
+.theme-dark .settings-item-row {
+    border-color: var(--background-modifier-border-hover);
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    .settings-tab-button,
+    .settings-item-row,
+    .settings-input,
+    .settings-delete-button {
+        transition: none;
+    }
+    
+    .settings-tab-content.active {
+        animation: none;
+    }
+}
+
+/* Focus indicators for keyboard navigation */
+.settings-tab-button:focus,
+.settings-input:focus,
+.settings-delete-button:focus {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .settings-item-row {
+        border-width: 2px;
+    }
+    
+    .settings-color-indicator {
+        border-width: 3px;
+    }
+    
+    .settings-input {
+        border-width: 2px;
+    }
+}

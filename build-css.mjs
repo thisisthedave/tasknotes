@@ -11,7 +11,8 @@ const CSS_FILES = [
     'styles/filters.css',
     'styles/agenda.css',
     'styles/modals.css',
-    'styles/pomodoro.css'
+    'styles/pomodoro.css',
+    'styles/settings.css'
 ];
 
 const MAIN_CSS_TEMPLATE = `/* TaskNotes Plugin Styles */
@@ -31,6 +32,7 @@ const MAIN_CSS_TEMPLATE = `/* TaskNotes Plugin Styles */
    - styles/agenda.css: Agenda view specific styles
    - styles/modals.css: Task creation and edit modal specific styles
    - styles/pomodoro.css: Pomodoro view and stats view specific styles
+   - styles/settings.css: Settings page and configuration interface styles
    
    Run 'npm run build-css' to regenerate this file.
 */
