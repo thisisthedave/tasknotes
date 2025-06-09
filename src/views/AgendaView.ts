@@ -14,6 +14,7 @@ import { isRecurringTaskDueOn, calculateTotalTimeSpent } from '../utils/helpers'
 import { createTaskCard, updateTaskCard } from '../ui/TaskCard';
 import { createNoteCard } from '../ui/NoteCard';
 import { FilterBar } from '../ui/FilterBar';
+import { FilterService } from '../services/FilterService';
 
 export class AgendaView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -315,13 +316,32 @@ export class AgendaView extends ItemView {
      */
     private getDateRange(): { start: string; end: string } {
         const dates = this.getAgendaDates();
-        const startDate = dates[0];
-        const endDate = dates[dates.length - 1];
+        return FilterService.createDateRangeFromDates(dates);
+    }
+
+    /**
+     * Add notes to agenda data by filtering notes for each date
+     */
+    private async addNotesToAgendaData(agendaData: Array<{date: Date; tasks: TaskInfo[]}>): Promise<Array<{date: Date; tasks: TaskInfo[]; notes: NoteInfo[]}>> {
+        if (!this.showNotes) {
+            return agendaData.map(dayData => ({ ...dayData, notes: [] }));
+        }
+
+        const allNotes = await this.plugin.cacheManager.getAllNotes();
         
-        return {
-            start: format(startDate, 'yyyy-MM-dd'),
-            end: format(endDate, 'yyyy-MM-dd')
-        };
+        return agendaData.map(dayData => {
+            const dateStr = format(dayData.date, 'yyyy-MM-dd');
+            
+            const notesForDate = allNotes.filter(note => {
+                if (note.createdDate) {
+                    const noteCreatedDate = note.createdDate.split('T')[0];
+                    return noteCreatedDate === dateStr;
+                }
+                return false;
+            });
+            
+            return { ...dayData, notes: notesForDate };
+        });
     }
     
     private async renderAgendaContent(container: HTMLElement) {
@@ -332,74 +352,32 @@ export class AgendaView extends ItemView {
         }
         
         try {
-            // Update the date range in the query
-            this.currentQuery.dateRange = this.getDateRange();
-            
-            // Check if we should include overdue tasks (only if today is in range)
-            const today = new Date();
-            const todayStr = format(today, 'yyyy-MM-dd');
             const dates = this.getAgendaDates();
-            const hasTodayInRange = dates.some(date => format(date, 'yyyy-MM-dd') === todayStr);
             
-            // Set includeOverdue flag for efficient filtering
-            this.currentQuery.includeOverdue = this.showOverdueOnToday && hasTodayInRange;
+            // Use FilterService for all agenda filtering logic
+            const agendaData = await this.plugin.filterService.getAgendaData(
+                dates,
+                {
+                    searchQuery: this.currentQuery.searchQuery,
+                    statuses: this.currentQuery.statuses,
+                    contexts: this.currentQuery.contexts,
+                    priorities: this.currentQuery.priorities,
+                    showArchived: this.currentQuery.showArchived,
+                    sortKey: this.currentQuery.sortKey,
+                    sortDirection: this.currentQuery.sortDirection,
+                    groupKey: this.currentQuery.groupKey
+                },
+                this.showOverdueOnToday
+            );
             
-            // Get filtered tasks from FilterService (now efficiently includes overdue if needed)
-            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery, this.plugin.selectedDate);
-            
-            // Flatten the grouped tasks since we'll re-group by date
-            const allTasks = Array.from(groupedTasks.values()).flat();
-            
-            // Get all notes for the date range (FilterService doesn't handle notes yet)
-            const allNotes = await this.plugin.cacheManager.getAllNotes();
-            
-            // Group data by date
-            const agendaData = dates.map(date => {
-                const dateStr = format(date, 'yyyy-MM-dd');
-                
-                // Filter tasks for this date
-                const tasksForDate = allTasks.filter(task => {
-                    // Handle recurring tasks
-                    if (task.recurrence) {
-                        return isRecurringTaskDueOn(task, date);
-                    }
-                    
-                    // Handle regular tasks with due dates for this specific date
-                    if (task.due === dateStr) {
-                        return true;
-                    }
-                    
-                    // Handle regular tasks with scheduled dates for this specific date
-                    if (task.scheduled === dateStr) {
-                        return true;
-                    }
-                    
-                    // If showing overdue tasks and this is today, include overdue tasks
-                    if (this.showOverdueOnToday && isToday(date) && task.due) {
-                        const taskDueDate = parseISO(task.due);
-                        return isBefore(taskDueDate, date);
-                    }
-                    
-                    return false;
-                });
-                
-                // Filter notes for this date (if notes are enabled)
-                const notesForDate = this.showNotes ? allNotes.filter(note => {
-                    if (note.createdDate) {
-                        const noteCreatedDate = note.createdDate.split('T')[0];
-                        return noteCreatedDate === dateStr;
-                    }
-                    return false;
-                }) : [];
-                
-                return { date, tasks: tasksForDate, notes: notesForDate };
-            });
+            // Get notes separately and add them to the agenda data
+            const agendaDataWithNotes = await this.addNotesToAgendaData(agendaData);
             
             // Use DOMReconciler-based rendering
             if (this.groupByDate) {
-                this.renderGroupedAgendaWithReconciler(contentContainer, agendaData);
+                this.renderGroupedAgendaWithReconciler(contentContainer, agendaDataWithNotes);
             } else {
-                this.renderFlatAgendaWithReconciler(contentContainer, agendaData);
+                this.renderFlatAgendaWithReconciler(contentContainer, agendaDataWithNotes);
             }
         } catch (error) {
             console.error('Error rendering agenda content:', error);
@@ -409,216 +387,11 @@ export class AgendaView extends ItemView {
         }
     }
     
-    private renderGroupedAgenda(container: HTMLElement, agendaData: Array<{date: Date, tasks: TaskInfo[], notes: NoteInfo[]}>) {
-        let hasAnyItems = false;
-        
-        agendaData.forEach(dayData => {
-            const dateStr = format(dayData.date, 'yyyy-MM-dd');
-            
-            // Filter tasks (archived filtering already handled by FilterService)
-            const tasksForDate = dayData.tasks.filter(task => {
-                // Handle recurring tasks
-                if (task.recurrence) {
-                    return isRecurringTaskDueOn(task, dayData.date);
-                }
-                
-                // Handle regular tasks with due dates for this specific date
-                if (task.due === dateStr) {
-                    return true;
-                }
-                
-                // Handle regular tasks with scheduled dates for this specific date
-                if (task.scheduled === dateStr) {
-                    return true;
-                }
-                
-                // If showing overdue tasks and this is today, include overdue tasks
-                if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
-                    const taskDueDate = parseISO(task.due);
-                    return isBefore(taskDueDate, dayData.date);
-                }
-                
-                return false;
-            });
-            
-            const hasItems = tasksForDate.length > 0 || dayData.notes.length > 0;
-            
-            if (hasItems) {
-                hasAnyItems = true;
-                
-                // Day header (rendered directly to container)
-                const dayHeader = container.createDiv({ cls: 'agenda-view__day-header' });
-                const headerText = dayHeader.createDiv({ cls: 'agenda-view__day-header-text' });
-                
-                const dayName = format(dayData.date, 'EEEE');
-                const dateFormatted = format(dayData.date, 'MMMM d');
-                
-                if (isToday(dayData.date)) {
-                    headerText.createSpan({ cls: 'agenda-view__day-name agenda-view__day-name--today', text: 'Today' });
-                    headerText.createSpan({ cls: 'agenda-view__day-date', text: ` • ${dateFormatted}` });
-                } else {
-                    headerText.createSpan({ cls: 'agenda-view__day-name', text: dayName });
-                    headerText.createSpan({ cls: 'agenda-view__day-date', text: ` • ${dateFormatted}` });
-                }
-                
-                // Item count badge
-                const itemCount = tasksForDate.length + dayData.notes.length;
-                dayHeader.createDiv({ cls: 'agenda-view__item-count', text: `${itemCount}` });
-                
-                // Render tasks directly to container
-                this.renderTasks(container, tasksForDate);
-                
-                // Render notes directly to container
-                this.renderNotes(container, dayData.notes);
-            }
-        });
-        
-        // Show empty message if no items
-        if (!hasAnyItems) {
-            const emptyMessage = container.createDiv({ cls: 'agenda-view__empty' });
-            
-            emptyMessage.createEl('h3', { 
-                text: 'No Items Scheduled',
-                cls: 'agenda-view__empty-title'
-            });
-            
-            emptyMessage.createEl('p', { 
-                text: 'No items scheduled for this period.',
-                cls: 'agenda-view__empty-description'
-            });
-            
-            const tipMessage = emptyMessage.createEl('p', { 
-                cls: 'agenda-view__empty-tip'
-            });
-            tipMessage.createEl('span', { text: 'Tip: ' });
-            tipMessage.appendChild(document.createTextNode('Create tasks with due or scheduled dates, or add notes to see them here.'));
-        }
-    }
     
-    private renderFlatAgenda(container: HTMLElement, agendaData: Array<{date: Date, tasks: TaskInfo[], notes: NoteInfo[]}>) {
-        // Collect all items with their dates
-        const allItems: Array<{type: 'task' | 'note', item: TaskInfo | NoteInfo, date: Date}> = [];
-        
-        agendaData.forEach(dayData => {
-            const dateStr = format(dayData.date, 'yyyy-MM-dd');
-            
-            dayData.tasks.forEach(task => {
-                // Archived filtering already handled by FilterService
-                let shouldInclude = false;
-                
-                if (task.recurrence) {
-                    shouldInclude = isRecurringTaskDueOn(task, dayData.date);
-                } else if (task.due === dateStr) {
-                    shouldInclude = true;
-                } else if (task.scheduled === dateStr) {
-                    shouldInclude = true;
-                } else if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
-                    // If showing overdue tasks and this is today, include overdue tasks
-                    const taskDueDate = parseISO(task.due);
-                    shouldInclude = isBefore(taskDueDate, dayData.date);
-                }
-                
-                if (shouldInclude) {
-                    allItems.push({ type: 'task', item: task, date: dayData.date });
-                }
-            });
-            
-            dayData.notes.forEach(note => {
-                allItems.push({ type: 'note', item: note, date: dayData.date });
-            });
-        });
-        
-        if (allItems.length === 0) {
-            const emptyMessage = container.createDiv({ cls: 'agenda-view__empty' });
-            emptyMessage.createEl('h3', { 
-                text: 'No Items Found',
-                cls: 'agenda-view__empty-title'
-            });
-            emptyMessage.createEl('p', { 
-                text: 'No items found for the selected period.',
-                cls: 'agenda-view__empty-description'
-            });
-            return;
-        }
-        
-        // Sort by date
-        allItems.sort((a, b) => a.date.getTime() - b.date.getTime());
-        
-        // Render all items
-        const itemList = container.createDiv({ cls: 'agenda-view__day-content agenda-view__day-content--flat' });
-        
-        allItems.forEach(({ type, item, date }) => {
-            if (type === 'task') {
-                this.renderTaskItem(itemList, item as TaskInfo, date);
-            } else {
-                this.renderNoteItem(itemList, item as NoteInfo, date);
-            }
-        });
-    }
     
-    private renderTasks(container: HTMLElement, tasks: TaskInfo[]) {
-        // Sort tasks by priority and status
-        const sortedTasks = [...tasks].sort((a, b) => {
-            // Incomplete tasks first
-            if (a.status !== 'done' && b.status === 'done') return -1;
-            if (a.status === 'done' && b.status !== 'done') return 1;
-            
-            // Then by priority using PriorityManager
-            return this.plugin.priorityManager.comparePriorities(a.priority, b.priority);
-        });
-        
-        sortedTasks.forEach(task => {
-            this.renderTaskItem(container, task);
-        });
-    }
     
-    private renderTaskItem(container: HTMLElement, task: TaskInfo, date?: Date) {
-        const taskCard = createTaskCard(task, this.plugin, {
-            showDueDate: !this.groupByDate,
-            showCheckbox: false,
-            showTimeTracking: true,
-            showRecurringControls: true,
-            groupByDate: this.groupByDate,
-            targetDate: date
-        });
-        
-        // Task cards use their native styling
-        
-        // Add completion status class if task is completed
-        if (this.plugin.statusManager.isCompletedStatus(task.status)) {
-            taskCard.classList.add('done');
-        }
-        
-        container.appendChild(taskCard);
-    }
     
-    private renderNotes(container: HTMLElement, notes: NoteInfo[]) {
-        notes.forEach(note => {
-            this.renderNoteItem(container, note);
-        });
-    }
     
-    private renderNoteItem(container: HTMLElement, note: NoteInfo, date?: Date) {
-        const noteCard = createNoteCard(note, this.plugin, {
-            showCreatedDate: false, // Don't show created date in agenda view
-            showTags: true,
-            showPath: false,
-            maxTags: 3,
-            showDailyNoteBadge: false // Notes in agenda are contextual to date
-        });
-        
-        // Note cards use their native styling
-        
-        // Add date if not grouping by date
-        if (!this.groupByDate && date) {
-            const dateSpan = noteCard.createSpan({ 
-                cls: 'agenda-view__note-date', 
-                text: format(date, 'MMM d') 
-            });
-        }
-        
-        container.appendChild(noteCard);
-    }
     
     /**
      * Render grouped agenda using DOMReconciler for efficient updates
@@ -631,33 +404,8 @@ export class AgendaView extends ItemView {
         agendaData.forEach(dayData => {
             const dateStr = format(dayData.date, 'yyyy-MM-dd');
             
-            // Filter tasks for this date - use the same logic as the main filtering
-            const tasksForDate = dayData.tasks.filter(task => {
-                // Handle recurring tasks
-                if (task.recurrence) {
-                    return isRecurringTaskDueOn(task, dayData.date);
-                }
-                
-                // Handle regular tasks with due dates for this specific date
-                if (task.due === dateStr) {
-                    return true;
-                }
-                
-                // Handle regular tasks with scheduled dates for this specific date
-                if (task.scheduled === dateStr) {
-                    return true;
-                }
-                
-                // If showing overdue tasks and this is today, include overdue tasks
-                if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
-                    const taskDueDate = parseISO(task.due);
-                    return isBefore(taskDueDate, dayData.date);
-                }
-                
-                return false;
-            });
-            
-            const hasItems = tasksForDate.length > 0 || dayData.notes.length > 0;
+            // Tasks are already filtered by FilterService, no need to re-filter
+            const hasItems = dayData.tasks.length > 0 || dayData.notes.length > 0;
             
             if (hasItems) {
                 hasAnyItems = true;
@@ -671,8 +419,8 @@ export class AgendaView extends ItemView {
                     dayKey
                 });
                 
-                // Add tasks
-                tasksForDate.forEach(task => {
+                // Add tasks (already filtered by FilterService)
+                dayData.tasks.forEach(task => {
                     allItems.push({
                         type: 'task',
                         item: task,
@@ -728,26 +476,9 @@ export class AgendaView extends ItemView {
         const allItems: Array<{type: 'task' | 'note', item: TaskInfo | NoteInfo, date: Date}> = [];
         
         agendaData.forEach(dayData => {
-            const dateStr = format(dayData.date, 'yyyy-MM-dd');
-            
+            // Tasks are already filtered by FilterService, no need to re-filter
             dayData.tasks.forEach(task => {
-                let shouldInclude = false;
-                
-                if (task.recurrence) {
-                    shouldInclude = isRecurringTaskDueOn(task, dayData.date);
-                } else if (task.due === dateStr) {
-                    shouldInclude = true;
-                } else if (task.scheduled === dateStr) {
-                    shouldInclude = true;
-                } else if (this.showOverdueOnToday && isToday(dayData.date) && task.due) {
-                    // If showing overdue tasks and this is today, include overdue tasks
-                    const taskDueDate = parseISO(task.due);
-                    shouldInclude = isBefore(taskDueDate, dayData.date);
-                }
-                
-                if (shouldInclude) {
-                    allItems.push({ type: 'task', item: task, date: dayData.date });
-                }
+                allItems.push({ type: 'task', item: task, date: dayData.date });
             });
             
             dayData.notes.forEach(note => {

@@ -3,7 +3,8 @@ import { CacheManager } from '../utils/CacheManager';
 import { StatusManager } from './StatusManager';
 import { PriorityManager } from './PriorityManager';
 import { EventEmitter } from '../utils/EventEmitter';
-import { isRecurringTaskDueOn } from '../utils/helpers';
+import { isRecurringTaskDueOn, isTaskOverdue } from '../utils/helpers';
+import { format, isToday, isBefore, parseISO } from 'date-fns';
 
 /**
  * Unified filtering, sorting, and grouping service for all task views.
@@ -596,5 +597,142 @@ export class FilterService extends EventEmitter {
         this.cacheManager.subscribe('file-deleted', () => {
             this.emit('data-changed');
         });
+    }
+
+    // ============================================================================
+    // AGENDA-SPECIFIC METHODS
+    // ============================================================================
+
+    /**
+     * Generate date range for agenda views from array of dates
+     */
+    static createDateRangeFromDates(dates: Date[]): { start: string; end: string } {
+        if (dates.length === 0) throw new Error('No dates provided');
+        const startDate = dates[0];
+        const endDate = dates[dates.length - 1];
+        
+        return {
+            start: format(startDate, 'yyyy-MM-dd'),
+            end: format(endDate, 'yyyy-MM-dd')
+        };
+    }
+
+    /**
+     * Check if overdue tasks should be included for a date range
+     */
+    static shouldIncludeOverdueForRange(dates: Date[], showOverdue: boolean): boolean {
+        if (!showOverdue) return false;
+        
+        const today = new Date();
+        const todayStr = format(today, 'yyyy-MM-dd');
+        return dates.some(date => format(date, 'yyyy-MM-dd') === todayStr);
+    }
+
+    /**
+     * Get tasks for a specific date within an agenda view
+     * Handles recurring tasks, due dates, scheduled dates, and overdue logic
+     */
+    async getTasksForDate(
+        date: Date, 
+        baseQuery: FilterQuery,
+        includeOverdue: boolean = false
+    ): Promise<TaskInfo[]> {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const dateOnlyDate = new Date(date);
+        dateOnlyDate.setHours(0, 0, 0, 0);
+        
+        // Get tasks using existing query logic but apply date-specific filtering
+        const allTasks = await this.filterTasksByQuery(
+            await this.getInitialTaskSet(baseQuery), 
+            baseQuery
+        );
+
+        return allTasks.filter(task => {
+            // Handle recurring tasks
+            if (task.recurrence) {
+                return isRecurringTaskDueOn(task, dateOnlyDate);
+            }
+            
+            // Handle regular tasks with due dates for this specific date
+            if (task.due === dateStr) {
+                return true;
+            }
+            
+            // Handle regular tasks with scheduled dates for this specific date
+            if (task.scheduled === dateStr) {
+                return true;
+            }
+            
+            // If showing overdue tasks and this is today, include overdue tasks
+            if (includeOverdue && isToday(dateOnlyDate) && task.due) {
+                const taskDueDate = parseISO(task.due);
+                return isBefore(taskDueDate, dateOnlyDate);
+            }
+            
+            return false;
+        });
+    }
+
+    /**
+     * Get agenda data grouped by dates for agenda views
+     * Centralizes all the complex agenda filtering logic
+     */
+    async getAgendaData(
+        dates: Date[], 
+        baseQuery: Omit<FilterQuery, 'dateRange' | 'includeOverdue'>,
+        showOverdueOnToday: boolean = false
+    ): Promise<Array<{date: Date; tasks: TaskInfo[]}>> {
+        // Build the complete query with date range
+        const dateRange = FilterService.createDateRangeFromDates(dates);
+        const includeOverdue = FilterService.shouldIncludeOverdueForRange(dates, showOverdueOnToday);
+        
+        const completeQuery: FilterQuery = {
+            ...baseQuery,
+            dateRange,
+            includeOverdue
+        };
+
+        const agendaData: Array<{date: Date; tasks: TaskInfo[]}> = [];
+
+        // Get tasks for each date
+        for (const date of dates) {
+            const tasksForDate = await this.getTasksForDate(
+                date, 
+                completeQuery, 
+                showOverdueOnToday && isToday(date)
+            );
+            
+            agendaData.push({
+                date: new Date(date),
+                tasks: tasksForDate
+            });
+        }
+
+        return agendaData;
+    }
+
+    /**
+     * Get flat agenda data (all tasks in one array) with date information attached
+     * Useful for flat agenda view rendering
+     */
+    async getFlatAgendaData(
+        dates: Date[], 
+        baseQuery: Omit<FilterQuery, 'dateRange' | 'includeOverdue'>,
+        showOverdueOnToday: boolean = false
+    ): Promise<Array<TaskInfo & {agendaDate: Date}>> {
+        const groupedData = await this.getAgendaData(dates, baseQuery, showOverdueOnToday);
+        
+        const flatData: Array<TaskInfo & {agendaDate: Date}> = [];
+        
+        for (const dayData of groupedData) {
+            for (const task of dayData.tasks) {
+                flatData.push({
+                    ...task,
+                    agendaDate: dayData.date
+                });
+            }
+        }
+
+        return flatData;
     }
 }
