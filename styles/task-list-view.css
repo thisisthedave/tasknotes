@@ -74,6 +74,23 @@
     min-height: 0;
 }
 
+.tasknotes-plugin .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tn-spacing-xs);
+    flex: 1;
+    min-height: 0;
+}
+
+/* Ensure task cards in task list have proper spacing */
+.tasknotes-plugin .task-list .task-card {
+    margin-bottom: var(--tn-spacing-xs);
+}
+
+.tasknotes-plugin .task-list .task-card:last-child {
+    margin-bottom: 0;
+}
+
 /* Loading Indicator */
 .tasknotes-plugin .task-list-view__loading {
     display: flex;
@@ -235,18 +252,6 @@
     }
 }
 
-/* Task List Specific TaskCard Overrides */
-.tasknotes-plugin .task-list-view .task-card {
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    margin: 0;
-}
-
-.tasknotes-plugin .task-list-view .task-card:hover {
-    transform: none;
-    box-shadow: none;
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
