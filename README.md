@@ -13,13 +13,15 @@ TaskNotes focuses on time-based organization and task management, storing all da
 ### Task Management
 - Tasks stored as individual Markdown files with YAML frontmatter
 - Flexible filename formats: task title, zettelkasten ID, timestamp, or custom templates with live preview
-- Task properties include: title, status, priority, due date, contexts, tags, time estimates, and time tracking data
+- Task properties include: title, status, priority, due date, scheduled date, contexts, tags, time estimates, and time tracking data
+- **Instant Task Conversion**: Convert checkbox tasks into dedicated TaskNotes with inline convert buttons
+- **Interactive Task Link Overlays**: Preview and interact with tasks directly in the editor via wikilink overlays
 - Support for recurring tasks (daily, weekly, monthly, yearly) with per-date completion tracking
 - Enhanced recurring task UI with visual indicators and date-specific completion controls
 - Built-in time tracking with multiple sessions per task
 - Archive functionality using tags to hide completed tasks while preserving history
-- Advanced filtering with search, status, context, priority, date range, and overdue task support
-- Flexible grouping options (status, priority, context, due date) with intelligent sorting
+- Advanced filtering with search, status, context, priority, date range, and overdue task support (considers both due and scheduled dates)
+- Flexible grouping options (status, priority, context, due date, scheduled date) with intelligent sorting
 - Context menu interactions for quick task property changes
 
 ### Calendar Integration
@@ -49,6 +51,12 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - Persistent session history and detailed statistics tracking
 - Dedicated statistics view with completion metrics and trends
 - Integration with task time tracking
+
+### Editor Integration
+- **Task Link Overlays**: Interactive task previews displayed on wikilinks in live preview mode
+- **Instant Task Conversion**: One-click conversion of checkbox tasks to dedicated TaskNotes with inline buttons
+- **Smart Task Detection**: Automatic detection and enhancement of task-related content in the editor
+- **Live Task Previews**: Hover and click interactions for task editing without leaving the current note
 
 ### Views and Layouts
 - **Calendar View**: Month calendar with agenda display and integrated controls
@@ -210,6 +218,7 @@ dateCreated: "2024-01-15T10:30:00"
 dateModified: "2024-01-15T14:45:00"
 status: "in-progress"
 due: "2024-01-20"
+scheduled: "2024-01-18"
 tags: ["task", "documentation"]
 priority: "high"
 contexts: ["work", "writing"]
@@ -278,6 +287,7 @@ Configure which frontmatter properties TaskNotes uses for each field. This allow
 - **Status**: Property name for task status (default: "status") 
 - **Priority**: Property name for task priority (default: "priority")
 - **Due date**: Property name for due dates (default: "due")
+- **Scheduled date**: Property name for scheduled dates (default: "scheduled")
 - **Contexts**: Property name for contexts/tags (default: "contexts")
 - **Time tracking**: Properties for time estimates and tracking
 - **Archive tag**: Property name for archived tasks (default: "archived")
