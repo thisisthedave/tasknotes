@@ -1,5 +1,5 @@
 import { normalizePath, TFile, Vault } from 'obsidian';
-import { format } from 'date-fns';
+import { format, parseISO, startOfDay, isBefore, isSameDay as isSameDayFns } from 'date-fns';
 import { TimeInfo, TaskInfo, TimeEntry } from '../types';
 import * as YAML from 'yaml';
 import { YAMLCache } from './YAMLCache';
@@ -475,11 +475,16 @@ export function extractTaskInfo(
 export function isTaskOverdue(task: {due?: string}): boolean {
 	if (!task.due) return false;
 	
-	const dueDate = new Date(task.due);
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
-	
-	return dueDate < today;
+	try {
+		// Safely parse the date string using date-fns
+		const dueDate = startOfDay(parseISO(task.due));
+		const today = startOfDay(new Date());
+		
+		return isBefore(dueDate, today); // Use date-fns for comparison
+	} catch (error) {
+		console.error(`Error parsing due date ${task.due}:`, error);
+		return false;
+	}
 }
 
 /**
@@ -516,9 +521,14 @@ export function isRecurringTaskDueOn(task: any, date: Date): boolean {
 			}
 			// Fall back to using the original due date
 			else if (task.due) {
-				const originalDueDate = new Date(task.due);
-				return originalDueDate.getDate() === dayOfMonth && 
-					originalDueDate.getMonth() === targetDate.getMonth();
+				try {
+					const originalDueDate = parseISO(task.due); // Safe parsing
+					return originalDueDate.getDate() === dayOfMonth && 
+						originalDueDate.getMonth() === targetDate.getMonth();
+				} catch (error) {
+					console.error(`Error parsing due date ${task.due}:`, error);
+					return false;
+				}
 			}
 			return false;
 		default:
@@ -623,7 +633,7 @@ export function extractNoteInfo(content: string, path: string, file?: TFile): {t
 		// If it's a full ISO timestamp or similar, extract just the date part
 		else {
 			try {
-				const date = new Date(createdDate);
+				const date = parseISO(createdDate); // Use parseISO for safe parsing
 				if (!isNaN(date.getTime())) {
 					// Format to YYYY-MM-DD to ensure consistency
 					createdDate = format(date, "yyyy-MM-dd");

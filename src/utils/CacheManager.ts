@@ -3,6 +3,7 @@ import { TaskInfo, NoteInfo, IndexedFile, FileEventHandlers } from '../types';
 import { extractNoteInfo, extractTaskInfo, debounce } from './helpers';
 import { FieldMapper } from '../services/FieldMapper';
 import * as YAML from 'yaml';
+import { format } from 'date-fns';
 
 /**
  * Unified cache manager that provides centralized data access and caching
@@ -362,7 +363,7 @@ export class CacheManager {
     async getTasksDueOnDate(date: Date): Promise<TaskInfo[]> {
         // Ensure cache is initialized first
         await this.ensureInitialized();
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = format(date, 'yyyy-MM-dd'); // CORRECT: Uses local timezone
         const taskPaths = this.tasksByDate.get(dateStr) || new Set();
         const results: TaskInfo[] = [];
         
@@ -389,7 +390,7 @@ export class CacheManager {
     async getNotesForDate(date: Date, forceRefresh = false): Promise<NoteInfo[]> {
         // Ensure cache is initialized first
         await this.ensureInitialized();
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = format(date, 'yyyy-MM-dd'); // CORRECT: Uses local timezone
         const notePaths = this.notesByDate.get(dateStr) || new Set();
         const results: NoteInfo[] = [];
         
@@ -702,7 +703,10 @@ export class CacheManager {
         
         // Add to new indexes
         if (noteInfo.createdDate) {
-            const dateStr = noteInfo.createdDate.split('T')[0];
+            // Extract just the date part - handle both YYYY-MM-DD and full ISO timestamps
+            const dateStr = noteInfo.createdDate.includes('T') 
+                ? noteInfo.createdDate.split('T')[0] 
+                : noteInfo.createdDate;
             if (!this.notesByDate.has(dateStr)) {
                 this.notesByDate.set(dateStr, new Set());
             }
@@ -804,7 +808,10 @@ export class CacheManager {
             const oldNote = oldData as NoteInfo;
             
             if (oldNote.createdDate) {
-                const dateStr = oldNote.createdDate.split('T')[0];
+                // Extract just the date part - handle both YYYY-MM-DD and full ISO timestamps
+                const dateStr = oldNote.createdDate.includes('T') 
+                    ? oldNote.createdDate.split('T')[0] 
+                    : oldNote.createdDate;
                 const pathSet = this.notesByDate.get(dateStr);
                 if (pathSet) {
                     pathSet.delete(path);

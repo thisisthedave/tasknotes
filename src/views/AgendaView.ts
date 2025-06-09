@@ -334,8 +334,14 @@ export class AgendaView extends ItemView {
             
             const notesForDate = allNotes.filter(note => {
                 if (note.createdDate) {
-                    const noteCreatedDate = note.createdDate.split('T')[0];
-                    return noteCreatedDate === dateStr;
+                    try {
+                        // Safely parse the note's date and compare it to the agenda's date
+                        const noteDate = parseISO(note.createdDate);
+                        return isSameDay(noteDate, dayData.date);
+                    } catch (e) {
+                        // Handle cases where the date string might be invalid
+                        return false;
+                    }
                 }
                 return false;
             });

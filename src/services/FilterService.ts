@@ -102,7 +102,7 @@ export class FilterService extends EventEmitter {
 
         // Get tasks with due dates in the range (existing logic)
         for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = format(date, 'yyyy-MM-dd'); // CORRECT: Uses local timezone
             const pathsForDate = this.cacheManager.getTaskPathsByDate(dateStr);
             pathsForDate.forEach(path => pathsInRange.add(path));
         }
@@ -254,20 +254,28 @@ export class FilterService extends EventEmitter {
                 
                 // Check due date
                 if (task.due) {
-                    const dueDate = new Date(task.due);
-                    if (query.includeOverdue && dueDate < new Date()) {
-                        // This is an overdue task and we want to include overdue tasks
-                        inRange = true;
-                    } else if (dueDate >= startDate && dueDate <= endDate) {
-                        inRange = true;
+                    try {
+                        const dueDate = parseISO(task.due); // Safe parsing
+                        if (query.includeOverdue && isBefore(dueDate, new Date())) {
+                            // This is an overdue task and we want to include overdue tasks
+                            inRange = true;
+                        } else if (dueDate >= startDate && dueDate <= endDate) {
+                            inRange = true;
+                        }
+                    } catch (error) {
+                        console.error(`Error parsing due date ${task.due}:`, error);
                     }
                 }
                 
                 // Check scheduled date if due date doesn't qualify
                 if (!inRange && task.scheduled) {
-                    const scheduledDate = new Date(task.scheduled);
-                    if (scheduledDate >= startDate && scheduledDate <= endDate) {
-                        inRange = true;
+                    try {
+                        const scheduledDate = parseISO(task.scheduled); // Safe parsing
+                        if (scheduledDate >= startDate && scheduledDate <= endDate) {
+                            inRange = true;
+                        }
+                    } catch (error) {
+                        console.error(`Error parsing scheduled date ${task.scheduled}:`, error);
                     }
                 }
                 
@@ -420,25 +428,30 @@ export class FilterService extends EventEmitter {
      * Helper method to get due date group from a specific date string
      */
     private getDueDateGroupFromDate(dueDate: string): string {
-        const due = new Date(dueDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        try {
+            const due = parseISO(dueDate); // Safe parsing
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const thisWeek = new Date(today);
-        thisWeek.setDate(thisWeek.getDate() + 7);
+            const thisWeek = new Date(today);
+            thisWeek.setDate(thisWeek.getDate() + 7);
 
-        const dueDateOnly = new Date(due);
-        dueDateOnly.setHours(0, 0, 0, 0);
+            const dueDateOnly = new Date(due);
+            dueDateOnly.setHours(0, 0, 0, 0);
 
-        if (dueDateOnly < today) return 'Overdue';
-        if (dueDateOnly.getTime() === today.getTime()) return 'Today';
-        if (dueDateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow';
-        if (dueDateOnly <= thisWeek) return 'This week';
-        
-        return 'Later';
+            if (dueDateOnly < today) return 'Overdue';
+            if (dueDateOnly.getTime() === today.getTime()) return 'Today';
+            if (dueDateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow';
+            if (dueDateOnly <= thisWeek) return 'This week';
+            
+            return 'Later';
+        } catch (error) {
+            console.error(`Error parsing due date ${dueDate}:`, error);
+            return 'Invalid Date';
+        }
     }
 
     private getScheduledDateGroup(task: TaskInfo, targetDate?: Date): string {
@@ -450,25 +463,30 @@ export class FilterService extends EventEmitter {
      * Helper method to get scheduled date group from a specific date string
      */
     private getScheduledDateGroupFromDate(scheduledDate: string): string {
-        const scheduled = new Date(scheduledDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        try {
+            const scheduled = parseISO(scheduledDate); // Safe parsing
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const thisWeek = new Date(today);
-        thisWeek.setDate(thisWeek.getDate() + 7);
+            const thisWeek = new Date(today);
+            thisWeek.setDate(thisWeek.getDate() + 7);
 
-        const scheduledDateOnly = new Date(scheduled);
-        scheduledDateOnly.setHours(0, 0, 0, 0);
+            const scheduledDateOnly = new Date(scheduled);
+            scheduledDateOnly.setHours(0, 0, 0, 0);
 
-        if (scheduledDateOnly < today) return 'Past scheduled';
-        if (scheduledDateOnly.getTime() === today.getTime()) return 'Today';
-        if (scheduledDateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow';
-        if (scheduledDateOnly <= thisWeek) return 'This week';
-        
-        return 'Later';
+            if (scheduledDateOnly < today) return 'Past scheduled';
+            if (scheduledDateOnly.getTime() === today.getTime()) return 'Today';
+            if (scheduledDateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow';
+            if (scheduledDateOnly <= thisWeek) return 'This week';
+            
+            return 'Later';
+        } catch (error) {
+            console.error(`Error parsing scheduled date ${scheduledDate}:`, error);
+            return 'Invalid Date';
+        }
     }
 
     /**
