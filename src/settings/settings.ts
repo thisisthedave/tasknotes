@@ -145,6 +145,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		containerEl.addClass('tasknotes-settings');
 		
 		// Create tab navigation
 		const tabNav = containerEl.createDiv('settings-tab-nav');

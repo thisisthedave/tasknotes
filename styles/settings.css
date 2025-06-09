@@ -292,43 +292,43 @@
     outline-offset: 2px;
 }
 
-/* Obsidian Setting component overrides for better integration */
-.setting-item {
+/* Properly scoped settings styling - only affects TaskNotes settings */
+.tasknotes-settings .setting-item {
     border: none;
     border-bottom: 1px solid var(--background-modifier-border-hover);
     padding: var(--cs-spacing-md) 0;
     margin-bottom: 0;
 }
 
-.setting-item:last-child {
+.tasknotes-settings .setting-item:last-child {
     border-bottom: none;
 }
 
-.setting-item-info {
+.tasknotes-settings .setting-item-info {
     flex-grow: 1;
 }
 
-.setting-item-name {
+.tasknotes-settings .setting-item-name {
     font-weight: 500;
     color: var(--text-normal);
     font-size: var(--cs-text-base);
     margin-bottom: var(--cs-spacing-xs);
 }
 
-.setting-item-description {
+.tasknotes-settings .setting-item-description {
     color: var(--text-muted);
     font-size: var(--cs-text-sm);
     line-height: 1.4;
     margin: 0;
 }
 
-.setting-item-control {
+.tasknotes-settings .setting-item-control {
     flex-shrink: 0;
     margin-left: var(--cs-spacing-md);
 }
 
 /* Heading styles */
-.setting-item.setting-item-heading {
+.tasknotes-settings .setting-item.setting-item-heading {
     padding-top: var(--cs-spacing-lg);
     margin-top: var(--cs-spacing-lg);
     border-top: 1px solid var(--background-modifier-border);
@@ -336,13 +336,13 @@
     padding-bottom: var(--cs-spacing-sm);
 }
 
-.setting-item.setting-item-heading:first-child {
+.tasknotes-settings .setting-item.setting-item-heading:first-child {
     border-top: none;
     margin-top: 0;
     padding-top: 0;
 }
 
-.setting-item-heading .setting-item-name {
+.tasknotes-settings .setting-item-heading .setting-item-name {
     font-size: var(--cs-text-lg);
     font-weight: 600;
     color: var(--text-normal);
