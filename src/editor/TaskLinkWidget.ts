@@ -35,8 +35,8 @@ export class TaskLinkWidget extends WidgetType {
         
         // Build inline content with proper DOM creation using CSS classes
         
-        // Task title (allow more text)
-        const titleText = this.taskInfo.title.length > 30 ? this.taskInfo.title.slice(0, 27) + '...' : this.taskInfo.title;
+        // Task title (allow longer text)
+        const titleText = this.taskInfo.title.length > 80 ? this.taskInfo.title.slice(0, 77) + '...' : this.taskInfo.title;
         const titleSpan = container.createEl('span', { 
             cls: 'task-inline-preview__title',
             text: titleText 
