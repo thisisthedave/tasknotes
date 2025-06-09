@@ -476,10 +476,11 @@ export class PomodoroService {
                         file = this.plugin.app.vault.getAbstractFileByPath(dailyNotePath);
                         if (file instanceof TFile) {
                             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                                if (!frontmatter.pomodoros || typeof frontmatter.pomodoros !== 'number') {
-                                    frontmatter.pomodoros = 0;
+                                const pomodoroField = this.plugin.fieldMapper.toUserField('pomodoros');
+                                if (!frontmatter[pomodoroField] || typeof frontmatter[pomodoroField] !== 'number') {
+                                    frontmatter[pomodoroField] = 0;
                                 }
-                                frontmatter.pomodoros++;
+                                frontmatter[pomodoroField]++;
                                 // Updated pomodoro count
                             });
                         }
@@ -491,11 +492,12 @@ export class PomodoroService {
                 // Daily note exists, updating pomodoro count
                 // Update existing daily note
                 await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                    const oldCount = frontmatter.pomodoros || 0;
-                    if (!frontmatter.pomodoros) {
-                        frontmatter.pomodoros = 0;
+                    const pomodoroField = this.plugin.fieldMapper.toUserField('pomodoros');
+                    const oldCount = frontmatter[pomodoroField] || 0;
+                    if (!frontmatter[pomodoroField]) {
+                        frontmatter[pomodoroField] = 0;
                     }
-                    frontmatter.pomodoros++;
+                    frontmatter[pomodoroField]++;
                     // Updated pomodoro count
                 });
             }

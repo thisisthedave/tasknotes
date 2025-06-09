@@ -216,6 +216,7 @@ export interface FieldMapping {
 	archiveTag: string;  // For the archive tag in the tags array
 	timeEntries: string;
 	completeInstances: string;
+	pomodoros: string;  // For daily note pomodoro tracking
 }
 
 export interface StatusConfig {

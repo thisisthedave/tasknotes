@@ -403,7 +403,7 @@ export class PomodoroView extends ItemView {
                 // Use the optimized getTaskByPath method
                 const task = await this.plugin.cacheManager.getTaskByPath(lastTaskPath);
                 
-                if (task && task.status !== 'done' && !task.archived) {
+                if (task && !this.plugin.statusManager.isCompletedStatus(task.status) && !task.archived) {
                     await this.selectTask(task);
                 }
             }

@@ -51,7 +51,8 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	recurrence: 'recurrence',
 	archiveTag: 'archived',
 	timeEntries: 'timeEntries',
-	completeInstances: 'complete_instances'
+	completeInstances: 'complete_instances',
+	pomodoros: 'pomodoros'
 };
 
 // Default status configuration matches current hardcoded behavior
