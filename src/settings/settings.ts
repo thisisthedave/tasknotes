@@ -27,6 +27,8 @@ export interface TaskNotesSettings {
 	pomodoroNotifications: boolean;
 	pomodoroSoundEnabled: boolean;
 	pomodoroSoundVolume: number; // 0-100
+	// Editor settings
+	enableTaskLinkOverlay: boolean;
 	// Customization settings
 	fieldMapping: FieldMapping;
 	customStatuses: StatusConfig[];
@@ -125,6 +127,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	pomodoroNotifications: true,
 	pomodoroSoundEnabled: true,
 	pomodoroSoundVolume: 50,
+	// Editor defaults
+	enableTaskLinkOverlay: true,
 	// Customization defaults
 	fieldMapping: DEFAULT_FIELD_MAPPING,
 	customStatuses: DEFAULT_STATUSES,
@@ -252,6 +256,19 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.excludedFolders)
 				.onChange(async (value) => {
 					this.plugin.settings.excludedFolders = value;
+					await this.plugin.saveSettings();
+				}));
+		
+		// Editor section
+		new Setting(container).setName('Editor settings').setHeading();
+		
+		new Setting(container)
+			.setName('Task link overlay')
+			.setDesc('Replace wikilinks to task files with interactive task cards in live preview mode')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableTaskLinkOverlay)
+				.onChange(async (value) => {
+					this.plugin.settings.enableTaskLinkOverlay = value;
 					await this.plugin.saveSettings();
 				}));
 		
@@ -419,16 +436,16 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		});
 		
 		// Column headers
-		const headersRow = container.createDiv('settings-headers-row');
-		headersRow.createDiv('settings-header-spacer'); // For color indicator space
-		headersRow.createEl('span', { text: 'Value', cls: 'settings-column-header' });
-		headersRow.createEl('span', { text: 'Display Label', cls: 'settings-column-header' });
-		headersRow.createEl('span', { text: 'Color', cls: 'settings-column-header' });
-		headersRow.createEl('span', { text: 'Mark as Completed', cls: 'settings-column-header' });
-		headersRow.createDiv('settings-header-spacer'); // For delete button space
+		const headersRow = container.createDiv('settings-headers-row settings-view__list-headers');
+		headersRow.createDiv('settings-header-spacer settings-view__header-spacer'); // For color indicator space
+		headersRow.createEl('span', { text: 'Value', cls: 'settings-column-header settings-view__column-header' });
+		headersRow.createEl('span', { text: 'Display Label', cls: 'settings-column-header settings-view__column-header' });
+		headersRow.createEl('span', { text: 'Color', cls: 'settings-column-header settings-view__column-header' });
+		headersRow.createEl('span', { text: 'Mark as Completed', cls: 'settings-column-header settings-view__column-header' });
+		headersRow.createDiv('settings-header-spacer settings-view__header-spacer'); // For delete button space
 		
 		// Status list
-		const statusList = container.createDiv('settings-list');
+		const statusList = container.createDiv('settings-list settings-view__list');
 		
 		this.renderStatusList(statusList);
 		
@@ -560,16 +577,16 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		});
 		
 		// Column headers
-		const headersRow = container.createDiv('settings-headers-row');
-		headersRow.createDiv('settings-header-spacer'); // For color indicator space
-		headersRow.createEl('span', { text: 'Value', cls: 'settings-column-header' });
-		headersRow.createEl('span', { text: 'Display Label', cls: 'settings-column-header' });
-		headersRow.createEl('span', { text: 'Color', cls: 'settings-column-header' });
-		headersRow.createEl('span', { text: 'Weight', cls: 'settings-column-header' });
-		headersRow.createDiv('settings-header-spacer'); // For delete button space
+		const headersRow = container.createDiv('settings-headers-row settings-view__list-headers');
+		headersRow.createDiv('settings-header-spacer settings-view__header-spacer'); // For color indicator space
+		headersRow.createEl('span', { text: 'Value', cls: 'settings-column-header settings-view__column-header' });
+		headersRow.createEl('span', { text: 'Display Label', cls: 'settings-column-header settings-view__column-header' });
+		headersRow.createEl('span', { text: 'Color', cls: 'settings-column-header settings-view__column-header' });
+		headersRow.createEl('span', { text: 'Weight', cls: 'settings-column-header settings-view__column-header' });
+		headersRow.createDiv('settings-header-spacer settings-view__header-spacer'); // For delete button space
 		
 		// Priority list
-		const priorityList = container.createDiv('settings-list');
+		const priorityList = container.createDiv('settings-list settings-view__list');
 		
 		this.renderPriorityList(priorityList);
 		
