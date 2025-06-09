@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, Setting } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     POMODORO_VIEW_TYPE,
@@ -225,35 +225,36 @@ export class PomodoroView extends ItemView {
         
         // Quick start actions (grouped together)
         const quickStartSection = controlSection.createDiv({ cls: 'pomodoro-view__quick-start-section' });
-        const quickStartLabel = quickStartSection.createDiv({ cls: 'pomodoro-view__section-label', text: 'Quick Start' });
+        const quickStartLabel = quickStartSection.createDiv({ cls: 'pomodoro-view__section-label', text: 'Quick start' });
         
         const quickActions = quickStartSection.createDiv({ cls: 'pomodoro-view__quick-actions' });
         
         const workButton = quickActions.createEl('button', {
-            text: 'Work Session',
+            text: 'Work session',
             cls: 'pomodoro-view__quick-button pomodoro-view__work-button'
         });
         
         const shortBreakButton = quickActions.createEl('button', {
-            text: 'Short Break',
+            text: 'Short break',
             cls: 'pomodoro-view__quick-button pomodoro-view__short-break-button'
         });
         
         const longBreakButton = quickActions.createEl('button', {
-            text: 'Long Break',
+            text: 'Long break',
             cls: 'pomodoro-view__quick-button pomodoro-view__long-break-button'
         });
         
         // Statistics
         const statsSection = container.createDiv({ cls: 'pomodoro-view__stats-section' });
         const statsHeader = statsSection.createDiv({ cls: 'pomodoro-view__stats-header' });
-        new Setting(statsHeader)
-            .setName('Today\'s progress')
-            .setHeading();
+        statsHeader.createEl('h3', {
+            text: 'Today\'s progress',
+            cls: 'pomodoro-view__stats-title'
+        });
         
         const viewStatsButton = statsHeader.createEl('button', {
             cls: 'pomodoro-view__view-stats-button',
-            text: 'View All Stats'
+            text: 'View all stats'
         });
         
         this.registerDomEvent(viewStatsButton, 'click', async () => {

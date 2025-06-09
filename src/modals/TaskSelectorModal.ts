@@ -16,6 +16,15 @@ export class TaskSelectorModal extends FuzzySuggestModal<TaskInfo> {
             { command: '↵', purpose: 'to select' },
             { command: 'esc', purpose: 'to dismiss' },
         ]);
+        
+        // Set modal title for accessibility
+        this.titleEl.setText('Select Task');
+        this.titleEl.setAttribute('id', 'task-selector-title');
+        
+        // Set aria attributes on the modal
+        this.containerEl.setAttribute('aria-labelledby', 'task-selector-title');
+        this.containerEl.setAttribute('role', 'dialog');
+        this.containerEl.setAttribute('aria-modal', 'true');
     }
 
     getItems(): TaskInfo[] {

@@ -30,9 +30,8 @@ export class KanbanView extends ItemView {
         super(leaf);
         this.plugin = plugin;
         
-        // Initialize with saved state or default query for Kanban
-        const savedQuery = this.plugin.viewStateManager?.getFilterState(KANBAN_VIEW_TYPE);
-        this.currentQuery = savedQuery || {
+        // Initialize with default query (will be updated in onOpen after plugin is ready)
+        this.currentQuery = {
             searchQuery: undefined,
             statuses: undefined,
             contexts: undefined,
@@ -111,6 +110,14 @@ export class KanbanView extends ItemView {
         // Wait for the plugin to be fully initialized before proceeding
         await this.plugin.onReady();
         
+        // Wait for ViewStateManager initialization and load saved filter state
+        // ViewStateManager loads synchronously now
+        const savedQuery = this.plugin.viewStateManager.getFilterState(KANBAN_VIEW_TYPE);
+        if (savedQuery) {
+            this.currentQuery = savedQuery;
+            this.previousGroupKey = this.currentQuery.groupKey;
+        }
+        
         this.contentEl.empty();
         await this.render();
     }
@@ -179,10 +186,10 @@ export class KanbanView extends ItemView {
         );
         
         // Listen for filter changes
-        this.filterBar.on('queryChange', (newQuery: FilterQuery) => {
+        this.filterBar.on('queryChange', async (newQuery: FilterQuery) => {
             this.currentQuery = newQuery;
             // Save the filter state
-            this.plugin.viewStateManager.setFilterState(KANBAN_VIEW_TYPE, newQuery);
+            await this.plugin.viewStateManager.setFilterState(KANBAN_VIEW_TYPE, newQuery);
             this.loadAndRenderBoard();
         });
 
@@ -195,7 +202,7 @@ export class KanbanView extends ItemView {
         // Add new task button
         const newTaskButton = leftActions.createEl('button', { 
             cls: 'kanban-view__new-task-button',
-            text: 'New Task'
+            text: 'New task'
         });
         newTaskButton.addEventListener('click', () => {
             this.plugin.openTaskCreationModal();

@@ -38,9 +38,8 @@ export class AgendaView extends ItemView {
         this.plugin = plugin;
         this.startDate = new Date(plugin.selectedDate);
         
-        // Initialize with saved state or default query for agenda view
-        const savedQuery = this.plugin.viewStateManager?.getFilterState(AGENDA_VIEW_TYPE);
-        this.currentQuery = savedQuery || {
+        // Initialize with default query (will be updated in onOpen after plugin is ready)
+        this.currentQuery = {
             searchQuery: undefined,
             statuses: undefined,
             contexts: undefined,
@@ -105,6 +104,17 @@ export class AgendaView extends ItemView {
     async onOpen() {
         // Wait for the plugin to be fully initialized before proceeding
         await this.plugin.onReady();
+        
+        // Wait for ViewStateManager initialization and load saved filter state
+        // ViewStateManager loads synchronously now
+        const savedQuery = this.plugin.viewStateManager.getFilterState(AGENDA_VIEW_TYPE);
+        if (savedQuery) {
+            // Preserve our current date range but use saved filters
+            this.currentQuery = {
+                ...savedQuery,
+                dateRange: this.getDateRange()
+            };
+        }
         
         const contentEl = this.contentEl;
         contentEl.empty();
@@ -222,11 +232,11 @@ export class AgendaView extends ItemView {
         this.filterBar.setupCacheRefresh(this.plugin.cacheManager, this.plugin.filterService);
         
         // Listen for filter changes
-        this.filterBar.on('queryChange', (newQuery: FilterQuery) => {
+        this.filterBar.on('queryChange', async (newQuery: FilterQuery) => {
             this.currentQuery = newQuery;
             // Save the filter state (but always update date range based on current view)
             const queryToSave = { ...newQuery, dateRange: this.getDateRange() };
-            this.plugin.viewStateManager.setFilterState(AGENDA_VIEW_TYPE, queryToSave);
+            await this.plugin.viewStateManager.setFilterState(AGENDA_VIEW_TYPE, queryToSave);
             this.refresh();
         });
         
@@ -451,7 +461,7 @@ export class AgendaView extends ItemView {
             container.empty();
             const emptyMessage = container.createDiv({ cls: 'agenda-view__empty' });
             emptyMessage.createEl('h3', { 
-                text: 'No Items Scheduled',
+                text: 'No items scheduled',
                 cls: 'agenda-view__empty-title'
             });
             emptyMessage.createEl('p', { 
@@ -496,7 +506,7 @@ export class AgendaView extends ItemView {
             container.empty();
             const emptyMessage = container.createDiv({ cls: 'agenda-view__empty' });
             emptyMessage.createEl('h3', { 
-                text: 'No Items Found',
+                text: 'No items found',
                 cls: 'agenda-view__empty-title'
             });
             emptyMessage.createEl('p', { 

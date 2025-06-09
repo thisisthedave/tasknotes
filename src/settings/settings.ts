@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { FieldMapping, StatusConfig, PriorityConfig } from '../types';
 import { StatusManager } from '../services/StatusManager';
@@ -168,13 +168,34 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		];
 		
 		tabs.forEach(tab => {
+			const isActive = this.activeTab === tab.id;
 			const tabButton = tabNav.createEl('button', {
 				text: tab.name,
-				cls: this.activeTab === tab.id ? 'settings-tab-button settings-view__tab-button active settings-view__tab-button--active' : 'settings-tab-button settings-view__tab-button'
+				cls: isActive ? 'settings-tab-button settings-view__tab-button active settings-view__tab-button--active' : 'settings-tab-button settings-view__tab-button',
+				attr: {
+					'role': 'tab',
+					'aria-selected': isActive.toString(),
+					'aria-controls': `settings-tab-${tab.id}`,
+					'id': `tab-button-${tab.id}`,
+					'tabindex': isActive ? '0' : '-1'
+				}
 			});
 			
 			tabButton.addEventListener('click', () => {
 				this.switchTab(tab.id);
+			});
+			
+			tabButton.addEventListener('keydown', (e) => {
+				if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+					e.preventDefault();
+					const currentIndex = tabs.findIndex(t => t.id === tab.id);
+					const nextIndex = e.key === 'ArrowRight' 
+						? (currentIndex + 1) % tabs.length
+						: (currentIndex - 1 + tabs.length) % tabs.length;
+					const nextTabId = tabs[nextIndex].id;
+					this.switchTab(nextTabId);
+					// Focus will be set in switchTab
+				}
 			});
 		});
 		
@@ -184,6 +205,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		// Create all tab content containers
 		tabs.forEach(tab => {
 			const tabContent = tabContentsEl.createDiv('settings-tab-content settings-view__tab-content');
+			tabContent.setAttribute('role', 'tabpanel');
+			tabContent.setAttribute('id', `settings-tab-${tab.id}`);
+			tabContent.setAttribute('aria-labelledby', `tab-button-${tab.id}`);
 			if (this.activeTab === tab.id) {
 				tabContent.addClass('active');
 				tabContent.addClass('settings-view__tab-content--active');
@@ -197,6 +221,14 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 	private switchTab(tabId: string): void {
 		this.activeTab = tabId;
 		this.display(); // Re-render the entire settings tab
+		
+		// Focus the newly active tab button
+		setTimeout(() => {
+			const activeTabButton = this.containerEl.querySelector(`#tab-button-${tabId}`) as HTMLElement;
+			if (activeTabButton) {
+				activeTabButton.focus();
+			}
+		}, 50);
 	}
 	
 	private renderActiveTab(): void {
@@ -231,35 +263,44 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName('Default tasks folder')
 			.setDesc('Default folder for new tasks (tasks are identified by tag, not folder)')
-			.addText(text => text
-				.setPlaceholder('TaskNotes/Tasks')
-				.setValue(this.plugin.settings.tasksFolder)
-				.onChange(async (value) => {
-					this.plugin.settings.tasksFolder = value;
-					await this.plugin.saveSettings();
-				}));
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Default tasks folder path');
+				return text
+					.setPlaceholder('TaskNotes/Tasks')
+					.setValue(this.plugin.settings.tasksFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.tasksFolder = value;
+						await this.plugin.saveSettings();
+					});
+			});
 		
 		new Setting(container)
 			.setName('Task tag')
 			.setDesc('Tag that identifies notes as tasks (without #)')
-			.addText(text => text
-				.setPlaceholder('task')
-				.setValue(this.plugin.settings.taskTag)
-				.onChange(async (value) => {
-					this.plugin.settings.taskTag = value;
-					await this.plugin.saveSettings();
-				}));
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Task identification tag');
+				return text
+					.setPlaceholder('task')
+					.setValue(this.plugin.settings.taskTag)
+					.onChange(async (value) => {
+						this.plugin.settings.taskTag = value;
+						await this.plugin.saveSettings();
+					});
+			});
 		
 		new Setting(container)
 			.setName('Excluded folders')
 			.setDesc('Comma-separated list of folder paths to exclude from Notes tab')
-			.addText(text => text
-				.setPlaceholder('Templates,Archive')
-				.setValue(this.plugin.settings.excludedFolders)
-				.onChange(async (value) => {
-					this.plugin.settings.excludedFolders = value;
-					await this.plugin.saveSettings();
-				}));
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Comma-separated list of folders to exclude');
+				return text
+					.setPlaceholder('Templates,Archive')
+					.setValue(this.plugin.settings.excludedFolders)
+					.onChange(async (value) => {
+						this.plugin.settings.excludedFolders = value;
+						await this.plugin.saveSettings();
+					});
+			});
 		
 		// Editor section
 		new Setting(container).setName('Editor settings').setHeading();
@@ -267,22 +308,28 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName('Task link overlay')
 			.setDesc('Replace wikilinks to task files with interactive task cards in live preview mode')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.enableTaskLinkOverlay)
-				.onChange(async (value) => {
-					this.plugin.settings.enableTaskLinkOverlay = value;
-					await this.plugin.saveSettings();
-				}));
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Enable task link overlay in live preview mode');
+				return toggle
+					.setValue(this.plugin.settings.enableTaskLinkOverlay)
+					.onChange(async (value) => {
+						this.plugin.settings.enableTaskLinkOverlay = value;
+						await this.plugin.saveSettings();
+					});
+			});
 
 		new Setting(container)
 			.setName('Instant task convert')
 			.setDesc('Show a convert button next to checkbox tasks for instant conversion to TaskNotes')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.enableInstantTaskConvert)
-				.onChange(async (value) => {
-					this.plugin.settings.enableInstantTaskConvert = value;
-					await this.plugin.saveSettings();
-				}));
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Enable instant task conversion buttons');
+				return toggle
+					.setValue(this.plugin.settings.enableInstantTaskConvert)
+					.onChange(async (value) => {
+						this.plugin.settings.enableInstantTaskConvert = value;
+						await this.plugin.saveSettings();
+					});
+			});
 		
 		// Task defaults section
 		new Setting(container).setName('Task defaults').setHeading();
@@ -291,6 +338,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			.setName('Default task status')
 			.setDesc('Default status for new tasks')
 			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Default status for new tasks');
 				// Populate with custom statuses
 				this.plugin.settings.customStatuses.forEach(status => {
 					dropdown.addOption(status.value, status.label);
@@ -307,6 +355,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			.setName('Default task priority')
 			.setDesc('Default priority for new tasks')
 			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Default priority for new tasks');
 				// Populate with custom priorities
 				this.plugin.settings.customPriorities.forEach(priority => {
 					dropdown.addOption(priority.value, priority.label);
@@ -325,29 +374,35 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName('Filename format')
 			.setDesc('How task filenames should be generated')
-			.addDropdown(dropdown => dropdown
-				.addOption('title', 'Task title')
-				.addOption('zettel', 'Zettelkasten format (YYMMDD + base36 seconds)')
-				.addOption('timestamp', 'Full timestamp (YYYY-MM-DD-HHMMSS)')
-				.addOption('custom', 'Custom template')
-				.setValue(this.plugin.settings.taskFilenameFormat)
-				.onChange(async (value: any) => {
-					this.plugin.settings.taskFilenameFormat = value;
-					await this.plugin.saveSettings();
-					this.renderActiveTab(); // Re-render to update visibility
-				}));
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Task filename generation format');
+				return dropdown
+					.addOption('title', 'Task title')
+					.addOption('zettel', 'Zettelkasten format (YYMMDD + base36 seconds)')
+					.addOption('timestamp', 'Full timestamp (YYYY-MM-DD-HHMMSS)')
+					.addOption('custom', 'Custom template')
+					.setValue(this.plugin.settings.taskFilenameFormat)
+					.onChange(async (value: any) => {
+						this.plugin.settings.taskFilenameFormat = value;
+						await this.plugin.saveSettings();
+						this.renderActiveTab(); // Re-render to update visibility
+					});
+			});
 
 		if (this.plugin.settings.taskFilenameFormat === 'custom') {
 			new Setting(container)
 				.setName('Custom filename template')
 				.setDesc('Template for custom filenames. Available variables: {title}, {date}, {time}, {priority}, {status}, {timestamp}, etc.')
-				.addText(text => text
-					.setPlaceholder('{date}-{title}')
-					.setValue(this.plugin.settings.customFilenameTemplate)
-					.onChange(async (value) => {
-						this.plugin.settings.customFilenameTemplate = value;
-						await this.plugin.saveSettings();
-					}));
+				.addText(text => {
+					text.inputEl.setAttribute('aria-label', 'Custom filename template with variables');
+					return text
+						.setPlaceholder('{date}-{title}')
+						.setValue(this.plugin.settings.customFilenameTemplate)
+						.onChange(async (value) => {
+							this.plugin.settings.customFilenameTemplate = value;
+							await this.plugin.saveSettings();
+						});
+				});
 		}
 	}
 	
@@ -398,12 +453,21 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			const input = inputCell.createEl('input', {
 				type: 'text',
 				value: this.plugin.settings.fieldMapping[field],
-				cls: 'settings-view__table-input'
+				cls: 'settings-view__table-input',
+				attr: {
+					'aria-label': `Property name for ${label}`,
+					'id': `field-mapping-${field}`
+				}
 			});
 			
 			input.addEventListener('change', async () => {
-				this.plugin.settings.fieldMapping[field] = input.value;
-				await this.plugin.saveSettings();
+				try {
+					this.plugin.settings.fieldMapping[field] = input.value;
+					await this.plugin.saveSettings();
+				} catch (error) {
+					console.error(`Error updating field mapping for ${field}:`, error);
+					new Notice(`Failed to update field mapping for ${label}. Please try again.`);
+				}
 			});
 		});
 		
@@ -497,29 +561,48 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			const valueInput = statusRow.createEl('input', {
 				type: 'text',
 				value: status.value,
-				cls: 'settings-input value-input settings-view__input settings-view__input--value'
+				cls: 'settings-input value-input settings-view__input settings-view__input--value',
+				attr: {
+					'aria-label': `Status value for ${status.label}`,
+					'id': `status-value-${status.id}`
+				}
 			});
 			
 			// Status label input
 			const labelInput = statusRow.createEl('input', {
 				type: 'text',
 				value: status.label,
-				cls: 'settings-input label-input settings-view__input settings-view__input--label'
+				cls: 'settings-input label-input settings-view__input settings-view__input--label',
+				attr: {
+					'aria-label': `Display label for ${status.label} status`,
+					'id': `status-label-${status.id}`
+				}
 			});
 			
 			// Color input
 			const colorInput = statusRow.createEl('input', {
 				type: 'color',
 				value: status.color,
-				cls: 'settings-input color-input settings-view__input settings-view__input--color'
+				cls: 'settings-input color-input settings-view__input settings-view__input--color',
+				attr: {
+					'aria-label': `Color for ${status.label} status`,
+					'id': `status-color-${status.id}`
+				}
 			});
 			
 			// Completed checkbox
-			const completedLabel = statusRow.createEl('label', { cls: 'settings-checkbox-label settings-view__checkbox-label' });
+			const completedLabel = statusRow.createEl('label', { 
+				cls: 'settings-checkbox-label settings-view__checkbox-label',
+				attr: { 'for': `status-completed-${status.id}` }
+			});
 			
 			const completedCheckbox = completedLabel.createEl('input', {
 				type: 'checkbox',
-				cls: 'settings-view__checkbox'
+				cls: 'settings-view__checkbox',
+				attr: {
+					'id': `status-completed-${status.id}`,
+					'aria-label': `Mark ${status.label} as completed status`
+				}
 			});
 			completedCheckbox.checked = status.isCompleted;
 			
@@ -533,12 +616,17 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			
 			// Event listeners
 			const updateStatus = async () => {
-				status.value = valueInput.value;
-				status.label = labelInput.value;
-				status.color = colorInput.value;
-				status.isCompleted = completedCheckbox.checked;
-				await this.plugin.saveSettings();
-				colorIndicator.style.setProperty('--indicator-color', status.color);
+				try {
+					status.value = valueInput.value;
+					status.label = labelInput.value;
+					status.color = colorInput.value;
+					status.isCompleted = completedCheckbox.checked;
+					await this.plugin.saveSettings();
+					colorIndicator.style.setProperty('--indicator-color', status.color);
+				} catch (error) {
+					console.error('Error updating status configuration:', error);
+					new Notice('Failed to update status configuration. Please try again.');
+				}
 			};
 			
 			valueInput.addEventListener('change', updateStatus);
@@ -548,16 +636,44 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			
 			deleteButton.addEventListener('click', async () => {
 				if (this.plugin.settings.customStatuses.length <= 2) {
-					alert('You must have at least 2 statuses');
+					new Notice('You must have at least 2 statuses');
 					return;
 				}
 				
-				const statusIndex = this.plugin.settings.customStatuses.findIndex(s => s.id === status.id);
-				if (statusIndex !== -1) {
-					this.plugin.settings.customStatuses.splice(statusIndex, 1);
-					await this.plugin.saveSettings();
-					this.renderActiveTab();
-				}
+				// Create confirmation dialog
+				const confirmModal = document.createElement('div');
+				confirmModal.className = 'modal-container mod-confirmation';
+				confirmModal.innerHTML = `
+					<div class="modal-bg"></div>
+					<div class="modal">
+						<div class="modal-title">Delete Status</div>
+						<div class="modal-content">
+							<p>Are you sure you want to delete the status "${status.label}"?</p>
+							<p>This action cannot be undone and may affect existing tasks.</p>
+						</div>
+						<div class="modal-button-container">
+							<button class="mod-cta" data-action="delete">Delete</button>
+							<button data-action="cancel">Cancel</button>
+						</div>
+					</div>
+				`;
+				
+				document.body.appendChild(confirmModal);
+				
+				confirmModal.addEventListener('click', async (e) => {
+					const target = e.target as HTMLElement;
+					if (target.dataset.action === 'delete') {
+						const statusIndex = this.plugin.settings.customStatuses.findIndex(s => s.id === status.id);
+						if (statusIndex !== -1) {
+							this.plugin.settings.customStatuses.splice(statusIndex, 1);
+							await this.plugin.saveSettings();
+							this.renderActiveTab();
+						}
+						confirmModal.remove();
+					} else if (target.dataset.action === 'cancel' || target.classList.contains('modal-bg')) {
+						confirmModal.remove();
+					}
+				});
 			});
 		});
 	}
@@ -638,21 +754,33 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			const valueInput = priorityRow.createEl('input', {
 				type: 'text',
 				value: priority.value,
-				cls: 'settings-input value-input'
+				cls: 'settings-input value-input',
+				attr: {
+					'aria-label': `Priority value for ${priority.label}`,
+					'id': `priority-value-${priority.id}`
+				}
 			});
 			
 			// Priority label input
 			const labelInput = priorityRow.createEl('input', {
 				type: 'text',
 				value: priority.label,
-				cls: 'settings-input label-input'
+				cls: 'settings-input label-input',
+				attr: {
+					'aria-label': `Display label for ${priority.label} priority`,
+					'id': `priority-label-${priority.id}`
+				}
 			});
 			
 			// Color input
 			const colorInput = priorityRow.createEl('input', {
 				type: 'color',
 				value: priority.color,
-				cls: 'settings-input color-input'
+				cls: 'settings-input color-input',
+				attr: {
+					'aria-label': `Color for ${priority.label} priority`,
+					'id': `priority-color-${priority.id}`
+				}
 			});
 			
 			// Weight input
@@ -660,7 +788,12 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				type: 'number',
 				value: priority.weight.toString(),
 				cls: 'settings-input weight-input',
-				attr: { min: '0', step: '1' }
+				attr: { 
+					min: '0', 
+					step: '1',
+					'aria-label': `Weight for ${priority.label} priority`,
+					'id': `priority-weight-${priority.id}`
+				}
 			});
 			
 			// Delete button
@@ -671,12 +804,22 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			
 			// Event listeners
 			const updatePriority = async () => {
-				priority.value = valueInput.value;
-				priority.label = labelInput.value;
-				priority.color = colorInput.value;
-				priority.weight = parseInt(weightInput.value) || 0;
-				await this.plugin.saveSettings();
-				colorIndicator.style.setProperty('--indicator-color', priority.color);
+				try {
+					priority.value = valueInput.value;
+					priority.label = labelInput.value;
+					priority.color = colorInput.value;
+					const weightValue = parseInt(weightInput.value);
+					if (isNaN(weightValue) || weightValue < 0) {
+						new Notice('Priority weight must be a valid positive number.');
+						return;
+					}
+					priority.weight = weightValue;
+					await this.plugin.saveSettings();
+					colorIndicator.style.setProperty('--indicator-color', priority.color);
+				} catch (error) {
+					console.error('Error updating priority configuration:', error);
+					new Notice('Failed to update priority configuration. Please try again.');
+				}
 			};
 			
 			valueInput.addEventListener('change', updatePriority);
@@ -686,16 +829,44 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			
 			deleteButton.addEventListener('click', async () => {
 				if (this.plugin.settings.customPriorities.length <= 1) {
-					alert('You must have at least 1 priority');
+					new Notice('You must have at least 1 priority');
 					return;
 				}
 				
-				const priorityIndex = this.plugin.settings.customPriorities.findIndex(p => p.id === priority.id);
-				if (priorityIndex !== -1) {
-					this.plugin.settings.customPriorities.splice(priorityIndex, 1);
-					await this.plugin.saveSettings();
-					this.renderActiveTab();
-				}
+				// Create confirmation dialog
+				const confirmModal = document.createElement('div');
+				confirmModal.className = 'modal-container mod-confirmation';
+				confirmModal.innerHTML = `
+					<div class="modal-bg"></div>
+					<div class="modal">
+						<div class="modal-title">Delete Priority</div>
+						<div class="modal-content">
+							<p>Are you sure you want to delete the priority "${priority.label}"?</p>
+							<p>This action cannot be undone and may affect existing tasks.</p>
+						</div>
+						<div class="modal-button-container">
+							<button class="mod-cta" data-action="delete">Delete</button>
+							<button data-action="cancel">Cancel</button>
+						</div>
+					</div>
+				`;
+				
+				document.body.appendChild(confirmModal);
+				
+				confirmModal.addEventListener('click', async (e) => {
+					const target = e.target as HTMLElement;
+					if (target.dataset.action === 'delete') {
+						const priorityIndex = this.plugin.settings.customPriorities.findIndex(p => p.id === priority.id);
+						if (priorityIndex !== -1) {
+							this.plugin.settings.customPriorities.splice(priorityIndex, 1);
+							await this.plugin.saveSettings();
+							this.renderActiveTab();
+						}
+						confirmModal.remove();
+					} else if (target.dataset.action === 'cancel' || target.classList.contains('modal-bg')) {
+						confirmModal.remove();
+					}
+				});
 			});
 		});
 	}
@@ -706,24 +877,30 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		new Setting(container)
 			.setName('Daily notes folder')
 			.setDesc('Folder where daily notes will be stored')
-			.addText(text => text
-				.setPlaceholder('TaskNotes/Daily')
-				.setValue(this.plugin.settings.dailyNotesFolder)
-				.onChange(async (value) => {
-					this.plugin.settings.dailyNotesFolder = value;
-					await this.plugin.saveSettings();
-				}));
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Daily notes folder path');
+				return text
+					.setPlaceholder('TaskNotes/Daily')
+					.setValue(this.plugin.settings.dailyNotesFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.dailyNotesFolder = value;
+						await this.plugin.saveSettings();
+					});
+			});
 
 		new Setting(container)
 			.setName('Daily note template')
 			.setDesc('Path to template file for daily notes (leave empty to use built-in template). Supports Obsidian template variables like {{title}}, {{date}}, {{date:format}}, {{time}}, etc.')
-			.addText(text => text
-				.setPlaceholder('Templates/Daily Note Template.md')
-				.setValue(this.plugin.settings.dailyNoteTemplate)
-				.onChange(async (value) => {
-					this.plugin.settings.dailyNoteTemplate = value;
-					await this.plugin.saveSettings();
-				}));
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Daily note template file path');
+				return text
+					.setPlaceholder('Templates/Daily Note Template.md')
+					.setValue(this.plugin.settings.dailyNoteTemplate)
+					.onChange(async (value) => {
+						this.plugin.settings.dailyNoteTemplate = value;
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 	
 	private renderPomodoroTab(): void {
@@ -736,10 +913,17 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setPlaceholder('25')
 				.setValue(this.plugin.settings.pomodoroWorkDuration.toString())
 				.onChange(async (value) => {
-					const num = parseInt(value);
-					if (!isNaN(num) && num > 0) {
+					try {
+						const num = parseInt(value);
+						if (isNaN(num) || num <= 0) {
+							new Notice('Work duration must be a positive number.');
+							return;
+						}
 						this.plugin.settings.pomodoroWorkDuration = num;
 						await this.plugin.saveSettings();
+					} catch (error) {
+						console.error('Error updating pomodoro work duration:', error);
+						new Notice('Failed to update work duration setting.');
 					}
 				}));
 
@@ -750,10 +934,17 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setPlaceholder('5')
 				.setValue(this.plugin.settings.pomodoroShortBreakDuration.toString())
 				.onChange(async (value) => {
-					const num = parseInt(value);
-					if (!isNaN(num) && num > 0) {
+					try {
+						const num = parseInt(value);
+						if (isNaN(num) || num <= 0) {
+							new Notice('Short break duration must be a positive number.');
+							return;
+						}
 						this.plugin.settings.pomodoroShortBreakDuration = num;
 						await this.plugin.saveSettings();
+					} catch (error) {
+						console.error('Error updating pomodoro short break duration:', error);
+						new Notice('Failed to update short break duration setting.');
 					}
 				}));
 
@@ -764,10 +955,17 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setPlaceholder('15')
 				.setValue(this.plugin.settings.pomodoroLongBreakDuration.toString())
 				.onChange(async (value) => {
-					const num = parseInt(value);
-					if (!isNaN(num) && num > 0) {
+					try {
+						const num = parseInt(value);
+						if (isNaN(num) || num <= 0) {
+							new Notice('Long break duration must be a positive number.');
+							return;
+						}
 						this.plugin.settings.pomodoroLongBreakDuration = num;
 						await this.plugin.saveSettings();
+					} catch (error) {
+						console.error('Error updating pomodoro long break duration:', error);
+						new Notice('Failed to update long break duration setting.');
 					}
 				}));
 
@@ -778,10 +976,17 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setPlaceholder('4')
 				.setValue(this.plugin.settings.pomodoroLongBreakInterval.toString())
 				.onChange(async (value) => {
-					const num = parseInt(value);
-					if (!isNaN(num) && num > 0) {
+					try {
+						const num = parseInt(value);
+						if (isNaN(num) || num <= 0) {
+							new Notice('Long break interval must be a positive number.');
+							return;
+						}
 						this.plugin.settings.pomodoroLongBreakInterval = num;
 						await this.plugin.saveSettings();
+					} catch (error) {
+						console.error('Error updating pomodoro long break interval:', error);
+						new Notice('Failed to update long break interval setting.');
 					}
 				}));
 
@@ -833,8 +1038,13 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.pomodoroSoundVolume)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.pomodoroSoundVolume = value;
-					await this.plugin.saveSettings();
+					try {
+						this.plugin.settings.pomodoroSoundVolume = value;
+						await this.plugin.saveSettings();
+					} catch (error) {
+						console.error('Error updating pomodoro sound volume:', error);
+						new Notice('Failed to update sound volume setting.');
+					}
 				}));
 	}
 }

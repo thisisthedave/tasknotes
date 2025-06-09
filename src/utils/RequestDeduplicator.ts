@@ -9,6 +9,7 @@ export class RequestDeduplicator {
     private inFlightRequests = new Map<string, Promise<any>>();
     private prefetchQueue = new Set<string>();
     private prefetchPromises = new Map<string, Promise<any>>();
+    private activeTimeouts = new Set<NodeJS.Timeout>();
     
     /**
      * Execute a request, deduplicating concurrent calls
@@ -42,9 +43,11 @@ export class RequestDeduplicator {
             const result = await requestFn();
             
             // Schedule cleanup after TTL
-            setTimeout(() => {
+            const timeout = setTimeout(() => {
                 this.inFlightRequests.delete(key);
+                this.activeTimeouts.delete(timeout);
             }, ttl);
+            this.activeTimeouts.add(timeout);
             
             return result;
         } catch (error) {
@@ -81,9 +84,11 @@ export class RequestDeduplicator {
                 });
             } else {
                 // Fallback for browsers without requestIdleCallback
-                setTimeout(() => {
+                const timeout = setTimeout(() => {
                     this.processPrefetchQueue(key, requestFn);
+                    this.activeTimeouts.delete(timeout);
                 }, 50);
+                this.activeTimeouts.add(timeout);
             }
         }
     }
@@ -102,9 +107,11 @@ export class RequestDeduplicator {
             await prefetchPromise;
             
             // Keep prefetch result available for a short time
-            setTimeout(() => {
+            const timeout = setTimeout(() => {
                 this.prefetchPromises.delete(key);
+                this.activeTimeouts.delete(timeout);
             }, 30000); // 30 seconds
+            this.activeTimeouts.add(timeout);
             
         } catch (error) {
             // Ignore prefetch errors
@@ -148,6 +155,12 @@ export class RequestDeduplicator {
         this.inFlightRequests.clear();
         this.prefetchPromises.clear();
         this.prefetchQueue.clear();
+        
+        // Clear all active timeouts
+        for (const timeout of this.activeTimeouts) {
+            clearTimeout(timeout);
+        }
+        this.activeTimeouts.clear();
     }
     
     /**

@@ -5,6 +5,7 @@ import * as YAML from 'yaml';
 import { YAMLCache } from './YAMLCache';
 import { FieldMapper } from '../services/FieldMapper';
 import { DEFAULT_FIELD_MAPPING } from '../settings/settings';
+// import { RegexOptimizer } from './RegexOptimizer'; // Temporarily disabled
 
 /**
  * Creates a debounced version of a function
@@ -44,8 +45,21 @@ export async function ensureFolderExists(vault: Vault, folderPath: string): Prom
 			}
 		}
 	} catch (error) {
-		console.error('Error creating folder structure:', error);
-		throw new Error(`Failed to create folder: ${folderPath}`);
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		const stack = error instanceof Error ? error.stack : undefined;
+		console.error('Error creating folder structure:', {
+			error: errorMessage,
+			stack,
+			folderPath,
+			normalizedPath: normalizePath(folderPath)
+		});
+		
+		// Create enhanced error with preserved context
+		const enhancedError = new Error(`Failed to create folder "${folderPath}": ${errorMessage}`);
+		if (stack) {
+			enhancedError.stack = stack;
+		}
+		throw enhancedError;
 	}
 }
 
@@ -131,21 +145,16 @@ export function formatTime(minutes: number): string {
  */
 export function parseTime(timeStr: string): TimeInfo | null {
 	try {
-		if (!timeStr || typeof timeStr !== 'string') {
-			return null;
-		}
-		
+		// Simple fallback parser
 		const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
-		if (!match) return null;
-		
-		const hours = parseInt(match[1]);
-		const minutes = parseInt(match[2]);
-		
-		if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-			return null;
+		if (match) {
+			const hours = parseInt(match[1], 10);
+			const minutes = parseInt(match[2], 10);
+			if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+				return { hours, minutes };
+			}
 		}
-		
-		return { hours, minutes };
+		return null;
 	} catch (error) {
 		console.error('Error parsing time string:', error);
 		return null;
@@ -178,7 +187,13 @@ export function updateYamlFrontmatter<T = any>(content: string, key: string, upd
 	try {
 		yamlObj = YAML.parse(frontmatter) || {};
 	} catch (e) {
-		console.error('Error parsing YAML frontmatter:', e);
+		const errorMessage = e instanceof Error ? e.message : String(e);
+		console.error('Error parsing YAML frontmatter in updateYamlFrontmatter:', {
+			error: errorMessage,
+			stack: e instanceof Error ? e.stack : undefined,
+			frontmatterPreview: frontmatter.substring(0, 100) + (frontmatter.length > 100 ? '...' : ''),
+			key
+		});
 		return content;
 	}
 	
@@ -232,7 +247,13 @@ export function updateTaskProperty(
 	try {
 		yamlObj = YAML.parse(frontmatter) || {};
 	} catch (e) {
-		console.error('Error parsing YAML frontmatter:', e);
+		const errorMessage = e instanceof Error ? e.message : String(e);
+		console.error('Error parsing YAML frontmatter in updateTaskProperty:', {
+			error: errorMessage,
+			stack: e instanceof Error ? e.stack : undefined,
+			frontmatterPreview: frontmatter.substring(0, 100) + (frontmatter.length > 100 ? '...' : ''),
+			propertyUpdates
+		});
 		return content;
 	}
 	

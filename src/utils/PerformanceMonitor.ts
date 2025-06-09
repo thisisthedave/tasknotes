@@ -9,6 +9,8 @@ export class PerformanceMonitor {
     private metrics = new Map<string, number[]>();
     private markers = new Map<string, number>();
     private enabled = true;
+    private mutationObservers = new Set<MutationObserver>();
+    private performanceObservers = new Set<PerformanceObserver>();
     
     static getInstance(): PerformanceMonitor {
         if (!PerformanceMonitor.instance) {
@@ -97,9 +99,9 @@ export class PerformanceMonitor {
         const values = this.metrics.get(name)!;
         values.push(value);
         
-        // Keep only the last 100 measurements to prevent memory bloat
-        if (values.length > 100) {
-            values.shift();
+        // Keep only the last 50 measurements to prevent memory bloat
+        if (values.length > 50) {
+            values.splice(0, values.length - 50);
         }
     }
     
@@ -203,8 +205,11 @@ export class PerformanceMonitor {
             attributes: true
         });
         
+        this.mutationObservers.add(observer);
+        
         return () => {
             observer.disconnect();
+            this.mutationObservers.delete(observer);
             this.recordMetric('dom-mutations', mutationCount);
         };
     }
@@ -250,6 +255,7 @@ export class PerformanceMonitor {
         
         try {
             observer.observe({ entryTypes: ['longtask'] });
+            this.performanceObservers.add(observer);
         } catch (error) {
             // Some browsers might not support longtask observation
             console.warn('Long task monitoring not supported');
@@ -257,6 +263,7 @@ export class PerformanceMonitor {
         
         return () => {
             observer.disconnect();
+            this.performanceObservers.delete(observer);
         };
     }
     
@@ -296,6 +303,29 @@ export class PerformanceMonitor {
     clear(): void {
         this.metrics.clear();
         this.markers.clear();
+    }
+    
+    /**
+     * Clean up all observers and resources
+     */
+    destroy(): void {
+        // Disconnect all mutation observers
+        for (const observer of this.mutationObservers) {
+            observer.disconnect();
+        }
+        this.mutationObservers.clear();
+        
+        // Disconnect all performance observers
+        for (const observer of this.performanceObservers) {
+            observer.disconnect();
+        }
+        this.performanceObservers.clear();
+        
+        // Clear all data
+        this.clear();
+        
+        // Reset singleton instance
+        PerformanceMonitor.instance = null;
     }
     
     /**

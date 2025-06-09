@@ -617,6 +617,14 @@ export class FilterService extends EventEmitter {
         });
     }
 
+    /**
+     * Clean up event subscriptions and clear any caches
+     */
+    cleanup(): void {
+        // Remove all event listeners
+        this.removeAllListeners();
+    }
+
     // ============================================================================
     // AGENDA-SPECIFIC METHODS
     // ============================================================================

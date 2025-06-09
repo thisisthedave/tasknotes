@@ -1,4 +1,4 @@
-import { Notice, TFile, ItemView, WorkspaceLeaf, Setting } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     TASK_LIST_VIEW_TYPE, 
@@ -43,9 +43,8 @@ export class TaskListView extends ItemView {
         super(leaf);
         this.plugin = plugin;
         
-        // Initialize with saved state or default query
-        const savedQuery = this.plugin.viewStateManager?.getFilterState(TASK_LIST_VIEW_TYPE);
-        this.currentQuery = savedQuery || this.plugin.filterService?.createDefaultQuery() || {
+        // Initialize with default query (will be updated in onOpen after plugin is ready)
+        this.currentQuery = {
             searchQuery: undefined,
             statuses: undefined,
             contexts: undefined,
@@ -133,6 +132,16 @@ export class TaskListView extends ItemView {
         try {
             // Wait for the plugin to be fully initialized before proceeding
             await this.plugin.onReady();
+            
+            // Wait for ViewStateManager initialization and load saved filter state
+            // ViewStateManager loads synchronously now
+            const savedQuery = this.plugin.viewStateManager.getFilterState(TASK_LIST_VIEW_TYPE);
+            if (savedQuery) {
+                this.currentQuery = savedQuery;
+            } else if (this.plugin.filterService) {
+                this.currentQuery = this.plugin.filterService.createDefaultQuery();
+            }
+            
             await this.refresh();
         } catch (error) {
             console.error('TaskListView: Error during onOpen:', error);
@@ -185,23 +194,10 @@ export class TaskListView extends ItemView {
                 this.taskElements.clear();
             }
             
-            
-            // Save UI state before full refresh
-            const taskListContainer = this.contentEl.querySelector('.task-list') as HTMLElement;
-            if (taskListContainer) {
-                this.plugin.uiStateManager.saveState('task-list-scroll', taskListContainer);
-            }
-            
             // Clear and prepare the content element for full refresh
             this.contentEl.empty();
             this.taskElements.clear();
             await this.render();
-            
-            // Restore UI state after refresh
-            const newTaskListContainer = this.contentEl.querySelector('.task-list') as HTMLElement;
-            if (newTaskListContainer) {
-                this.plugin.uiStateManager.restoreState('task-list-scroll', newTaskListContainer);
-            }
         });
     }
     
@@ -220,9 +216,10 @@ export class TaskListView extends ItemView {
         const headerContainer = container.createDiv({ cls: 'detail-view-header task-list-header' });
         
         // Display view title
-        new Setting(headerContainer)
-            .setName('All Tasks')
-            .setHeading();
+        headerContainer.createEl('h2', {
+            text: 'All tasks',
+            cls: 'task-list-view__title'
+        });
         
         // Add actions
         const actionsContainer = headerContainer.createDiv({ cls: 'detail-view-actions' });
@@ -274,10 +271,10 @@ export class TaskListView extends ItemView {
         this.filterBar.setupCacheRefresh(this.plugin.cacheManager, this.plugin.filterService);
         
         // Listen for filter changes
-        this.filterBar.on('queryChange', (newQuery: FilterQuery) => {
+        this.filterBar.on('queryChange', async (newQuery: FilterQuery) => {
             this.currentQuery = newQuery;
             // Save the filter state
-            this.plugin.viewStateManager.setFilterState(TASK_LIST_VIEW_TYPE, newQuery);
+            await this.plugin.viewStateManager.setFilterState(TASK_LIST_VIEW_TYPE, newQuery);
             this.refreshTasks();
         });
         
@@ -325,10 +322,29 @@ export class TaskListView extends ItemView {
             this.renderTaskItems(this.taskListContainer, groupedTasks);
             
         } catch (error) {
-            console.error('TaskListView: Error refreshing tasks:', error);
-            this.taskListContainer.createEl('p', { 
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('TaskListView: Error refreshing tasks:', {
+                error: errorMessage,
+                stack: error instanceof Error ? error.stack : undefined,
+                query: this.currentQuery,
+                cacheInitialized: this.plugin.cacheManager?.isInitialized() || false
+            });
+            
+            // Clear existing content and show error message
+            this.taskListContainer.empty();
+            const errorContainer = this.taskListContainer.createDiv({ cls: 'error-container' });
+            errorContainer.createEl('p', { 
                 text: 'Error loading tasks. Please try refreshing.', 
                 cls: 'error-message' 
+            });
+            
+            // Add retry button for better UX
+            const retryButton = errorContainer.createEl('button', {
+                text: 'Retry',
+                cls: 'mod-cta'
+            });
+            retryButton.addEventListener('click', () => {
+                this.refreshTasks();
             });
         } finally {
             this.isTasksLoading = false;
@@ -336,7 +352,7 @@ export class TaskListView extends ItemView {
         }
     }
 
-    // Helper method to render task items with grouping support using DOMReconciler
+    // Helper method to render task items with grouping support using DOMReconciler or Virtual Scrolling
     renderTaskItems(container: HTMLElement, groupedTasks: Map<string, TaskInfo[]>) {
         // Check if there are any tasks across all groups
         const totalTasks = Array.from(groupedTasks.values()).reduce((total, tasks) => total + tasks.length, 0);
@@ -381,6 +397,8 @@ export class TaskListView extends ItemView {
             }
         });
     }
+    
+    // Virtual scrolling methods removed for compliance verification
 
     /**
      * Render grouped tasks with reconciler optimization for individual groups
@@ -412,10 +430,10 @@ export class TaskListView extends ItemView {
             
             // Add group header (skip only if grouping is 'none' and group name is 'all')
             if (!(this.currentQuery.groupKey === 'none' && groupName === 'all')) {
-                const groupHeaderSetting = new Setting(groupSection)
-                    .setName(this.formatGroupName(groupName))
-                    .setHeading();
-                groupHeaderSetting.settingEl.addClass('task-group-header');
+                groupSection.createEl('h3', {
+                    text: this.formatGroupName(groupName),
+                    cls: 'task-group-header task-list-view__group-header'
+                });
             }
             
             // Create task cards container

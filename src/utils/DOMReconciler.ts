@@ -7,6 +7,7 @@
 export class DOMReconciler {
     private updateQueue: (() => void)[] = [];
     private isProcessing = false;
+    private activeTimeouts: Set<NodeJS.Timeout> = new Set();
     
     /**
      * Schedule a DOM update to be processed in the next animation frame
@@ -155,9 +156,12 @@ export class DOMReconciler {
     animateUpdate(element: HTMLElement, animation: 'flash' | 'pulse' | 'fade-in', duration = 1500): void {
         element.classList.add(`task-${animation}`);
         
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
             element.classList.remove(`task-${animation}`);
+            this.activeTimeouts.delete(timeout);
         }, duration);
+        
+        this.activeTimeouts.add(timeout);
     }
     
     /**
@@ -243,6 +247,21 @@ export class DOMReconciler {
             }
         };
     }
+
+    /**
+     * Clean up all resources
+     */
+    destroy(): void {
+        // Clear update queue
+        this.updateQueue = [];
+        this.isProcessing = false;
+        
+        // Clear all active timeouts
+        for (const timeout of this.activeTimeouts) {
+            clearTimeout(timeout);
+        }
+        this.activeTimeouts.clear();
+    }
 }
 
 /**
@@ -279,5 +298,12 @@ export class UIStateManager {
         } else {
             this.stateMap.clear();
         }
+    }
+
+    /**
+     * Clean up all resources
+     */
+    destroy(): void {
+        this.stateMap.clear();
     }
 }

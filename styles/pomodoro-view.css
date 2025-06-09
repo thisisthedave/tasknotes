@@ -499,6 +499,14 @@
     margin-bottom: var(--tn-spacing-md);
 }
 
+/* Statistics Title */
+.tasknotes-plugin .pomodoro-view__stats-title {
+    font-size: var(--tn-font-size-lg);
+    font-weight: var(--tn-font-weight-semibold);
+    color: var(--tn-text-normal);
+    margin: 0;
+}
+
 .tasknotes-plugin .pomodoro-view__view-stats-button {
     padding: var(--tn-spacing-xs) var(--tn-spacing-sm);
     border: 1px solid var(--tn-border-color);

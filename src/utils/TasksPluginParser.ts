@@ -47,6 +47,24 @@ export class TasksPluginParser {
 	 * Parse a line of text to extract Tasks plugin format data
 	 */
 	static parseTaskLine(line: string): TaskLineInfo {
+		// Validate input
+		if (typeof line !== 'string') {
+			return {
+				isTaskLine: false,
+				originalText: '',
+				error: 'Invalid input: line must be a string'
+			};
+		}
+		
+		// Performance safeguard: skip extremely long lines
+		if (line.length > 2000) {
+			return {
+				isTaskLine: false,
+				originalText: line,
+				error: 'Line too long to process safely'
+			};
+		}
+		
 		const trimmedLine = line.trim();
 		
 		// Check if this is a checkbox task line
@@ -60,10 +78,29 @@ export class TasksPluginParser {
 
 		try {
 			const [, prefix, checkState, middle, taskContent] = checkboxMatch;
+			
+			// Validate extracted parts
+			if (typeof checkState !== 'string' || typeof taskContent !== 'string') {
+				return {
+					isTaskLine: true,
+					originalText: line,
+					error: 'Invalid checkbox format'
+				};
+			}
+			
 			const isCompleted = checkState.toLowerCase() === 'x';
 
 			// Parse the task content for emojis and metadata
 			const parsedData = this.parseTaskContent(taskContent, isCompleted);
+			
+			// Validate parsed data
+			if (!parsedData || !parsedData.title || parsedData.title.trim().length === 0) {
+				return {
+					isTaskLine: true,
+					originalText: line,
+					error: 'Task must have a title'
+				};
+			}
 			
 			return {
 				isTaskLine: true,
@@ -74,7 +111,7 @@ export class TasksPluginParser {
 			return {
 				isTaskLine: true,
 				originalText: line,
-				error: `Failed to parse task: ${error.message}`
+				error: `Failed to parse task: ${error instanceof Error ? error.message : 'Unknown error'}`
 			};
 		}
 	}
@@ -83,64 +120,122 @@ export class TasksPluginParser {
 	 * Parse task content to extract emoji-based metadata
 	 */
 	private static parseTaskContent(content: string, isCompleted: boolean): ParsedTaskData {
+		// Validate input
+		if (typeof content !== 'string') {
+			throw new Error('Content must be a string');
+		}
+		
+		// Performance safeguard
+		if (content.length > 1000) {
+			throw new Error('Content too long to process safely');
+		}
+		
 		let workingContent = content;
 		
-		// Extract dates
-		const dueDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.DUE_DATE);
-		const scheduledDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.SCHEDULED_DATE);
-		const startDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.START_DATE);
-		const createdDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.CREATED_DATE);
-		const doneDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.DONE_DATE);
+		try {
+			// Extract dates with validation
+			const dueDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.DUE_DATE);
+			const scheduledDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.SCHEDULED_DATE);
+			const startDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.START_DATE);
+			const createdDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.CREATED_DATE);
+			const doneDate = this.extractDate(workingContent, this.EMOJI_PATTERNS.DONE_DATE);
 
-		// Extract priority
-		const priority = this.extractPriority(workingContent);
+			// Extract priority
+			const priority = this.extractPriority(workingContent);
 
-		// Extract recurrence
-		const { recurrence, recurrenceData } = this.extractRecurrence(workingContent);
+			// Extract recurrence
+			const { recurrence, recurrenceData } = this.extractRecurrence(workingContent);
 
-		// Remove all emoji patterns to get clean title
-		const title = this.extractCleanTitle(workingContent);
+			// Remove all emoji patterns to get clean title
+			const title = this.extractCleanTitle(workingContent);
+			
+			// Validate title
+			if (!title || title.trim().length === 0) {
+				throw new Error('Title cannot be empty after parsing');
+			}
+			
+			if (title.length > 200) {
+				throw new Error('Title too long (max 200 characters)');
+			}
 
-		// Determine status based on completion and done date
-		let status = 'open';
-		if (isCompleted || doneDate) {
-			status = 'done';
-		} else if (startDate && new Date(startDate) > new Date()) {
-			status = 'scheduled';
+			// Determine status based on completion and done date
+			let status = 'open';
+			if (isCompleted || doneDate) {
+				status = 'done';
+			} else if (startDate) {
+				try {
+					const startDateObj = new Date(startDate);
+					if (startDateObj > new Date()) {
+						status = 'scheduled';
+					}
+				} catch {
+					// Invalid start date, ignore for status determination
+				}
+			}
+
+			return {
+				title: title.trim(),
+				status,
+				priority,
+				dueDate,
+				scheduledDate,
+				startDate,
+				createdDate,
+				doneDate,
+				recurrence,
+				recurrenceData,
+				isCompleted
+			};
+		} catch (error) {
+			throw new Error(`Failed to parse task content: ${error instanceof Error ? error.message : 'Unknown error'}`);
 		}
-
-		return {
-			title: title.trim(),
-			status,
-			priority,
-			dueDate,
-			scheduledDate,
-			startDate,
-			createdDate,
-			doneDate,
-			recurrence,
-			recurrenceData,
-			isCompleted
-		};
 	}
 
 	/**
 	 * Extract date from content using pattern
 	 */
 	private static extractDate(content: string, pattern: RegExp): string | undefined {
-		// Create a fresh regex to avoid global state issues
-		const freshPattern = new RegExp(pattern.source, 'g');
-		const match = freshPattern.exec(content);
-		
-		if (match && match[1]) {
-			// Validate date format
-			try {
-				const date = parse(match[1], 'yyyy-MM-dd', new Date());
-				return format(date, 'yyyy-MM-dd');
-			} catch {
-				return undefined;
-			}
+		// Validate inputs
+		if (typeof content !== 'string' || !pattern) {
+			return undefined;
 		}
+		
+		try {
+			// Create a fresh regex to avoid global state issues
+			const freshPattern = new RegExp(pattern.source, 'g');
+			const match = freshPattern.exec(content);
+			
+			if (match && match[1]) {
+				const dateString = match[1].trim();
+				
+				// Basic format validation before parsing
+				if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+					return undefined;
+				}
+				
+				// Validate date format and range
+				try {
+					const date = parse(dateString, 'yyyy-MM-dd', new Date());
+					
+					// Check if date is valid and within reasonable range
+					if (isNaN(date.getTime())) {
+						return undefined;
+					}
+					
+					const year = date.getFullYear();
+					if (year < 1900 || year > 2100) {
+						return undefined;
+					}
+					
+					return format(date, 'yyyy-MM-dd');
+				} catch {
+					return undefined;
+				}
+			}
+		} catch (error) {
+			console.debug('Error extracting date:', error);
+		}
+		
 		return undefined;
 	}
 
@@ -230,33 +325,74 @@ export class TasksPluginParser {
 	 * Extract clean title by removing all emoji patterns
 	 */
 	private static extractCleanTitle(content: string): string {
-		let cleanContent = content;
+		// Validate input
+		if (typeof content !== 'string') {
+			return '';
+		}
+		
+		try {
+			let cleanContent = content;
 
-		// Remove all emoji patterns using fresh regex instances
-		Object.values(this.EMOJI_PATTERNS).forEach(pattern => {
-			const freshPattern = new RegExp(pattern.source, 'g');
-			cleanContent = cleanContent.replace(freshPattern, '');
-		});
+			// Remove all emoji patterns using fresh regex instances
+			Object.values(this.EMOJI_PATTERNS).forEach(pattern => {
+				try {
+					const freshPattern = new RegExp(pattern.source, 'g');
+					cleanContent = cleanContent.replace(freshPattern, '');
+				} catch (error) {
+					// If regex fails, continue with other patterns
+					console.debug('Error applying emoji pattern:', error);
+				}
+			});
 
-		// Clean up extra whitespace
-		return cleanContent.replace(/\s+/g, ' ').trim();
+			// Clean up extra whitespace and validate result
+			const cleaned = cleanContent.replace(/\s+/g, ' ').trim();
+			
+			// Ensure we don't return an empty string
+			if (cleaned.length === 0) {
+				return 'Untitled Task';
+			}
+			
+			return cleaned;
+		} catch (error) {
+			console.debug('Error extracting clean title:', error);
+			return 'Untitled Task';
+		}
 	}
 
 	/**
 	 * Validate if a line contains Tasks plugin format
 	 */
 	static isTasksPluginFormat(line: string): boolean {
-		const trimmedLine = line.trim();
-		const hasCheckbox = this.CHECKBOX_PATTERN.test(trimmedLine);
+		// Validate input
+		if (typeof line !== 'string') {
+			return false;
+		}
 		
-		if (!hasCheckbox) return false;
+		// Performance safeguard
+		if (line.length > 1000) {
+			return false;
+		}
+		
+		try {
+			const trimmedLine = line.trim();
+			const hasCheckbox = this.CHECKBOX_PATTERN.test(trimmedLine);
+			
+			if (!hasCheckbox) return false;
 
-		// Check for at least one Tasks plugin emoji using fresh regex instances
-		const emojiPatterns = Object.values(this.EMOJI_PATTERNS);
-		return emojiPatterns.some(pattern => {
-			const freshPattern = new RegExp(pattern.source);
-			return freshPattern.test(trimmedLine);
-		});
+			// Check for at least one Tasks plugin emoji using fresh regex instances
+			const emojiPatterns = Object.values(this.EMOJI_PATTERNS);
+			return emojiPatterns.some(pattern => {
+				try {
+					const freshPattern = new RegExp(pattern.source);
+					return freshPattern.test(trimmedLine);
+				} catch {
+					return false;
+				}
+			});
+		} catch (error) {
+			console.debug('Error validating Tasks plugin format:', error);
+			return false;
+		}
 	}
 
 	/**

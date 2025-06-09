@@ -43,13 +43,21 @@ export class CacheManager {
     private static readonly FILE_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
     private static readonly YAML_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
     private static readonly MAX_CACHE_SIZE = 500; // files
+    private static readonly MAX_TASK_CACHE_SIZE = 1000; // tasks
+    private static readonly MAX_NOTE_CACHE_SIZE = 2000; // notes
+    private static readonly MAX_INDEX_SIZE = 10000; // index entries
+    private static readonly MEMORY_WARNING_THRESHOLD = 100 * 1024 * 1024; // 100MB
+    private static readonly CACHE_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
     
     // Performance tracking
     private stats = {
         cacheHits: 0,
         cacheMisses: 0,
         fileReads: 0,
-        yamlParses: 0
+        yamlParses: 0,
+        memoryUsage: 0,
+        cacheEvictions: 0,
+        lastMemoryCheck: 0
     };
     
     // Event handlers for cleanup
@@ -59,6 +67,12 @@ export class CacheManager {
     // Track recent programmatic updates to prevent file event interference
     private recentUpdates: Map<string, number> = new Map(); // path -> timestamp
     private static readonly RECENT_UPDATE_WINDOW = 1000; // 1 second
+    
+    // Cleanup and monitoring
+    private lastCacheCleanup: number = Date.now();
+    private memoryCheckInterval: number | null = null;
+    
+    private delayedInitTimeout: NodeJS.Timeout | null = null;
     
     // Initialization state
     private initializationPromise: Promise<void> | null = null;
@@ -324,34 +338,23 @@ export class CacheManager {
                     });
                 
                 // Process rebuilt indexed files
-                const batchSize = 20;
-                for (let i = 0; i < rebuiltIndexedPaths.length; i += batchSize) {
-                    const batch = rebuiltIndexedPaths.slice(i, i + batchSize);
-                    const batchPromises = batch.map(path => this.getTaskInfo(path, true));
-                    const batchResults = await Promise.all(batchPromises);
-                    
-                    batchResults.forEach(task => {
-                        if (task) results.push(task);
-                    });
-                }
+                const rebuiltPromises = rebuiltIndexedPaths.map(path => this.getTaskInfo(path, true));
+                const rebuiltResults = await Promise.all(rebuiltPromises);
+                rebuiltResults.forEach(task => {
+                    if (task) results.push(task);
+                });
             } else {
                 // Process existing indexed files
-                const batchSize = 20;
-                for (let i = 0; i < allIndexedPaths.length; i += batchSize) {
-                    const batch = allIndexedPaths.slice(i, i + batchSize);
-                    const batchPromises = batch.map(path => this.getTaskInfo(path, forceRefresh));
-                    const batchResults = await Promise.all(batchPromises);
-                    
-                    batchResults.forEach(task => {
-                        if (task) results.push(task);
-                    });
-                }
+                const existingPromises = allIndexedPaths.map(path => this.getTaskInfo(path, forceRefresh));
+                const existingResults = await Promise.all(existingPromises);
+                existingResults.forEach(task => {
+                    if (task) results.push(task);
+                });
             }
         } else {
             // Use cached task info
-            for (const taskInfo of this.taskInfoCache.values()) {
-                results.push(taskInfo);
-            }
+            const taskInfos = Array.from(this.taskInfoCache.values());
+            results.push(...taskInfos);
         }
         
         return results;
@@ -367,19 +370,14 @@ export class CacheManager {
         const taskPaths = this.tasksByDate.get(dateStr) || new Set();
         const results: TaskInfo[] = [];
         
-        // Process in batches for better performance
-        const batchSize = 20;
+        // Process all at once for simplicity and reliability
         const pathArray = Array.from(taskPaths);
+        const batchPromises = pathArray.map(path => this.getTaskInfo(path, false));
+        const batchResults = await Promise.all(batchPromises);
         
-        for (let i = 0; i < pathArray.length; i += batchSize) {
-            const batch = pathArray.slice(i, i + batchSize);
-            const batchPromises = batch.map(path => this.getTaskInfo(path, false));
-            const batchResults = await Promise.all(batchPromises);
-            
-            batchResults.forEach(task => {
-                if (task) results.push(task);
-            });
-        }
+        batchResults.forEach(task => {
+            if (task) results.push(task);
+        });
         
         return results;
     }
@@ -394,19 +392,14 @@ export class CacheManager {
         const notePaths = this.notesByDate.get(dateStr) || new Set();
         const results: NoteInfo[] = [];
         
-        // Process in batches for better performance
-        const batchSize = 50;
+        // Process all at once for simplicity and reliability
         const pathArray = Array.from(notePaths);
+        const batchPromises = pathArray.map(path => this.getNoteInfo(path, forceRefresh));
+        const batchResults = await Promise.all(batchPromises);
         
-        for (let i = 0; i < pathArray.length; i += batchSize) {
-            const batch = pathArray.slice(i, i + batchSize);
-            const batchPromises = batch.map(path => this.getNoteInfo(path, forceRefresh));
-            const batchResults = await Promise.all(batchPromises);
-            
-            batchResults.forEach(note => {
-                if (note) results.push(note);
-            });
-        }
+        batchResults.forEach(note => {
+            if (note) results.push(note);
+        });
         
         return results;
     }
@@ -491,6 +484,11 @@ export class CacheManager {
      * Initialize the cache by scanning all markdown files
      */
     async initializeCache(): Promise<void> {
+        // If already initialized, return immediately
+        if (this.initialized) {
+            return;
+        }
+        
         // If initialization is already in progress, return the existing promise
         if (this.initializationPromise) {
             return this.initializationPromise;
@@ -522,14 +520,11 @@ export class CacheManager {
         if (files.length === 0) {
             // Schedule a delayed re-initialization when vault is ready
             this.scheduleDelayedInitialization();
+            return;
         }
         
-        // Process files in batches for better responsiveness
-        const batchSize = 50;
-        for (let i = 0; i < files.length; i += batchSize) {
-            const batch = files.slice(i, i + batchSize);
-            await Promise.all(batch.map(file => this.indexFile(file)));
-        }
+        // Process files synchronously for reliability
+        await Promise.all(files.map(file => this.indexFile(file)));
         
         // Rebuild overdue tasks index for all cached tasks
         this.rebuildOverdueTasksIndex();
@@ -555,16 +550,23 @@ export class CacheManager {
         this.delayedInitializationScheduled = true;
         
         // Try again in a few seconds
-        setTimeout(async () => {
-            const files = this.vault.getMarkdownFiles();
+        this.delayedInitTimeout = setTimeout(async () => {
+            this.delayedInitTimeout = null;
             
-            if (files.length > 0) {
-                this.initialized = false;
-                this.initializationPromise = null;
-                await this.initializeCache();
-            } else {
+            try {
+                const files = this.vault.getMarkdownFiles();
+                
+                if (files.length > 0) {
+                    this.initialized = false;
+                    this.initializationPromise = null;
+                    await this.initializeCache();
+                } else {
+                    this.delayedInitializationScheduled = false;
+                    this.scheduleDelayedInitialization();
+                }
+            } catch (error) {
+                console.error('Delayed initialization failed:', error);
                 this.delayedInitializationScheduled = false;
-                this.scheduleDelayedInitialization();
             }
         }, 2000); // Wait 2 seconds before retry
     }
@@ -1053,6 +1055,58 @@ export class CacheManager {
         toRemove.forEach(([path]) => {
             this.fileContentCache.delete(path);
         });
+        
+        this.stats.cacheEvictions += toRemove.length;
+    }
+    
+    /**
+     * Evict old entries from task cache
+     */
+    private evictTaskCache(): void {
+        if (this.taskInfoCache.size <= CacheManager.MAX_TASK_CACHE_SIZE) {
+            return;
+        }
+        
+        // Sort by last access time (using dateModified as proxy)
+        const entries = Array.from(this.taskInfoCache.entries())
+            .sort((a, b) => {
+                const timeA = new Date(a[1].dateModified || 0).getTime();
+                const timeB = new Date(b[1].dateModified || 0).getTime();
+                return timeA - timeB;
+            });
+        
+        const toRemove = entries.slice(0, entries.length - CacheManager.MAX_TASK_CACHE_SIZE);
+        toRemove.forEach(([path, taskInfo]) => {
+            this.taskInfoCache.delete(path);
+            this.removeFromIndexes(path, 'task', taskInfo);
+        });
+        
+        this.stats.cacheEvictions += toRemove.length;
+    }
+    
+    /**
+     * Evict old entries from note cache
+     */
+    private evictNoteCache(): void {
+        if (this.noteInfoCache.size <= CacheManager.MAX_NOTE_CACHE_SIZE) {
+            return;
+        }
+        
+        // Sort by creation date
+        const entries = Array.from(this.noteInfoCache.entries())
+            .sort((a, b) => {
+                const timeA = new Date(a[1].createdDate || 0).getTime();
+                const timeB = new Date(b[1].createdDate || 0).getTime();
+                return timeA - timeB;
+            });
+        
+        const toRemove = entries.slice(0, entries.length - CacheManager.MAX_NOTE_CACHE_SIZE);
+        toRemove.forEach(([path, noteInfo]) => {
+            this.noteInfoCache.delete(path);
+            this.removeFromIndexes(path, 'note', noteInfo);
+        });
+        
+        this.stats.cacheEvictions += toRemove.length;
     }
     
     /**
@@ -1060,13 +1114,18 @@ export class CacheManager {
      */
     private cleanupYAMLCache(): void {
         const now = Date.now();
+        let removedCount = 0;
         
         for (const [key, entry] of this.yamlCache.entries()) {
             if (now - entry.timestamp > CacheManager.YAML_CACHE_TTL) {
                 this.yamlCache.delete(key);
+                removedCount++;
             }
         }
+        
+        this.stats.cacheEvictions += removedCount;
     }
+    
     
     /**
      * Check if a file path is excluded
@@ -1421,6 +1480,17 @@ export class CacheManager {
         }
     }
     
+    
+    /**
+     * Simple yield implementation (removed complex requestIdleCallback)
+     */
+    private async yieldToMainThread(): Promise<void> {
+        return new Promise(resolve => {
+            setTimeout(() => resolve(), 0);
+        });
+    }
+    
+    
     /**
      * Get task info from cache without file system access
      */
@@ -1498,6 +1568,9 @@ export class CacheManager {
         notesCached: number;
         filesCached: number;
         datesWithTasks: number;
+        memoryUsageMB: number;
+        cacheEvictions: number;
+        indexSize: number;
     } {
         const total = this.stats.cacheHits + this.stats.cacheMisses;
         return {
@@ -1506,7 +1579,10 @@ export class CacheManager {
             tasksCached: this.taskInfoCache.size,
             notesCached: this.noteInfoCache.size,
             filesCached: this.fileContentCache.size,
-            datesWithTasks: this.tasksByDate.size
+            datesWithTasks: this.tasksByDate.size,
+            memoryUsageMB: this.stats.memoryUsage / 1024 / 1024,
+            cacheEvictions: this.stats.cacheEvictions,
+            indexSize: this.tasksByDate.size + this.notesByDate.size + this.tasksByStatus.size + this.tasksByPriority.size
         };
     }
     
@@ -1536,5 +1612,14 @@ export class CacheManager {
         
         // Clear event handlers object
         this.eventHandlers = {};
+        
+        // Clear recent updates
+        this.recentUpdates.clear();
+        
+        // Clear delayed initialization timeout
+        if (this.delayedInitTimeout) {
+            clearTimeout(this.delayedInitTimeout);
+            this.delayedInitTimeout = null;
+        }
     }
 }

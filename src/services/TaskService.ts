@@ -1,4 +1,4 @@
-import { TFile } from 'obsidian';
+import { TFile, Notice } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
@@ -10,80 +10,121 @@ export class TaskService {
      * Toggle the status of a task between completed and open
      */
     async toggleStatus(task: TaskInfo): Promise<TaskInfo> {
-        // Determine new status
-        const isCurrentlyCompleted = this.plugin.statusManager.isCompletedStatus(task.status);
-        const newStatus = isCurrentlyCompleted 
-            ? this.plugin.settings.defaultTaskStatus // Revert to default open status
-            : this.plugin.statusManager.getCompletedStatuses()[0] || 'done'; // Set to first completed status
+        try {
+            // Determine new status
+            const isCurrentlyCompleted = this.plugin.statusManager.isCompletedStatus(task.status);
+            const newStatus = isCurrentlyCompleted 
+                ? this.plugin.settings.defaultTaskStatus // Revert to default open status
+                : this.plugin.statusManager.getCompletedStatuses()[0] || 'done'; // Set to first completed status
 
-        return await this.updateProperty(task, 'status', newStatus);
+            return await this.updateProperty(task, 'status', newStatus);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Error toggling task status:', {
+                error: errorMessage,
+                stack: error instanceof Error ? error.stack : undefined,
+                taskPath: task.path,
+                currentStatus: task.status
+            });
+            
+            throw new Error(`Failed to toggle task status: ${errorMessage}`);
+        }
     }
 
     /**
      * Update a single property of a task following the deterministic data flow pattern
      */
     async updateProperty(task: TaskInfo, property: keyof TaskInfo, value: any, options: { silent?: boolean } = {}): Promise<TaskInfo> {
-        const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
-        if (!(file instanceof TFile)) {
-            throw new Error(`Cannot find task file: ${task.path}`);
-        }
-        
-        // Step 1: Construct new state in memory
-        const updatedTask = { ...task } as Record<string, any>;
-        updatedTask[property] = value;
-        updatedTask.dateModified = new Date().toISOString();
-        
-        // Handle derivative changes for status updates
-        if (property === 'status' && !task.recurrence) {
-            if (this.plugin.statusManager.isCompletedStatus(value)) {
-                updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
-            } else {
-                updatedTask.completedDate = undefined;
+        try {
+            const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
+            if (!(file instanceof TFile)) {
+                throw new Error(`Cannot find task file: ${task.path}`);
             }
-        }
-        
-        // Step 2: Persist to file using the authoritative state
-        await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-            // Map the complete new TaskInfo object to frontmatter fields
-            const fieldName = property as string;
             
-            if (property === 'status') {
-                frontmatter[fieldName] = value;
+            // Step 1: Construct new state in memory
+            const updatedTask = { ...task } as Record<string, any>;
+            updatedTask[property] = value;
+            updatedTask.dateModified = new Date().toISOString();
+            
+            // Handle derivative changes for status updates
+            if (property === 'status' && !task.recurrence) {
+                if (this.plugin.statusManager.isCompletedStatus(value)) {
+                    updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
+                } else {
+                    updatedTask.completedDate = undefined;
+                }
+            }
+            
+            // Step 2: Persist to file
+            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                // Map the complete new TaskInfo object to frontmatter fields
+                const fieldName = property as string;
                 
-                // Update completed date when marking as complete (non-recurring tasks only)
-                if (!task.recurrence) {
-                    if (this.plugin.statusManager.isCompletedStatus(value)) {
-                        frontmatter.completedDate = format(new Date(), 'yyyy-MM-dd');
-                    } else {
-                        // Remove completed date when marking as incomplete
-                        if (frontmatter.completedDate) {
-                            delete frontmatter.completedDate;
+                if (property === 'status') {
+                    frontmatter[fieldName] = value;
+                    
+                    // Update completed date when marking as complete (non-recurring tasks only)
+                    if (!task.recurrence) {
+                        if (this.plugin.statusManager.isCompletedStatus(value)) {
+                            frontmatter.completedDate = format(new Date(), 'yyyy-MM-dd');
+                        } else {
+                            // Remove completed date when marking as incomplete
+                            if (frontmatter.completedDate) {
+                                delete frontmatter.completedDate;
+                            }
                         }
                     }
+                } else if (property === 'due' && !value) {
+                    // Remove empty due dates
+                    delete frontmatter[fieldName];
+                } else {
+                    frontmatter[fieldName] = value;
                 }
-            } else if (property === 'due' && !value) {
-                // Remove empty due dates
-                delete frontmatter[fieldName];
-            } else {
-                frontmatter[fieldName] = value;
+                
+                // Always update the modification timestamp
+                frontmatter.dateModified = updatedTask.dateModified;
+            });
+            
+            // Step 3: Proactively update cache
+            try {
+                await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask as TaskInfo);
+            } catch (cacheError) {
+                // Cache errors shouldn't break the operation, just log them
+                console.error('Error updating task cache:', {
+                    error: cacheError instanceof Error ? cacheError.message : String(cacheError),
+                    taskPath: task.path
+                });
             }
             
-            // Always update the modification timestamp
-            frontmatter.dateModified = updatedTask.dateModified;
-        });
-        
-        // Step 3: Proactively update cache
-        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask as TaskInfo);
-        
-        // Step 4: Notify system of change
-        this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-            path: task.path,
-            originalTask: task,
-            updatedTask: updatedTask as TaskInfo
-        });
-        
-        // Step 5: Return authoritative data
-        return updatedTask as TaskInfo;
+            // Step 4: Notify system of change
+            try {
+                this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                    path: task.path,
+                    originalTask: task,
+                    updatedTask: updatedTask as TaskInfo
+                });
+            } catch (eventError) {
+                console.error('Error emitting task update event:', {
+                    error: eventError instanceof Error ? eventError.message : String(eventError),
+                    taskPath: task.path
+                });
+                // Event emission errors shouldn't break the operation
+            }
+            
+            // Step 5: Return authoritative data
+            return updatedTask as TaskInfo;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Error updating task property:', {
+                error: errorMessage,
+                stack: error instanceof Error ? error.stack : undefined,
+                taskPath: task.path,
+                property: String(property),
+                value
+            });
+            
+            throw new Error(`Failed to update task property: ${errorMessage}`);
+        }
     }
 
     /**

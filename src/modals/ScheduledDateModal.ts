@@ -31,7 +31,7 @@ export class ScheduledDateModal extends Modal {
 
         // Scheduled date input
         new Setting(contentEl)
-            .setName('Scheduled Date')
+            .setName('Scheduled date')
             .setDesc('Enter scheduled date (YYYY-MM-DD) or leave empty to remove scheduled date')
             .addText(text => {
                 this.scheduledDateInput = text.inputEl;

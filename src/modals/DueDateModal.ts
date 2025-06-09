@@ -18,6 +18,13 @@ export class DueDateModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         contentEl.addClass('tasknotes-plugin');
+        
+        // Set up modal accessibility
+        this.titleEl.setText('Set Due Date');
+        this.titleEl.setAttribute('id', 'due-date-modal-title');
+        this.containerEl.setAttribute('aria-labelledby', 'due-date-modal-title');
+        this.containerEl.setAttribute('role', 'dialog');
+        this.containerEl.setAttribute('aria-modal', 'true');
 
         new Setting(contentEl)
             .setName('Set due date')
@@ -35,6 +42,8 @@ export class DueDateModal extends Modal {
             .setDesc('Enter due date (YYYY-MM-DD) or leave empty to remove due date')
             .addText(text => {
                 this.dueDateInput = text.inputEl;
+                this.dueDateInput.setAttribute('aria-label', 'Due date for task');
+                this.dueDateInput.setAttribute('aria-describedby', 'due-date-desc');
                 text.setPlaceholder('YYYY-MM-DD')
                     .setValue(this.task.due || '');
 
@@ -63,28 +72,44 @@ export class DueDateModal extends Modal {
         const buttonsContainer = quickDatesContainer.createDiv({ cls: 'modal-form__quick-actions' });
 
         // Today button
-        buttonsContainer.createEl('button', { text: 'Today', cls: 'modal-form__button modal-form__button--quick-date' })
-            .addEventListener('click', () => {
-                this.dueDateInput.value = format(new Date(), 'yyyy-MM-dd');
-            });
+        const todayBtn = buttonsContainer.createEl('button', { 
+            text: 'Today', 
+            cls: 'modal-form__button modal-form__button--quick-date',
+            attr: { 'aria-label': 'Set due date to today' }
+        });
+        todayBtn.addEventListener('click', () => {
+            this.dueDateInput.value = format(new Date(), 'yyyy-MM-dd');
+        });
 
         // Tomorrow button
-        buttonsContainer.createEl('button', { text: 'Tomorrow', cls: 'modal-form__button modal-form__button--quick-date' })
-            .addEventListener('click', () => {
-                this.dueDateInput.value = format(add(new Date(), { days: 1 }), 'yyyy-MM-dd');
-            });
+        const tomorrowBtn = buttonsContainer.createEl('button', { 
+            text: 'Tomorrow', 
+            cls: 'modal-form__button modal-form__button--quick-date',
+            attr: { 'aria-label': 'Set due date to tomorrow' }
+        });
+        tomorrowBtn.addEventListener('click', () => {
+            this.dueDateInput.value = format(add(new Date(), { days: 1 }), 'yyyy-MM-dd');
+        });
 
         // Next week button
-        buttonsContainer.createEl('button', { text: 'Next week', cls: 'modal-form__button modal-form__button--quick-date' })
-            .addEventListener('click', () => {
-                this.dueDateInput.value = format(add(new Date(), { weeks: 1 }), 'yyyy-MM-dd');
-            });
+        const nextWeekBtn = buttonsContainer.createEl('button', { 
+            text: 'Next week', 
+            cls: 'modal-form__button modal-form__button--quick-date',
+            attr: { 'aria-label': 'Set due date to next week' }
+        });
+        nextWeekBtn.addEventListener('click', () => {
+            this.dueDateInput.value = format(add(new Date(), { weeks: 1 }), 'yyyy-MM-dd');
+        });
 
         // Clear button
-        buttonsContainer.createEl('button', { text: 'Clear', cls: 'modal-form__button modal-form__button--quick-date modal-form__button--quick-date--clear' })
-            .addEventListener('click', () => {
-                this.dueDateInput.value = '';
-            });
+        const clearBtn = buttonsContainer.createEl('button', { 
+            text: 'Clear', 
+            cls: 'modal-form__button modal-form__button--quick-date modal-form__button--quick-date--clear',
+            attr: { 'aria-label': 'Clear due date' }
+        });
+        clearBtn.addEventListener('click', () => {
+            this.dueDateInput.value = '';
+        });
 
         // Action buttons
         const buttonContainer = contentEl.createDiv({ cls: 'modal-form__buttons' });
@@ -110,9 +135,20 @@ export class DueDateModal extends Modal {
             // Show error message
             const errorEl = this.contentEl.createEl('div', { 
                 text: 'Please enter a valid date in YYYY-MM-DD format',
-                cls: 'modal-form__error'
+                cls: 'modal-form__error',
+                attr: {
+                    'role': 'alert',
+                    'aria-live': 'assertive'
+                }
             });
-            setTimeout(() => errorEl.remove(), 3000);
+            this.dueDateInput.setAttribute('aria-invalid', 'true');
+            this.dueDateInput.setAttribute('aria-describedby', 'due-date-error');
+            errorEl.setAttribute('id', 'due-date-error');
+            setTimeout(() => {
+                errorEl.remove();
+                this.dueDateInput.removeAttribute('aria-invalid');
+                this.dueDateInput.removeAttribute('aria-describedby');
+            }, 3000);
             return;
         }
 

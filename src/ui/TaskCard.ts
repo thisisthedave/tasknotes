@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { TFile, Menu, setIcon } from 'obsidian';
+import { TFile, Menu, setIcon, Notice } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { calculateTotalTimeSpent, isRecurringTaskDueOn, getEffectiveTaskStatus, shouldUseRecurringTaskUI, getRecurringTaskCompletionText } from '../utils/helpers';
@@ -96,8 +96,12 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
                     await plugin.toggleTaskStatus(task);
                 }
             } catch (error) {
-                // Error handling and user feedback is now handled by the wrapper methods
-                console.error('Error in task checkbox handler:', error);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error('Error in task checkbox handler:', {
+                    error: errorMessage,
+                    taskPath: task.path
+                });
+                new Notice(`Failed to toggle task status: ${errorMessage}`);
             }
         });
     }
@@ -296,8 +300,12 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
                         // Use the fresh task data that showTaskContextMenu just fetched
                         await plugin.updateTaskProperty(task, 'status', statusConfig.value);
                     } catch (error) {
-                        // Error handling and user feedback is now handled by the wrapper method
-                        console.error('Error updating task status:', error);
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        console.error('Error updating task status:', {
+                            error: errorMessage,
+                            taskPath: task.path
+                        });
+                        new Notice(`Failed to update task status: ${errorMessage}`);
                     }
                 });
             });
@@ -318,7 +326,12 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
                     try {
                         await plugin.toggleRecurringTaskComplete(task, targetDate);
                     } catch (error) {
-                        console.error('Error toggling recurring task completion:', error);
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        console.error('Error toggling recurring task completion:', {
+                            error: errorMessage,
+                            taskPath: task.path
+                        });
+                        new Notice(`Failed to toggle recurring task completion: ${errorMessage}`);
                     }
                 });
             });
@@ -340,8 +353,12 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
                         // Use the fresh task data that showTaskContextMenu just fetched
                         await plugin.updateTaskProperty(task, 'priority', priorityConfig.value);
                     } catch (error) {
-                        // Error handling and user feedback is now handled by the wrapper method
-                        console.error('Error updating task priority:', error);
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        console.error('Error updating task priority:', {
+                            error: errorMessage,
+                            taskPath: task.path
+                        });
+                        new Notice(`Failed to update task priority: ${errorMessage}`);
                     }
                 });
             });
@@ -374,7 +391,7 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
         // Time Tracking - determine current state from fresh task data
         menu.addItem((item) => {
             const activeSession = plugin.getActiveTimeSession(task);
-            item.setTitle(activeSession ? 'Stop Time Tracking' : 'Start Time Tracking');
+            item.setTitle(activeSession ? 'Stop time tracking' : 'Start time tracking');
             item.setIcon(activeSession ? 'pause' : 'play');
             item.onClick(async () => {
                 // Use the fresh task data that showTaskContextMenu just fetched
@@ -396,8 +413,12 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
                     // Use the fresh task data that showTaskContextMenu just fetched
                     await plugin.toggleTaskArchive(task);
                 } catch (error) {
-                    // Error handling and user feedback is now handled by the wrapper method
-                    console.error('Error toggling task archive:', error);
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    console.error('Error toggling task archive:', {
+                        error: errorMessage,
+                        taskPath: task.path
+                    });
+                    new Notice(`Failed to toggle task archive: ${errorMessage}`);
                 }
             });
         });
@@ -406,7 +427,7 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
         
         // Open Note
         menu.addItem((item) => {
-            item.setTitle('Open Note');
+            item.setTitle('Open note');
             item.setIcon('file-text');
             item.onClick(() => {
                 const file = plugin.app.vault.getAbstractFileByPath(taskPath);
@@ -418,7 +439,7 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
         
         // Copy Task Title
         menu.addItem((item) => {
-            item.setTitle('Copy Task Title');
+            item.setTitle('Copy task title');
             item.setIcon('copy');
             item.onClick(() => {
                 // Use the fresh task data that showTaskContextMenu just fetched
@@ -428,7 +449,12 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
     
         menu.showAtMouseEvent(event);
     } catch (error) {
-        console.error(`Error creating context menu for task ${taskPath}:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('Error creating context menu:', {
+            error: errorMessage,
+            taskPath
+        });
+        new Notice(`Failed to create context menu: ${errorMessage}`);
     }
 }
 

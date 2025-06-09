@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Setting } from 'obsidian';
+import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { format, subDays, startOfWeek, endOfWeek } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
@@ -47,9 +47,10 @@ export class PomodoroStatsView extends ItemView {
         
         // Header
         const header = container.createDiv({ cls: 'pomodoro-stats-header pomodoro-stats-view__header' });
-        new Setting(header)
-            .setName('Pomodoro statistics')
-            .setHeading();
+        header.createEl('h2', {
+            text: 'Pomodoro statistics',
+            cls: 'pomodoro-stats-view__title'
+        });
         
         // Refresh button
         const refreshButton = header.createEl('button', { 
@@ -62,30 +63,34 @@ export class PomodoroStatsView extends ItemView {
         
         // Today's stats
         const todaySection = container.createDiv({ cls: 'pomodoro-stats-section pomodoro-stats-view__section' });
-        new Setting(todaySection)
-            .setName('Today')
-            .setHeading();
+        todaySection.createEl('h3', {
+            text: 'Today',
+            cls: 'pomodoro-stats-view__section-title'
+        });
         this.todayStatsEl = todaySection.createDiv({ cls: 'pomodoro-stats-grid pomodoro-stats-view__stats-grid' });
         
         // This week's stats
         const weekSection = container.createDiv({ cls: 'pomodoro-stats-section pomodoro-stats-view__section' });
-        new Setting(weekSection)
-            .setName('This week')
-            .setHeading();
+        weekSection.createEl('h3', {
+            text: 'This week',
+            cls: 'pomodoro-stats-view__section-title'
+        });
         this.weekStatsEl = weekSection.createDiv({ cls: 'pomodoro-stats-grid pomodoro-stats-view__stats-grid' });
         
         // Overall stats
         const overallSection = container.createDiv({ cls: 'pomodoro-stats-section pomodoro-stats-view__section' });
-        new Setting(overallSection)
-            .setName('All time')
-            .setHeading();
+        overallSection.createEl('h3', {
+            text: 'All time',
+            cls: 'pomodoro-stats-view__section-title'
+        });
         this.overallStatsEl = overallSection.createDiv({ cls: 'pomodoro-stats-grid pomodoro-stats-view__stats-grid' });
         
         // Recent sessions
         const recentSection = container.createDiv({ cls: 'pomodoro-stats-section pomodoro-stats-view__section' });
-        new Setting(recentSection)
-            .setName('Recent sessions')
-            .setHeading();
+        recentSection.createEl('h3', {
+            text: 'Recent sessions',
+            cls: 'pomodoro-stats-view__section-title'
+        });
         this.recentSessionsEl = recentSection.createDiv({ cls: 'pomodoro-recent-sessions pomodoro-stats-view__recent-sessions' });
         
         // Initial load

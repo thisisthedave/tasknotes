@@ -307,6 +307,21 @@ export default class TaskNotesPlugin extends Plugin {
 			this.pomodoroService.cleanup();
 		}
 		
+		// Clean up FilterService
+		if (this.filterService) {
+			this.filterService.cleanup();
+		}
+		
+		// Clean up TaskLinkDetectionService
+		if (this.taskLinkDetectionService) {
+			this.taskLinkDetectionService.cleanup();
+		}
+		
+		// Clean up ViewStateManager
+		if (this.viewStateManager) {
+			this.viewStateManager.cleanup();
+		}
+		
 		// Clean up unified cache manager
 		if (this.cacheManager) {
 			this.cacheManager.destroy();
@@ -315,6 +330,21 @@ export default class TaskNotesPlugin extends Plugin {
 		// Clean up request deduplicator
 		if (this.requestDeduplicator) {
 			this.requestDeduplicator.cancelAll();
+		}
+		
+		// Clean up DOM reconciler
+		if (this.domReconciler) {
+			this.domReconciler.destroy();
+		}
+
+		// Clean up UI state manager
+		if (this.uiStateManager) {
+			this.uiStateManager.destroy();
+		}
+		
+		// Clean up performance monitor
+		if (typeof perfMonitor !== 'undefined') {
+			perfMonitor.destroy();
 		}
 		
 		// Clean up task update listener for editor
@@ -589,13 +619,24 @@ export default class TaskNotesPlugin extends Plugin {
 		let noteWasCreated = false;
 		
 		if (!file) {
-			// Create the daily notes folder if it doesn't exist
-			await ensureFolderExists(this.app.vault, this.settings.dailyNotesFolder);
-			
-			// Create daily note with default content
-			const content = await this.generateDailyNoteTemplate(date);
-			await this.app.vault.create(dailyNotePath, content);
-			noteWasCreated = true;
+			try {
+				// Create the daily notes folder if it doesn't exist
+				await ensureFolderExists(this.app.vault, this.settings.dailyNotesFolder);
+				
+				// Create daily note with default content
+				const content = await this.generateDailyNoteTemplate(date);
+				await this.app.vault.create(dailyNotePath, content);
+				noteWasCreated = true;
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				console.error('Failed to create daily note:', {
+					error: errorMessage,
+					path: dailyNotePath,
+					date: format(date, 'yyyy-MM-dd')
+				});
+				new Notice(`Failed to create daily note: ${errorMessage}`);
+				return; // Don't try to open the file if creation failed
+			}
 		}
 		
 		// Open the daily note

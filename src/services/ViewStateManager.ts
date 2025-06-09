@@ -7,7 +7,6 @@ import { EventEmitter } from '../utils/EventEmitter';
 export class ViewStateManager extends EventEmitter {
     private filterState: ViewFilterState = {};
     private storageKey = 'tasknotes-view-filter-state';
-
     constructor() {
         super();
         this.loadFromStorage();
@@ -78,5 +77,14 @@ export class ViewStateManager extends EventEmitter {
      */
     getAllFilterStates(): ViewFilterState {
         return { ...this.filterState };
+    }
+    
+
+    /**
+     * Clean up event listeners and clear state
+     */
+    cleanup(): void {
+        // Remove all event listeners
+        this.removeAllListeners();
     }
 }

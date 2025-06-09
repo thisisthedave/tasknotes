@@ -75,8 +75,14 @@ export abstract class BaseTaskModal extends Modal {
 
     protected createFormGroup(container: HTMLElement, label: string, inputCallback: (container: HTMLElement) => void): HTMLElement {
         const formGroup = container.createDiv({ cls: 'modal-form__group' });
-        formGroup.createEl('label', { text: label, cls: 'modal-form__label' });
+        const labelId = `form-label-${Math.random().toString(36).substr(2, 9)}`;
+        const labelEl = formGroup.createEl('label', { 
+            text: label, 
+            cls: 'modal-form__label',
+            attr: { 'id': labelId }
+        });
         const inputContainer = formGroup.createDiv({ cls: 'modal-form__input-container' });
+        inputContainer.setAttribute('aria-labelledby', labelId);
         inputCallback(inputContainer);
         return formGroup;
     }
@@ -87,9 +93,20 @@ export abstract class BaseTaskModal extends Modal {
         getSuggestionsFn: () => Promise<string[]> | string[], 
         onChangeFn: (value: string) => void
     ): Promise<void> {
+        const inputId = `autocomplete-${fieldName}-${Math.random().toString(36).substr(2, 9)}`;
+        const listboxId = `listbox-${fieldName}-${Math.random().toString(36).substr(2, 9)}`;
+        
         const input = container.createEl('input', {
             type: 'text',
-            cls: 'modal-form__input'
+            cls: 'modal-form__input',
+            attr: {
+                'id': inputId,
+                'aria-label': `Enter ${fieldName} (comma-separated)`,
+                'aria-autocomplete': 'list',
+                'aria-expanded': 'false',
+                'aria-haspopup': 'listbox',
+                'role': 'combobox'
+            }
         });
 
         input.value = (this as any)[fieldName] || '';
@@ -114,7 +131,7 @@ export abstract class BaseTaskModal extends Modal {
                 }
             }
             
-            this.showSuggestions(container, suggestions, input, onChangeFn);
+            this.showSuggestions(container, suggestions, input, onChangeFn, listboxId);
         });
 
         input.addEventListener('blur', () => {
@@ -152,13 +169,27 @@ export abstract class BaseTaskModal extends Modal {
         container: HTMLElement, 
         suggestions: string[], 
         input: HTMLInputElement, 
-        onChangeFn: (value: string) => void
+        onChangeFn: (value: string) => void,
+        listboxId?: string
     ): void {
         this.hideSuggestions(container);
 
-        if (suggestions.length === 0) return;
+        if (suggestions.length === 0) {
+            input.setAttribute('aria-expanded', 'false');
+            return;
+        }
 
-        const suggestionsList = container.createDiv({ cls: 'modal-form__suggestions' });
+        const suggestionsList = container.createDiv({ 
+            cls: 'modal-form__suggestions',
+            attr: {
+                'role': 'listbox',
+                'id': listboxId || `suggestions-${Math.random().toString(36).substr(2, 9)}`,
+                'aria-label': 'Suggestions'
+            }
+        });
+        
+        input.setAttribute('aria-expanded', 'true');
+        input.setAttribute('aria-controls', suggestionsList.id);
         
         // Get the current partial value being typed (after the last comma)
         const inputValue = input.value;
@@ -177,11 +208,18 @@ export abstract class BaseTaskModal extends Modal {
         filteredSuggestions.slice(0, 10).forEach((suggestion, index) => {
             const suggestionItem = suggestionsList.createDiv({ 
                 cls: 'modal-form__suggestion',
-                text: suggestion
+                text: suggestion,
+                attr: {
+                    'role': 'option',
+                    'id': `suggestion-${index}`,
+                    'aria-selected': index === 0 ? 'true' : 'false',
+                    'tabindex': '-1'
+                }
             });
 
             if (index === 0) {
                 suggestionItem.addClass('modal-form__suggestion--selected');
+                input.setAttribute('aria-activedescendant', `suggestion-${index}`);
             }
 
             suggestionItem.addEventListener('click', () => {
@@ -211,8 +249,15 @@ export abstract class BaseTaskModal extends Modal {
         suggestions.forEach((suggestion, index) => {
             if (index === selectedIndex) {
                 suggestion.addClass('modal-form__suggestion--selected');
+                suggestion.setAttribute('aria-selected', 'true');
+                // Update aria-activedescendant on the input
+                const input = suggestion.closest('.modal-form__input-container')?.querySelector('input');
+                if (input) {
+                    input.setAttribute('aria-activedescendant', suggestion.id);
+                }
             } else {
                 suggestion.removeClass('modal-form__suggestion--selected');
+                suggestion.setAttribute('aria-selected', 'false');
             }
         });
     }
@@ -221,19 +266,39 @@ export abstract class BaseTaskModal extends Modal {
         const existingSuggestions = container.querySelector('.modal-form__suggestions');
         if (existingSuggestions) {
             existingSuggestions.remove();
+            // Clean up aria attributes on the input
+            const input = container.querySelector('input');
+            if (input) {
+                input.setAttribute('aria-expanded', 'false');
+                input.removeAttribute('aria-activedescendant');
+                input.removeAttribute('aria-controls');
+            }
         }
     }
 
     protected createTitleInputWithCounter(container: HTMLElement, maxLength: number): void {
+        const inputId = `title-input-${Math.random().toString(36).substr(2, 9)}`;
         const titleInput = container.createEl('input', {
             type: 'text',
             cls: 'modal-form__input modal-form__input--title',
-            attr: { maxlength: maxLength.toString() }
+            attr: { 
+                maxlength: maxLength.toString(),
+                'id': inputId,
+                'aria-label': 'Task title',
+                'aria-describedby': `${inputId}-counter`
+            }
         });
 
         titleInput.value = this.title;
 
-        const charCounter = container.createDiv({ cls: 'modal-form__char-counter' });
+        const charCounter = container.createDiv({ 
+            cls: 'modal-form__char-counter',
+            attr: {
+                'id': `${inputId}-counter`,
+                'aria-live': 'polite',
+                'aria-label': 'Character count'
+            }
+        });
         this.updateCharCounter(charCounter, this.title.length, maxLength);
 
         titleInput.addEventListener('input', (e) => {
@@ -254,7 +319,14 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createPriorityDropdown(container: HTMLElement): void {
-        const select = container.createEl('select', { cls: 'modal-form__select' });
+        const selectId = `priority-select-${Math.random().toString(36).substr(2, 9)}`;
+        const select = container.createEl('select', { 
+            cls: 'modal-form__select',
+            attr: {
+                'id': selectId,
+                'aria-label': 'Task priority'
+            }
+        });
 
         this.plugin.priorityManager.getPrioritiesByWeight().forEach(priorityConfig => {
             const option = select.createEl('option', {
@@ -273,7 +345,14 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createStatusDropdown(container: HTMLElement): void {
-        const select = container.createEl('select', { cls: 'modal-form__select' });
+        const selectId = `status-select-${Math.random().toString(36).substr(2, 9)}`;
+        const select = container.createEl('select', { 
+            cls: 'modal-form__select',
+            attr: {
+                'id': selectId,
+                'aria-label': 'Task status'
+            }
+        });
 
         this.plugin.statusManager.getAllStatuses().forEach(statusConfig => {
             const option = select.createEl('option', {
@@ -292,9 +371,14 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createDueDateInput(container: HTMLElement): void {
+        const inputId = `due-date-input-${Math.random().toString(36).substr(2, 9)}`;
         const input = container.createEl('input', {
             type: 'date',
-            cls: 'modal-form__input'
+            cls: 'modal-form__input',
+            attr: {
+                'id': inputId,
+                'aria-label': 'Due date'
+            }
         });
 
         input.value = this.dueDate;
@@ -305,9 +389,14 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createScheduledDateInput(container: HTMLElement): void {
+        const inputId = `scheduled-date-input-${Math.random().toString(36).substr(2, 9)}`;
         const input = container.createEl('input', {
             type: 'date',
-            cls: 'modal-form__input'
+            cls: 'modal-form__input',
+            attr: {
+                'id': inputId,
+                'aria-label': 'Scheduled date'
+            }
         });
 
         input.value = this.scheduledDate;
@@ -319,16 +408,26 @@ export abstract class BaseTaskModal extends Modal {
 
     protected createTimeEstimateInput(container: HTMLElement): void {
         const inputContainer = container.createDiv({ cls: 'modal-form__time-estimate' });
+        const inputId = `time-estimate-input-${Math.random().toString(36).substr(2, 9)}`;
         
         const input = inputContainer.createEl('input', {
             type: 'number',
             cls: 'modal-form__input modal-form__input--number',
-            attr: { min: '0', step: '5' }
+            attr: { 
+                min: '0', 
+                step: '5',
+                'id': inputId,
+                'aria-label': 'Time estimate in minutes',
+                'aria-describedby': `${inputId}-label`
+            }
         });
 
         input.value = this.timeEstimate.toString();
 
-        const label = inputContainer.createSpan({ cls: 'modal-form__time-label' });
+        const label = inputContainer.createSpan({ 
+            cls: 'modal-form__time-label',
+            attr: { 'id': `${inputId}-label` }
+        });
         this.updateTimeLabel(label, this.timeEstimate);
 
         input.addEventListener('input', (e) => {
@@ -355,7 +454,14 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createRecurrenceDropdown(container: HTMLElement): void {
-        const select = container.createEl('select', { cls: 'modal-form__select' });
+        const selectId = `recurrence-select-${Math.random().toString(36).substr(2, 9)}`;
+        const select = container.createEl('select', { 
+            cls: 'modal-form__select',
+            attr: {
+                'id': selectId,
+                'aria-label': 'Task recurrence pattern'
+            }
+        });
 
         const options = [
             { value: 'none', text: 'No recurrence' },
@@ -417,15 +523,24 @@ export abstract class BaseTaskModal extends Modal {
 
         days.forEach(day => {
             const dayContainer = daysContainer.createDiv({ cls: 'modal-form__day-checkbox' });
+            const checkboxId = `day-${day.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
             
             const checkbox = dayContainer.createEl('input', {
                 type: 'checkbox',
-                cls: 'modal-form__day-input'
+                cls: 'modal-form__day-input',
+                attr: {
+                    'id': checkboxId,
+                    'aria-label': `Include ${day} in weekly recurrence`
+                }
             });
 
             checkbox.checked = this.daysOfWeek.includes(day);
 
-            dayContainer.createEl('label', { text: day, cls: 'modal-form__day-label' });
+            dayContainer.createEl('label', { 
+                text: day, 
+                cls: 'modal-form__day-label',
+                attr: { 'for': checkboxId }
+            });
 
             checkbox.addEventListener('change', (e) => {
                 if ((e.target as HTMLInputElement).checked) {

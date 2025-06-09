@@ -28,6 +28,13 @@ export class CalendarView extends ItemView {
     
     // Event listeners
     private listeners: (() => void)[] = [];
+    
+    // Performance optimizations
+    private monthCalculationCache: Map<string, { actualMonth: number; dateObj: Date; dateKey: string }> = new Map();
+    private debouncedRefresh: (() => void) | null = null;
+    private currentCacheKey: string = '';
+    private calendarDayElements: NodeListOf<Element> | null = null;
+    private elementToDateMap: Map<Element, { date: number; dateKey: string }> = new Map();
   
     constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
@@ -133,11 +140,17 @@ export class CalendarView extends ItemView {
         
         // Check if we're changing months - if so, we need a full refresh
         if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
+            // Clear month calculation cache for performance
+            this.clearMonthCalculationCache();
+            
             // Force daily notes cache rebuild for the new month
             if (this.colorizeMode === 'daily') {
                 this.plugin.cacheManager.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
             }
-            await this.refresh();
+            
+            // Use debounced refresh for better performance
+            this.initializeDebouncedRefresh();
+            this.debouncedRefresh!();
         } else {
             // Same month, just update selected date
             this.updateSelectedDate(date);
@@ -154,11 +167,17 @@ export class CalendarView extends ItemView {
         
         // Check if we're changing months - if so, we need a full refresh
         if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
+            // Clear month calculation cache for performance
+            this.clearMonthCalculationCache();
+            
             // Force daily notes cache rebuild for the new month
             if (this.colorizeMode === 'daily') {
                 this.plugin.cacheManager.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
             }
-            await this.refresh();
+            
+            // Use debounced refresh for better performance
+            this.initializeDebouncedRefresh();
+            this.debouncedRefresh!();
         } else {
             // Same month, just update selected date
             this.updateSelectedDate(date);
@@ -174,12 +193,17 @@ export class CalendarView extends ItemView {
         if (currentDate.getMonth() !== today.getMonth() || 
             currentDate.getFullYear() !== today.getFullYear()) {
             
+            // Clear month calculation cache for performance
+            this.clearMonthCalculationCache();
+            
             // Force daily notes cache rebuild for the current month
             if (this.colorizeMode === 'daily') {
                 this.plugin.cacheManager.rebuildDailyNotesCache(today.getFullYear(), today.getMonth());
             }
             
-            await this.refresh();
+            // Use debounced refresh for better performance
+            this.initializeDebouncedRefresh();
+            this.debouncedRefresh!();
         } else {
             // Same month, just update selected date
             this.updateSelectedDate(today);
@@ -190,6 +214,12 @@ export class CalendarView extends ItemView {
     async onClose() {
         // Remove event listeners
         this.listeners.forEach(unsubscribe => unsubscribe());
+        
+        // Clean up caches and references
+        this.monthCalculationCache.clear();
+        this.elementToDateMap.clear();
+        this.calendarDayElements = null;
+        this.currentCacheKey = '';
         
         // Clean up when the view is closed
         this.contentEl.empty();
@@ -817,18 +847,29 @@ export class CalendarView extends ItemView {
                 // Skip if the date is not valid
                 if (isNaN(date)) return;
                 
-                // Adjust for days outside current month
-                let actualMonth = month;
-                if (day.classList.contains('calendar-view__day--outside-month')) {
-                    if (date > 15) { // Probably previous month
-                        actualMonth = month === 0 ? 11 : month - 1;
-                    } else { // Probably next month
-                        actualMonth = month === 11 ? 0 : month + 1;
+                // Use cached month calculation for better performance
+                const cacheKey = `${year}-${month}-${date}-${day.classList.contains('calendar-view__day--outside-month')}`;
+                let cachedResult = this.monthCalculationCache.get(cacheKey);
+                
+                if (!cachedResult) {
+                    // Adjust for days outside current month
+                    let actualMonth = month;
+                    if (day.classList.contains('calendar-view__day--outside-month')) {
+                        if (date > 15) { // Probably previous month
+                            actualMonth = month === 0 ? 11 : month - 1;
+                        } else { // Probably next month
+                            actualMonth = month === 11 ? 0 : month + 1;
+                        }
                     }
+                    
+                    const dateObj = new Date(year, actualMonth, date);
+                    const dateKey = format(dateObj, 'yyyy-MM-dd');
+                    
+                    cachedResult = { actualMonth, dateObj, dateKey };
+                    this.monthCalculationCache.set(cacheKey, cachedResult);
                 }
                 
-                const dateObj = new Date(year, actualMonth, date);
-                const dateKey = format(dateObj, 'yyyy-MM-dd');
+                const { dateKey } = cachedResult;
                 
                 // Get task info for this date
                 const taskInfo = tasksCache.get(dateKey);
@@ -913,19 +954,30 @@ export class CalendarView extends ItemView {
                 // Skip if the date is not valid
                 if (isNaN(date)) return;
                 
-                // Adjust for days outside current month
-                let actualMonth = month;
-                if (day.classList.contains('calendar-view__day--outside-month')) {
-                    if (date > 15) { // Probably previous month
-                        actualMonth = month === 0 ? 11 : month - 1;
-                    } else { // Probably next month
-                        actualMonth = month === 11 ? 0 : month + 1;
+                // Use cached month calculation for better performance
+                const cacheKey = `${year}-${month}-${date}-${day.classList.contains('calendar-view__day--outside-month')}`;
+                let cachedResult = this.monthCalculationCache.get(cacheKey);
+                
+                if (!cachedResult) {
+                    // Adjust for days outside current month
+                    let actualMonth = month;
+                    if (day.classList.contains('calendar-view__day--outside-month')) {
+                        if (date > 15) { // Probably previous month
+                            actualMonth = month === 0 ? 11 : month - 1;
+                        } else { // Probably next month
+                            actualMonth = month === 11 ? 0 : month + 1;
+                        }
                     }
+                    
+                    const dateObj = new Date(year, actualMonth, date);
+                    const dateKey = format(dateObj, 'yyyy-MM-dd');
+                    
+                    cachedResult = { actualMonth, dateObj, dateKey };
+                    this.monthCalculationCache.set(cacheKey, cachedResult);
                 }
                 
                 // Format the date as the file basename
-                const dateObj = new Date(year, actualMonth, date);
-                const dateStr = format(dateObj, 'yyyy-MM-dd');
+                const dateStr = cachedResult.dateKey;
                 
                 // Check if we have a daily note for this date
                 if (dailyNotesCache.has(dateStr)) {
@@ -989,7 +1041,7 @@ export class CalendarView extends ItemView {
     }
     
     /**
-     * Update specific calendar cells for given dates
+     * Update specific calendar cells for given dates with optimized DOM updates
      */
     private async updateCalendarCellsForDates(dates: string[]) {
         if (dates.length === 0) return;
@@ -1000,32 +1052,38 @@ export class CalendarView extends ItemView {
         const calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
         const tasksCache = calendarData.tasks;
         
-        // Find all calendar day elements
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
+        // Cache calendar day elements if needed or invalidate if month changed
+        const currentCacheKey = `${currentYear}-${currentMonth}`;
+        if (this.currentCacheKey !== currentCacheKey || !this.calendarDayElements) {
+            this.calendarDayElements = this.contentEl.querySelectorAll('.calendar-view__day');
+            this.currentCacheKey = currentCacheKey;
+            this.buildElementToDateMap(currentYear, currentMonth);
+        }
         
-        // Update each affected date
-        dates.forEach(dateKey => {
+        // Create a set for O(1) lookup
+        const datesToUpdate = new Set(dates);
+        
+        // Use document fragment for batch DOM updates
+        const elementsToUpdate: { element: HTMLElement; dateKey: string }[] = [];
+        
+        // Filter dates that are not in the current visible month
+        const relevantDates = dates.filter(dateKey => {
             const targetDate = new Date(dateKey);
-            
-            // Skip dates that are not in the current visible month
-            if (targetDate.getFullYear() !== currentYear || 
-                (Math.abs(targetDate.getMonth() - currentMonth) > 1)) {
-                return;
+            return targetDate.getFullYear() === currentYear && 
+                   Math.abs(targetDate.getMonth() - currentMonth) <= 1;
+        });
+        
+        // Build list of elements to update using the cached map
+        for (const [element, dateInfo] of this.elementToDateMap) {
+            if (datesToUpdate.has(dateInfo.dateKey)) {
+                elementsToUpdate.push({ element: element as HTMLElement, dateKey: dateInfo.dateKey });
             }
-            
-            // Find the corresponding calendar cell
-            calendarDays.forEach(day => {
-                const dayEl = day as HTMLElement;
-                const dateText = dayEl.innerText.trim();
-                
-                if (!dateText || isNaN(parseInt(dateText))) return;
-                
-                // Determine the actual date this cell represents
-                const cellDate = this.getCellDate(dayEl, parseInt(dateText), currentYear, currentMonth);
-                
-                if (cellDate && format(cellDate, 'yyyy-MM-dd') === dateKey) {
-                    this.updateSingleCalendarCell(dayEl, dateKey, tasksCache);
-                }
+        }
+        
+        // Batch update all elements using requestAnimationFrame for better performance
+        requestAnimationFrame(() => {
+            elementsToUpdate.forEach(({ element, dateKey }) => {
+                this.updateSingleCalendarCell(element, dateKey, tasksCache);
             });
         });
     }
@@ -1098,9 +1156,69 @@ export class CalendarView extends ItemView {
         try {
             return new Date(currentYear, actualMonth, dayNum);
         } catch (error) {
-            console.warn('Invalid date in calendar cell:', { dayNum, actualMonth, currentYear });
+            console.error('Error creating date:', error);
             return null;
         }
+    }
+    
+    /**
+     * Build a map of calendar elements to their corresponding dates for efficient lookups
+     */
+    private buildElementToDateMap(currentYear: number, currentMonth: number): void {
+        this.elementToDateMap.clear();
+        
+        if (!this.calendarDayElements) return;
+        
+        this.calendarDayElements.forEach(element => {
+            const dayEl = element as HTMLElement;
+            const dateText = dayEl.innerText.trim();
+            
+            if (!dateText || isNaN(parseInt(dateText))) return;
+            
+            const date = parseInt(dateText);
+            const cellDate = this.getCellDate(dayEl, date, currentYear, currentMonth);
+            
+            if (cellDate) {
+                const dateKey = format(cellDate, 'yyyy-MM-dd');
+                this.elementToDateMap.set(element, { date, dateKey });
+            }
+        });
+    }
+    
+    /**
+     * Clear month calculation cache when month changes
+     */
+    private clearMonthCalculationCache(): void {
+        // Only keep cache for current month to prevent memory buildup
+        const currentCachePrefix = `${this.plugin.selectedDate.getFullYear()}-${this.plugin.selectedDate.getMonth()}`;
+        
+        for (const [key] of this.monthCalculationCache) {
+            if (!key.startsWith(currentCachePrefix)) {
+                this.monthCalculationCache.delete(key);
+            }
+        }
+    }
+    
+    /**
+     * Initialize debounced refresh function
+     */
+    private initializeDebouncedRefresh(): void {
+        if (!this.debouncedRefresh) {
+            this.debouncedRefresh = this.debounce(() => {
+                this.refresh();
+            }, 150); // 150ms debounce for calendar refreshes
+        }
+    }
+    
+    /**
+     * Simple debounce utility
+     */
+    private debounce(func: Function, wait: number): () => void {
+        let timeout: NodeJS.Timeout;
+        return (...args: any[]) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
     }
     
     // Helper methods for date calculations

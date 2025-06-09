@@ -44,7 +44,7 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
         const dailyBadge = item.createSpan({ 
             cls: 'note-card__badge',
             text: 'Daily',
-            attr: { title: 'Daily Note' }
+            attr: { title: 'Daily note' }
         });
     }
     

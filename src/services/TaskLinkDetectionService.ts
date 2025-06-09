@@ -159,4 +159,12 @@ export class TaskLinkDetectionService {
 
         return wikilinks;
     }
+
+    /**
+     * Clean up resources and clear caches
+     */
+    cleanup(): void {
+        // Clear the link cache to prevent memory leaks
+        this.linkCache.clear();
+    }
 }
