@@ -14,6 +14,9 @@ const CSS_FILES = [
     'styles/kanban-view.css',
     'styles/agenda-view.css',
     'styles/notes-view.css',
+    'styles/pomodoro-view.css',
+    'styles/pomodoro-stats-view.css',
+    'styles/settings-view.css',
     'styles/components.css',
     'styles/calendar.css',
     'styles/tasks.css',
@@ -44,6 +47,9 @@ const MAIN_CSS_TEMPLATE = `/* TaskNotes Plugin Styles */
    - styles/kanban-view.css: NEW BEM KanbanView component with proper scoping
    - styles/agenda-view.css: NEW BEM AgendaView component with proper scoping
    - styles/notes-view.css: NEW BEM NotesView component with proper scoping
+   - styles/pomodoro-view.css: NEW BEM PomodoroView component with proper scoping
+   - styles/pomodoro-stats-view.css: NEW BEM PomodoroStatsView component with proper scoping
+   - styles/settings-view.css: NEW BEM SettingsView component with proper scoping
    - styles/components.css: Reusable UI components, utilities, and modals
    - styles/calendar.css: Calendar view specific styles (LEGACY - to be deprecated)
    - styles/tasks.css: Task list and task item specific styles (LEGACY - to be deprecated)

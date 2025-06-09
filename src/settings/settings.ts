@@ -146,9 +146,11 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass('tasknotes-settings');
+		containerEl.addClass('tasknotes-plugin');
+		containerEl.addClass('settings-view');
 		
 		// Create tab navigation
-		const tabNav = containerEl.createDiv('settings-tab-nav');
+		const tabNav = containerEl.createDiv('settings-tab-nav settings-view__tab-nav');
 		
 		const tabs = [
 			{ id: 'general', name: 'Basic setup' },
@@ -162,7 +164,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		tabs.forEach(tab => {
 			const tabButton = tabNav.createEl('button', {
 				text: tab.name,
-				cls: this.activeTab === tab.id ? 'settings-tab-button active' : 'settings-tab-button'
+				cls: this.activeTab === tab.id ? 'settings-tab-button settings-view__tab-button active settings-view__tab-button--active' : 'settings-tab-button settings-view__tab-button'
 			});
 			
 			tabButton.addEventListener('click', () => {
@@ -171,13 +173,14 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		});
 		
 		// Create tab content containers
-		const tabContentsEl = containerEl.createDiv('settings-tab-contents');
+		const tabContentsEl = containerEl.createDiv('settings-tab-contents settings-view__tab-contents');
 		
 		// Create all tab content containers
 		tabs.forEach(tab => {
-			const tabContent = tabContentsEl.createDiv('settings-tab-content');
+			const tabContent = tabContentsEl.createDiv('settings-tab-content settings-view__tab-content');
 			if (this.activeTab === tab.id) {
 				tabContent.addClass('active');
+				tabContent.addClass('settings-view__tab-content--active');
 			}
 			this.tabContents[tab.id] = tabContent;
 		});
@@ -323,8 +326,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const container = this.tabContents['field-mapping'];
 		
 		// Warning message
-		const warning = container.createDiv('settings-warning');
-		const warningIcon = warning.createEl('strong', { text: '⚠️ Warning:' });
+		const warning = container.createDiv('settings-warning settings-view__warning');
+		const warningIcon = warning.createEl('strong', { cls: 'settings-view__warning-icon', text: '⚠️ Warning:' });
 		warning.createSpan({ text: ' TaskNotes will read AND write using these property names. Changing these after creating tasks may cause inconsistencies.' });
 		
 		new Setting(container)
@@ -335,11 +338,11 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		});
 		
 		// Create mapping table
-		const table = container.createEl('table', { cls: 'settings-table' });
+		const table = container.createEl('table', { cls: 'settings-table settings-view__table' });
 		
 		const header = table.createEl('tr');
-		header.createEl('th', { text: 'TaskNotes field' });
-		header.createEl('th', { text: 'Your property name' });
+		header.createEl('th', { cls: 'settings-view__table-header', text: 'TaskNotes field' });
+		header.createEl('th', { cls: 'settings-view__table-header', text: 'Your property name' });
 		
 		const fieldMappings: Array<[keyof FieldMapping, string]> = [
 			['title', 'Title'],
@@ -357,15 +360,16 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		];
 		
 		fieldMappings.forEach(([field, label]) => {
-			const row = table.createEl('tr');
-			const labelCell = row.createEl('td');
+			const row = table.createEl('tr', { cls: 'settings-view__table-row' });
+			const labelCell = row.createEl('td', { cls: 'settings-view__table-cell' });
 			labelCell.textContent = label;
 			
-			const inputCell = row.createEl('td');
+			const inputCell = row.createEl('td', { cls: 'settings-view__table-cell' });
 			
 			const input = inputCell.createEl('input', {
 				type: 'text',
-				value: this.plugin.settings.fieldMapping[field]
+				value: this.plugin.settings.fieldMapping[field],
+				cls: 'settings-view__table-input'
 			});
 			
 			input.addEventListener('change', async () => {
@@ -454,38 +458,39 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const sortedStatuses = [...this.plugin.settings.customStatuses].sort((a, b) => a.order - b.order);
 		
 		sortedStatuses.forEach((status, index) => {
-			const statusRow = container.createDiv('settings-item-row');
+			const statusRow = container.createDiv('settings-item-row settings-view__item-row');
 			
 			// Color indicator
-			const colorIndicator = statusRow.createDiv('settings-color-indicator');
+			const colorIndicator = statusRow.createDiv('settings-color-indicator settings-view__color-indicator');
 			colorIndicator.style.setProperty('--indicator-color', status.color);
 			
 			// Status value input
 			const valueInput = statusRow.createEl('input', {
 				type: 'text',
 				value: status.value,
-				cls: 'settings-input value-input'
+				cls: 'settings-input value-input settings-view__input settings-view__input--value'
 			});
 			
 			// Status label input
 			const labelInput = statusRow.createEl('input', {
 				type: 'text',
 				value: status.label,
-				cls: 'settings-input label-input'
+				cls: 'settings-input label-input settings-view__input settings-view__input--label'
 			});
 			
 			// Color input
 			const colorInput = statusRow.createEl('input', {
 				type: 'color',
 				value: status.color,
-				cls: 'settings-input color-input'
+				cls: 'settings-input color-input settings-view__input settings-view__input--color'
 			});
 			
 			// Completed checkbox
-			const completedLabel = statusRow.createEl('label', { cls: 'settings-checkbox-label' });
+			const completedLabel = statusRow.createEl('label', { cls: 'settings-checkbox-label settings-view__checkbox-label' });
 			
 			const completedCheckbox = completedLabel.createEl('input', {
-				type: 'checkbox'
+				type: 'checkbox',
+				cls: 'settings-view__checkbox'
 			});
 			completedCheckbox.checked = status.isCompleted;
 			
@@ -494,7 +499,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			// Delete button
 			const deleteButton = statusRow.createEl('button', {
 				text: 'Delete',
-				cls: 'settings-delete-button'
+				cls: 'settings-delete-button settings-view__delete-button'
 			});
 			
 			// Event listeners
