@@ -682,9 +682,22 @@ export class FilterService extends EventEmitter {
             }
             
             // If showing overdue tasks and this is today, include overdue tasks
-            if (includeOverdue && isToday(dateOnlyDate) && task.due) {
-                const taskDueDate = parseISO(task.due);
-                return isBefore(taskDueDate, dateOnlyDate);
+            if (includeOverdue && isToday(dateOnlyDate)) {
+                // Check if due date is overdue
+                if (task.due) {
+                    const taskDueDate = parseISO(task.due);
+                    if (isBefore(taskDueDate, dateOnlyDate)) {
+                        return true;
+                    }
+                }
+                
+                // Check if scheduled date is overdue
+                if (task.scheduled) {
+                    const taskScheduledDate = parseISO(task.scheduled);
+                    if (isBefore(taskScheduledDate, dateOnlyDate)) {
+                        return true;
+                    }
+                }
             }
             
             return false;

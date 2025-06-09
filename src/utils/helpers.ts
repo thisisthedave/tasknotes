@@ -470,21 +470,32 @@ export function extractTaskInfo(
 }
 
 /**
- * Checks if a task is overdue
+ * Checks if a task is overdue (either due date or scheduled date is in the past)
  */
-export function isTaskOverdue(task: {due?: string}): boolean {
-	if (!task.due) return false;
+export function isTaskOverdue(task: {due?: string; scheduled?: string}): boolean {
+	const today = startOfDay(new Date());
 	
-	try {
-		// Safely parse the date string using date-fns
-		const dueDate = startOfDay(parseISO(task.due));
-		const today = startOfDay(new Date());
-		
-		return isBefore(dueDate, today); // Use date-fns for comparison
-	} catch (error) {
-		console.error(`Error parsing due date ${task.due}:`, error);
-		return false;
+	// Check due date
+	if (task.due) {
+		try {
+			const dueDate = startOfDay(parseISO(task.due));
+			if (isBefore(dueDate, today)) return true;
+		} catch (error) {
+			console.error(`Error parsing due date ${task.due}:`, error);
+		}
 	}
+	
+	// Check scheduled date
+	if (task.scheduled) {
+		try {
+			const scheduledDate = startOfDay(parseISO(task.scheduled));
+			if (isBefore(scheduledDate, today)) return true;
+		} catch (error) {
+			console.error(`Error parsing scheduled date ${task.scheduled}:`, error);
+		}
+	}
+	
+	return false;
 }
 
 /**

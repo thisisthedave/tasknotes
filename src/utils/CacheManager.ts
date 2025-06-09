@@ -1381,13 +1381,30 @@ export class CacheManager {
         // Remove from overdue index first
         this.overdueTasks.delete(path);
         
-        // Add to overdue index if task is overdue
-        if (taskInfo.due && !taskInfo.recurrence) {
-            const taskDueDate = new Date(taskInfo.due);
+        // Add to overdue index if task is overdue (check both due and scheduled dates)
+        if (!taskInfo.recurrence) {
             const today = new Date();
             today.setHours(0, 0, 0, 0); // Start of today
             
-            if (taskDueDate < today) {
+            let isOverdue = false;
+            
+            // Check due date
+            if (taskInfo.due) {
+                const taskDueDate = new Date(taskInfo.due);
+                if (taskDueDate < today) {
+                    isOverdue = true;
+                }
+            }
+            
+            // Check scheduled date
+            if (!isOverdue && taskInfo.scheduled) {
+                const taskScheduledDate = new Date(taskInfo.scheduled);
+                if (taskScheduledDate < today) {
+                    isOverdue = true;
+                }
+            }
+            
+            if (isOverdue) {
                 this.overdueTasks.add(path);
             }
         }
