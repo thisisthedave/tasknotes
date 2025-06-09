@@ -46,10 +46,7 @@ export function createTaskLinkField(plugin: TaskNotesPlugin, refreshController: 
                 return buildTaskLinkDecorations(transaction.state, plugin, activeWidgets);
             }
 
-            // Rebuild on cursor/selection changes to handle hiding/showing based on cursor position
-            if (transaction.selection) {
-                return buildTaskLinkDecorations(transaction.state, plugin, activeWidgets);
-            }
+            // Skip cursor/selection changes - we don't need to rebuild for those anymore
 
             // Only rebuild decorations on document changes
             if (!transaction.docChanged && oldState !== Decoration.none) {
@@ -80,9 +77,7 @@ function buildTaskLinkDecorations(state: any, plugin: TaskNotesPlugin, activeWid
         return builder.finish();
     }
 
-    // Get cursor position to determine which line the cursor is on
-    const cursorPos = state.selection.main.head;
-    const cursorLine = doc.lineAt(cursorPos);
+    // No longer need cursor position tracking
 
     // Process the entire document text for wikilinks
     const text = doc.toString();
@@ -105,15 +100,6 @@ function buildTaskLinkDecorations(state: any, plugin: TaskNotesPlugin, activeWid
             // Check if we have cached task info for this file
             const taskInfo = getTaskInfoSync(resolvedPath, plugin);
             if (taskInfo) {
-                // Check if cursor is on the same line as this wikilink
-                const wikilinkLine = doc.lineAt(wikilink.start);
-                const isCursorOnSameLine = cursorLine.number === wikilinkLine.number;
-                
-                // Skip creating decoration if cursor is on the same line
-                if (isCursorOnSameLine) {
-                    continue;
-                }
-
                 // Create or reuse widget instance
                 const widgetKey = `${resolvedPath}-${wikilink.start}-${wikilink.end}`;
                 let widget = activeWidgets.get(widgetKey);

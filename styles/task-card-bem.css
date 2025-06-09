@@ -406,11 +406,8 @@
     font-size: var(--editor-font-size, 16px);
     font-family: var(--editor-font-family, var(--font-interface));
     
-    /* Visual styling */
-    background-color: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 3px;
-    padding: 2px 6px;
+    /* Visual styling - clean text appearance */
+    padding: 0;
     
     /* Interactivity */
     cursor: pointer;

@@ -29,27 +29,73 @@ export class TaskLinkWidget extends WidgetType {
         }
         container.className = classNames.join(' ');
         
-        // Build inline content with simple structure
-        let content = '';
+        // Build inline content with proper DOM creation
         
         // Task title (allow more text)
         const titleText = this.taskInfo.title.length > 30 ? this.taskInfo.title.slice(0, 27) + '...' : this.taskInfo.title;
-        content += `<span style="margin-right: 6px;">${titleText}</span>`;
+        const titleSpan = container.createEl('span', { text: titleText });
+        titleSpan.style.marginRight = '6px';
         
         // Status indicator dot (after text)
         const statusConfig = this.plugin.statusManager.getStatusConfig(this.taskInfo.status);
         const statusColor = statusConfig?.color || '#666';
-        content += `<span style="color: ${statusColor}; margin-right: 4px;" title="Status: ${this.taskInfo.status}">●</span>`;
+        const statusDot = container.createEl('span', { 
+            text: '●',
+            attr: { title: `Status: ${this.taskInfo.status}` }
+        });
+        statusDot.style.color = statusColor;
+        statusDot.style.marginRight = '4px';
         
         // Priority indicator dot (after status, for all priorities)
         if (this.taskInfo.priority) {
             const priorityConfig = this.plugin.priorityManager.getPriorityConfig(this.taskInfo.priority);
             if (priorityConfig) {
-                content += `<span style="color: ${priorityConfig.color}; margin-right: 4px;" title="Priority: ${priorityConfig.label}">●</span>`;
+                const priorityDot = container.createEl('span', { 
+                    text: '●',
+                    attr: { title: `Priority: ${priorityConfig.label}` }
+                });
+                priorityDot.style.color = priorityConfig.color;
+                priorityDot.style.marginRight = '4px';
             }
         }
-        
-        container.innerHTML = content;
+
+        // Due date info with calendar icon
+        if (this.taskInfo.due) {
+            const dueDateSpan = container.createEl('span', {
+                attr: { title: `Due: ${format(new Date(this.taskInfo.due), 'MMM d, yyyy')}` }
+            });
+            dueDateSpan.style.marginRight = '4px';
+            dueDateSpan.style.opacity = '0.7';
+            dueDateSpan.style.fontSize = '0.9em';
+            
+            const calendarIcon = dueDateSpan.createEl('span');
+            calendarIcon.style.display = 'inline-block';
+            calendarIcon.style.width = '12px';
+            calendarIcon.style.height = '12px';
+            calendarIcon.style.marginRight = '8px';
+            setIcon(calendarIcon, 'calendar');
+            
+            dueDateSpan.appendText(format(new Date(this.taskInfo.due), 'MMM d'));
+        }
+
+        // Scheduled date info with clock icon
+        if (this.taskInfo.scheduled && (!this.taskInfo.due || this.taskInfo.scheduled !== this.taskInfo.due)) {
+            const scheduledSpan = container.createEl('span', {
+                attr: { title: `Scheduled: ${format(new Date(this.taskInfo.scheduled), 'MMM d, yyyy')}` }
+            });
+            scheduledSpan.style.marginRight = '4px';
+            scheduledSpan.style.opacity = '0.7';
+            scheduledSpan.style.fontSize = '0.9em';
+            
+            const clockIcon = scheduledSpan.createEl('span');
+            clockIcon.style.display = 'inline-block';
+            clockIcon.style.width = '12px';
+            clockIcon.style.height = '12px';
+            clockIcon.style.marginRight = '8px';
+            setIcon(clockIcon, 'clock');
+            
+            scheduledSpan.appendText(format(new Date(this.taskInfo.scheduled), 'MMM d'));
+        }
         
         // Add Lucide pencil icon
         const pencilIcon = container.createEl('span', { 
@@ -141,7 +187,9 @@ export class TaskLinkWidget extends WidgetType {
             this.taskInfo.status === other.taskInfo.status &&
             this.taskInfo.title === other.taskInfo.title &&
             this.taskInfo.priority === other.taskInfo.priority &&
-            this.taskInfo.archived === other.taskInfo.archived
+            this.taskInfo.archived === other.taskInfo.archived &&
+            this.taskInfo.due === other.taskInfo.due &&
+            this.taskInfo.scheduled === other.taskInfo.scheduled
         );
     }
 
