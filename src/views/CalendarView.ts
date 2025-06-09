@@ -562,7 +562,7 @@ export class CalendarView extends ItemView {
             const isSelected = isSameDay(dayDate, selectedDate);
             
             const dayEl = currentWeekRow.createDiv({ 
-                cls: `calendar-view__day calendar-view__day--other-month${isSelected ? ' calendar-view__day--selected' : ''}`, 
+                cls: `calendar-view__day calendar-view__day--outside-month${isSelected ? ' calendar-view__day--selected' : ''}`, 
                 text: dayNum.toString(),
                 attr: {
                     'role': 'gridcell',
@@ -657,7 +657,7 @@ export class CalendarView extends ItemView {
             const isSelected = isSameDay(dayDate, selectedDate);
             
             const dayEl = currentWeekRow.createDiv({ 
-                cls: `calendar-view__day calendar-view__day--other-month${isSelected ? ' calendar-view__day--selected' : ''}`, 
+                cls: `calendar-view__day calendar-view__day--outside-month${isSelected ? ' calendar-view__day--selected' : ''}`, 
                 text: i.toString(),
                 attr: {
                     'role': 'gridcell',
@@ -699,9 +699,9 @@ export class CalendarView extends ItemView {
             
             // Remove colorization classes
             day.classList.remove(
-                'has-few-notes', 'has-some-notes', 'has-many-notes',
-                'has-tasks', 'has-completed-tasks', 'has-archived-tasks',
-                'has-daily-note'
+                'calendar-view__day--has-notes-few', 'calendar-view__day--has-notes-some', 'calendar-view__day--has-notes-many',
+                'calendar-view__day--has-tasks', 'calendar-view__day--has-completed-tasks', 'calendar-view__day--has-archived-tasks', 'calendar-view__day--has-scheduled-tasks',
+                'calendar-view__day--has-daily-note'
             );
         });
     }
@@ -743,7 +743,7 @@ export class CalendarView extends ItemView {
                 
                 // Adjust for days outside current month
                 let actualMonth = month;
-                if (day.classList.contains('outside-month')) {
+                if (day.classList.contains('calendar-view__day--outside-month')) {
                     if (date > 15) { // Probably previous month
                         actualMonth = month === 0 ? 11 : month - 1;
                     } else { // Probably next month
@@ -766,13 +766,13 @@ export class CalendarView extends ItemView {
                     let noteClass = '';
                     if (noteCount >= 5) {
                         noteClass = 'many-notes';
-                        day.classList.add('has-many-notes');
+                        day.classList.add('calendar-view__day--has-notes-many');
                     } else if (noteCount >= 2) {
                         noteClass = 'some-notes';
-                        day.classList.add('has-some-notes');
+                        day.classList.add('calendar-view__day--has-notes-some');
                     } else {
                         noteClass = 'few-notes';
-                        day.classList.add('has-few-notes');
+                        day.classList.add('calendar-view__day--has-notes-few');
                     }
                     
                     indicator.classList.add(noteClass);
@@ -819,7 +819,7 @@ export class CalendarView extends ItemView {
                 
                 // Adjust for days outside current month
                 let actualMonth = month;
-                if (day.classList.contains('outside-month')) {
+                if (day.classList.contains('calendar-view__day--outside-month')) {
                     if (date > 15) { // Probably previous month
                         actualMonth = month === 0 ? 11 : month - 1;
                     } else { // Probably next month
@@ -843,22 +843,22 @@ export class CalendarView extends ItemView {
                     let taskStatus = '';
                     if (taskInfo.hasArchived) {
                         // Archived tasks get a different style
-                        day.classList.add('has-archived-tasks');
+                        day.classList.add('calendar-view__day--has-archived-tasks');
                         indicator.classList.add('archived-tasks');
                         taskStatus = 'Archived';
                     } else if (taskInfo.hasCompleted) {
                         // Completed tasks
-                        day.classList.add('has-completed-tasks');
+                        day.classList.add('calendar-view__day--has-completed-tasks');
                         indicator.classList.add('completed-tasks');
                         taskStatus = 'Completed';
                     } else if (taskInfo.hasDue) {
                         // Due tasks (prioritized over scheduled)
-                        day.classList.add('has-tasks');
+                        day.classList.add('calendar-view__day--has-tasks');
                         indicator.classList.add('due-tasks');
                         taskStatus = 'Due';
                     } else if (taskInfo.hasScheduled) {
                         // Scheduled tasks
-                        day.classList.add('has-scheduled-tasks');
+                        day.classList.add('calendar-view__day--has-scheduled-tasks');
                         indicator.classList.add('scheduled-tasks');
                         taskStatus = 'Scheduled';
                     }
@@ -915,7 +915,7 @@ export class CalendarView extends ItemView {
                 
                 // Adjust for days outside current month
                 let actualMonth = month;
-                if (day.classList.contains('outside-month')) {
+                if (day.classList.contains('calendar-view__day--outside-month')) {
                     if (date > 15) { // Probably previous month
                         actualMonth = month === 0 ? 11 : month - 1;
                     } else { // Probably next month
@@ -934,7 +934,7 @@ export class CalendarView extends ItemView {
                     indicator.className = 'daily-note-indicator';
                     
                     // Add class to the day
-                    day.classList.add('has-daily-note');
+                    day.classList.add('calendar-view__day--has-daily-note');
                     
                     // Add tooltip for daily note
                     indicator.setAttribute('aria-label', 'Daily note exists');
