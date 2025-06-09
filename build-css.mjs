@@ -2,30 +2,29 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const CSS_FILES = [
-    'styles/variables.css',
-    'styles/utilities.css',
-    'styles/base.css',
-    'styles/task-card-bem.css',
-    'styles/note-card-bem.css',
-    'styles/filter-bar-bem.css',
-    'styles/modal-bem.css',
-    'styles/task-list-view.css',
-    'styles/calendar-view.css',
-    'styles/kanban-view.css',
-    'styles/agenda-view.css',
-    'styles/notes-view.css',
-    'styles/pomodoro-view.css',
-    'styles/pomodoro-stats-view.css',
-    'styles/settings-view.css',
-    'styles/components.css',
-    'styles/calendar.css',
-    'styles/tasks.css',
-    'styles/kanban.css',
-    'styles/filters.css',
-    'styles/agenda.css',
-    'styles/modals.css',
-    'styles/pomodoro.css',
-    'styles/settings.css'
+    // Core System Files
+    'styles/variables.css',          // CSS custom properties and design system variables
+    'styles/utilities.css',          // Scoped utility classes for layout, spacing, typography
+    'styles/base.css',               // Basic styles, animations, card components, and layout
+    
+    // BEM Component Files
+    'styles/task-card-bem.css',      // TaskCard component with proper BEM scoping
+    'styles/note-card-bem.css',      // NoteCard component with proper BEM scoping
+    'styles/filter-bar-bem.css',     // FilterBar component with proper BEM scoping
+    'styles/modal-bem.css',          // Modal components with proper BEM scoping
+    
+    // BEM View Files
+    'styles/task-list-view.css',     // TaskListView component with proper BEM scoping
+    'styles/calendar-view.css',      // CalendarView component with proper BEM scoping
+    'styles/kanban-view.css',        // KanbanView component with proper BEM scoping
+    'styles/agenda-view.css',        // AgendaView component with proper BEM scoping
+    'styles/notes-view.css',         // NotesView component with proper BEM scoping
+    'styles/pomodoro-view.css',      // PomodoroView component with proper BEM scoping
+    'styles/pomodoro-stats-view.css', // PomodoroStatsView component with proper BEM scoping
+    'styles/settings-view.css',      // SettingsView component with proper BEM scoping
+    
+    // Legacy Support (minimal)
+    'styles/components.css'          // Reusable UI components and utilities
 ];
 
 const MAIN_CSS_TEMPLATE = `/* TaskNotes Plugin Styles */
@@ -35,30 +34,30 @@ const MAIN_CSS_TEMPLATE = `/* TaskNotes Plugin Styles */
    To modify styles, edit the source files in the styles/ directory.
    
    Source files:
+   
+   Core System:
    - styles/variables.css: CSS custom properties and design system variables
    - styles/utilities.css: Scoped utility classes for layout, spacing, typography, and states
    - styles/base.css: Basic styles, animations, card components, and layout
-   - styles/task-card-bem.css: NEW BEM TaskCard component with proper scoping
-   - styles/note-card-bem.css: NEW BEM NoteCard component with proper scoping
-   - styles/filter-bar-bem.css: NEW BEM FilterBar component with proper scoping
-   - styles/modal-bem.css: NEW BEM Modal components with proper scoping
-   - styles/task-list-view.css: NEW BEM TaskListView component with proper scoping
-   - styles/calendar-view.css: NEW BEM CalendarView component with proper scoping
-   - styles/kanban-view.css: NEW BEM KanbanView component with proper scoping
-   - styles/agenda-view.css: NEW BEM AgendaView component with proper scoping
-   - styles/notes-view.css: NEW BEM NotesView component with proper scoping
-   - styles/pomodoro-view.css: NEW BEM PomodoroView component with proper scoping
-   - styles/pomodoro-stats-view.css: NEW BEM PomodoroStatsView component with proper scoping
-   - styles/settings-view.css: NEW BEM SettingsView component with proper scoping
+   
+   BEM Component Files:
+   - styles/task-card-bem.css: TaskCard component with proper BEM scoping
+   - styles/note-card-bem.css: NoteCard component with proper BEM scoping
+   - styles/filter-bar-bem.css: FilterBar component with proper BEM scoping
+   - styles/modal-bem.css: Modal components with proper BEM scoping
+   
+   BEM View Files:
+   - styles/task-list-view.css: TaskListView component with proper BEM scoping
+   - styles/calendar-view.css: CalendarView component with proper BEM scoping
+   - styles/kanban-view.css: KanbanView component with proper BEM scoping
+   - styles/agenda-view.css: AgendaView component with proper BEM scoping
+   - styles/notes-view.css: NotesView component with proper BEM scoping
+   - styles/pomodoro-view.css: PomodoroView component with proper BEM scoping
+   - styles/pomodoro-stats-view.css: PomodoroStatsView component with proper BEM scoping
+   - styles/settings-view.css: SettingsView component with proper BEM scoping
+   
+   Legacy Support:
    - styles/components.css: Reusable UI components, utilities, and modals
-   - styles/calendar.css: Calendar view specific styles (LEGACY - to be deprecated)
-   - styles/tasks.css: Task list and task item specific styles (LEGACY - to be deprecated)
-   - styles/kanban.css: Kanban board view specific styles (LEGACY - to be deprecated)
-   - styles/filters.css: Legacy filtering system styles (LEGACY - to be deprecated)
-   - styles/agenda.css: Agenda view specific styles (LEGACY - to be deprecated)
-   - styles/modals.css: Legacy modal styles (LEGACY - to be deprecated)
-   - styles/pomodoro.css: Pomodoro view and stats view specific styles
-   - styles/settings.css: Settings page and configuration interface styles
    
    Run 'npm run build-css' to regenerate this file.
 */
