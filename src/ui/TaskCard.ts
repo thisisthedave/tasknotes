@@ -64,6 +64,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     
     card.className = cardClasses.join(' ');
     card.dataset.taskPath = task.path;
+    card.dataset.key = task.path; // For DOMReconciler compatibility
     card.dataset.status = effectiveStatus;
     
     // Apply priority and status colors as CSS custom properties
