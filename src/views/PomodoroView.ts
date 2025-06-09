@@ -136,7 +136,7 @@ export class PomodoroView extends ItemView {
         bgCircle.setAttributeNS(null, 'cy', '120');
         bgCircle.setAttributeNS(null, 'r', '110');
         bgCircle.setAttributeNS(null, 'fill', 'none');
-        bgCircle.setAttributeNS(null, 'stroke', 'var(--background-modifier-border)');
+        bgCircle.setAttributeNS(null, 'stroke', 'var(--tn-border-color)');
         bgCircle.setAttributeNS(null, 'stroke-width', '4');
         svg.appendChild(bgCircle);
         
@@ -146,12 +146,16 @@ export class PomodoroView extends ItemView {
         this.progressCircle.setAttributeNS(null, 'cy', '120');
         this.progressCircle.setAttributeNS(null, 'r', '110');
         this.progressCircle.setAttributeNS(null, 'fill', 'none');
-        this.progressCircle.setAttributeNS(null, 'stroke', 'var(--interactive-accent)');
+        this.progressCircle.setAttributeNS(null, 'stroke', 'var(--tn-interactive-accent)');
         this.progressCircle.setAttributeNS(null, 'stroke-width', '6');
         this.progressCircle.setAttributeNS(null, 'stroke-linecap', 'round');
-        this.progressCircle.setAttributeNS(null, 'stroke-dasharray', '691.15'); // 2 * π * 110
-        this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', '691.15');
-        this.progressCircle.setAttributeNS(null, 'transform', 'rotate(-90 120 120)');
+        
+        // Calculate circumference: 2 * π * radius
+        const radius = 110;
+        const circumference = 2 * Math.PI * radius; // ≈ 691.15
+        
+        this.progressCircle.setAttributeNS(null, 'stroke-dasharray', circumference.toString());
+        this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', circumference.toString());
         this.progressCircle.addClass('pomodoro-view__progress-circle');
         svg.appendChild(this.progressCircle);
         
@@ -540,7 +544,9 @@ export class PomodoroView extends ItemView {
         if (!this.progressCircle || !state.currentSession) {
             // No session active, reset progress
             if (this.progressCircle) {
-                this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', '691.15');
+                const radius = 110;
+                const circumference = 2 * Math.PI * radius;
+                this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', circumference.toString());
                 // Legacy classes already removed during BEM cleanup
                 this.progressCircle.removeClass('pomodoro-view__progress-circle--work');
                 this.progressCircle.removeClass('pomodoro-view__progress-circle--short-break');
@@ -554,8 +560,9 @@ export class PomodoroView extends ItemView {
         const elapsed = totalDuration - state.timeRemaining;
         const progress = Math.max(0, Math.min(1, elapsed / totalDuration));
         
-        // Calculate stroke-dashoffset (circumference = 691.15)
-        const circumference = 691.15;
+        // Calculate stroke-dashoffset
+        const radius = 110;
+        const circumference = 2 * Math.PI * radius;
         const offset = circumference - (progress * circumference);
         
         // Update progress circle
