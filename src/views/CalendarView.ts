@@ -366,39 +366,12 @@ export class CalendarView extends ItemView {
     createCalendarControls(container: HTMLElement) {
         const controlsContainer = container.createDiv({ cls: 'calendar-controls' });
         
-        // Add month navigation
-        const navContainer = controlsContainer.createDiv({ cls: 'calendar-nav' });
+        // Calendar header with view selector first, then navigation
+        const headerContainer = controlsContainer.createDiv({ cls: 'calendar-header' });
         
-        // Create compact navigation group
-        const monthNavigationGroup = navContainer.createDiv({ cls: 'month-navigation-group' });
-        
-        // Button group for prev/next
-        const navButtons = monthNavigationGroup.createDiv({ cls: 'nav-button-group' });
-        
-        const prevButton = navButtons.createEl('button', { text: '‹', cls: 'nav-arrow-button' });
-        prevButton.addEventListener('click', () => {
-            this.navigateToPreviousPeriod();
-        });
-        prevButton.setAttribute('aria-label', 'Previous period');
-        prevButton.setAttribute('title', 'Previous period (left arrow)');
-        
-        const nextButton = navButtons.createEl('button', { text: '›', cls: 'nav-arrow-button' });
-        nextButton.addEventListener('click', () => {
-            this.navigateToNextPeriod();
-        });
-        nextButton.setAttribute('aria-label', 'Next period');
-        nextButton.setAttribute('title', 'Next period (right arrow)');
-        
-        const currentPeriod = monthNavigationGroup.createEl('span', { 
-            text: format(this.plugin.selectedDate, 'MMMM yyyy'), 
-            cls: 'current-period' 
-        });
-        
-        // Add colorize mode selector
-        const colorizeContainer = navContainer.createDiv({ cls: 'colorize-mode-container' });
-        
-        const colorizeSelect = colorizeContainer.createEl('select', { 
-            cls: 'colorize-mode-select',
+        // View Type Dropdown (moved to front)
+        const colorizeSelect = headerContainer.createEl('select', { 
+            cls: 'calendar-view-type-select',
             attr: {
                 'title': 'Change view',
                 'aria-label': 'Change calendar view'
@@ -435,8 +408,43 @@ export class CalendarView extends ItemView {
             }
         });
         
-        // Today button
-        const todayButton = navContainer.createEl('button', { 
+        // Month Navigation Section (grouped together)
+        const navSection = headerContainer.createDiv({ cls: 'calendar-nav-section' });
+        
+        // Previous Month Button
+        const prevButton = navSection.createEl('button', { 
+            text: '‹', 
+            cls: 'calendar-nav-button prev-month',
+            attr: {
+                'aria-label': 'Previous month',
+                'title': 'Previous month'
+            }
+        });
+        prevButton.addEventListener('click', () => {
+            this.navigateToPreviousPeriod();
+        });
+        
+        // Current Month Display
+        const monthDisplay = navSection.createDiv({ 
+            cls: 'calendar-month-display',
+            text: format(this.plugin.selectedDate, 'MMMM yyyy')
+        });
+        
+        // Next Month Button
+        const nextButton = navSection.createEl('button', { 
+            text: '›', 
+            cls: 'calendar-nav-button next-month',
+            attr: {
+                'aria-label': 'Next month',
+                'title': 'Next month'
+            }
+        });
+        nextButton.addEventListener('click', () => {
+            this.navigateToNextPeriod();
+        });
+        
+        // Today button (moved to end)
+        const todayButton = headerContainer.createEl('button', { 
             text: 'Today', 
             cls: 'today-button tasknotes-button tasknotes-button-primary',
             attr: {

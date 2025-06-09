@@ -487,11 +487,6 @@
     display: none;
 }
 
-/* Hide recurring indicator for cleaner look */
-.recurring-indicator {
-    display: none;
-}
-
 /* Status indicator dot - shows status color, not priority */
 .status-dot {
     display: inline-block;
@@ -641,4 +636,24 @@
 .task-context-icon svg {
     width: 14px;
     height: 14px;
+}
+
+/* Task update animation - subtle glow effect */
+.task-updated {
+    animation: taskGlow 1.2s ease-out;
+}
+
+@keyframes taskGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(var(--interactive-accent-rgb), 0.4);
+        border-color: var(--background-modifier-border);
+    }
+    50% {
+        box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.3);
+        border-color: var(--interactive-accent);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(var(--interactive-accent-rgb), 0);
+        border-color: var(--background-modifier-border);
+    }
 }
