@@ -29,6 +29,7 @@ export interface TaskNotesSettings {
 	pomodoroSoundVolume: number; // 0-100
 	// Editor settings
 	enableTaskLinkOverlay: boolean;
+	enableInstantTaskConvert: boolean;
 	// Customization settings
 	fieldMapping: FieldMapping;
 	customStatuses: StatusConfig[];
@@ -129,6 +130,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	pomodoroSoundVolume: 50,
 	// Editor defaults
 	enableTaskLinkOverlay: true,
+	enableInstantTaskConvert: false,
 	// Customization defaults
 	fieldMapping: DEFAULT_FIELD_MAPPING,
 	customStatuses: DEFAULT_STATUSES,
@@ -269,6 +271,16 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.enableTaskLinkOverlay)
 				.onChange(async (value) => {
 					this.plugin.settings.enableTaskLinkOverlay = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(container)
+			.setName('Instant task convert')
+			.setDesc('Show a convert button next to checkbox tasks for instant conversion to TaskNotes')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableInstantTaskConvert)
+				.onChange(async (value) => {
+					this.plugin.settings.enableInstantTaskConvert = value;
 					await this.plugin.saveSettings();
 				}));
 		

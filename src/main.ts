@@ -93,6 +93,7 @@ export default class TaskNotesPlugin extends Plugin {
 	
 	// Editor services  
 	taskLinkDetectionService?: import('./services/TaskLinkDetectionService').TaskLinkDetectionService;
+	instantTaskConvertService?: import('./services/InstantTaskConvertService').InstantTaskConvertService;
 	
 	async onload() {
 		// Create the promise and store its resolver
@@ -193,8 +194,14 @@ export default class TaskNotesPlugin extends Plugin {
 		const { TaskLinkDetectionService } = await import('./services/TaskLinkDetectionService');
 		this.taskLinkDetectionService = new TaskLinkDetectionService(this);
 		
+		const { InstantTaskConvertService } = await import('./services/InstantTaskConvertService');
+		this.instantTaskConvertService = new InstantTaskConvertService(this);
+		
 		// Register editor extensions
 		this.registerEditorExtension(createTaskLinkOverlay(this));
+		
+		const { createInstantConvertButtons } = await import('./editor/InstantConvertButtons');
+		this.registerEditorExtension(createInstantConvertButtons(this));
 		
 		// Add ribbon icon
 		this.addRibbonIcon('calendar-days', 'Open calendar', async () => {

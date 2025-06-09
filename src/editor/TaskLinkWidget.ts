@@ -22,57 +22,57 @@ export class TaskLinkWidget extends WidgetType {
         // Create a standalone inline task preview with unique styling
         const container = document.createElement('span');
         
-        // Build class names including priority modifier
+        // Build class names including priority and completion modifiers
         const classNames = ['tasknotes-plugin', 'task-inline-preview'];
         if (this.taskInfo.priority) {
             classNames.push(`task-inline-preview--priority-${this.taskInfo.priority}`);
         }
+        // Add completion modifier if task status is completed
+        if (this.plugin.statusManager.isCompletedStatus(this.taskInfo.status)) {
+            classNames.push('task-inline-preview--completed');
+        }
         container.className = classNames.join(' ');
         
-        // Build inline content with proper DOM creation
+        // Build inline content with proper DOM creation using CSS classes
         
         // Task title (allow more text)
         const titleText = this.taskInfo.title.length > 30 ? this.taskInfo.title.slice(0, 27) + '...' : this.taskInfo.title;
-        const titleSpan = container.createEl('span', { text: titleText });
-        titleSpan.style.marginRight = '6px';
+        const titleSpan = container.createEl('span', { 
+            cls: 'task-inline-preview__title',
+            text: titleText 
+        });
         
         // Status indicator dot (after text)
         const statusConfig = this.plugin.statusManager.getStatusConfig(this.taskInfo.status);
         const statusColor = statusConfig?.color || '#666';
         const statusDot = container.createEl('span', { 
+            cls: 'task-inline-preview__status-dot',
             text: '●',
             attr: { title: `Status: ${this.taskInfo.status}` }
         });
-        statusDot.style.color = statusColor;
-        statusDot.style.marginRight = '4px';
+        statusDot.style.setProperty('--status-color', statusColor);
         
         // Priority indicator dot (after status, for all priorities)
         if (this.taskInfo.priority) {
             const priorityConfig = this.plugin.priorityManager.getPriorityConfig(this.taskInfo.priority);
             if (priorityConfig) {
                 const priorityDot = container.createEl('span', { 
+                    cls: 'task-inline-preview__priority-dot',
                     text: '●',
                     attr: { title: `Priority: ${priorityConfig.label}` }
                 });
-                priorityDot.style.color = priorityConfig.color;
-                priorityDot.style.marginRight = '4px';
+                priorityDot.style.setProperty('--priority-color', priorityConfig.color);
             }
         }
 
         // Due date info with calendar icon
         if (this.taskInfo.due) {
             const dueDateSpan = container.createEl('span', {
+                cls: 'task-inline-preview__date task-inline-preview__date--due',
                 attr: { title: `Due: ${format(new Date(this.taskInfo.due), 'MMM d, yyyy')}` }
             });
-            dueDateSpan.style.marginRight = '4px';
-            dueDateSpan.style.opacity = '0.7';
-            dueDateSpan.style.fontSize = '0.9em';
             
-            const calendarIcon = dueDateSpan.createEl('span');
-            calendarIcon.style.display = 'inline-block';
-            calendarIcon.style.width = '12px';
-            calendarIcon.style.height = '12px';
-            calendarIcon.style.marginRight = '8px';
+            const calendarIcon = dueDateSpan.createEl('span', { cls: 'task-inline-preview__date-icon' });
             setIcon(calendarIcon, 'calendar');
             
             dueDateSpan.appendText(format(new Date(this.taskInfo.due), 'MMM d'));
@@ -81,17 +81,11 @@ export class TaskLinkWidget extends WidgetType {
         // Scheduled date info with clock icon
         if (this.taskInfo.scheduled && (!this.taskInfo.due || this.taskInfo.scheduled !== this.taskInfo.due)) {
             const scheduledSpan = container.createEl('span', {
+                cls: 'task-inline-preview__date task-inline-preview__date--scheduled',
                 attr: { title: `Scheduled: ${format(new Date(this.taskInfo.scheduled), 'MMM d, yyyy')}` }
             });
-            scheduledSpan.style.marginRight = '4px';
-            scheduledSpan.style.opacity = '0.7';
-            scheduledSpan.style.fontSize = '0.9em';
             
-            const clockIcon = scheduledSpan.createEl('span');
-            clockIcon.style.display = 'inline-block';
-            clockIcon.style.width = '12px';
-            clockIcon.style.height = '12px';
-            clockIcon.style.marginRight = '8px';
+            const clockIcon = scheduledSpan.createEl('span', { cls: 'task-inline-preview__date-icon' });
             setIcon(clockIcon, 'clock');
             
             scheduledSpan.appendText(format(new Date(this.taskInfo.scheduled), 'MMM d'));
@@ -103,7 +97,6 @@ export class TaskLinkWidget extends WidgetType {
             attr: { 'title': 'Task options' },
             text: ''
         });
-        pencilIcon.style.cssText = 'opacity: 0.5; cursor: pointer; margin-left: 4px; display: inline-block; width: 12px; height: 12px;';
         setIcon(pencilIcon, 'pencil');
         
         // Store data for interactions
