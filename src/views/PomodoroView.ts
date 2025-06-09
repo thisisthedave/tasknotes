@@ -113,7 +113,7 @@ export class PomodoroView extends ItemView {
     }
     
     async render() {
-        const container = this.contentEl.createDiv({ cls: 'tasknotes-plugin tasknotes-container pomodoro-view-container pomodoro-view' });
+        const container = this.contentEl.createDiv({ cls: 'tasknotes-plugin pomodoro-view' });
         
         
         // Timer display with progress circle
@@ -124,7 +124,7 @@ export class PomodoroView extends ItemView {
         
         // Create SVG progress circle
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('class', 'pomodoro-progress-svg pomodoro-view__progress-svg');
+        svg.setAttribute('class', 'pomodoro-view__progress-svg');
         svg.setAttribute('width', '240');
         svg.setAttribute('height', '240');
         svg.setAttribute('viewBox', '0 0 240 240');
@@ -152,7 +152,7 @@ export class PomodoroView extends ItemView {
         this.progressCircle.setAttributeNS(null, 'stroke-dasharray', '691.15'); // 2 * π * 110
         this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', '691.15');
         this.progressCircle.setAttributeNS(null, 'transform', 'rotate(-90 120 120)');
-        this.progressCircle.addClass('pomodoro-progress-circle pomodoro-view__progress-circle');
+        this.progressCircle.addClass('pomodoro-view__progress-circle');
         svg.appendChild(this.progressCircle);
         
         // Timer display overlay
@@ -162,19 +162,19 @@ export class PomodoroView extends ItemView {
         this.timerDisplay = timerOverlay.createDiv({ cls: 'pomodoro-view__timer-display', text: '25:00' });
         
         // Status display
-        this.statusDisplay = timerSection.createDiv({ cls: 'pomodoro-status pomodoro-view__status', text: 'Ready to start' });
+        this.statusDisplay = timerSection.createDiv({ cls: 'pomodoro-view__status', text: 'Ready to start' });
         
         // Task display
-        this.taskDisplay = container.createDiv({ cls: 'pomodoro-task-display pomodoro-view__task-display' });
+        this.taskDisplay = container.createDiv({ cls: 'pomodoro-view__task-display' });
         
         // Task selector
-        const taskSelectorSection = container.createDiv({ cls: 'pomodoro-task-selector pomodoro-view__task-selector' });
+        const taskSelectorSection = container.createDiv({ cls: 'pomodoro-view__task-selector' });
         taskSelectorSection.createEl('label', { cls: 'pomodoro-view__task-selector-label', text: 'Select task (optional):' });
         
-        const taskSelectorContainer = taskSelectorSection.createDiv({ cls: 'pomodoro-task-selector-container pomodoro-view__task-selector-container' });
+        const taskSelectorContainer = taskSelectorSection.createDiv({ cls: 'pomodoro-view__task-selector-container' });
         
         this.taskSelectButton = taskSelectorContainer.createEl('button', { 
-            cls: 'pomodoro-task-select-button pomodoro-view__task-select-button',
+            cls: 'pomodoro-view__task-select-button',
             text: 'Choose task...'
         });
         
@@ -185,7 +185,7 @@ export class PomodoroView extends ItemView {
         
         // Add clear button
         const clearButton = taskSelectorContainer.createEl('button', {
-            cls: 'pomodoro-task-clear-button pomodoro-view__task-clear-button',
+            cls: 'pomodoro-view__task-clear-button',
             text: 'Clear'
         });
         
@@ -197,58 +197,58 @@ export class PomodoroView extends ItemView {
         this.restoreLastSelectedTask();
         
         // Main control section
-        const controlSection = container.createDiv({ cls: 'pomodoro-control-section pomodoro-view__control-section' });
+        const controlSection = container.createDiv({ cls: 'pomodoro-view__control-section' });
         
         // Primary controls (main timer controls)
-        const primaryControls = controlSection.createDiv({ cls: 'pomodoro-primary-controls pomodoro-view__primary-controls' });
+        const primaryControls = controlSection.createDiv({ cls: 'pomodoro-view__primary-controls' });
         
         this.startButton = primaryControls.createEl('button', { 
             text: 'Start', 
-            cls: 'pomodoro-button pomodoro-start-button pomodoro-view__start-button'
+            cls: 'pomodoro-view__start-button'
         });
         
         this.pauseButton = primaryControls.createEl('button', { 
             text: 'Pause', 
-            cls: 'pomodoro-button pomodoro-pause-button pomodoro-view__pause-button'
+            cls: 'pomodoro-view__pause-button'
         });
-        this.pauseButton.addClass('is-hidden');
+        this.pauseButton.addClass('pomodoro-view__pause-button--hidden');
         
         this.stopButton = primaryControls.createEl('button', { 
             text: 'Stop', 
-            cls: 'pomodoro-button pomodoro-stop-button pomodoro-view__stop-button'
+            cls: 'pomodoro-view__stop-button'
         });
-        this.stopButton.addClass('is-hidden');
+        this.stopButton.addClass('pomodoro-view__stop-button--hidden');
         
         // Quick start actions (grouped together)
-        const quickStartSection = controlSection.createDiv({ cls: 'pomodoro-quick-start-section pomodoro-view__quick-start-section' });
-        const quickStartLabel = quickStartSection.createDiv({ cls: 'pomodoro-section-label pomodoro-view__section-label', text: 'Quick Start' });
+        const quickStartSection = controlSection.createDiv({ cls: 'pomodoro-view__quick-start-section' });
+        const quickStartLabel = quickStartSection.createDiv({ cls: 'pomodoro-view__section-label', text: 'Quick Start' });
         
-        const quickActions = quickStartSection.createDiv({ cls: 'pomodoro-quick-actions pomodoro-view__quick-actions' });
+        const quickActions = quickStartSection.createDiv({ cls: 'pomodoro-view__quick-actions' });
         
         const workButton = quickActions.createEl('button', {
             text: 'Work Session',
-            cls: 'pomodoro-quick-button pomodoro-work-button pomodoro-view__quick-button pomodoro-view__work-button'
+            cls: 'pomodoro-view__quick-button pomodoro-view__work-button'
         });
         
         const shortBreakButton = quickActions.createEl('button', {
             text: 'Short Break',
-            cls: 'pomodoro-quick-button pomodoro-short-break-button pomodoro-view__quick-button pomodoro-view__short-break-button'
+            cls: 'pomodoro-view__quick-button pomodoro-view__short-break-button'
         });
         
         const longBreakButton = quickActions.createEl('button', {
             text: 'Long Break',
-            cls: 'pomodoro-quick-button pomodoro-long-break-button pomodoro-view__quick-button pomodoro-view__long-break-button'
+            cls: 'pomodoro-view__quick-button pomodoro-view__long-break-button'
         });
         
         // Statistics
-        const statsSection = container.createDiv({ cls: 'pomodoro-stats-section pomodoro-view__stats-section' });
-        const statsHeader = statsSection.createDiv({ cls: 'pomodoro-stats-header pomodoro-view__stats-header' });
+        const statsSection = container.createDiv({ cls: 'pomodoro-view__stats-section' });
+        const statsHeader = statsSection.createDiv({ cls: 'pomodoro-view__stats-header' });
         new Setting(statsHeader)
             .setName('Today\'s progress')
             .setHeading();
         
         const viewStatsButton = statsHeader.createEl('button', {
-            cls: 'pomodoro-view-stats-button pomodoro-view__view-stats-button',
+            cls: 'pomodoro-view__view-stats-button',
             text: 'View All Stats'
         });
         
@@ -256,26 +256,25 @@ export class PomodoroView extends ItemView {
             await this.plugin.activatePomodoroStatsView();
         });
         
-        this.statsDisplay = statsSection.createDiv({ cls: 'pomodoro-stats pomodoro-view__stats' });
+        this.statsDisplay = statsSection.createDiv({ cls: 'pomodoro-view__stats' });
         
         // Create stat elements and cache references
-        const pomodoroStat = this.statsDisplay.createDiv({ cls: 'pomodoro-stat pomodoro-view__stat' });
-        this.statElements.pomodoros = pomodoroStat.createSpan({ cls: 'pomodoro-stat-value pomodoro-view__stat-value', text: '0' });
-        pomodoroStat.createSpan({ cls: 'pomodoro-stat-label pomodoro-view__stat-label', text: 'Pomodoros completed' });
+        const pomodoroStat = this.statsDisplay.createDiv({ cls: 'pomodoro-view__stat' });
+        this.statElements.pomodoros = pomodoroStat.createSpan({ cls: 'pomodoro-view__stat-value', text: '0' });
+        pomodoroStat.createSpan({ cls: 'pomodoro-view__stat-label', text: 'Pomodoros completed' });
         
-        const streakStat = this.statsDisplay.createDiv({ cls: 'pomodoro-stat pomodoro-view__stat' });
-        this.statElements.streak = streakStat.createSpan({ cls: 'pomodoro-stat-value pomodoro-view__stat-value', text: '0' });
-        streakStat.createSpan({ cls: 'pomodoro-stat-label pomodoro-view__stat-label', text: 'Current streak' });
+        const streakStat = this.statsDisplay.createDiv({ cls: 'pomodoro-view__stat' });
+        this.statElements.streak = streakStat.createSpan({ cls: 'pomodoro-view__stat-value', text: '0' });
+        streakStat.createSpan({ cls: 'pomodoro-view__stat-label', text: 'Current streak' });
         
-        const minutesStat = this.statsDisplay.createDiv({ cls: 'pomodoro-stat pomodoro-view__stat' });
-        this.statElements.minutes = minutesStat.createSpan({ cls: 'pomodoro-stat-value pomodoro-view__stat-value', text: '0' });
-        minutesStat.createSpan({ cls: 'pomodoro-stat-label pomodoro-view__stat-label', text: 'Minutes focused' });
+        const minutesStat = this.statsDisplay.createDiv({ cls: 'pomodoro-view__stat' });
+        this.statElements.minutes = minutesStat.createSpan({ cls: 'pomodoro-view__stat-value', text: '0' });
+        minutesStat.createSpan({ cls: 'pomodoro-view__stat-label', text: 'Minutes focused' });
         
         // Add event listeners
         this.registerDomEvent(this.startButton, 'click', async () => {
             // Prevent double clicks
             if (this.startButton!.hasClass('is-loading')) return;
-            this.startButton!.addClass('is-loading');
             this.startButton!.addClass('pomodoro-view__start-button--loading');
             
             try {
@@ -286,7 +285,6 @@ export class PomodoroView extends ItemView {
                     await this.plugin.pomodoroService.startPomodoro(this.currentSelectedTask || undefined);
                 }
             } finally {
-                this.startButton!.removeClass('is-loading');
                 this.startButton!.removeClass('pomodoro-view__start-button--loading');
             }
         });
@@ -375,12 +373,10 @@ export class PomodoroView extends ItemView {
                     : task.title;
                 this.taskSelectButton.textContent = displayText;
                 this.taskSelectButton.title = task.title; // Full title in tooltip
-                this.taskSelectButton.removeClass('pomodoro-no-task');
                 this.taskSelectButton.removeClass('pomodoro-view__task-select-button--no-task');
             } else {
                 this.taskSelectButton.textContent = 'Choose task...';
                 this.taskSelectButton.title = '';
-                this.taskSelectButton.addClass('pomodoro-no-task');
                 this.taskSelectButton.addClass('pomodoro-view__task-select-button--no-task');
             }
         }
@@ -435,7 +431,6 @@ export class PomodoroView extends ItemView {
             if (this.taskSelectButton) {
                 this.taskSelectButton.textContent = 'Select Task';
                 this.taskSelectButton.title = '';
-                this.taskSelectButton.addClass('pomodoro-no-task');
                 this.taskSelectButton.addClass('pomodoro-view__task-select-button--no-task');
             }
         } catch (error) {
@@ -477,15 +472,15 @@ export class PomodoroView extends ItemView {
                 this.taskDisplay.dataset.currentTaskPath = currentTaskPath || '';
                 
                 if (session?.taskPath && task) {
-                    const taskDiv = this.taskDisplay.createDiv({ cls: 'pomodoro-current-task pomodoro-view__current-task' });
-                    taskDiv.createSpan({ cls: 'pomodoro-task-label pomodoro-view__task-label', text: 'Working on:' });
-                    taskDiv.createSpan({ cls: 'pomodoro-task-title pomodoro-view__task-title', text: task.title });
+                    const taskDiv = this.taskDisplay.createDiv({ cls: 'pomodoro-view__current-task' });
+                    taskDiv.createSpan({ cls: 'pomodoro-view__task-label', text: 'Working on:' });
+                    taskDiv.createSpan({ cls: 'pomodoro-view__task-title', text: task.title });
                 } else if (state.currentSession?.taskPath) {
                     // Try to get task info from cache
                     const taskPath = state.currentSession.taskPath;
-                    const taskDiv = this.taskDisplay.createDiv({ cls: 'pomodoro-current-task pomodoro-view__current-task' });
-                    taskDiv.createSpan({ cls: 'pomodoro-task-label pomodoro-view__task-label', text: 'Working on:' });
-                    taskDiv.createSpan({ cls: 'pomodoro-task-title pomodoro-view__task-title', text: taskPath.split('/').pop()?.replace('.md', '') || '' });
+                    const taskDiv = this.taskDisplay.createDiv({ cls: 'pomodoro-view__current-task' });
+                    taskDiv.createSpan({ cls: 'pomodoro-view__task-label', text: 'Working on:' });
+                    taskDiv.createSpan({ cls: 'pomodoro-view__task-title', text: taskPath.split('/').pop()?.replace('.md', '') || '' });
                 }
             }
         }
@@ -501,29 +496,20 @@ export class PomodoroView extends ItemView {
         // Update button visibility
         if (this.startButton && this.pauseButton && this.stopButton) {
             if (state.isRunning) {
-                this.startButton.addClass('is-hidden');
                 this.startButton.addClass('pomodoro-view__start-button--hidden');
-                this.pauseButton.removeClass('is-hidden');
                 this.pauseButton.removeClass('pomodoro-view__pause-button--hidden');
-                this.stopButton.removeClass('is-hidden');
                 this.stopButton.removeClass('pomodoro-view__stop-button--hidden');
             } else if (state.currentSession) {
                 // Paused
-                this.startButton.removeClass('is-hidden');
                 this.startButton.removeClass('pomodoro-view__start-button--hidden');
                 this.startButton.textContent = 'Resume';
-                this.pauseButton.addClass('is-hidden');
                 this.pauseButton.addClass('pomodoro-view__pause-button--hidden');
-                this.stopButton.removeClass('is-hidden');
                 this.stopButton.removeClass('pomodoro-view__stop-button--hidden');
             } else {
                 // Idle
-                this.startButton.removeClass('is-hidden');
                 this.startButton.removeClass('pomodoro-view__start-button--hidden');
                 this.startButton.textContent = 'Start';
-                this.pauseButton.addClass('is-hidden');
                 this.pauseButton.addClass('pomodoro-view__pause-button--hidden');
-                this.stopButton.addClass('is-hidden');
                 this.stopButton.addClass('pomodoro-view__stop-button--hidden');
             }
         }
@@ -544,9 +530,7 @@ export class PomodoroView extends ItemView {
             // Update timer color based on time remaining
             if (validSeconds <= 60 && validSeconds > 0) {
                 this.timerDisplay.addClass('pomodoro-view__timer-display--warning');
-                this.timerDisplay.addClass('pomodoro-view__timer-display--warning');
             } else {
-                this.timerDisplay.removeClass('pomodoro-view__timer-display--warning');
                 this.timerDisplay.removeClass('pomodoro-view__timer-display--warning');
             }
         }
@@ -557,9 +541,7 @@ export class PomodoroView extends ItemView {
             // No session active, reset progress
             if (this.progressCircle) {
                 this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', '691.15');
-                this.progressCircle.removeClass('pomodoro-progress-work');
-                this.progressCircle.removeClass('pomodoro-progress-short-break');
-                this.progressCircle.removeClass('pomodoro-progress-long-break');
+                // Legacy classes already removed during BEM cleanup
                 this.progressCircle.removeClass('pomodoro-view__progress-circle--work');
                 this.progressCircle.removeClass('pomodoro-view__progress-circle--short-break');
                 this.progressCircle.removeClass('pomodoro-view__progress-circle--long-break');
@@ -580,21 +562,15 @@ export class PomodoroView extends ItemView {
         this.progressCircle.setAttributeNS(null, 'stroke-dashoffset', offset.toString());
         
         // Update color based on session type
-        this.progressCircle.removeClass('pomodoro-progress-work');
-        this.progressCircle.removeClass('pomodoro-progress-short-break');
-        this.progressCircle.removeClass('pomodoro-progress-long-break');
         this.progressCircle.removeClass('pomodoro-view__progress-circle--work');
         this.progressCircle.removeClass('pomodoro-view__progress-circle--short-break');
         this.progressCircle.removeClass('pomodoro-view__progress-circle--long-break');
-        this.progressCircle.addClass(`pomodoro-progress-${state.currentSession.type}`);
         this.progressCircle.addClass(`pomodoro-view__progress-circle--${state.currentSession.type}`);
         
         // Add warning class for last minute
         if (state.timeRemaining <= 60 && state.timeRemaining > 0) {
-            this.progressCircle.addClass('pomodoro-progress-warning');
             this.progressCircle.addClass('pomodoro-view__progress-circle--warning');
         } else {
-            this.progressCircle.removeClass('pomodoro-progress-warning');
             this.progressCircle.removeClass('pomodoro-view__progress-circle--warning');
         }
     }

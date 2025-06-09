@@ -12,6 +12,7 @@ const CSS_FILES = [
     'styles/note-card-bem.css',      // NoteCard component with proper BEM scoping
     'styles/filter-bar-bem.css',     // FilterBar component with proper BEM scoping
     'styles/modal-bem.css',          // Modal components with proper BEM scoping
+    'styles/task-selector-modal.css', // TaskSelectorModal component with proper BEM scoping
     
     // BEM View Files
     'styles/task-list-view.css',     // TaskListView component with proper BEM scoping
