@@ -237,12 +237,12 @@
     background: var(--background-modifier-hover);
 }
 
-/* Task card layout in Kanban - minimal view-specific styling */
-.kanban-column-body .task-card {
-    margin-bottom: var(--cs-spacing-sm);
+/* Task card layout in Kanban - keep tight spacing for cards */
+.kanban-column-body .tasknotes-card {
+    margin-bottom: 8px;
 }
 
-.kanban-column-body .task-card:last-child {
+.kanban-column-body .tasknotes-card:last-child {
     margin-bottom: 0;
 }
 

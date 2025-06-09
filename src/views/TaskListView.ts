@@ -218,7 +218,7 @@ export class TaskListView extends ItemView {
     }
     
     createHeader(container: HTMLElement) {
-        const headerContainer = container.createDiv({ cls: 'detail-view-header' });
+        const headerContainer = container.createDiv({ cls: 'detail-view-header task-list-header' });
         
         // Display view title
         new Setting(headerContainer)

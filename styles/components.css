@@ -426,13 +426,11 @@
     border-radius: 4px;
     cursor: pointer;
     border: none;
-    transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+    transition: background-color 0.2s;
 }
 
 .add-task-button:hover {
     background-color: var(--interactive-accent-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
 }
 
 .refresh-tasks-button {
@@ -457,46 +455,51 @@
     color: var(--text-normal);
 }
 
-/* Unified Card Styles - Theme-dependent and compact - List format */
+/* Unified Card Styles - Todoist-inspired minimal design */
 .tasknotes-card {
-    padding: var(--cs-spacing-sm);
+    padding: 12px 16px;
     border-radius: 0;
-    border: 1px solid var(--background-modifier-border);
+    border: none;
     border-bottom: 1px solid var(--background-modifier-border);
     background-color: var(--background-primary);
-    transition: all var(--cs-transition-fast);
+    transition: background-color 0.15s ease;
     cursor: pointer;
     margin-bottom: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    position: relative;
 }
 
 .tasknotes-card:hover {
     background-color: var(--background-modifier-hover);
-    border-color: var(--background-modifier-border-hover);
-    transform: none;
 }
 
-/* First task card gets top border radius */
-.tasknotes-card:first-child {
-    border-radius: var(--radius-m) var(--radius-m) 0 0;
-}
-
-/* Last task card gets bottom border radius */
-.tasknotes-card:last-child {
-    border-radius: 0 0 var(--radius-m) var(--radius-m);
-}
-
-/* Single task card gets full border radius */
+/* Remove border radius for cleaner list appearance */
+.tasknotes-card:first-child,
+.tasknotes-card:last-child,
 .tasknotes-card:first-child:last-child {
-    border-radius: var(--radius-m);
+    border-radius: 0;
 }
 
-/* Status indicator dot */
+/* Hide checkboxes when not needed */
+.tasknotes-card .task-checkbox {
+    display: none;
+}
+
+/* Hide recurring indicator for cleaner look */
+.recurring-indicator {
+    display: none;
+}
+
+/* Status indicator dot - shows status color, not priority */
 .status-dot {
     display: inline-block;
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    margin-right: var(--cs-spacing-xs);
+    margin-right: 8px;
+    margin-top: 4px;
     flex-shrink: 0;
     background-color: var(--text-muted);
 }
@@ -509,6 +512,36 @@
     justify-content: space-between;
     align-items: center;
     line-height: 1.4;
+}
+
+/* Task content container - Todoist style */
+.task-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.task-title {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.3;
+    color: var(--text-normal);
+    margin: 0;
+    word-wrap: break-word;
+}
+
+.task-title.completed {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.task-metadata-line {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.2;
+    margin: 0;
 }
 
 .tasknotes-card-content {
@@ -526,4 +559,86 @@
     align-items: center;
     font-size: var(--cs-text-label-medium);
     color: var(--text-muted);
+}
+
+/* Note card specific styles */
+.note-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.note-title {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.3;
+    color: var(--text-normal);
+    margin: 0;
+    word-wrap: break-word;
+}
+
+.note-divider {
+    height: 1px;
+    background: var(--background-modifier-border);
+    margin: 2px 0;
+}
+
+.note-tags-line {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.2;
+    margin: 0;
+}
+
+.note-metadata-line {
+    font-size: 11px;
+    color: var(--text-faint);
+    line-height: 1.2;
+    margin: 0;
+}
+
+.note-preview {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.3;
+    margin-top: 4px;
+}
+
+/* Task context menu icon */
+.task-context-icon {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 2px;
+}
+
+.task-context-icon:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+    transform: scale(1.1);
+}
+
+.task-context-icon:active {
+    transform: scale(0.95);
+}
+
+.tasknotes-card:hover .task-context-icon {
+    opacity: 1;
+}
+
+.task-context-icon svg {
+    width: 14px;
+    height: 14px;
 }

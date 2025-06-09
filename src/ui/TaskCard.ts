@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { TFile, Menu } from 'obsidian';
+import { TFile, Menu, setIcon } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { calculateTotalTimeSpent, isRecurringTaskDueOn, getEffectiveTaskStatus, shouldUseRecurringTaskUI, getRecurringTaskCompletionText } from '../utils/helpers';
@@ -16,7 +16,7 @@ export interface TaskCardOptions {
 
 export const DEFAULT_TASK_CARD_OPTIONS: TaskCardOptions = {
     showDueDate: true,
-    showCheckbox: true,
+    showCheckbox: false,
     showArchiveButton: false,
     showTimeTracking: false,
     showRecurringControls: true,
@@ -90,6 +90,24 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     
     // Main content container
     const contentContainer = card.createEl('div', { cls: 'task-content' });
+    
+    // Context menu icon (appears on hover)
+    const contextIcon = card.createEl('div', { 
+        cls: 'task-context-icon',
+        attr: { 
+            'aria-label': 'Task options',
+            'title': 'More options'
+        }
+    });
+    
+    // Use Obsidian's built-in pencil icon
+    setIcon(contextIcon, 'pencil');
+    
+    contextIcon.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        await showTaskContextMenu(e as MouseEvent, task.path, plugin, targetDate);
+    });
     
     // First line: Task title
     const titleEl = contentContainer.createEl('div', { 
@@ -401,7 +419,7 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     const isRecurring = !!task.recurrence;
     element.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''} ${isRecurring ? 'task-recurring' : ''}`;
     
-    // Update priority border color
+    // Update priority left border color
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);
     if (priorityConfig) {
         element.style.setProperty('--priority-color', priorityConfig.color);

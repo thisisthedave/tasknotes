@@ -346,10 +346,13 @@
     font-weight: 500;
 }
 
-/* Task and Note Cards in Agenda - Minimal view-specific styling */
-.agenda-content .task-card,
-.agenda-content .note-card {
-    margin-bottom: var(--cs-spacing-sm);
+/* Task and Note Cards in Agenda - tighter spacing */
+.agenda-content .tasknotes-card {
+    margin-bottom: 0;
+}
+
+.agenda-content .tasks-container {
+    margin-bottom: 8px;
 }
 
 /* Removed all view-specific card styling - cards should be theme-independent */

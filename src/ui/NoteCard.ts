@@ -35,70 +35,62 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
         item.classList.add('daily-note-item');
     }
     
-    // Header with title and badges
-    const header = item.createDiv({ cls: 'note-item-header tasknotes-card-header' });
-    
     // Daily note badge (if enabled and applicable)
     if (opts.showDailyNoteBadge && isDailyNote) {
-        const dailyBadge = header.createSpan({ 
+        const dailyBadge = item.createSpan({ 
             cls: 'daily-note-badge',
             text: 'Daily',
             attr: { title: 'Daily Note' }
         });
     }
     
+    // Main content container  
+    const contentContainer = item.createDiv({ cls: 'note-content' });
+    
     // Title
-    const title = header.createDiv({ 
-        cls: 'note-item-title',
+    const title = contentContainer.createDiv({ 
+        cls: 'note-title',
         text: note.title
     });
     
-    // Content container
-    const content = item.createDiv({ cls: 'note-item-content tasknotes-card-content' });
+    // Tags section (separate from other metadata)
+    if (opts.showTags && note.tags && note.tags.length > 0) {
+        // Divider line
+        const divider = contentContainer.createEl('div', { cls: 'note-divider' });
+        
+        // Tags line
+        const tagsToShow = note.tags.slice(0, opts.maxTags);
+        let tagsText = tagsToShow.map(tag => `#${tag}`).join(' ');
+        
+        // Add "more tags" indicator if there are additional tags
+        if (note.tags.length > opts.maxTags) {
+            tagsText += ` +${note.tags.length - opts.maxTags}`;
+        }
+        
+        const tagsLine = contentContainer.createEl('div', { 
+            cls: 'note-tags-line',
+            text: tagsText
+        });
+    }
     
-    // Created date (if enabled and available)
+    // Other metadata (date, path) if needed
     if (opts.showCreatedDate && note.createdDate) {
         const dateStr = note.createdDate.indexOf('T') > 0 
             ? format(new Date(note.createdDate), 'MMM d, yyyy h:mm a') 
             : note.createdDate;
-        const dateEl = content.createDiv({ 
-            cls: 'note-item-date',
+        const dateEl = contentContainer.createDiv({ 
+            cls: 'note-metadata-line',
             text: `Created: ${dateStr}`,
             attr: { title: `Created: ${dateStr}` }
         });
     }
     
-    // Path (if enabled)
     if (opts.showPath) {
-        const pathEl = content.createDiv({ 
-            cls: 'note-item-path',
+        const pathEl = contentContainer.createDiv({ 
+            cls: 'note-metadata-line',
             text: note.path,
             attr: { title: `Path: ${note.path}` }
         });
-    }
-    
-    // Tags footer (if enabled and tags exist)
-    if (opts.showTags && note.tags && note.tags.length > 0) {
-        const footer = item.createDiv({ cls: 'note-item-footer tasknotes-card-footer' });
-        const tagContainer = footer.createDiv({ cls: 'note-item-tags' });
-        
-        const tagsToShow = note.tags.slice(0, opts.maxTags);
-        tagsToShow.forEach(tag => {
-            const tagEl = tagContainer.createSpan({ 
-                cls: 'note-tag',
-                text: tag,
-                attr: { title: `Tag: ${tag}` }
-            });
-        });
-        
-        // Show "more tags" indicator if there are additional tags
-        if (note.tags.length > opts.maxTags) {
-            const moreTagsEl = tagContainer.createSpan({ 
-                cls: 'more-tags',
-                text: `+${note.tags.length - opts.maxTags}`,
-                attr: { title: `${note.tags.length - opts.maxTags} more tags` }
-            });
-        }
     }
     
     // Add click handler to open note
