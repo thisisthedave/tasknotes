@@ -117,10 +117,10 @@ export class PomodoroView extends ItemView {
         
         
         // Timer display with progress circle
-        const timerSection = container.createDiv({ cls: 'pomodoro-timer-section pomodoro-view__timer-section' });
+        const timerSection = container.createDiv({ cls: 'pomodoro-view__timer-section' });
         
         // Create progress circle container
-        this.progressContainer = timerSection.createDiv({ cls: 'pomodoro-progress-container pomodoro-view__progress-container' });
+        this.progressContainer = timerSection.createDiv({ cls: 'pomodoro-view__progress-container' });
         
         // Create SVG progress circle
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -156,10 +156,10 @@ export class PomodoroView extends ItemView {
         svg.appendChild(this.progressCircle);
         
         // Timer display overlay
-        const timerOverlay = this.progressContainer.createDiv({ cls: 'pomodoro-timer-overlay pomodoro-view__timer-overlay' });
+        const timerOverlay = this.progressContainer.createDiv({ cls: 'pomodoro-view__timer-overlay' });
         
         // Timer display
-        this.timerDisplay = timerOverlay.createDiv({ cls: 'pomodoro-timer-display pomodoro-view__timer-display', text: '25:00' });
+        this.timerDisplay = timerOverlay.createDiv({ cls: 'pomodoro-view__timer-display', text: '25:00' });
         
         // Status display
         this.statusDisplay = timerSection.createDiv({ cls: 'pomodoro-status pomodoro-view__status', text: 'Ready to start' });
@@ -543,10 +543,10 @@ export class PomodoroView extends ItemView {
             
             // Update timer color based on time remaining
             if (validSeconds <= 60 && validSeconds > 0) {
-                this.timerDisplay.addClass('pomodoro-timer-warning');
+                this.timerDisplay.addClass('pomodoro-view__timer-display--warning');
                 this.timerDisplay.addClass('pomodoro-view__timer-display--warning');
             } else {
-                this.timerDisplay.removeClass('pomodoro-timer-warning');
+                this.timerDisplay.removeClass('pomodoro-view__timer-display--warning');
                 this.timerDisplay.removeClass('pomodoro-view__timer-display--warning');
             }
         }

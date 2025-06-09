@@ -700,8 +700,8 @@ private injectCustomStyles(): void {
 		}
 	}
 	
-	openTaskCreationModal() {
-		new TaskCreationModal(this.app, this).open();
+	openTaskCreationModal(prePopulatedValues?: Partial<TaskInfo>) {
+		new TaskCreationModal(this.app, this, prePopulatedValues).open();
 	}
 	
 	/**
@@ -858,7 +858,7 @@ private injectCustomStyles(): void {
 			};
 			
 			// Open TaskCreationModal with pre-populated data
-			new TaskCreationModal(this.app, this, conversionOptions).open();
+			new TaskCreationModal(this.app, this, undefined, conversionOptions).open();
 			
 		} catch (error) {
 			console.error('Error converting task:', error);

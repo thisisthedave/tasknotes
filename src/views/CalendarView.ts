@@ -82,7 +82,7 @@ export class CalendarView extends ItemView {
         contentEl.empty();
         
         // Add a container for our view content
-        const container = contentEl.createDiv({ cls: 'tasknotes-plugin tasknotes-container calendar-view-container' });
+        const container = contentEl.createDiv({ cls: 'tasknotes-plugin calendar-view' });
         
         // Show loading indicator while loading initial data
         this.showLoadingIndicator();
@@ -316,9 +316,9 @@ export class CalendarView extends ItemView {
     // Update selected date without re-rendering entire calendar
     private updateSelectedDate(newDate: Date) {
         // Remove selected class from all days
-        const allDays = this.contentEl.querySelectorAll('.calendar-day');
+        const allDays = this.contentEl.querySelectorAll('.calendar-view__day');
         allDays.forEach(day => {
-            day.classList.remove('selected');
+            day.classList.remove('calendar-view__day--selected');
             day.setAttribute('aria-selected', 'false');
             day.setAttribute('tabindex', '-1');
         });
@@ -330,7 +330,7 @@ export class CalendarView extends ItemView {
             const ariaLabel = dayEl.getAttribute('aria-label') || '';
             // Check if this element represents the new date
             if (ariaLabel.includes(format(newDate, 'EEEE, MMMM d, yyyy'))) {
-                dayEl.classList.add('selected');
+                dayEl.classList.add('calendar-view__day--selected');
                 dayEl.setAttribute('aria-selected', 'true');
                 dayEl.setAttribute('tabindex', '0');
                 dayEl.focus();
@@ -364,14 +364,14 @@ export class CalendarView extends ItemView {
     }
   
     createCalendarControls(container: HTMLElement) {
-        const controlsContainer = container.createDiv({ cls: 'calendar-controls' });
+        const controlsContainer = container.createDiv({ cls: 'calendar-view__controls' });
         
         // Calendar header with view selector first, then navigation
-        const headerContainer = controlsContainer.createDiv({ cls: 'calendar-header' });
+        const headerContainer = controlsContainer.createDiv({ cls: 'calendar-view__header' });
         
         // View Type Dropdown (moved to front)
         const colorizeSelect = headerContainer.createEl('select', { 
-            cls: 'calendar-view-type-select',
+            cls: 'calendar-view__view-selector',
             attr: {
                 'title': 'Change view',
                 'aria-label': 'Change calendar view'
@@ -409,12 +409,12 @@ export class CalendarView extends ItemView {
         });
         
         // Month Navigation Section (grouped together)
-        const navSection = headerContainer.createDiv({ cls: 'calendar-nav-section' });
+        const navSection = headerContainer.createDiv({ cls: 'calendar-view__navigation' });
         
         // Previous Month Button
         const prevButton = navSection.createEl('button', { 
             text: '‹', 
-            cls: 'calendar-nav-button prev-month',
+            cls: 'calendar-view__nav-button calendar-view__nav-button--prev',
             attr: {
                 'aria-label': 'Previous month',
                 'title': 'Previous month'
@@ -426,14 +426,14 @@ export class CalendarView extends ItemView {
         
         // Current Month Display
         const monthDisplay = navSection.createDiv({ 
-            cls: 'calendar-month-display',
+            cls: 'calendar-view__month-display',
             text: format(this.plugin.selectedDate, 'MMMM yyyy')
         });
         
         // Next Month Button
         const nextButton = navSection.createEl('button', { 
             text: '›', 
-            cls: 'calendar-nav-button next-month',
+            cls: 'calendar-view__nav-button calendar-view__nav-button--next',
             attr: {
                 'aria-label': 'Next month',
                 'title': 'Next month'
@@ -446,7 +446,7 @@ export class CalendarView extends ItemView {
         // Today button (moved to end)
         const todayButton = headerContainer.createEl('button', { 
             text: 'Today', 
-            cls: 'today-button tasknotes-button tasknotes-button-primary',
+            cls: 'calendar-view__today-button',
             attr: {
                 'aria-label': 'Go to today',
                 'title': 'Go to today'
@@ -476,7 +476,7 @@ export class CalendarView extends ItemView {
     
     createCalendarGrid(container: HTMLElement) {
         // Create container for the calendar grid
-        const gridContainer = container.createDiv({ cls: 'calendar-grid-container' });
+        const gridContainer = container.createDiv({ cls: 'calendar-view__grid-container' });
 
         // Add skip link for accessibility
         const skipLink = gridContainer.createEl('a', {
@@ -506,7 +506,7 @@ export class CalendarView extends ItemView {
         
         // Create the calendar grid with ARIA role
         const calendarGrid = gridContainer.createDiv({ 
-            cls: 'calendar-grid',
+            cls: 'calendar-view__grid',
             attr: {
                 'role': 'grid',
                 'aria-label': `Calendar for ${format(this.plugin.selectedDate, 'MMMM yyyy')}`,
@@ -516,7 +516,7 @@ export class CalendarView extends ItemView {
         
         // Create the calendar header (day names)
         const calendarHeader = calendarGrid.createDiv({ 
-            cls: 'calendar-header',
+            cls: 'calendar-view__grid-header',
             attr: {
                 'role': 'row'
             }
@@ -529,7 +529,7 @@ export class CalendarView extends ItemView {
         dayNames.forEach((dayName, index) => {
             calendarHeader.createDiv({ 
                 text: dayName, 
-                cls: 'calendar-day-header',
+                cls: 'calendar-view__day-header',
                 attr: {
                     'role': 'columnheader',
                     'aria-label': dayName
@@ -550,7 +550,7 @@ export class CalendarView extends ItemView {
         
         // Create calendar days - start new row for first week
         let currentWeekRow = calendarGrid.createDiv({
-            cls: 'calendar-week',
+            cls: 'calendar-view__week',
             attr: { 'role': 'row' }
         });
         
@@ -562,7 +562,7 @@ export class CalendarView extends ItemView {
             const isSelected = isSameDay(dayDate, selectedDate);
             
             const dayEl = currentWeekRow.createDiv({ 
-                cls: `calendar-day outside-month${isSelected ? ' selected' : ''}`, 
+                cls: `calendar-view__day calendar-view__day--other-month${isSelected ? ' calendar-view__day--selected' : ''}`, 
                 text: dayNum.toString(),
                 attr: {
                     'role': 'gridcell',
@@ -597,7 +597,7 @@ export class CalendarView extends ItemView {
             // Start a new row every 7 days (once per week)
             if ((i + daysFromPrevMonth) % 7 === 1) {
                 currentWeekRow = calendarGrid.createDiv({
-                    cls: 'calendar-week',
+                    cls: 'calendar-view__week',
                     attr: { 'role': 'row' }
                 });
             }
@@ -607,9 +607,9 @@ export class CalendarView extends ItemView {
             const isToday = isSameDay(dayDate, today);
             const isSelected = isSameDay(dayDate, selectedDate);
             
-            let classNames = 'calendar-day';
-            if (isToday) classNames += ' today';
-            if (isSelected) classNames += ' selected';
+            let classNames = 'calendar-view__day';
+            if (isToday) classNames += ' calendar-view__day--today';
+            if (isSelected) classNames += ' calendar-view__day--selected';
             
             const dayEl = currentWeekRow.createDiv({ 
                 cls: classNames, 
@@ -647,7 +647,7 @@ export class CalendarView extends ItemView {
             // Start a new row every 7 days (once per week)
             if ((i + daysFromPrevMonth + daysThisMonth) % 7 === 1) {
                 currentWeekRow = calendarGrid.createDiv({
-                    cls: 'calendar-week',
+                    cls: 'calendar-view__week',
                     attr: { 'role': 'row' }
                 });
             }
@@ -657,7 +657,7 @@ export class CalendarView extends ItemView {
             const isSelected = isSameDay(dayDate, selectedDate);
             
             const dayEl = currentWeekRow.createDiv({ 
-                cls: `calendar-day outside-month${isSelected ? ' selected' : ''}`, 
+                cls: `calendar-view__day calendar-view__day--other-month${isSelected ? ' calendar-view__day--selected' : ''}`, 
                 text: i.toString(),
                 attr: {
                     'role': 'gridcell',
@@ -690,7 +690,7 @@ export class CalendarView extends ItemView {
     // Clear all colorization to prepare for new colorization
     private clearCalendarColorization() {
         // Get all calendar day elements
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
         
         // Remove all colorization classes and indicators
         calendarDays.forEach(day => {
@@ -1001,7 +1001,7 @@ export class CalendarView extends ItemView {
         const tasksCache = calendarData.tasks;
         
         // Find all calendar day elements
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
         
         // Update each affected date
         dates.forEach(dateKey => {

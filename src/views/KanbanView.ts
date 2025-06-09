@@ -354,6 +354,15 @@ export class KanbanView extends ItemView {
             });
         }
         
+        // Add "Add Card" button
+        const addCardButton = bodyEl.createEl('button', {
+            cls: 'kanban-view__add-card-button',
+            text: '+ Add a card'
+        });
+        addCardButton.addEventListener('click', () => {
+            this.openTaskCreationModalForColumn(columnId);
+        });
+        
         // Add drop handlers to the column
         this.addColumnDropHandlers(columnEl);
     }
@@ -540,37 +549,7 @@ export class KanbanView extends ItemView {
                 // Get task from cache since we no longer maintain local tasks array
                 const task = this.plugin.cacheManager.getCachedTaskInfo(taskPath);
                 if (task) {
-                    try {
-                        // Map current grouping to actual TaskInfo property
-                        let propertyToUpdate: keyof TaskInfo;
-                        let valueToSet: any;
-                        
-                        switch (this.currentQuery.groupKey) {
-                            case 'status':
-                                propertyToUpdate = 'status';
-                                valueToSet = targetColumnId;
-                                break;
-                            case 'priority':
-                                propertyToUpdate = 'priority';
-                                valueToSet = targetColumnId;
-                                break;
-                            case 'context':
-                                propertyToUpdate = 'contexts';
-                                // For contexts, set as array with single value
-                                valueToSet = [targetColumnId];
-                                break;
-                            default:
-                                throw new Error(`Unsupported groupBy: ${this.currentQuery.groupKey}`);
-                        }
-                        
-                        await this.plugin.updateTaskProperty(task, propertyToUpdate, valueToSet, { silent: true });
-                        new Notice(`Task moved to "${this.formatColumnTitle(targetColumnId, this.currentQuery.groupKey)}"`);
-                    } catch (error) {
-                        console.error('Failed to move task:', error);
-                        new Notice('Failed to move task');
-                        // Refresh to revert any optimistic updates
-                        this.refresh();
-                    }
+                    await this.performOptimisticTaskMove(task, targetColumnId);
                 }
             }
         });
@@ -683,6 +662,15 @@ export class KanbanView extends ItemView {
             );
         }
         
+        // Add "Add Card" button
+        const addCardButton = bodyEl.createEl('button', {
+            cls: 'kanban-view__add-card-button',
+            text: '+ Add a card'
+        });
+        addCardButton.addEventListener('click', () => {
+            this.openTaskCreationModalForColumn(columnId);
+        });
+        
         // Add drop handlers to the column
         this.addColumnDropHandlers(columnEl);
         
@@ -702,14 +690,24 @@ export class KanbanView extends ItemView {
         // Update body
         const bodyEl = element.querySelector('.kanban-view__column-body') as HTMLElement;
         if (bodyEl) {
+            // Preserve the add card button
+            const addCardButton = bodyEl.querySelector('.kanban-view__add-card-button');
+            
             if (tasks.length === 0) {
-                // Clear and show empty state
-                bodyEl.empty();
+                // Clear tasks but preserve add button
+                const tasksToRemove = bodyEl.querySelectorAll('.task-card, .kanban-view__column-empty');
+                tasksToRemove.forEach(el => el.remove());
+                
                 const emptyEl = bodyEl.createDiv({ 
                     cls: 'kanban-view__column-empty',
                     text: 'No tasks'
                 });
                 this.addColumnDropHandlers(emptyEl);
+                
+                // Re-append add button at the end
+                if (addCardButton) {
+                    bodyEl.appendChild(addCardButton);
+                }
             } else {
                 // Remove empty state if it exists
                 const emptyEl = bodyEl.querySelector('.kanban-view__column-empty');
@@ -717,9 +715,21 @@ export class KanbanView extends ItemView {
                     emptyEl.remove();
                 }
                 
-                // Use DOMReconciler for tasks within this column
+                // Create a container for tasks to avoid affecting the add button
+                let tasksContainer = bodyEl.querySelector('.kanban-view__tasks-container') as HTMLElement;
+                if (!tasksContainer) {
+                    tasksContainer = bodyEl.createDiv({ cls: 'kanban-view__tasks-container' });
+                    // Insert before add button if it exists
+                    if (addCardButton) {
+                        bodyEl.insertBefore(tasksContainer, addCardButton);
+                    } else {
+                        bodyEl.appendChild(tasksContainer);
+                    }
+                }
+                
+                // Use DOMReconciler for tasks within this container
                 this.plugin.domReconciler.updateList(
-                    bodyEl,
+                    tasksContainer,
                     tasks,
                     (task) => task.path,
                     (task) => this.createTaskCardElement(task),
@@ -781,6 +791,223 @@ export class KanbanView extends ItemView {
             default:
                 return id;
         }
+    }
+
+    /**
+     * Perform optimistic UI update for task move, with error recovery
+     */
+    private async performOptimisticTaskMove(task: TaskInfo, targetColumnId: string): Promise<void> {
+        const taskCard = this.taskElements.get(task.path);
+        let originalParent: HTMLElement | null = null;
+        let originalPosition: Node | null = null;
+        
+        if (!taskCard) {
+            console.warn('Task card not found for optimistic update');
+            // Fallback to refresh without optimistic update
+            await this.performTaskMove(task, targetColumnId);
+            return;
+        }
+
+        try {
+            // 1. Store original position for potential revert
+            originalParent = taskCard.parentElement;
+            originalPosition = taskCard.nextSibling;
+            
+            // 2. Perform optimistic UI update
+            const targetColumn = this.boardContainer?.querySelector(`[data-column-id="${targetColumnId}"]`);
+            const targetColumnBody = targetColumn?.querySelector('.kanban-view__column-body');
+            
+            if (targetColumnBody) {
+                // Remove empty state if present
+                const emptyEl = targetColumnBody.querySelector('.kanban-view__column-empty');
+                if (emptyEl) {
+                    emptyEl.remove();
+                }
+                
+                // Move the task card to new column
+                targetColumnBody.appendChild(taskCard);
+                
+                // Add optimistic update styling
+                taskCard.classList.add('task-card--moving');
+                taskCard.style.opacity = '0.7';
+                
+                // Update task elements tracking
+                this.taskElements.set(task.path, taskCard);
+                
+                // Update column counts optimistically
+                this.updateColumnCounts();
+                
+                // Show optimistic feedback
+                const columnTitle = this.formatColumnTitle(targetColumnId, this.currentQuery.groupKey);
+                const moveNotice = new Notice(`Moving task to \"${columnTitle}\"...`, 3000);
+                
+                // 3. Perform the actual async update
+                const success = await this.performTaskMove(task, targetColumnId);
+                
+                if (success) {
+                    // 4. On success: finalize UI
+                    taskCard.classList.remove('task-card--moving');
+                    taskCard.style.opacity = '1';
+                    
+                    // Replace the temporary notice with success notice
+                    moveNotice.hide();
+                    new Notice(`Task moved to \"${columnTitle}\"`, 2000);
+                } else {
+                    // 5. On failure: revert UI
+                    await this.revertOptimisticMove(taskCard, originalParent, originalPosition);
+                }
+                
+            } else {
+                console.warn('Target column not found for optimistic update');
+                // Fallback to regular move without optimistic update
+                await this.performTaskMove(task, targetColumnId);
+            }
+            
+        } catch (error) {
+            console.error('Error during optimistic task move:', error);
+            
+            // Revert optimistic changes on any error
+            if (originalParent && taskCard) {
+                await this.revertOptimisticMove(taskCard, originalParent, originalPosition);
+            }
+        }
+    }
+
+    /**
+     * Perform the actual task property update
+     */
+    private async performTaskMove(task: TaskInfo, targetColumnId: string): Promise<boolean> {
+        try {
+            // Map current grouping to actual TaskInfo property
+            let propertyToUpdate: keyof TaskInfo;
+            let valueToSet: any;
+            
+            switch (this.currentQuery.groupKey) {
+                case 'status':
+                    propertyToUpdate = 'status';
+                    valueToSet = targetColumnId;
+                    break;
+                case 'priority':
+                    propertyToUpdate = 'priority';
+                    valueToSet = targetColumnId;
+                    break;
+                case 'context':
+                    propertyToUpdate = 'contexts';
+                    // For contexts, set as array with single value
+                    valueToSet = [targetColumnId];
+                    break;
+                default:
+                    throw new Error(`Unsupported groupBy: ${this.currentQuery.groupKey}`);
+            }
+            
+            await this.plugin.updateTaskProperty(task, propertyToUpdate, valueToSet, { silent: true });
+            return true;
+            
+        } catch (error) {
+            console.error('Failed to move task:', error);
+            new Notice('Failed to move task. Reverting changes.');
+            return false;
+        }
+    }
+
+    /**
+     * Revert optimistic UI changes
+     */
+    private async revertOptimisticMove(
+        taskCard: HTMLElement, 
+        originalParent: HTMLElement | null, 
+        originalPosition: Node | null
+    ): Promise<void> {
+        try {
+            // Remove optimistic styling
+            taskCard.classList.remove('task-card--moving');
+            taskCard.style.opacity = '1';
+            
+            // Move card back to original position
+            if (originalParent) {
+                if (originalPosition) {
+                    originalParent.insertBefore(taskCard, originalPosition);
+                } else {
+                    originalParent.appendChild(taskCard);
+                }
+                
+                // Update task elements tracking
+                const taskPath = taskCard.dataset.taskPath;
+                if (taskPath) {
+                    this.taskElements.set(taskPath, taskCard);
+                }
+                
+                // Update column counts
+                this.updateColumnCounts();
+            } else {
+                // Last resort: refresh the entire board
+                console.warn('Could not revert optimistic move, refreshing board');
+                await this.refresh();
+            }
+            
+        } catch (error) {
+            console.error('Error reverting optimistic move:', error);
+            // Ultimate fallback
+            await this.refresh();
+        }
+    }
+
+    /**
+     * Update column task counts in the UI
+     */
+    private updateColumnCounts(): void {
+        const columns = this.boardContainer?.querySelectorAll('.kanban-view__column');
+        columns?.forEach(column => {
+            const columnBody = column.querySelector('.kanban-view__column-body');
+            const countEl = column.querySelector('.kanban-view__column-count');
+            
+            if (columnBody && countEl) {
+                const taskCards = columnBody.querySelectorAll('.task-card');
+                const count = taskCards.length;
+                countEl.textContent = `${count} task${count !== 1 ? 's' : ''}`;
+                
+                // Show/hide empty state as needed
+                const emptyEl = columnBody.querySelector('.kanban-view__column-empty');
+                if (count === 0 && !emptyEl) {
+                    const newEmptyEl = columnBody.createDiv({ 
+                        cls: 'kanban-view__column-empty',
+                        text: 'No tasks'
+                    });
+                    this.addColumnDropHandlers(newEmptyEl);
+                } else if (count > 0 && emptyEl) {
+                    emptyEl.remove();
+                }
+            }
+        });
+    }
+
+    /**
+     * Open task creation modal with pre-populated values based on column
+     */
+    private openTaskCreationModalForColumn(columnId: string): void {
+        // Determine pre-populated values based on current grouping
+        let prePopulatedValues: Partial<TaskInfo> = {};
+        
+        switch (this.currentQuery.groupKey) {
+            case 'status':
+                if (columnId !== 'uncategorized') {
+                    prePopulatedValues.status = columnId;
+                }
+                break;
+            case 'priority':
+                if (columnId !== 'uncategorized') {
+                    prePopulatedValues.priority = columnId;
+                }
+                break;
+            case 'context':
+                if (columnId !== 'uncategorized') {
+                    prePopulatedValues.contexts = [columnId];
+                }
+                break;
+        }
+        
+        // Open the task creation modal with pre-populated values
+        this.plugin.openTaskCreationModal(prePopulatedValues);
     }
 
 }

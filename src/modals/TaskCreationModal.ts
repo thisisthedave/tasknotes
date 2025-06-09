@@ -23,9 +23,13 @@ export class TaskCreationModal extends BaseTaskModal {
 
 	// Task conversion options
 	private conversionOptions: TaskConversionOptions;
+	
+	// Pre-populated values
+	private prePopulatedValues: Partial<TaskInfo>;
   
-	constructor(app: App, plugin: TaskNotesPlugin, conversionOptions?: TaskConversionOptions) {
+	constructor(app: App, plugin: TaskNotesPlugin, prePopulatedValues?: Partial<TaskInfo>, conversionOptions?: TaskConversionOptions) {
 		super(app, plugin);
+		this.prePopulatedValues = prePopulatedValues || {};
 		this.conversionOptions = conversionOptions || {};
 	}
 
@@ -44,6 +48,22 @@ export class TaskCreationModal extends BaseTaskModal {
 			// Pre-populate scheduled date with selected date from calendar or today
 			const selectedDate = this.plugin.selectedDate || new Date();
 			this.scheduledDate = format(selectedDate, 'yyyy-MM-dd');
+		}
+		
+		// Apply pre-populated values if provided (overrides defaults)
+		if (this.prePopulatedValues) {
+			this.populateFromPrePopulatedValues(this.prePopulatedValues);
+		}
+	}
+
+	private populateFromPrePopulatedValues(values: Partial<TaskInfo>): void {
+		if (values.title !== undefined) this.title = values.title;
+		if (values.status !== undefined) this.status = values.status;
+		if (values.priority !== undefined) this.priority = values.priority;
+		if (values.due !== undefined) this.dueDate = values.due;
+		if (values.scheduled !== undefined) this.scheduledDate = values.scheduled;
+		if (values.contexts !== undefined && values.contexts.length > 0) {
+			this.contexts = values.contexts.join(', ');
 		}
 	}
 
