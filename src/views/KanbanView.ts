@@ -549,7 +549,37 @@ export class KanbanView extends ItemView {
                 // Get task from cache since we no longer maintain local tasks array
                 const task = this.plugin.cacheManager.getCachedTaskInfo(taskPath);
                 if (task) {
-                    await this.performOptimisticTaskMove(task, targetColumnId);
+                    try {
+                        // Map current grouping to actual TaskInfo property
+                        let propertyToUpdate: keyof TaskInfo;
+                        let valueToSet: any;
+                        
+                        switch (this.currentQuery.groupKey) {
+                            case 'status':
+                                propertyToUpdate = 'status';
+                                valueToSet = targetColumnId;
+                                break;
+                            case 'priority':
+                                propertyToUpdate = 'priority';
+                                valueToSet = targetColumnId;
+                                break;
+                            case 'context':
+                                propertyToUpdate = 'contexts';
+                                // For contexts, set as array with single value
+                                valueToSet = [targetColumnId];
+                                break;
+                            default:
+                                throw new Error(`Unsupported groupBy: ${this.currentQuery.groupKey}`);
+                        }
+                        
+                        await this.plugin.updateTaskProperty(task, propertyToUpdate, valueToSet, { silent: true });
+                        new Notice(`Task moved to "${this.formatColumnTitle(targetColumnId, this.currentQuery.groupKey)}"`);
+                    } catch (error) {
+                        console.error('Failed to move task:', error);
+                        new Notice('Failed to move task');
+                        // Refresh to revert any optimistic updates
+                        this.refresh();
+                    }
                 }
             }
         });
@@ -642,9 +672,12 @@ export class KanbanView extends ItemView {
         // Column body for tasks
         const bodyEl = columnEl.createDiv({ cls: 'kanban-view__column-body' });
         
+        // Create tasks container
+        const tasksContainer = bodyEl.createDiv({ cls: 'kanban-view__tasks-container' });
+        
         if (tasks.length === 0) {
             // Empty column placeholder
-            const emptyEl = bodyEl.createDiv({ 
+            const emptyEl = tasksContainer.createDiv({ 
                 cls: 'kanban-view__column-empty',
                 text: 'No tasks'
             });
@@ -652,9 +685,9 @@ export class KanbanView extends ItemView {
             // Make empty columns droppable
             this.addColumnDropHandlers(emptyEl);
         } else {
-            // Use DOMReconciler for tasks within this column
+            // Use DOMReconciler for tasks within this container
             this.plugin.domReconciler.updateList(
-                bodyEl,
+                tasksContainer,
                 tasks,
                 (task) => task.path,
                 (task) => this.createTaskCardElement(task),
@@ -693,41 +726,34 @@ export class KanbanView extends ItemView {
             // Preserve the add card button
             const addCardButton = bodyEl.querySelector('.kanban-view__add-card-button');
             
+            // Get or create tasks container
+            let tasksContainer = bodyEl.querySelector('.kanban-view__tasks-container') as HTMLElement;
+            if (!tasksContainer) {
+                tasksContainer = bodyEl.createDiv({ cls: 'kanban-view__tasks-container' });
+                // Insert before add button if it exists
+                if (addCardButton) {
+                    bodyEl.insertBefore(tasksContainer, addCardButton);
+                } else {
+                    bodyEl.appendChild(tasksContainer);
+                }
+            }
+            
             if (tasks.length === 0) {
-                // Clear tasks but preserve add button
-                const tasksToRemove = bodyEl.querySelectorAll('.task-card, .kanban-view__column-empty');
-                tasksToRemove.forEach(el => el.remove());
-                
-                const emptyEl = bodyEl.createDiv({ 
+                // Clear tasks container and show empty state
+                tasksContainer.empty();
+                const emptyEl = tasksContainer.createDiv({ 
                     cls: 'kanban-view__column-empty',
                     text: 'No tasks'
                 });
                 this.addColumnDropHandlers(emptyEl);
-                
-                // Re-append add button at the end
-                if (addCardButton) {
-                    bodyEl.appendChild(addCardButton);
-                }
             } else {
                 // Remove empty state if it exists
-                const emptyEl = bodyEl.querySelector('.kanban-view__column-empty');
+                const emptyEl = tasksContainer.querySelector('.kanban-view__column-empty');
                 if (emptyEl) {
                     emptyEl.remove();
                 }
                 
-                // Create a container for tasks to avoid affecting the add button
-                let tasksContainer = bodyEl.querySelector('.kanban-view__tasks-container') as HTMLElement;
-                if (!tasksContainer) {
-                    tasksContainer = bodyEl.createDiv({ cls: 'kanban-view__tasks-container' });
-                    // Insert before add button if it exists
-                    if (addCardButton) {
-                        bodyEl.insertBefore(tasksContainer, addCardButton);
-                    } else {
-                        bodyEl.appendChild(tasksContainer);
-                    }
-                }
-                
-                // Use DOMReconciler for tasks within this container
+                // Use DOMReconciler for task cards within this container
                 this.plugin.domReconciler.updateList(
                     tasksContainer,
                     tasks,
@@ -749,8 +775,9 @@ export class KanbanView extends ItemView {
             showTimeTracking: true
         });
         taskCard.draggable = true;
-        taskCard.dataset.taskPath = task.path;
         this.addDragHandlers(taskCard, task);
+        // Update task elements tracking
+        this.taskElements.set(task.path, taskCard);
         return taskCard;
     }
 
@@ -763,6 +790,8 @@ export class KanbanView extends ItemView {
             showCheckbox: false,
             showTimeTracking: true
         });
+        // Ensure task elements tracking is updated
+        this.taskElements.set(task.path, element);
     }
 
     // Debounced refresh to avoid multiple rapid refreshes
@@ -793,193 +822,6 @@ export class KanbanView extends ItemView {
         }
     }
 
-    /**
-     * Perform optimistic UI update for task move, with error recovery
-     */
-    private async performOptimisticTaskMove(task: TaskInfo, targetColumnId: string): Promise<void> {
-        const taskCard = this.taskElements.get(task.path);
-        let originalParent: HTMLElement | null = null;
-        let originalPosition: Node | null = null;
-        
-        if (!taskCard) {
-            console.warn('Task card not found for optimistic update');
-            // Fallback to refresh without optimistic update
-            await this.performTaskMove(task, targetColumnId);
-            return;
-        }
-
-        try {
-            // 1. Store original position for potential revert
-            originalParent = taskCard.parentElement;
-            originalPosition = taskCard.nextSibling;
-            
-            // 2. Perform optimistic UI update
-            const targetColumn = this.boardContainer?.querySelector(`[data-column-id="${targetColumnId}"]`);
-            const targetColumnBody = targetColumn?.querySelector('.kanban-view__column-body');
-            
-            if (targetColumnBody) {
-                // Remove empty state if present
-                const emptyEl = targetColumnBody.querySelector('.kanban-view__column-empty');
-                if (emptyEl) {
-                    emptyEl.remove();
-                }
-                
-                // Move the task card to new column
-                targetColumnBody.appendChild(taskCard);
-                
-                // Add optimistic update styling
-                taskCard.classList.add('task-card--moving');
-                taskCard.style.opacity = '0.7';
-                
-                // Update task elements tracking
-                this.taskElements.set(task.path, taskCard);
-                
-                // Update column counts optimistically
-                this.updateColumnCounts();
-                
-                // Show optimistic feedback
-                const columnTitle = this.formatColumnTitle(targetColumnId, this.currentQuery.groupKey);
-                const moveNotice = new Notice(`Moving task to \"${columnTitle}\"...`, 3000);
-                
-                // 3. Perform the actual async update
-                const success = await this.performTaskMove(task, targetColumnId);
-                
-                if (success) {
-                    // 4. On success: finalize UI
-                    taskCard.classList.remove('task-card--moving');
-                    taskCard.style.opacity = '1';
-                    
-                    // Replace the temporary notice with success notice
-                    moveNotice.hide();
-                    new Notice(`Task moved to \"${columnTitle}\"`, 2000);
-                } else {
-                    // 5. On failure: revert UI
-                    await this.revertOptimisticMove(taskCard, originalParent, originalPosition);
-                }
-                
-            } else {
-                console.warn('Target column not found for optimistic update');
-                // Fallback to regular move without optimistic update
-                await this.performTaskMove(task, targetColumnId);
-            }
-            
-        } catch (error) {
-            console.error('Error during optimistic task move:', error);
-            
-            // Revert optimistic changes on any error
-            if (originalParent && taskCard) {
-                await this.revertOptimisticMove(taskCard, originalParent, originalPosition);
-            }
-        }
-    }
-
-    /**
-     * Perform the actual task property update
-     */
-    private async performTaskMove(task: TaskInfo, targetColumnId: string): Promise<boolean> {
-        try {
-            // Map current grouping to actual TaskInfo property
-            let propertyToUpdate: keyof TaskInfo;
-            let valueToSet: any;
-            
-            switch (this.currentQuery.groupKey) {
-                case 'status':
-                    propertyToUpdate = 'status';
-                    valueToSet = targetColumnId;
-                    break;
-                case 'priority':
-                    propertyToUpdate = 'priority';
-                    valueToSet = targetColumnId;
-                    break;
-                case 'context':
-                    propertyToUpdate = 'contexts';
-                    // For contexts, set as array with single value
-                    valueToSet = [targetColumnId];
-                    break;
-                default:
-                    throw new Error(`Unsupported groupBy: ${this.currentQuery.groupKey}`);
-            }
-            
-            await this.plugin.updateTaskProperty(task, propertyToUpdate, valueToSet, { silent: true });
-            return true;
-            
-        } catch (error) {
-            console.error('Failed to move task:', error);
-            new Notice('Failed to move task. Reverting changes.');
-            return false;
-        }
-    }
-
-    /**
-     * Revert optimistic UI changes
-     */
-    private async revertOptimisticMove(
-        taskCard: HTMLElement, 
-        originalParent: HTMLElement | null, 
-        originalPosition: Node | null
-    ): Promise<void> {
-        try {
-            // Remove optimistic styling
-            taskCard.classList.remove('task-card--moving');
-            taskCard.style.opacity = '1';
-            
-            // Move card back to original position
-            if (originalParent) {
-                if (originalPosition) {
-                    originalParent.insertBefore(taskCard, originalPosition);
-                } else {
-                    originalParent.appendChild(taskCard);
-                }
-                
-                // Update task elements tracking
-                const taskPath = taskCard.dataset.taskPath;
-                if (taskPath) {
-                    this.taskElements.set(taskPath, taskCard);
-                }
-                
-                // Update column counts
-                this.updateColumnCounts();
-            } else {
-                // Last resort: refresh the entire board
-                console.warn('Could not revert optimistic move, refreshing board');
-                await this.refresh();
-            }
-            
-        } catch (error) {
-            console.error('Error reverting optimistic move:', error);
-            // Ultimate fallback
-            await this.refresh();
-        }
-    }
-
-    /**
-     * Update column task counts in the UI
-     */
-    private updateColumnCounts(): void {
-        const columns = this.boardContainer?.querySelectorAll('.kanban-view__column');
-        columns?.forEach(column => {
-            const columnBody = column.querySelector('.kanban-view__column-body');
-            const countEl = column.querySelector('.kanban-view__column-count');
-            
-            if (columnBody && countEl) {
-                const taskCards = columnBody.querySelectorAll('.task-card');
-                const count = taskCards.length;
-                countEl.textContent = `${count} task${count !== 1 ? 's' : ''}`;
-                
-                // Show/hide empty state as needed
-                const emptyEl = columnBody.querySelector('.kanban-view__column-empty');
-                if (count === 0 && !emptyEl) {
-                    const newEmptyEl = columnBody.createDiv({ 
-                        cls: 'kanban-view__column-empty',
-                        text: 'No tasks'
-                    });
-                    this.addColumnDropHandlers(newEmptyEl);
-                } else if (count > 0 && emptyEl) {
-                    emptyEl.remove();
-                }
-            }
-        });
-    }
 
     /**
      * Open task creation modal with pre-populated values based on column
