@@ -391,3 +391,177 @@
     margin-right: var(--tn-spacing-sm);
     cursor: pointer;
 }
+
+/* =================================================================
+   INLINE TASK PREVIEW STYLES (Editor Widgets)
+   ================================================================= */
+
+/* Standalone inline task preview widget */
+.tasknotes-plugin .task-inline-preview {
+    /* Layout - simple inline */
+    display: inline;
+    white-space: nowrap;
+    
+    /* Typography - match editor font */
+    font-size: var(--editor-font-size, 16px);
+    font-family: var(--editor-font-family, var(--font-interface));
+    
+    /* Visual styling */
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    
+    /* Interactivity */
+    cursor: pointer;
+    
+    /* Prevent text selection issues */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Hide when cursor is on the same line */
+.tasknotes-plugin .task-inline-preview.task-inline-preview--cursor-hidden {
+    display: none;
+}
+
+/* Pencil icon styling */
+.tasknotes-plugin .task-inline-preview__pencil {
+    opacity: 0.4;
+    transition: opacity 0.15s ease;
+}
+
+.tasknotes-plugin .task-inline-preview:hover .task-inline-preview__pencil {
+    opacity: 0.8;
+}
+
+.tasknotes-plugin .task-inline-preview__pencil:hover {
+    opacity: 1 !important;
+}
+
+/* Hover state */
+.tasknotes-plugin .task-inline-preview:hover {
+    background-color: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Status indicator dot */
+.tasknotes-plugin .task-inline-preview__status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--text-muted);
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Task title */
+.tasknotes-plugin .task-inline-preview__title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-normal);
+    font-weight: 500;
+    margin: 0;
+    min-width: 0; /* Allow flex shrinking */
+    max-width: 120px; /* Prevent excessive expansion */
+}
+
+/* Priority indicator */
+.tasknotes-plugin .task-inline-preview__priority {
+    font-weight: bold;
+    font-size: 0.85em;
+    flex-shrink: 0;
+    margin-left: 3px;
+    margin-right: 1px;
+}
+
+/* Priority border colors */
+.tasknotes-plugin .task-inline-preview.task-inline-preview--priority-high {
+    border-left-color: var(--color-red);
+    border-left-width: 4px;
+}
+
+.tasknotes-plugin .task-inline-preview.task-inline-preview--priority-medium {
+    border-left-color: var(--color-orange);
+    border-left-width: 3px;
+}
+
+.tasknotes-plugin .task-inline-preview.task-inline-preview--priority-low {
+    border-left-color: var(--color-blue);
+}
+
+/* Pencil menu icon */
+.tasknotes-plugin .task-inline-preview__menu-icon {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    opacity: 0.4;
+    transition: opacity 0.15s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1px;
+    padding: 0;
+    margin-left: 1px;
+}
+
+.tasknotes-plugin .task-inline-preview__menu-icon:hover {
+    opacity: 1;
+    background-color: var(--background-modifier-hover);
+}
+
+.tasknotes-plugin .task-inline-preview:hover .task-inline-preview__menu-icon {
+    opacity: 0.8;
+}
+
+/* Theme-specific adjustments */
+.theme-dark .tasknotes-plugin .task-inline-preview {
+    background-color: var(--background-secondary);
+    border-color: var(--background-modifier-border);
+}
+
+.theme-light .tasknotes-plugin .task-inline-preview {
+    background-color: var(--background-secondary);
+    border-color: var(--background-modifier-border);
+}
+
+/* Animation for appearance */
+.tasknotes-plugin .task-inline-preview {
+    animation: tn-fadeInTaskPreview 0.2s ease-out;
+}
+
+@keyframes tn-fadeInTaskPreview {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .tasknotes-plugin .task-inline-preview {
+        max-width: 200px;
+        padding: 4px 8px;
+        gap: 4px;
+        font-size: calc(var(--editor-font-size, 16px) * 0.9);
+    }
+    
+    .tasknotes-plugin .task-inline-preview__status-dot {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .tasknotes-plugin .task-inline-preview__menu-icon {
+        width: 14px;
+        height: 14px;
+    }
+}

@@ -264,7 +264,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
 /**
  * Show context menu for task card
  */
-async function showTaskContextMenu(event: MouseEvent, taskPath: string, plugin: TaskNotesPlugin, targetDate: Date) {
+export async function showTaskContextMenu(event: MouseEvent, taskPath: string, plugin: TaskNotesPlugin, targetDate: Date) {
     try {
         // Always fetch fresh task data - ignore any stale captured data
         const task = await plugin.cacheManager.getTaskInfo(taskPath);

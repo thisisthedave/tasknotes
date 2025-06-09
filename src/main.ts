@@ -54,6 +54,7 @@ import { TaskService } from './services/TaskService';
 import { FilterService } from './services/FilterService';
 import { ViewStateManager } from './services/ViewStateManager';
 import { TasksPluginParser } from './utils/TasksPluginParser';
+import { createTaskLinkOverlay } from './editor/TaskLinkOverlay';
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -89,6 +90,9 @@ export default class TaskNotesPlugin extends Plugin {
 	taskService: TaskService;
 	filterService: FilterService;
 	viewStateManager: ViewStateManager;
+	
+	// Editor services  
+	taskLinkDetectionService?: import('./services/TaskLinkDetectionService').TaskLinkDetectionService;
 	
 	async onload() {
 		// Create the promise and store its resolver
@@ -185,6 +189,13 @@ export default class TaskNotesPlugin extends Plugin {
 			(leaf) => new KanbanView(leaf, this)
 		);
 		
+		// Initialize editor services
+		const { TaskLinkDetectionService } = await import('./services/TaskLinkDetectionService');
+		this.taskLinkDetectionService = new TaskLinkDetectionService(this);
+		
+		// Register editor extensions
+		this.registerEditorExtension(createTaskLinkOverlay(this));
+		
 		// Add ribbon icon
 		this.addRibbonIcon('calendar-days', 'Open calendar', async () => {
 			await this.activateCalendarView();
@@ -236,9 +247,19 @@ export default class TaskNotesPlugin extends Plugin {
 			
 			// Clear YAML parsing cache
 			YAMLCache.clearCacheEntry(filePath);
+			
+			// Clear task link detection cache for this file
+			if (this.taskLinkDetectionService) {
+				this.taskLinkDetectionService.clearCacheForFile(filePath);
+			}
 		} else if (force) {
 			// Full cache clear if forcing
 			this.cacheManager.clearAllCaches();
+			
+			// Clear task link detection cache completely
+			if (this.taskLinkDetectionService) {
+				this.taskLinkDetectionService.clearCache();
+			}
 		}
 		
 		// Only emit refresh event if triggerRefresh is true
