@@ -95,6 +95,9 @@ export default class TaskNotesPlugin extends Plugin {
 	taskLinkDetectionService?: import('./services/TaskLinkDetectionService').TaskLinkDetectionService;
 	instantTaskConvertService?: import('./services/InstantTaskConvertService').InstantTaskConvertService;
 	
+	// Event listener cleanup
+	private taskUpdateListenerForEditor: (() => void) | null = null;
+	
 	async onload() {
 		// Create the promise and store its resolver
 		this.readyPromise = new Promise(resolve => {
@@ -203,6 +206,20 @@ export default class TaskNotesPlugin extends Plugin {
 		const { createInstantConvertButtons } = await import('./editor/InstantConvertButtons');
 		this.registerEditorExtension(createInstantConvertButtons(this));
 		
+		// Set up global event listener for task updates to refresh editor decorations
+		this.taskUpdateListenerForEditor = this.emitter.on(EVENT_TASK_UPDATED, () => {
+			// Trigger decoration refresh in all active markdown views
+			this.app.workspace.iterateRootLeaves((leaf) => {
+				if (leaf.view.getViewType() === 'markdown') {
+					const editor = (leaf.view as any).editor;
+					if (editor && editor.cm) {
+						// Trigger decoration rebuild by dispatching an empty transaction
+						editor.cm.dispatch({ effects: [] });
+					}
+				}
+			});
+		});
+		
 		// Add ribbon icon
 		this.addRibbonIcon('calendar-days', 'Open calendar', async () => {
 			await this.activateCalendarView();
@@ -300,6 +317,10 @@ export default class TaskNotesPlugin extends Plugin {
 			this.requestDeduplicator.cancelAll();
 		}
 		
+		// Clean up task update listener for editor
+		if (this.taskUpdateListenerForEditor) {
+			this.taskUpdateListenerForEditor();
+		}
 		
 		// Clean up the event emitter
 		this.emitter.removeAllListeners();

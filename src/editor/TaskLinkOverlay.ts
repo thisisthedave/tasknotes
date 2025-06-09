@@ -168,37 +168,14 @@ function getTaskInfoSync(filePath: string, plugin: TaskNotesPlugin): any {
 
 
 export function createTaskLinkOverlay(plugin: TaskNotesPlugin): Extension {
-    // Create a shared refresh controller that can be accessed by both the state field and event handlers
+    // Create a shared refresh controller that can be accessed by the state field
     const refreshController = { needsRefresh: false };
     
     const stateField = createTaskLinkField(plugin, refreshController);
     
-    // Create the refresh mechanism that follows the same pattern as views
-    const refreshDecorations = () => {
-        // Mark for refresh and trigger state update (same pattern as views use)
-        refreshController.needsRefresh = true;
-        
-        plugin.app.workspace.iterateRootLeaves((leaf) => {
-            if (leaf.view.getViewType() === 'markdown') {
-                const editor = (leaf.view as any).editor;
-                if (editor && editor.cm) {
-                    // Trigger decoration rebuild by dispatching an empty transaction
-                    // The state field will check needsRefresh flag and rebuild
-                    editor.cm.dispatch({ effects: [] });
-                }
-            }
-        });
-    };
-    
-    // Subscribe to EVENT_TASK_UPDATED like other views do (this is the key!)
-    const taskUpdateListener = plugin.emitter.on(EVENT_TASK_UPDATED, async ({ path, originalTask, updatedTask }) => {
-        if (!path || !updatedTask) {
-            return;
-        }
-        
-        // Use the exact same immediate refresh pattern as TaskListView and KanbanView
-        refreshDecorations();
-    });
+    // The event listener is now managed globally in main.ts and will trigger
+    // decoration refresh by dispatching to all markdown editor views.
+    // The state field will check refreshController.needsRefresh and rebuild accordingly.
     
     return stateField;
 }
