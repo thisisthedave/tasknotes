@@ -49,7 +49,9 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	dateCreated: 'dateCreated',
 	dateModified: 'dateModified',
 	recurrence: 'recurrence',
-	archiveTag: 'archived'
+	archiveTag: 'archived',
+	timeEntries: 'timeEntries',
+	completeInstances: 'complete_instances'
 };
 
 // Default status configuration matches current hardcoded behavior

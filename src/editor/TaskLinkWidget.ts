@@ -182,7 +182,8 @@ export class TaskLinkWidget extends WidgetType {
             this.taskInfo.priority === other.taskInfo.priority &&
             this.taskInfo.archived === other.taskInfo.archived &&
             this.taskInfo.due === other.taskInfo.due &&
-            this.taskInfo.scheduled === other.taskInfo.scheduled
+            this.taskInfo.scheduled === other.taskInfo.scheduled &&
+            this.taskInfo.dateModified === other.taskInfo.dateModified
         );
     }
 

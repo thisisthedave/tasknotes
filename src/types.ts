@@ -214,6 +214,8 @@ export interface FieldMapping {
 	dateModified: string;
 	recurrence: string;
 	archiveTag: string;  // For the archive tag in the tags array
+	timeEntries: string;
+	completeInstances: string;
 }
 
 export interface StatusConfig {

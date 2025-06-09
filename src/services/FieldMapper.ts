@@ -70,6 +70,14 @@ export class FieldMapper {
         if (frontmatter[this.mapping.dateModified] !== undefined) {
             mapped.dateModified = frontmatter[this.mapping.dateModified];
         }
+        
+        if (frontmatter[this.mapping.timeEntries] !== undefined) {
+            mapped.timeEntries = frontmatter[this.mapping.timeEntries];
+        }
+        
+        if (frontmatter[this.mapping.completeInstances] !== undefined) {
+            mapped.complete_instances = frontmatter[this.mapping.completeInstances];
+        }
 
         // Handle tags array (includes archive tag)
         if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
@@ -135,6 +143,14 @@ export class FieldMapper {
         
         if (taskData.dateModified !== undefined) {
             frontmatter[this.mapping.dateModified] = taskData.dateModified;
+        }
+        
+        if (taskData.timeEntries !== undefined) {
+            frontmatter[this.mapping.timeEntries] = taskData.timeEntries;
+        }
+        
+        if (taskData.complete_instances !== undefined) {
+            frontmatter[this.mapping.completeInstances] = taskData.complete_instances;
         }
 
         // Handle tags (merge archive status into tags array)

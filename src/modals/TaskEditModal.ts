@@ -333,6 +333,7 @@ export class TaskEditModal extends BaseTaskModal {
                 priority: this.priority,
                 status: this.status,
                 due: this.dueDate || undefined,
+                scheduled: this.scheduledDate || undefined,
                 contexts: contextsArray.length > 0 ? contextsArray : undefined,
                 tags: tagsArray,
                 timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,

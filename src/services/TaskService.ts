@@ -57,32 +57,34 @@ export class TaskService {
             
             // Step 2: Persist to file
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                // Map the complete new TaskInfo object to frontmatter fields
-                const fieldName = property as string;
+                // Use field mapper to get the correct frontmatter property name
+                const fieldName = this.plugin.fieldMapper.toUserField(property as keyof import('../types').FieldMapping);
                 
                 if (property === 'status') {
                     frontmatter[fieldName] = value;
                     
                     // Update completed date when marking as complete (non-recurring tasks only)
                     if (!task.recurrence) {
+                        const completedDateField = this.plugin.fieldMapper.toUserField('completedDate');
                         if (this.plugin.statusManager.isCompletedStatus(value)) {
-                            frontmatter.completedDate = format(new Date(), 'yyyy-MM-dd');
+                            frontmatter[completedDateField] = format(new Date(), 'yyyy-MM-dd');
                         } else {
                             // Remove completed date when marking as incomplete
-                            if (frontmatter.completedDate) {
-                                delete frontmatter.completedDate;
+                            if (frontmatter[completedDateField]) {
+                                delete frontmatter[completedDateField];
                             }
                         }
                     }
-                } else if (property === 'due' && !value) {
-                    // Remove empty due dates
+                } else if ((property === 'due' || property === 'scheduled') && !value) {
+                    // Remove empty due/scheduled dates
                     delete frontmatter[fieldName];
                 } else {
                     frontmatter[fieldName] = value;
                 }
                 
-                // Always update the modification timestamp
-                frontmatter.dateModified = updatedTask.dateModified;
+                // Always update the modification timestamp using field mapper
+                const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
+                frontmatter[dateModifiedField] = updatedTask.dateModified;
             });
             
             // Step 3: Proactively update cache
@@ -161,10 +163,10 @@ export class TaskService {
         
         // Step 2: Persist to file
         await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-            // Toggle archived property
+            const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
+            
+            // Toggle archived property (note: archived is handled via tags, not as a separate field)
             if (isCurrentlyArchived) {
-                delete frontmatter.archived;
-                
                 // Remove archive tag from tags array if present
                 if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
                     frontmatter.tags = frontmatter.tags.filter((tag: string) => tag !== archiveTag);
@@ -173,8 +175,6 @@ export class TaskService {
                     }
                 }
             } else {
-                frontmatter.archived = true;
-                
                 // Add archive tag to tags array
                 if (!frontmatter.tags) {
                     frontmatter.tags = [];
@@ -187,8 +187,8 @@ export class TaskService {
                 }
             }
             
-            // Always update the modification timestamp
-            frontmatter.dateModified = updatedTask.dateModified;
+            // Always update the modification timestamp using field mapper
+            frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
         
         // Step 3: Proactively update cache
@@ -236,13 +236,16 @@ export class TaskService {
 
         // Step 2: Persist to file
         await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-            if (!frontmatter.timeEntries) {
-                frontmatter.timeEntries = [];
+            const timeEntriesField = this.plugin.fieldMapper.toUserField('timeEntries');
+            const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
+            
+            if (!frontmatter[timeEntriesField]) {
+                frontmatter[timeEntriesField] = [];
             }
 
             // Add new time entry with start time
-            frontmatter.timeEntries.push(newEntry);
-            frontmatter.dateModified = updatedTask.dateModified;
+            frontmatter[timeEntriesField].push(newEntry);
+            frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
 
         // Step 3: Proactively update cache
@@ -292,17 +295,20 @@ export class TaskService {
 
         // Step 2: Persist to file
         await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-            if (frontmatter.timeEntries && Array.isArray(frontmatter.timeEntries)) {
+            const timeEntriesField = this.plugin.fieldMapper.toUserField('timeEntries');
+            const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
+            
+            if (frontmatter[timeEntriesField] && Array.isArray(frontmatter[timeEntriesField])) {
                 // Find and update the active session
-                const entryIndex = frontmatter.timeEntries.findIndex((entry: TimeEntry) => 
+                const entryIndex = frontmatter[timeEntriesField].findIndex((entry: TimeEntry) => 
                     entry.startTime === activeSession.startTime && !entry.endTime
                 );
 
                 if (entryIndex !== -1) {
-                    frontmatter.timeEntries[entryIndex].endTime = new Date().toISOString();
+                    frontmatter[timeEntriesField][entryIndex].endTime = new Date().toISOString();
                 }
             }
-            frontmatter.dateModified = updatedTask.dateModified;
+            frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
 
         // Step 3: Proactively update cache
@@ -357,24 +363,27 @@ export class TaskService {
         
         // Step 2: Persist to file
         await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            const completeInstancesField = this.plugin.fieldMapper.toUserField('completeInstances');
+            const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
+            
             // Ensure complete_instances array exists
-            if (!frontmatter.complete_instances) {
-                frontmatter.complete_instances = [];
+            if (!frontmatter[completeInstancesField]) {
+                frontmatter[completeInstancesField] = [];
             }
             
-            const completeDates: string[] = frontmatter.complete_instances;
+            const completeDates: string[] = frontmatter[completeInstancesField];
             
             if (newComplete) {
                 // Add date to completed instances if not already present
                 if (!completeDates.includes(dateStr)) {
-                    frontmatter.complete_instances = [...completeDates, dateStr];
+                    frontmatter[completeInstancesField] = [...completeDates, dateStr];
                 }
             } else {
                 // Remove date from completed instances
-                frontmatter.complete_instances = completeDates.filter(d => d !== dateStr);
+                frontmatter[completeInstancesField] = completeDates.filter(d => d !== dateStr);
             }
             
-            frontmatter.dateModified = updatedTask.dateModified;
+            frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
         
         // Step 3: Proactively update cache

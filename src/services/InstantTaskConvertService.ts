@@ -200,18 +200,20 @@ export class InstantTaskConvertService {
             dateModified: new Date().toISOString()
         };
 
-        // Create frontmatter
-        const frontmatter: TaskFrontmatter = {
+        // Create frontmatter using field mapper
+        const taskDataForFrontmatter = {
             title: title,
             dateCreated: new Date().toISOString(),
             dateModified: new Date().toISOString(),
-            status: status as 'open' | 'in-progress' | 'done',
-            priority: priority as 'low' | 'normal' | 'high',
+            status: status,
+            priority: priority,
             tags: tagsArray,
             due: dueDate || undefined,
             scheduled: scheduledDate || undefined,
             contexts: contextsArray.length > 0 ? contextsArray : undefined
         };
+        
+        const frontmatter = this.plugin.fieldMapper.mapToFrontmatter(taskDataForFrontmatter, this.plugin.settings.taskTag);
 
         // Create file content
         const yamlContent = YAML.stringify(frontmatter);

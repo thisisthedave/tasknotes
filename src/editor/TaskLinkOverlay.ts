@@ -54,14 +54,28 @@ export function createTaskLinkField(plugin: TaskNotesPlugin, refreshController: 
                     return buildTaskLinkDecorations(transaction.state, plugin, activeWidgets);
                 }
 
-                // Skip cursor/selection changes - we don't need to rebuild for those anymore
+                // Check if this is an empty transaction dispatched by the global EVENT_TASK_UPDATED listener
+                // These transactions have no document changes but should trigger decoration refresh
+                const isTaskUpdateRefresh = !transaction.docChanged && 
+                    transaction.effects && 
+                    transaction.effects.length === 0 &&
+                    transaction.changes.empty;
 
-                // Only rebuild decorations on document changes
-                if (!transaction.docChanged && oldState !== Decoration.none) {
+                // Rebuild decorations on document changes OR task update refreshes
+                if (transaction.docChanged || isTaskUpdateRefresh) {
+                    // Clear active widgets cache on task updates to ensure fresh widgets are created
+                    if (isTaskUpdateRefresh) {
+                        activeWidgets.clear();
+                    }
+                    return buildTaskLinkDecorations(transaction.state, plugin, activeWidgets);
+                }
+
+                // For other transactions (cursor moves, etc.), just map the existing decorations
+                if (oldState !== Decoration.none) {
                     return oldState.map(transaction.changes);
                 }
 
-                return buildTaskLinkDecorations(transaction.state, plugin, activeWidgets);
+                return oldState;
             } catch (error) {
                 console.error('Error updating task link overlay decorations:', error);
                 return Decoration.none;
@@ -185,8 +199,11 @@ function buildTaskLinkDecorations(state: any, plugin: TaskNotesPlugin, activeWid
                     const widgetKey = `${resolvedPath}-${wikilink.start}-${wikilink.end}`;
                     let widget = activeWidgets.get(widgetKey);
                     
-                    if (!widget || !widget.eq(new TaskLinkWidget(taskInfo, plugin, wikilink.match, parsed.displayText))) {
-                        widget = new TaskLinkWidget(taskInfo, plugin, wikilink.match, parsed.displayText);
+                    // Always create a new widget to compare against the cached one
+                    const newWidget = new TaskLinkWidget(taskInfo, plugin, wikilink.match, parsed.displayText);
+                    
+                    if (!widget || !widget.eq(newWidget)) {
+                        widget = newWidget;
                         activeWidgets.set(widgetKey, widget);
                     }
 
