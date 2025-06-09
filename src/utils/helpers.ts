@@ -211,7 +211,7 @@ export function updateTaskProperty(
 			const mappedFrontmatter = fieldMapper.mapToFrontmatter(propertyUpdates, taskTag);
 			Object.assign(yamlObj, mappedFrontmatter);
 		} else {
-			// Use legacy field names
+			// Use default field names
 			Object.assign(yamlObj, propertyUpdates);
 		}
 		
@@ -246,10 +246,10 @@ export function updateTaskProperty(
 		const dateModifiedField = fieldMapper.toUserField('dateModified');
 		yamlObj[dateModifiedField] = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
 	} else {
-		// Use legacy field names
+		// Use default field names
 		Object.assign(yamlObj, propertyUpdates);
 		
-		// Always update dateModified when properties change (legacy)
+		// Always update dateModified when properties change
 		yamlObj.dateModified = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
 	}
 	
@@ -431,7 +431,7 @@ export function extractTaskInfo(
 					
 					return taskInfo;
 				} else {
-					// Fallback to default field mapping for backward compatibility
+					// Fallback to default field mapping
 					const defaultMapper = new FieldMapper(DEFAULT_FIELD_MAPPING);
 					const mappedTask = defaultMapper.mapFromFrontmatter(yaml, path);
 					

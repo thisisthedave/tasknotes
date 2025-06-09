@@ -35,9 +35,6 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
     if (isDailyNote) cardClasses.push('note-card--daily-note');
     cardClasses.push('note-card--compact', 'note-card--shadow-light');
     
-    // Legacy support - keep old classes for backward compatibility during transition
-    cardClasses.push('tasknotes-card', 'tasknotes-card--compact', 'tasknotes-card--shadow-light', 'note-item');
-    if (isDailyNote) cardClasses.push('daily-note-item');
     
     item.className = cardClasses.join(' ');
     item.dataset.notePath = note.path;
@@ -45,25 +42,25 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
     // Daily note badge (if enabled and applicable)
     if (opts.showDailyNoteBadge && isDailyNote) {
         const dailyBadge = item.createSpan({ 
-            cls: 'note-card__badge daily-note-badge', // BEM + legacy class
+            cls: 'note-card__badge',
             text: 'Daily',
             attr: { title: 'Daily Note' }
         });
     }
     
     // Main content container  
-    const contentContainer = item.createDiv({ cls: 'note-card__content note-content' }); // BEM + legacy class
+    const contentContainer = item.createDiv({ cls: 'note-card__content' });
     
     // Title
     const title = contentContainer.createDiv({ 
-        cls: 'note-card__title note-title', // BEM + legacy class
+        cls: 'note-card__title',
         text: note.title
     });
     
     // Tags section (separate from other metadata)
     if (opts.showTags && note.tags && note.tags.length > 0) {
         // Divider line
-        const divider = contentContainer.createEl('div', { cls: 'note-card__divider note-divider' }); // BEM + legacy class
+        const divider = contentContainer.createEl('div', { cls: 'note-card__divider' });
         
         // Tags line
         const tagsToShow = note.tags.slice(0, opts.maxTags);
@@ -75,7 +72,7 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
         }
         
         const tagsLine = contentContainer.createEl('div', { 
-            cls: 'note-card__tags-text note-tags-line', // BEM + legacy class
+            cls: 'note-card__tags-text',
             text: tagsText
         });
     }
@@ -86,7 +83,7 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
             ? format(new Date(note.createdDate), 'MMM d, yyyy h:mm a') 
             : note.createdDate;
         const dateEl = contentContainer.createDiv({ 
-            cls: 'note-card__metadata note-metadata-line', // BEM + legacy class
+            cls: 'note-card__metadata',
             text: `Created: ${dateStr}`,
             attr: { title: `Created: ${dateStr}` }
         });
@@ -94,7 +91,7 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
     
     if (opts.showPath) {
         const pathEl = contentContainer.createDiv({ 
-            cls: 'note-card__metadata note-metadata-line', // BEM + legacy class
+            cls: 'note-card__metadata',
             text: note.path,
             attr: { title: `Path: ${note.path}` }
         });
@@ -142,20 +139,17 @@ export function updateNoteCard(element: HTMLElement, note: NoteInfo, plugin: Tas
     if (isDailyNote) cardClasses.push('note-card--daily-note');
     cardClasses.push('note-card--compact', 'note-card--shadow-light');
     
-    // Legacy support - keep old classes for backward compatibility during transition
-    cardClasses.push('tasknotes-card', 'tasknotes-card--compact', 'tasknotes-card--shadow-light', 'note-item');
-    if (isDailyNote) cardClasses.push('daily-note-item');
     
     element.className = cardClasses.join(' ');
     
-    // Update title using both BEM and legacy selectors
-    const titleEl = element.querySelector('.note-card__title, .note-title, .note-item-title') as HTMLElement;
+    // Update title
+    const titleEl = element.querySelector('.note-card__title') as HTMLElement;
     if (titleEl) {
         titleEl.textContent = note.title;
     }
     
-    // Update created date using both BEM and legacy selectors
-    const dateEl = element.querySelector('.note-card__metadata, .note-metadata-line, .note-item-date') as HTMLElement;
+    // Update created date
+    const dateEl = element.querySelector('.note-card__metadata') as HTMLElement;
     if (dateEl && opts.showCreatedDate && note.createdDate) {
         const dateStr = note.createdDate.indexOf('T') > 0 
             ? format(new Date(note.createdDate), 'MMM d, yyyy h:mm a') 
@@ -163,14 +157,14 @@ export function updateNoteCard(element: HTMLElement, note: NoteInfo, plugin: Tas
         dateEl.textContent = `Created: ${dateStr}`;
     }
     
-    // Update path using both BEM and legacy selectors
-    const pathEl = element.querySelector('.note-card__metadata, .note-metadata-line, .note-item-path') as HTMLElement;
+    // Update path
+    const pathEl = element.querySelector('.note-card__metadata') as HTMLElement;
     if (pathEl && opts.showPath) {
         pathEl.textContent = note.path;
     }
     
-    // Update tags using both BEM and legacy selectors
-    const tagContainer = element.querySelector('.note-card__tags, .note-tags-line, .note-item-tags') as HTMLElement;
+    // Update tags
+    const tagContainer = element.querySelector('.note-card__tags-text') as HTMLElement;
     if (tagContainer && opts.showTags && note.tags && note.tags.length > 0) {
         // For the new BEM structure, update the text content directly
         const tagsToShow = note.tags.slice(0, opts.maxTags);
@@ -183,9 +177,9 @@ export function updateNoteCard(element: HTMLElement, note: NoteInfo, plugin: Tas
         tagContainer.textContent = tagsText;
     }
     
-    // Add update animation with new BEM class
-    element.classList.add('note-card--updated', 'note-updated'); // BEM + legacy class
+    // Add update animation
+    element.classList.add('note-card--updated');
     setTimeout(() => {
-        element.classList.remove('note-card--updated', 'note-updated');
+        element.classList.remove('note-card--updated');
     }, 1000);
 }

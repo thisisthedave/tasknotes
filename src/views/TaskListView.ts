@@ -1,4 +1,4 @@
-import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf, Setting } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     TASK_LIST_VIEW_TYPE, 

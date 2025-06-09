@@ -4,15 +4,38 @@ This directory contains the modular CSS source files for the TaskNotes plugin. T
 
 ## File Structure
 
+### Core System Files
 - `variables.css` - CSS custom properties and design system variables
+- `utilities.css` - Utility classes for layout, spacing, typography, and states
 - `base.css` - Basic styles, animations, card components, and layout
-- `components.css` - Reusable UI components, utilities, and modals  
-- `calendar.css` - Calendar view specific styles
-- `tasks.css` - Task list and task item specific styles
-- `kanban.css` - Kanban board view specific styles
-- `filters.css` - Unified filtering system styles
+- `components.css` - Reusable UI components, utilities, and modals
+
+### BEM Component Files (NEW)
+- `task-card-bem.css` - BEM TaskCard component with proper scoping
+- `note-card-bem.css` - BEM NoteCard component with proper scoping
+- `filter-bar-bem.css` - BEM FilterBar component with proper scoping
+- `modal-bem.css` - BEM Modal components with proper scoping
+
+### View-Specific Files (NEW)
+- `task-list-view.css` - BEM TaskListView component
+- `calendar-view.css` - BEM CalendarView component
+- `kanban-view.css` - BEM KanbanView component
+- `agenda-view.css` - BEM AgendaView component
+- `notes-view.css` - BEM NotesView component
+- `pomodoro-view.css` - BEM PomodoroView component
+- `pomodoro-stats-view.css` - BEM PomodoroStatsView component
+- `settings-view.css` - BEM SettingsView component
+
+### Legacy Files (Remaining)
+- `pomodoro.css` - Pomodoro view specific styles (to be deprecated)
+- `settings.css` - Settings page styles (to be deprecated)
+- `tasks-legacy.css` - Legacy task styles for backwards compatibility
+
+### Documentation Files
 - `index.css` - Documentation file (not included in build)
 - `README.md` - This documentation file
+- `UTILITIES.md` - Utility class documentation
+- `UTILITY-USAGE-GUIDE.md` - Guide for using utility classes
 
 ## Development Workflow
 
@@ -29,13 +52,16 @@ This directory contains the modular CSS source files for the TaskNotes plugin. T
 
 ### File Loading Order
 The CSS files are concatenated in dependency order:
-1. `variables.css` (loaded first so variables are available everywhere)
-2. `base.css` (foundational styles)
-3. `components.css` (reusable components)
-4. `calendar.css` (view-specific styles)
-5. `tasks.css` (view-specific styles)
-6. `kanban.css` (view-specific styles)
-7. `filters.css` (cross-view filtering system)
+1. `variables.css` (CSS custom properties - loaded first)
+2. `utilities.css` (utility classes)
+3. `base.css` (foundational styles)
+4. `task-card-bem.css` (BEM TaskCard component)
+5. `note-card-bem.css` (BEM NoteCard component)
+6. `filter-bar-bem.css` (BEM FilterBar component)
+7. `modal-bem.css` (BEM Modal components)
+8. View-specific BEM files (task-list-view, calendar-view, kanban-view, etc.)
+9. `components.css` (general components)
+10. Legacy files (`pomodoro.css`, `settings.css`)
 
 ## CI/CD Process
 
