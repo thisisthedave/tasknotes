@@ -126,7 +126,7 @@ export class FilterBar extends EventEmitter {
         this.container.addClass('filter-bar');
 
         // Main controls row
-        const mainRow = this.container.createDiv('filter-bar-main');
+        const mainRow = this.container.createDiv('filter-bar__main');
 
         // Search input
         if (this.config.showSearch) {
@@ -134,7 +134,7 @@ export class FilterBar extends EventEmitter {
         }
 
         // Sort and group controls
-        const controlsGroup = mainRow.createDiv('filter-bar-controls');
+        const controlsGroup = mainRow.createDiv('filter-bar__controls');
         
         if (this.config.showSortBy) {
             this.renderSortControls(controlsGroup);
@@ -159,12 +159,12 @@ export class FilterBar extends EventEmitter {
      * Render search input
      */
     private renderSearchInput(parent: HTMLElement): void {
-        const searchContainer = parent.createDiv('filter-bar-search');
+        const searchContainer = parent.createDiv('filter-bar__search');
         
         this.searchInput = searchContainer.createEl('input', {
             type: 'text',
             placeholder: 'Search tasks...',
-            cls: 'filter-bar-search-input'
+            cls: 'filter-bar__search-input'
         });
 
         this.searchInput.addEventListener('input', () => {
@@ -176,14 +176,14 @@ export class FilterBar extends EventEmitter {
      * Render sort controls
      */
     private renderSortControls(parent: HTMLElement): void {
-        const sortContainer = parent.createDiv('filter-bar-sort');
+        const sortContainer = parent.createDiv('filter-bar__sort');
         
         // Add label first
-        sortContainer.createSpan({ text: 'Sort:', cls: 'filter-bar-label' });
+        sortContainer.createSpan({ text: 'Sort:', cls: 'filter-bar__label' });
         
         // Sort key dropdown
         this.sortSelect = sortContainer.createEl('select', {
-            cls: 'filter-bar-select'
+            cls: 'filter-bar__select'
         });
 
         const sortKeys = this.config.allowedSortKeys || ['due', 'priority', 'title'];
@@ -200,7 +200,7 @@ export class FilterBar extends EventEmitter {
 
         // Sort direction button
         const sortDirectionBtn = sortContainer.createEl('button', {
-            cls: 'filter-bar-sort-direction',
+            cls: 'filter-bar__sort-direction',
             attr: { 'aria-label': 'Toggle sort direction' }
         });
 
@@ -214,12 +214,12 @@ export class FilterBar extends EventEmitter {
      * Render group controls
      */
     private renderGroupControls(parent: HTMLElement): void {
-        const groupContainer = parent.createDiv('filter-bar-group');
+        const groupContainer = parent.createDiv('filter-bar__group');
         
-        groupContainer.createSpan({ text: 'Group:', cls: 'filter-bar-label' });
+        groupContainer.createSpan({ text: 'Group:', cls: 'filter-bar__label' });
 
         this.groupSelect = groupContainer.createEl('select', {
-            cls: 'filter-bar-select'
+            cls: 'filter-bar__select'
         });
 
         const groupKeys = this.config.allowedGroupKeys || ['none', 'status', 'priority', 'context', 'due'];
@@ -239,30 +239,30 @@ export class FilterBar extends EventEmitter {
      * Render date range filter in advanced filters panel
      */
     private renderDateRangeFilter(): void {
-        const dateRangeContainer = this.advancedFiltersPanel!.createDiv('filter-bar-advanced-item');
-        dateRangeContainer.createSpan({ text: 'Date range:', cls: 'filter-bar-label' });
+        const dateRangeContainer = this.advancedFiltersPanel!.createDiv('filter-bar__advanced-item');
+        dateRangeContainer.createSpan({ text: 'Date range:', cls: 'filter-bar__label' });
 
-        const dateInputsContainer = dateRangeContainer.createDiv('filter-bar-date-inputs');
+        const dateInputsContainer = dateRangeContainer.createDiv('filter-bar__date-inputs');
 
         // Start date input
-        const startContainer = dateInputsContainer.createDiv('filter-bar-date-input-container');
-        startContainer.createSpan({ text: 'From:', cls: 'filter-bar-date-label' });
+        const startContainer = dateInputsContainer.createDiv('filter-bar__date-input-container');
+        startContainer.createSpan({ text: 'From:', cls: 'filter-bar__date-label' });
         this.dateRangeStartInput = startContainer.createEl('input', {
             type: 'date',
-            cls: 'filter-bar-date-input'
+            cls: 'filter-bar__date-input'
         });
 
         // End date input
-        const endContainer = dateInputsContainer.createDiv('filter-bar-date-input-container');
-        endContainer.createSpan({ text: 'To:', cls: 'filter-bar-date-label' });
+        const endContainer = dateInputsContainer.createDiv('filter-bar__date-input-container');
+        endContainer.createSpan({ text: 'To:', cls: 'filter-bar__date-label' });
         this.dateRangeEndInput = endContainer.createEl('input', {
             type: 'date',
-            cls: 'filter-bar-date-input'
+            cls: 'filter-bar__date-input'
         });
 
         // Clear button
         const clearButton = dateInputsContainer.createEl('button', {
-            cls: 'filter-bar-date-clear',
+            cls: 'filter-bar__date-clear',
             text: 'Clear',
             attr: { 'aria-label': 'Clear date range' }
         });
@@ -317,12 +317,12 @@ export class FilterBar extends EventEmitter {
      */
     private renderAdvancedFiltersButton(parent: HTMLElement): void {
         this.advancedFiltersButton = parent.createEl('button', {
-            cls: 'filter-bar-advanced-toggle',
+            cls: 'filter-bar__advanced-toggle',
             text: 'Filters'
         });
 
         this.activeFiltersIndicator = this.advancedFiltersButton.createSpan({
-            cls: 'filter-bar-active-indicator'
+            cls: 'filter-bar__active-indicator filter-bar__active-indicator--hidden'
         });
 
         this.advancedFiltersButton.addEventListener('click', () => {
@@ -334,8 +334,8 @@ export class FilterBar extends EventEmitter {
      * Render advanced filters panel
      */
     private renderAdvancedFiltersPanel(): void {
-        this.advancedFiltersPanel = this.container.createDiv('filter-bar-advanced');
-        this.advancedFiltersPanel.addClass('is-hidden');
+        this.advancedFiltersPanel = this.container.createDiv('filter-bar__advanced');
+        this.advancedFiltersPanel.addClass('filter-bar__advanced--hidden');
 
         // Status filter
         this.renderStatusFilter();
@@ -359,24 +359,24 @@ export class FilterBar extends EventEmitter {
      * Render status filter
      */
     private renderStatusFilter(): void {
-        const statusContainer = this.advancedFiltersPanel!.createDiv('filter-bar-advanced-item');
-        statusContainer.createSpan({ text: 'Status:', cls: 'filter-bar-label' });
+        const statusContainer = this.advancedFiltersPanel!.createDiv('filter-bar__advanced-item');
+        statusContainer.createSpan({ text: 'Status:', cls: 'filter-bar__label' });
 
-        const statusCheckboxContainer = statusContainer.createDiv('filter-bar-checkbox-group');
+        const statusCheckboxContainer = statusContainer.createDiv('filter-bar__checkbox-group');
 
 
         // Add specific status options
         this.filterOptions.statuses.forEach(status => {
-            const checkboxWrapper = statusCheckboxContainer.createDiv('filter-bar-checkbox-wrapper');
+            const checkboxWrapper = statusCheckboxContainer.createDiv('filter-bar__checkbox-wrapper');
             
             const label = checkboxWrapper.createEl('label', {
-                cls: 'filter-bar-checkbox-label'
+                cls: 'filter-bar__checkbox-label'
             });
 
             const checkbox = label.createEl('input', {
                 type: 'checkbox',
                 value: status,
-                cls: 'filter-bar-checkbox'
+                cls: 'filter-bar__checkbox'
             });
 
             label.createSpan({ text: status });
@@ -391,7 +391,7 @@ export class FilterBar extends EventEmitter {
      * Update status filter based on checkbox selections
      */
     private updateStatusFilter(): void {
-        const statusContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(1)');
+        const statusContainer = this.advancedFiltersPanel?.querySelector('.filter-bar__advanced-item:nth-child(1)');
         const checkboxes = statusContainer?.querySelectorAll('input[type="checkbox"]:checked') as NodeListOf<HTMLInputElement>;
         const selectedStatuses = Array.from(checkboxes || []).map(cb => cb.value);
         
@@ -404,22 +404,22 @@ export class FilterBar extends EventEmitter {
      * Render priority filter
      */
     private renderPriorityFilter(): void {
-        const priorityContainer = this.advancedFiltersPanel!.createDiv('filter-bar-advanced-item');
-        priorityContainer.createSpan({ text: 'Priority:', cls: 'filter-bar-label' });
+        const priorityContainer = this.advancedFiltersPanel!.createDiv('filter-bar__advanced-item');
+        priorityContainer.createSpan({ text: 'Priority:', cls: 'filter-bar__label' });
 
-        const priorityCheckboxContainer = priorityContainer.createDiv('filter-bar-checkbox-group');
+        const priorityCheckboxContainer = priorityContainer.createDiv('filter-bar__checkbox-group');
 
         this.filterOptions.priorities.forEach(priority => {
-            const checkboxWrapper = priorityCheckboxContainer.createDiv('filter-bar-checkbox-wrapper');
+            const checkboxWrapper = priorityCheckboxContainer.createDiv('filter-bar__checkbox-wrapper');
             
             const label = checkboxWrapper.createEl('label', {
-                cls: 'filter-bar-checkbox-label'
+                cls: 'filter-bar__checkbox-label'
             });
 
             const checkbox = label.createEl('input', {
                 type: 'checkbox',
                 value: priority,
-                cls: 'filter-bar-checkbox'
+                cls: 'filter-bar__checkbox'
             });
 
             label.createSpan({ text: priority });
@@ -434,7 +434,7 @@ export class FilterBar extends EventEmitter {
      * Update priority filter based on checkbox selections
      */
     private updatePriorityFilter(): void {
-        const priorityContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(2)');
+        const priorityContainer = this.advancedFiltersPanel?.querySelector('.filter-bar__advanced-item:nth-child(2)');
         const checkboxes = priorityContainer?.querySelectorAll('input[type="checkbox"]:checked') as NodeListOf<HTMLInputElement>;
         const selectedPriorities = Array.from(checkboxes || []).map(cb => cb.value);
         this.updateQueryField('priorities', selectedPriorities.length > 0 ? selectedPriorities : undefined);
@@ -444,22 +444,22 @@ export class FilterBar extends EventEmitter {
      * Render context filter
      */
     private renderContextFilter(): void {
-        const contextContainer = this.advancedFiltersPanel!.createDiv('filter-bar-advanced-item');
-        contextContainer.createSpan({ text: 'Context:', cls: 'filter-bar-label' });
+        const contextContainer = this.advancedFiltersPanel!.createDiv('filter-bar__advanced-item');
+        contextContainer.createSpan({ text: 'Context:', cls: 'filter-bar__label' });
 
-        const contextCheckboxContainer = contextContainer.createDiv('filter-bar-checkbox-group');
+        const contextCheckboxContainer = contextContainer.createDiv('filter-bar__checkbox-group');
 
         this.filterOptions.contexts.forEach(context => {
-            const checkboxWrapper = contextCheckboxContainer.createDiv('filter-bar-checkbox-wrapper');
+            const checkboxWrapper = contextCheckboxContainer.createDiv('filter-bar__checkbox-wrapper');
             
             const label = checkboxWrapper.createEl('label', {
-                cls: 'filter-bar-checkbox-label'
+                cls: 'filter-bar__checkbox-label'
             });
 
             const checkbox = label.createEl('input', {
                 type: 'checkbox',
                 value: context,
-                cls: 'filter-bar-checkbox'
+                cls: 'filter-bar__checkbox'
             });
 
             label.createSpan({ text: context });
@@ -474,7 +474,7 @@ export class FilterBar extends EventEmitter {
      * Update context filter based on checkbox selections
      */
     private updateContextFilter(): void {
-        const contextContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(3)');
+        const contextContainer = this.advancedFiltersPanel?.querySelector('.filter-bar__advanced-item:nth-child(3)');
         const checkboxes = contextContainer?.querySelectorAll('input[type="checkbox"]:checked') as NodeListOf<HTMLInputElement>;
         const selectedContexts = Array.from(checkboxes || []).map(cb => cb.value);
         this.updateQueryField('contexts', selectedContexts.length > 0 ? selectedContexts : undefined);
@@ -484,15 +484,15 @@ export class FilterBar extends EventEmitter {
      * Render archived toggle
      */
     private renderArchivedToggle(): void {
-        const archivedContainer = this.advancedFiltersPanel!.createDiv('filter-bar-advanced-item');
+        const archivedContainer = this.advancedFiltersPanel!.createDiv('filter-bar__advanced-item');
         
         const label = archivedContainer.createEl('label', {
-            cls: 'filter-bar-checkbox-label'
+            cls: 'filter-bar__checkbox-label'
         });
 
         this.archivedToggle = label.createEl('input', {
             type: 'checkbox',
-            cls: 'filter-bar-checkbox'
+            cls: 'filter-bar__checkbox'
         });
 
         label.createSpan({ text: 'Show archived' });
@@ -545,7 +545,7 @@ export class FilterBar extends EventEmitter {
         }
 
         // Update status checkboxes
-        const statusContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(1)');
+        const statusContainer = this.advancedFiltersPanel?.querySelector('.filter-bar__advanced-item:nth-child(1)');
         const statusCheckboxes = statusContainer?.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
         statusCheckboxes?.forEach(checkbox => {
             if (this.currentQuery.statuses) {
@@ -557,14 +557,14 @@ export class FilterBar extends EventEmitter {
         });
 
         // Update priority checkboxes
-        const priorityContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(2)');
+        const priorityContainer = this.advancedFiltersPanel?.querySelector('.filter-bar__advanced-item:nth-child(2)');
         const priorityCheckboxes = priorityContainer?.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
         priorityCheckboxes?.forEach(checkbox => {
             checkbox.checked = (this.currentQuery.priorities || []).includes(checkbox.value);
         });
 
         // Update context checkboxes
-        const contextContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(3)');
+        const contextContainer = this.advancedFiltersPanel?.querySelector('.filter-bar__advanced-item:nth-child(3)');
         const contextCheckboxes = contextContainer?.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
         contextCheckboxes?.forEach(checkbox => {
             checkbox.checked = (this.currentQuery.contexts || []).includes(checkbox.value);
@@ -582,7 +582,7 @@ export class FilterBar extends EventEmitter {
      * Update sort direction button appearance
      */
     private updateSortDirectionButton(): void {
-        const button = this.container.querySelector('.filter-bar-sort-direction') as HTMLElement;
+        const button = this.container.querySelector('.filter-bar__sort-direction') as HTMLElement;
         if (button) {
             button.textContent = this.currentQuery.sortDirection === 'asc' ? '↑' : '↓';
             button.title = `Sort ${this.currentQuery.sortDirection === 'asc' ? 'Ascending' : 'Descending'}`;
@@ -606,9 +606,9 @@ export class FilterBar extends EventEmitter {
 
         if (activeCount > 0) {
             this.activeFiltersIndicator.textContent = `(${activeCount})`;
-            this.activeFiltersIndicator.classList.remove('is-hidden');
+            this.activeFiltersIndicator.classList.remove('filter-bar__active-indicator--hidden');
         } else {
-            this.activeFiltersIndicator.classList.add('is-hidden');
+            this.activeFiltersIndicator.classList.add('filter-bar__active-indicator--hidden');
         }
     }
 
@@ -618,11 +618,11 @@ export class FilterBar extends EventEmitter {
     private toggleAdvancedFilters(): void {
         if (!this.advancedFiltersPanel) return;
 
-        const isVisible = !this.advancedFiltersPanel.classList.contains('is-hidden');
-        this.advancedFiltersPanel.classList.toggle('is-hidden', isVisible);
+        const isVisible = !this.advancedFiltersPanel.classList.contains('filter-bar__advanced--hidden');
+        this.advancedFiltersPanel.classList.toggle('filter-bar__advanced--hidden', isVisible);
         
         if (this.advancedFiltersButton) {
-            this.advancedFiltersButton.classList.toggle('active', !isVisible);
+            this.advancedFiltersButton.classList.toggle('filter-bar__advanced-toggle--active', !isVisible);
         }
     }
 
@@ -664,7 +664,7 @@ export class FilterBar extends EventEmitter {
      * Rebuild status checkboxes while preserving selection
      */
     private rebuildStatusCheckboxes(): void {
-        const statusContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(1) .filter-bar-checkbox-group');
+        const statusContainer = this.advancedFiltersPanel?.querySelector('.filter-bar__advanced-item:nth-child(1) .filter-bar__checkbox-group');
         if (!statusContainer) return;
 
         const selectedStatuses = this.currentQuery.statuses || [];
@@ -673,16 +673,16 @@ export class FilterBar extends EventEmitter {
 
         // Add specific status options
         this.filterOptions.statuses.forEach(status => {
-            const checkboxWrapper = statusContainer.createDiv('filter-bar-checkbox-wrapper');
+            const checkboxWrapper = statusContainer.createDiv('filter-bar__checkbox-wrapper');
             
             const label = checkboxWrapper.createEl('label', {
-                cls: 'filter-bar-checkbox-label'
+                cls: 'filter-bar__checkbox-label'
             });
 
             const checkbox = label.createEl('input', {
                 type: 'checkbox',
                 value: status,
-                cls: 'filter-bar-checkbox'
+                cls: 'filter-bar__checkbox'
             });
 
             checkbox.checked = selectedStatuses.includes(status);
@@ -699,23 +699,23 @@ export class FilterBar extends EventEmitter {
      * Rebuild priority checkboxes while preserving selection
      */
     private rebuildPriorityCheckboxes(): void {
-        const priorityContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(2) .filter-bar-checkbox-group');
+        const priorityContainer = this.advancedFiltersPanel?.querySelector('.filter-bar__advanced-item:nth-child(2) .filter-bar__checkbox-group');
         if (!priorityContainer) return;
 
         const selectedPriorities = this.currentQuery.priorities || [];
         priorityContainer.empty();
 
         this.filterOptions.priorities.forEach(priority => {
-            const checkboxWrapper = priorityContainer.createDiv('filter-bar-checkbox-wrapper');
+            const checkboxWrapper = priorityContainer.createDiv('filter-bar__checkbox-wrapper');
             
             const label = checkboxWrapper.createEl('label', {
-                cls: 'filter-bar-checkbox-label'
+                cls: 'filter-bar__checkbox-label'
             });
 
             const checkbox = label.createEl('input', {
                 type: 'checkbox',
                 value: priority,
-                cls: 'filter-bar-checkbox'
+                cls: 'filter-bar__checkbox'
             });
 
             checkbox.checked = selectedPriorities.includes(priority);
@@ -732,23 +732,23 @@ export class FilterBar extends EventEmitter {
      * Rebuild context checkboxes while preserving selection
      */
     private rebuildContextCheckboxes(): void {
-        const contextContainer = this.advancedFiltersPanel?.querySelector('.filter-bar-advanced-item:nth-child(3) .filter-bar-checkbox-group');
+        const contextContainer = this.advancedFiltersPanel?.querySelector('.filter-bar__advanced-item:nth-child(3) .filter-bar__checkbox-group');
         if (!contextContainer) return;
 
         const selectedContexts = this.currentQuery.contexts || [];
         contextContainer.empty();
 
         this.filterOptions.contexts.forEach(context => {
-            const checkboxWrapper = contextContainer.createDiv('filter-bar-checkbox-wrapper');
+            const checkboxWrapper = contextContainer.createDiv('filter-bar__checkbox-wrapper');
             
             const label = checkboxWrapper.createEl('label', {
-                cls: 'filter-bar-checkbox-label'
+                cls: 'filter-bar__checkbox-label'
             });
 
             const checkbox = label.createEl('input', {
                 type: 'checkbox',
                 value: context,
-                cls: 'filter-bar-checkbox'
+                cls: 'filter-bar__checkbox'
             });
 
             checkbox.checked = selectedContexts.includes(context);

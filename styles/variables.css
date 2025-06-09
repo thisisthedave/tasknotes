@@ -228,3 +228,141 @@
     --cs-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
     --cs-shadow-xl: 0 6px 12px rgba(0, 0, 0, 0.25);
 }
+
+/* ================================================
+   TASKNOTES PLUGIN SCOPED VARIABLES
+   ================================================ */
+
+.tasknotes-plugin {
+    /* ================================================
+       SCOPED THEME INTEGRATION
+       ================================================ */
+    
+    /* Base & Text Colors - Map to Obsidian theme variables */
+    --tn-bg-primary: var(--background-primary);
+    --tn-bg-secondary: var(--background-secondary);
+    --tn-bg-primary-alt: var(--background-primary-alt, var(--background-primary));
+    --tn-bg-secondary-alt: var(--background-secondary-alt, var(--background-secondary));
+    --tn-text-normal: var(--text-normal);
+    --tn-text-muted: var(--text-muted);
+    --tn-text-faint: var(--text-faint);
+    --tn-text-accent: var(--interactive-accent);
+
+    /* Borders & Dividers - Map to Obsidian theme variables */
+    --tn-border-color: var(--background-modifier-border);
+    --tn-border-color-hover: var(--background-modifier-border-hover);
+    --tn-border-color-focus: var(--background-modifier-border-focus);
+    --tn-border-color-interactive: var(--interactive-accent);
+
+    /* Interactive States - Map to Obsidian theme variables */
+    --tn-interactive-normal: var(--interactive-normal);
+    --tn-interactive-hover: var(--interactive-hover);
+    --tn-interactive-accent: var(--interactive-accent);
+    --tn-interactive-accent-hover: var(--interactive-accent-hover);
+    --tn-interactive-success: var(--interactive-success);
+
+    /* Semantic Colors - Use Obsidian's color palette when available */
+    --tn-color-success: var(--color-green, #00aa00);
+    --tn-color-warning: var(--color-yellow, #ffa500);
+    --tn-color-error: var(--color-red, #ff0000);
+    --tn-color-info: var(--color-blue, #0066cc);
+    --tn-color-overdue: var(--color-red, #ff0000);
+
+    /* ================================================
+       SCOPED SPACING SYSTEM (inherit from design system)
+       ================================================ */
+    
+    --tn-spacing-xs: var(--cs-spacing-xs);
+    --tn-spacing-sm: var(--cs-spacing-sm);
+    --tn-spacing-md: var(--cs-spacing-md);
+    --tn-spacing-lg: var(--cs-spacing-lg);
+    --tn-spacing-xl: var(--cs-spacing-xl);
+    --tn-spacing-xxl: var(--cs-spacing-xxl);
+
+    /* ================================================
+       SCOPED TYPOGRAPHY SYSTEM (inherit from design system)
+       ================================================ */
+    
+    --tn-font-size-xs: var(--cs-text-label-small);
+    --tn-font-size-sm: var(--cs-text-label-medium);
+    --tn-font-size-md: var(--cs-text-body-medium);
+    --tn-font-size-lg: var(--cs-text-body-large);
+    --tn-font-size-xl: var(--cs-text-title-medium);
+    --tn-font-size-2xl: var(--cs-text-title-large);
+
+    /* Typography weights and styles */
+    --tn-font-weight-normal: 400;
+    --tn-font-weight-medium: 500;
+    --tn-font-weight-semibold: 600;
+    --tn-font-weight-bold: 700;
+
+    /* ================================================
+       SCOPED BORDERS & SHADOWS (inherit from design system)
+       ================================================ */
+    
+    --tn-radius-xs: var(--cs-radius-xs);
+    --tn-radius-sm: var(--cs-radius-sm);
+    --tn-radius-md: var(--cs-radius-md);
+    --tn-radius-lg: var(--cs-radius-lg);
+    --tn-radius-xl: var(--cs-radius-xl);
+    --tn-radius-full: var(--cs-radius-full);
+
+    --tn-shadow-light: var(--cs-elevation-1);
+    --tn-shadow-medium: var(--cs-elevation-2);
+    --tn-shadow-strong: var(--cs-elevation-3);
+    --tn-shadow-hover: var(--cs-elevation-4);
+
+    /* ================================================
+       SCOPED MOTION SYSTEM (inherit from design system)
+       ================================================ */
+    
+    --tn-transition-fast: var(--cs-transition-fast);
+    --tn-transition-normal: var(--cs-transition-normal);
+    --tn-transition-slow: var(--cs-transition-slow);
+
+    /* ================================================
+       SCOPED COMPONENT SIZING (inherit from design system)
+       ================================================ */
+    
+    --tn-button-height-sm: var(--cs-button-height-sm);
+    --tn-button-height-md: var(--cs-button-height-md);
+    --tn-button-height-lg: var(--cs-button-height-lg);
+    
+    --tn-input-height-sm: var(--cs-input-height-sm);
+    --tn-input-height-md: var(--cs-input-height-md);
+    --tn-input-height-lg: var(--cs-input-height-lg);
+
+    --tn-icon-sm: var(--cs-icon-sm);
+    --tn-icon-md: var(--cs-icon-md);
+    --tn-icon-lg: var(--cs-icon-lg);
+
+    /* ================================================
+       SCOPED Z-INDEX SYSTEM (inherit from design system)
+       ================================================ */
+    
+    --tn-z-base: var(--cs-z-base);
+    --tn-z-sticky: var(--cs-z-sticky);
+    --tn-z-dropdown: var(--cs-z-dropdown);
+    --tn-z-modal: var(--cs-z-modal);
+    --tn-z-tooltip: var(--cs-z-tooltip);
+    --tn-z-notification: var(--cs-z-notification);
+
+    /* ================================================
+       PLUGIN-SPECIFIC VARIABLES
+       ================================================ */
+    
+    /* Status & Priority colors are dynamically injected by StatusManager & PriorityManager */
+    /* These are fallbacks for when dynamic colors aren't loaded yet */
+    --tn-color-status-fallback: var(--tn-text-muted);
+    --tn-color-priority-fallback: var(--tn-text-muted);
+    
+    /* Special component colors */
+    --tn-color-archived: var(--cs-color-archived);
+    --tn-color-daily-note: var(--cs-color-daily-note);
+    --tn-color-recurring: var(--cs-color-recurring);
+    
+    /* Calendar and heatmap colors */
+    --tn-color-notes-light: var(--cs-color-notes-light);
+    --tn-color-notes-medium: var(--cs-color-notes-medium);
+    --tn-color-notes-heavy: var(--cs-color-notes-heavy);
+}

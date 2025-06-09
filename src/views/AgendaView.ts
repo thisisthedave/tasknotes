@@ -109,7 +109,7 @@ export class AgendaView extends ItemView {
         contentEl.empty();
         
         // Add container
-        const container = contentEl.createDiv({ cls: 'tasknotes-container agenda-view-container' });
+        const container = contentEl.createDiv({ cls: 'tasknotes-plugin agenda-view' });
         
         // Show loading indicator
         this.showLoadingIndicator();
@@ -150,16 +150,16 @@ export class AgendaView extends ItemView {
     }
     
     private async createAgendaControls(container: HTMLElement) {
-        const controlsContainer = container.createDiv({ cls: 'agenda-controls' });
+        const controlsContainer = container.createDiv({ cls: 'agenda-view__controls' });
         
         // Header section with date range and navigation (like tasks view)
-        const headerSection = controlsContainer.createDiv({ cls: 'agenda-header-section' });
+        const headerSection = controlsContainer.createDiv({ cls: 'agenda-view__header' });
         
-        const headerContent = headerSection.createDiv({ cls: 'agenda-header-content' });
+        const headerContent = headerSection.createDiv({ cls: 'agenda-view__header-content' });
         
         // Navigation controls
         const prevButton = headerContent.createEl('button', {
-            cls: 'nav-arrow-button',
+            cls: 'agenda-view__nav-button agenda-view__nav-button--prev',
             text: '‹',
             attr: {
                 'aria-label': 'Previous period',
@@ -169,12 +169,12 @@ export class AgendaView extends ItemView {
         
         // Current period display (large, styled like tasks view date)
         const currentPeriodDisplay = headerContent.createDiv({ 
-            cls: 'agenda-period-title',
+            cls: 'agenda-view__period-title',
             text: this.getCurrentPeriodText()
         });
         
         const nextButton = headerContent.createEl('button', {
-            cls: 'nav-arrow-button',
+            cls: 'agenda-view__nav-button agenda-view__nav-button--next',
             text: '›',
             attr: {
                 'aria-label': 'Next period',
@@ -191,7 +191,7 @@ export class AgendaView extends ItemView {
         });
         
         // FilterBar section (like tasks view)
-        const filterBarContainer = controlsContainer.createDiv({ cls: 'agenda-filter-bar-container' });
+        const filterBarContainer = controlsContainer.createDiv({ cls: 'agenda-view__filter-container' });
         
         // Wait for cache to be initialized with actual data
         await this.waitForCacheReady();
@@ -230,12 +230,12 @@ export class AgendaView extends ItemView {
         });
         
         // Settings section with period selector, today button, and toggles
-        const settingsSection = controlsContainer.createDiv({ cls: 'agenda-settings-section' });
+        const settingsSection = controlsContainer.createDiv({ cls: 'agenda-view__settings' });
         
         // Left side: Period selector and Today button
-        const leftControls = settingsSection.createDiv({ cls: 'agenda-left-controls' });
+        const leftControls = settingsSection.createDiv({ cls: 'agenda-view__settings-left' });
         
-        const periodSelect = leftControls.createEl('select', { cls: 'agenda-period-select' });
+        const periodSelect = leftControls.createEl('select', { cls: 'agenda-view__period-select' });
         const periods = [
             { value: '7', text: '7 days' },
             { value: '14', text: '14 days' },
@@ -270,7 +270,7 @@ export class AgendaView extends ItemView {
         
         const todayButton = leftControls.createEl('button', {
             text: 'Today',
-            cls: 'agenda-today-button'
+            cls: 'agenda-view__today-button'
         });
         
         todayButton.addEventListener('click', () => {
@@ -279,13 +279,13 @@ export class AgendaView extends ItemView {
         });
         
         // Right side: Toggles
-        const rightControls = settingsSection.createDiv({ cls: 'agenda-right-controls' });
+        const rightControls = settingsSection.createDiv({ cls: 'agenda-view__settings-right' });
         
         // Show overdue tasks toggle
-        const overdueToggle = rightControls.createEl('label', { cls: 'agenda-toggle' });
+        const overdueToggle = rightControls.createEl('label', { cls: 'agenda-view__toggle' });
         const overdueCheckbox = overdueToggle.createEl('input', { 
             type: 'checkbox',
-            cls: 'agenda-toggle-checkbox'
+            cls: 'agenda-view__toggle-checkbox'
         });
         overdueCheckbox.checked = this.showOverdueOnToday;
         overdueToggle.createSpan({ text: 'Overdue on today' });
@@ -296,10 +296,10 @@ export class AgendaView extends ItemView {
         });
         
         // Show notes toggle
-        const notesToggle = rightControls.createEl('label', { cls: 'agenda-toggle' });
+        const notesToggle = rightControls.createEl('label', { cls: 'agenda-view__toggle' });
         const notesCheckbox = notesToggle.createEl('input', { 
             type: 'checkbox',
-            cls: 'agenda-toggle-checkbox'
+            cls: 'agenda-view__toggle-checkbox'
         });
         notesCheckbox.checked = this.showNotes;
         notesToggle.createSpan({ text: 'Show notes' });
@@ -326,9 +326,9 @@ export class AgendaView extends ItemView {
     
     private async renderAgendaContent(container: HTMLElement) {
         // Find existing content container or create new one
-        let contentContainer = container.querySelector('.agenda-content') as HTMLElement;
+        let contentContainer = container.querySelector('.agenda-view__content') as HTMLElement;
         if (!contentContainer) {
-            contentContainer = container.createDiv({ cls: 'agenda-content' });
+            contentContainer = container.createDiv({ cls: 'agenda-view__content' });
         }
         
         try {
@@ -404,10 +404,8 @@ export class AgendaView extends ItemView {
         } catch (error) {
             console.error('Error rendering agenda content:', error);
             contentContainer.empty();
-            contentContainer.createEl('p', { 
-                text: 'Error loading agenda. Please try refreshing.', 
-                cls: 'error-message' 
-            });
+            const errorEl = contentContainer.createDiv({ cls: 'agenda-view__error' });
+            errorEl.createSpan({ text: 'Error loading agenda. Please try refreshing.' });
         }
     }
     
@@ -449,23 +447,23 @@ export class AgendaView extends ItemView {
                 hasAnyItems = true;
                 
                 // Day header (rendered directly to container)
-                const dayHeader = container.createDiv({ cls: 'agenda-day-header' });
-                const headerText = dayHeader.createDiv({ cls: 'day-header-text' });
+                const dayHeader = container.createDiv({ cls: 'agenda-view__day-header' });
+                const headerText = dayHeader.createDiv({ cls: 'agenda-view__day-header-text' });
                 
                 const dayName = format(dayData.date, 'EEEE');
                 const dateFormatted = format(dayData.date, 'MMMM d');
                 
                 if (isToday(dayData.date)) {
-                    headerText.createSpan({ cls: 'day-name today-badge', text: 'Today' });
-                    headerText.createSpan({ cls: 'day-date', text: ` • ${dateFormatted}` });
+                    headerText.createSpan({ cls: 'agenda-view__day-name agenda-view__day-name--today', text: 'Today' });
+                    headerText.createSpan({ cls: 'agenda-view__day-date', text: ` • ${dateFormatted}` });
                 } else {
-                    headerText.createSpan({ cls: 'day-name', text: dayName });
-                    headerText.createSpan({ cls: 'day-date', text: ` • ${dateFormatted}` });
+                    headerText.createSpan({ cls: 'agenda-view__day-name', text: dayName });
+                    headerText.createSpan({ cls: 'agenda-view__day-date', text: ` • ${dateFormatted}` });
                 }
                 
                 // Item count badge
                 const itemCount = tasksForDate.length + dayData.notes.length;
-                dayHeader.createDiv({ cls: 'item-count-badge', text: `${itemCount}` });
+                dayHeader.createDiv({ cls: 'agenda-view__item-count', text: `${itemCount}` });
                 
                 // Render tasks directly to container
                 this.renderTasks(container, tasksForDate);
@@ -477,14 +475,20 @@ export class AgendaView extends ItemView {
         
         // Show empty message if no items
         if (!hasAnyItems) {
-            const emptyMessage = container.createDiv({ cls: 'empty-agenda-message' });
+            const emptyMessage = container.createDiv({ cls: 'agenda-view__empty' });
+            
+            emptyMessage.createEl('h3', { 
+                text: 'No Items Scheduled',
+                cls: 'agenda-view__empty-title'
+            });
             
             emptyMessage.createEl('p', { 
-                text: 'No items scheduled for this period.'
+                text: 'No items scheduled for this period.',
+                cls: 'agenda-view__empty-description'
             });
             
             const tipMessage = emptyMessage.createEl('p', { 
-                cls: 'empty-tip'
+                cls: 'agenda-view__empty-tip'
             });
             tipMessage.createEl('span', { text: 'Tip: ' });
             tipMessage.appendChild(document.createTextNode('Create tasks with due or scheduled dates, or add notes to see them here.'));
@@ -525,8 +529,15 @@ export class AgendaView extends ItemView {
         });
         
         if (allItems.length === 0) {
-            const emptyMessage = container.createDiv({ cls: 'empty-agenda-message' });
-            emptyMessage.textContent = 'No items found for the selected period.';
+            const emptyMessage = container.createDiv({ cls: 'agenda-view__empty' });
+            emptyMessage.createEl('h3', { 
+                text: 'No Items Found',
+                cls: 'agenda-view__empty-title'
+            });
+            emptyMessage.createEl('p', { 
+                text: 'No items found for the selected period.',
+                cls: 'agenda-view__empty-description'
+            });
             return;
         }
         
@@ -534,7 +545,7 @@ export class AgendaView extends ItemView {
         allItems.sort((a, b) => a.date.getTime() - b.date.getTime());
         
         // Render all items
-        const itemList = container.createDiv({ cls: 'agenda-item-list flat-list' });
+        const itemList = container.createDiv({ cls: 'agenda-view__day-content agenda-view__day-content--flat' });
         
         allItems.forEach(({ type, item, date }) => {
             if (type === 'task') {
@@ -601,7 +612,7 @@ export class AgendaView extends ItemView {
         // Add date if not grouping by date
         if (!this.groupByDate && date) {
             const dateSpan = noteCard.createSpan({ 
-                cls: 'note-date', 
+                cls: 'agenda-view__note-date', 
                 text: format(date, 'MMM d') 
             });
         }
@@ -684,9 +695,16 @@ export class AgendaView extends ItemView {
         
         if (!hasAnyItems) {
             container.empty();
-            const emptyMessage = container.createDiv({ cls: 'empty-agenda-message' });
-            emptyMessage.createEl('p', { text: 'No items scheduled for this period.' });
-            const tipMessage = emptyMessage.createEl('p', { cls: 'empty-tip' });
+            const emptyMessage = container.createDiv({ cls: 'agenda-view__empty' });
+            emptyMessage.createEl('h3', { 
+                text: 'No Items Scheduled',
+                cls: 'agenda-view__empty-title'
+            });
+            emptyMessage.createEl('p', { 
+                text: 'No items scheduled for this period.',
+                cls: 'agenda-view__empty-description'
+            });
+            const tipMessage = emptyMessage.createEl('p', { cls: 'agenda-view__empty-tip' });
             tipMessage.createEl('span', { text: 'Tip: ' });
             tipMessage.appendChild(document.createTextNode('Create tasks with due or scheduled dates, or add notes to see them here.'));
             return;
@@ -739,8 +757,15 @@ export class AgendaView extends ItemView {
         
         if (allItems.length === 0) {
             container.empty();
-            const emptyMessage = container.createDiv({ cls: 'empty-agenda-message' });
-            emptyMessage.textContent = 'No items found for the selected period.';
+            const emptyMessage = container.createDiv({ cls: 'agenda-view__empty' });
+            emptyMessage.createEl('h3', { 
+                text: 'No Items Found',
+                cls: 'agenda-view__empty-title'
+            });
+            emptyMessage.createEl('p', { 
+                text: 'No items found for the selected period.',
+                cls: 'agenda-view__empty-description'
+            });
             return;
         }
         
@@ -763,23 +788,23 @@ export class AgendaView extends ItemView {
     private createAgendaItemElement(item: {type: 'day-header' | 'task' | 'note', item: any, date: Date, dayKey: string}): HTMLElement {
         if (item.type === 'day-header') {
             const dayHeader = document.createElement('div');
-            dayHeader.className = 'agenda-day-header';
+            dayHeader.className = 'agenda-view__day-header';
             
-            const headerText = dayHeader.createDiv({ cls: 'day-header-text' });
+            const headerText = dayHeader.createDiv({ cls: 'agenda-view__day-header-text' });
             const dayName = format(item.date, 'EEEE');
             const dateFormatted = format(item.date, 'MMMM d');
             
             if (isToday(item.date)) {
-                headerText.createSpan({ cls: 'day-name today-badge', text: 'Today' });
-                headerText.createSpan({ cls: 'day-date', text: ` • ${dateFormatted}` });
+                headerText.createSpan({ cls: 'agenda-view__day-name agenda-view__day-name--today', text: 'Today' });
+                headerText.createSpan({ cls: 'agenda-view__day-date', text: ` • ${dateFormatted}` });
             } else {
-                headerText.createSpan({ cls: 'day-name', text: dayName });
-                headerText.createSpan({ cls: 'day-date', text: ` • ${dateFormatted}` });
+                headerText.createSpan({ cls: 'agenda-view__day-name', text: dayName });
+                headerText.createSpan({ cls: 'agenda-view__day-date', text: ` • ${dateFormatted}` });
             }
             
             // Item count badge
             const itemCount = item.item.tasks.length + item.item.notes.length;
-            dayHeader.createDiv({ cls: 'item-count-badge', text: `${itemCount}` });
+            dayHeader.createDiv({ cls: 'agenda-view__item-count', text: `${itemCount}` });
             
             return dayHeader;
         } else if (item.type === 'task') {
@@ -795,7 +820,7 @@ export class AgendaView extends ItemView {
     private updateAgendaItemElement(element: HTMLElement, item: {type: 'day-header' | 'task' | 'note', item: any, date: Date, dayKey: string}): void {
         if (item.type === 'day-header') {
             // Update item count badge
-            const countBadge = element.querySelector('.item-count-badge');
+            const countBadge = element.querySelector('.agenda-view__item-count');
             if (countBadge) {
                 const itemCount = item.item.tasks.length + item.item.notes.length;
                 countBadge.textContent = `${itemCount}`;
@@ -877,7 +902,7 @@ export class AgendaView extends ItemView {
         // Add date if not grouping by date
         if (!this.groupByDate && date) {
             const dateSpan = noteCard.createSpan({ 
-                cls: 'note-date', 
+                cls: 'agenda-view__note-date', 
                 text: format(date, 'MMM d') 
             });
         }
@@ -964,7 +989,7 @@ export class AgendaView extends ItemView {
     }
     
     private updatePeriodDisplay(): void {
-        const currentPeriodDisplay = this.contentEl.querySelector('.agenda-period-title');
+        const currentPeriodDisplay = this.contentEl.querySelector('.agenda-view__period-title');
         if (currentPeriodDisplay) {
             currentPeriodDisplay.textContent = this.getCurrentPeriodText();
         }
@@ -985,24 +1010,24 @@ export class AgendaView extends ItemView {
     }
     
     private showLoadingIndicator() {
-        const container = this.contentEl.querySelector('.tasknotes-container');
-        if (!container || container.querySelector('.cache-loading-indicator')) return;
+        const container = this.contentEl.querySelector('.agenda-view');
+        if (!container || container.querySelector('.agenda-view__loading')) return;
         
         const indicator = document.createElement('div');
-        indicator.className = 'cache-loading-indicator';
+        indicator.className = 'agenda-view__loading';
         indicator.textContent = 'Loading agenda...';
         container.prepend(indicator);
     }
     
     private hideLoadingIndicator() {
-        const indicator = this.contentEl.querySelector('.cache-loading-indicator');
+        const indicator = this.contentEl.querySelector('.agenda-view__loading');
         if (indicator) {
             indicator.remove();
         }
     }
     
     async refresh() {
-        const container = this.contentEl.querySelector('.tasknotes-container') as HTMLElement;
+        const container = this.contentEl.querySelector('.agenda-view') as HTMLElement;
         if (container) {
             // Use DOMReconciler for efficient updates
             await this.renderAgendaContent(container);

@@ -1,0 +1,535 @@
+/* ================================================
+   CALENDAR VIEW - BEM STRUCTURE
+   ================================================ */
+
+/* Calendar View Container - Root Block */
+.tasknotes-plugin .calendar-view {
+    padding: var(--tn-spacing-sm);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    gap: var(--tn-spacing-sm);
+    max-width: 100%;
+}
+
+/* Calendar Controls Container */
+.tasknotes-plugin .calendar-view__controls {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--tn-spacing-sm);
+    padding: var(--tn-spacing-xs);
+    background: var(--tn-bg-secondary);
+    border-radius: var(--tn-radius-sm);
+    gap: var(--tn-spacing-xs);
+    border: 1px solid var(--tn-border-color);
+}
+
+/* Calendar Header */
+.tasknotes-plugin .calendar-view__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--tn-spacing-md);
+    padding: var(--tn-spacing-sm) 0;
+    gap: var(--tn-spacing-md);
+}
+
+/* Calendar View Type Select */
+.tasknotes-plugin .calendar-view__view-selector {
+    margin-right: var(--tn-spacing-md);
+    min-width: 120px;
+    padding: 4px 8px;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-sm);
+    cursor: pointer;
+    transition: all var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .calendar-view__view-selector:hover {
+    background: var(--tn-interactive-hover);
+    border-color: var(--tn-border-color-hover);
+}
+
+.tasknotes-plugin .calendar-view__view-selector:focus {
+    border-color: var(--tn-interactive-accent);
+    outline: none;
+}
+
+/* Calendar Navigation Section */
+.tasknotes-plugin .calendar-view__navigation {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-sm);
+}
+
+/* Calendar Month Display */
+.tasknotes-plugin .calendar-view__month-display {
+    font-weight: 500;
+    font-size: var(--tn-font-size-lg);
+    min-width: 140px;
+    text-align: center;
+    color: var(--tn-text-normal);
+}
+
+/* Calendar Navigation Buttons */
+.tasknotes-plugin .calendar-view__nav-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .calendar-view__nav-button:hover {
+    background: var(--tn-interactive-hover);
+    border-color: var(--tn-border-color-hover);
+}
+
+.tasknotes-plugin .calendar-view__nav-button:active {
+    background: var(--tn-interactive-accent);
+    color: var(--tn-bg-primary);
+}
+
+.tasknotes-plugin .calendar-view__nav-button--prev {
+    /* Specific styling for previous button if needed */
+}
+
+.tasknotes-plugin .calendar-view__nav-button--next {
+    /* Specific styling for next button if needed */
+}
+
+/* Today Button */
+.tasknotes-plugin .calendar-view__today-button {
+    margin-left: auto;
+    background: transparent;
+    color: var(--tn-text-muted);
+    padding: 4px 12px;
+    font-size: var(--tn-font-size-xs);
+    min-height: 24px;
+    border: none;
+    font-weight: normal;
+    opacity: 0.7;
+    transition: opacity var(--tn-transition-fast);
+    cursor: pointer;
+    border-radius: var(--tn-radius-sm);
+}
+
+.tasknotes-plugin .calendar-view__today-button:hover {
+    background-color: var(--tn-interactive-hover);
+    color: var(--tn-text-normal);
+    opacity: 1;
+}
+
+/* Loading Indicator */
+.tasknotes-plugin .calendar-view__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tn-spacing-sm);
+    padding: var(--tn-spacing-lg);
+    color: var(--tn-text-muted);
+    font-size: var(--tn-font-size-md);
+    font-style: italic;
+    font-weight: 400;
+    background: var(--tn-bg-secondary);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-md);
+    margin-bottom: var(--tn-spacing-md);
+}
+
+.tasknotes-plugin .calendar-view__loading::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid color-mix(in srgb, var(--tn-text-muted) 0.3, transparent);
+    border-top: 2px solid var(--tn-text-muted);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    flex-shrink: 0;
+}
+
+/* Calendar Grid Container */
+.tasknotes-plugin .calendar-view__grid-container {
+    margin-bottom: var(--tn-spacing-md);
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+}
+
+/* Calendar Grid */
+.tasknotes-plugin .calendar-view__grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: var(--tn-spacing-sm);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    overflow: hidden;
+    role: grid;
+}
+
+/* Calendar Grid Header Row */
+.tasknotes-plugin .calendar-view__grid-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: var(--tn-bg-secondary);
+    role: row;
+}
+
+/* Calendar Week Row */
+.tasknotes-plugin .calendar-view__week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    role: row;
+}
+
+/* Calendar Day Header (Sun, Mon, etc.) */
+.tasknotes-plugin .calendar-view__day-header {
+    text-align: center;
+    font-weight: 500;
+    font-size: var(--tn-font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: var(--tn-spacing-xs);
+    color: var(--tn-text-muted);
+    background: var(--tn-bg-secondary);
+    border-bottom: 1px solid var(--tn-border-color);
+    role: columnheader;
+}
+
+/* Calendar Day Cell */
+.tasknotes-plugin .calendar-view__day {
+    position: relative;
+    min-height: 2rem;
+    padding: var(--tn-spacing-xs);
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--tn-bg-primary);
+    border-bottom: 1px solid var(--tn-border-color);
+    transition: all var(--tn-transition-fast);
+    font-size: var(--tn-font-size-sm);
+    font-weight: 500;
+    role: gridcell;
+}
+
+.tasknotes-plugin .calendar-view__day:hover {
+    background-color: var(--tn-interactive-hover);
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Calendar Day - Today State */
+.tasknotes-plugin .calendar-view__day--today {
+    background: transparent;
+    color: var(--tn-interactive-accent);
+    font-weight: 600;
+    box-shadow: none;
+    position: relative;
+}
+
+.tasknotes-plugin .calendar-view__day--today::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--tn-interactive-accent);
+}
+
+/* Calendar Day - Selected State */
+.tasknotes-plugin .calendar-view__day--selected {
+    border: 1px solid var(--tn-interactive-accent);
+    font-weight: 500;
+    background-color: transparent;
+    box-shadow: none;
+}
+
+/* Selected but not today */
+.tasknotes-plugin .calendar-view__day--selected:not(.calendar-view__day--today) {
+    background-color: var(--tn-bg-secondary);
+}
+
+/* Selected and today */
+.tasknotes-plugin .calendar-view__day--today.calendar-view__day--selected {
+    box-shadow: 0 0 0 2px var(--tn-interactive-accent);
+}
+
+/* Calendar Day - Outside Month */
+.tasknotes-plugin .calendar-view__day--outside-month {
+    color: var(--tn-text-faint);
+    background-color: transparent;
+    opacity: 0.3;
+}
+
+/* Selected state overrides content indicator borders */
+.tasknotes-plugin .calendar-view__day--selected.calendar-view__day--has-notes,
+.tasknotes-plugin .calendar-view__day--selected.calendar-view__day--has-tasks,
+.tasknotes-plugin .calendar-view__day--selected.calendar-view__day--has-daily-note {
+    border: 1px solid var(--tn-interactive-accent);
+}
+
+/* Day Indicators Container (for dots/markers) */
+.tasknotes-plugin .calendar-view__day-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+/* Individual Day Indicator */
+.tasknotes-plugin .calendar-view__day-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 2px;
+}
+
+.tasknotes-plugin .calendar-view__day-indicator--notes {
+    background-color: var(--tn-interactive-accent);
+}
+
+.tasknotes-plugin .calendar-view__day-indicator--tasks {
+    background-color: var(--tn-color-error);
+}
+
+.tasknotes-plugin .calendar-view__day-indicator--important {
+    background-color: var(--tn-color-warning);
+}
+
+/* Content Indicators (Notes, Tasks, Daily Notes) */
+.tasknotes-plugin .calendar-view__content-indicator {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: all var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .calendar-view__content-indicator--notes {
+    bottom: 4px;
+    left: 30%;
+    transform: translateX(-50%);
+}
+
+.tasknotes-plugin .calendar-view__content-indicator--tasks {
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.tasknotes-plugin .calendar-view__content-indicator--daily-note {
+    bottom: 4px;
+    left: 70%;
+    transform: translateX(-50%);
+}
+
+/* Hover effects for content indicators */
+.tasknotes-plugin .calendar-view__day:hover .calendar-view__content-indicator {
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Notes Indicators - Different intensities */
+.tasknotes-plugin .calendar-view__content-indicator--notes-few {
+    background: var(--tn-color-notes-light);
+    width: 6px;
+    height: 6px;
+}
+
+.tasknotes-plugin .calendar-view__content-indicator--notes-some {
+    background: var(--tn-color-notes-medium);
+    width: 8px;
+    height: 8px;
+}
+
+.tasknotes-plugin .calendar-view__content-indicator--notes-many {
+    background: var(--tn-color-notes-heavy);
+    width: 10px;
+    height: 10px;
+}
+
+/* Task Indicators - Different states */
+.tasknotes-plugin .calendar-view__content-indicator--tasks-due {
+    background: var(--tn-color-error);
+    width: 8px;
+    height: 8px;
+}
+
+.tasknotes-plugin .calendar-view__content-indicator--tasks-completed {
+    background: var(--tn-color-success);
+    width: 8px;
+    height: 8px;
+}
+
+.tasknotes-plugin .calendar-view__content-indicator--tasks-scheduled {
+    background: var(--tn-interactive-accent);
+    width: 8px;
+    height: 8px;
+}
+
+.tasknotes-plugin .calendar-view__content-indicator--tasks-archived {
+    background: var(--tn-color-archived);
+    width: 8px;
+    height: 8px;
+    opacity: 0.8;
+}
+
+/* Daily Note Indicator */
+.tasknotes-plugin .calendar-view__content-indicator--daily-note {
+    background-color: var(--tn-color-daily-note);
+    width: 7px;
+    height: 7px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+/* Hover tooltip for indicators */
+.tasknotes-plugin .calendar-view__content-indicator:hover::after {
+    content: attr(aria-label);
+    position: absolute;
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    padding: 4px 8px;
+    border-radius: var(--tn-radius-sm);
+    font-size: var(--tn-font-size-xs);
+    white-space: nowrap;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--tn-z-tooltip);
+    box-shadow: var(--tn-shadow-medium);
+    pointer-events: none;
+    border: 1px solid var(--tn-border-color);
+}
+
+/* Day Content State Modifiers */
+.tasknotes-plugin .calendar-view__day--has-content {
+    font-weight: 500;
+    background-color: transparent;
+    border-top: 1px solid transparent;
+    border-right: 1px solid transparent;
+    border-bottom: 1px solid var(--tn-border-color);
+    border-left: 1px solid transparent;
+}
+
+/* Notes Content Indicators */
+.tasknotes-plugin .calendar-view__day--has-notes-few {
+    border-left: var(--tn-spacing-xs) solid var(--tn-color-notes-light);
+    background: linear-gradient(to right, var(--cs-blue-100), transparent);
+}
+
+.tasknotes-plugin .calendar-view__day--has-notes-some {
+    border-left: var(--tn-spacing-xs) solid var(--tn-color-notes-medium);
+    background: linear-gradient(to right, var(--cs-blue-100), transparent);
+}
+
+.tasknotes-plugin .calendar-view__day--has-notes-many {
+    border-left: var(--tn-spacing-xs) solid var(--tn-color-notes-heavy);
+    background: linear-gradient(to right, var(--cs-blue-100), transparent);
+}
+
+/* Tasks Content Indicators */
+.tasknotes-plugin .calendar-view__day--has-tasks {
+    border-left: var(--tn-spacing-xs) solid var(--tn-color-error);
+    background: linear-gradient(to right, var(--cs-red-100), transparent);
+}
+
+.tasknotes-plugin .calendar-view__day--has-scheduled-tasks {
+    border-left: var(--tn-spacing-xs) solid var(--tn-interactive-accent);
+    background: linear-gradient(to right, var(--cs-blue-100), transparent);
+}
+
+.tasknotes-plugin .calendar-view__day--has-completed-tasks {
+    border-left: var(--tn-spacing-xs) solid var(--tn-color-success);
+    background: linear-gradient(to right, var(--cs-green-100), transparent);
+}
+
+.tasknotes-plugin .calendar-view__day--has-archived-tasks {
+    border-left: var(--tn-spacing-xs) solid var(--tn-color-archived);
+    background: linear-gradient(to right, var(--cs-gray-100), transparent);
+}
+
+/* Daily Note Content Indicator */
+.tasknotes-plugin .calendar-view__day--has-daily-note {
+    border-left: var(--tn-spacing-xs) solid var(--tn-color-daily-note);
+    background: linear-gradient(to right, var(--cs-purple-100), transparent);
+}
+
+/* Enhanced hover effects for content indicators */
+.tasknotes-plugin .calendar-view__day--has-content:hover {
+    border-left-width: var(--tn-spacing-sm);
+    transform: translateX(1px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .tasknotes-plugin .calendar-view {
+        padding: var(--tn-spacing-xs);
+        gap: var(--tn-spacing-xs);
+    }
+    
+    .tasknotes-plugin .calendar-view__controls {
+        padding: var(--tn-spacing-xs);
+    }
+    
+    .tasknotes-plugin .calendar-view__nav-button {
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+    
+    .tasknotes-plugin .calendar-view__day {
+        min-height: 1.8rem;
+        font-size: var(--tn-font-size-xs);
+    }
+}
+
+@media (max-width: 480px) {
+    .tasknotes-plugin .calendar-view__header {
+        flex-direction: column;
+        gap: var(--tn-spacing-sm);
+        align-items: stretch;
+    }
+    
+    .tasknotes-plugin .calendar-view__navigation {
+        justify-content: center;
+    }
+    
+    .tasknotes-plugin .calendar-view__month-display {
+        font-size: var(--tn-font-size-md);
+        min-width: auto;
+    }
+    
+    .tasknotes-plugin .calendar-view__day {
+        min-height: 1.5rem;
+        padding: 2px;
+    }
+    
+    .tasknotes-plugin .calendar-view__content-indicator {
+        width: 6px;
+        height: 6px;
+    }
+}

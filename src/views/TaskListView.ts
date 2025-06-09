@@ -1,4 +1,4 @@
-import { Notice, TFile, ItemView, WorkspaceLeaf, Setting } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     TASK_LIST_VIEW_TYPE, 
@@ -144,9 +144,8 @@ export class TaskListView extends ItemView {
     private async fallbackToPolling() {
         // Show loading state
         this.contentEl.empty();
-        const loadingEl = this.contentEl.createDiv({ cls: 'tasknotes-loading' });
-        loadingEl.createDiv({ cls: 'loading-spinner' });
-        loadingEl.createDiv({ cls: 'loading-text', text: 'Initializing...' });
+        const loadingEl = this.contentEl.createDiv({ cls: 'task-list-view__loading' });
+        loadingEl.createSpan({ text: 'Initializing...' });
         
         // Poll for cache to be ready (with timeout)
         let attempts = 0;
@@ -208,7 +207,7 @@ export class TaskListView extends ItemView {
     
     
     async render() {
-        const container = this.contentEl.createDiv({ cls: 'tasknotes-container task-list-view-container' });
+        const container = this.contentEl.createDiv({ cls: 'tasknotes-plugin tasknotes-container task-list-view-container' });
         
         // Create header with current date information
         this.createHeader(container);

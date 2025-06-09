@@ -59,18 +59,18 @@ export class TaskSelectorModal extends FuzzySuggestModal<TaskInfo> {
 
     renderSuggestion(item: FuzzyMatch<TaskInfo>, el: HTMLElement) {
         const task = item.item;
-        const container = el.createDiv({ cls: 'task-suggestion' });
+        const container = el.createDiv({ cls: 'task-selector-modal__suggestion' });
         
         // Title with priority indicator
-        const titleDiv = container.createDiv({ cls: 'task-suggestion-title' });
-        const priorityClass = task.priority !== 'normal' ? `task-priority-${task.priority}` : '';
+        const titleDiv = container.createDiv({ cls: 'task-selector-modal__title' });
+        const priorityClass = task.priority !== 'normal' ? `task-selector-modal__task-title--${task.priority}-priority` : '';
         titleDiv.createSpan({ 
-            cls: `task-title ${priorityClass}`,
+            cls: `task-selector-modal__task-title ${priorityClass}`,
             text: task.title 
         });
         
         // Metadata line
-        const metaDiv = container.createDiv({ cls: 'task-suggestion-meta' });
+        const metaDiv = container.createDiv({ cls: 'task-selector-modal__meta' });
         
         // Due date
         if (task.due) {
@@ -80,14 +80,14 @@ export class TaskSelectorModal extends FuzzySuggestModal<TaskInfo> {
             const isToday = dueDate.toDateString() === today.toDateString();
             
             let dueDateText = task.due;
-            let dueDateClass = 'task-due-date';
+            let dueDateClass = 'task-selector-modal__due-date';
             
             if (isOverdue) {
                 dueDateText = `Overdue (${task.due})`;
-                dueDateClass += ' task-overdue';
+                dueDateClass += ' task-selector-modal__due-date--overdue';
             } else if (isToday) {
                 dueDateText = 'Due today';
-                dueDateClass += ' task-due-today';
+                dueDateClass += ' task-selector-modal__due-date--today';
             }
             
             metaDiv.createSpan({ 
@@ -98,11 +98,11 @@ export class TaskSelectorModal extends FuzzySuggestModal<TaskInfo> {
         
         // Contexts
         if (task.contexts && task.contexts.length > 0) {
-            const contextsSpan = metaDiv.createSpan({ cls: 'task-contexts' });
+            const contextsSpan = metaDiv.createSpan({ cls: 'task-selector-modal__contexts' });
             task.contexts.forEach((context, index) => {
                 if (index > 0) contextsSpan.createSpan({ text: ', ' });
                 contextsSpan.createSpan({ 
-                    cls: 'task-context-tag',
+                    cls: 'task-selector-modal__context-tag',
                     text: context 
                 });
             });
@@ -111,7 +111,7 @@ export class TaskSelectorModal extends FuzzySuggestModal<TaskInfo> {
         // Status
         if (task.status !== 'open') {
             metaDiv.createSpan({ 
-                cls: `task-status task-status-${task.status}`,
+                cls: `task-selector-modal__status`,
                 text: task.status 
             });
         }

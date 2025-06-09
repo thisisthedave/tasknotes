@@ -1,4 +1,4 @@
-import { Notice, TFile, ItemView, WorkspaceLeaf, Setting } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
@@ -77,10 +77,10 @@ export class NotesView extends ItemView {
         // Force refresh is handled by CacheManager
         
         // Try to preserve scroll position if not forcing full refresh
-        const existingContainer = this.contentEl.querySelector('.tasknotes-container');
+        const existingContainer = this.contentEl.querySelector('.notes-view');
         let scrollTop = 0;
         if (existingContainer && !forceFullRefresh) {
-            const notesList = existingContainer.querySelector('.notes-list') as HTMLElement;
+            const notesList = existingContainer.querySelector('.notes-view__list') as HTMLElement;
             if (notesList) {
                 scrollTop = notesList.scrollTop;
             }
@@ -92,7 +92,7 @@ export class NotesView extends ItemView {
         
         // Restore scroll position
         if (scrollTop > 0) {
-            const newNotesList = this.contentEl.querySelector('.notes-list') as HTMLElement;
+            const newNotesList = this.contentEl.querySelector('.notes-view__list') as HTMLElement;
             if (newNotesList) {
                 newNotesList.scrollTop = scrollTop;
             }
@@ -100,7 +100,7 @@ export class NotesView extends ItemView {
     }
     
     async render(forceRefresh: boolean = false) {
-        const container = this.contentEl.createDiv({ cls: 'tasknotes-container notes-view-container' });
+        const container = this.contentEl.createDiv({ cls: 'tasknotes-plugin notes-view' });
         
         // Create header with current date information
         this.createHeader(container);
@@ -110,21 +110,27 @@ export class NotesView extends ItemView {
     }
     
     createHeader(container: HTMLElement) {
-        const headerContainer = container.createDiv({ cls: 'detail-view-header' });
+        const headerContainer = container.createDiv({ cls: 'notes-view__header' });
         
         // Display selected date
         const formattedDate = format(this.plugin.selectedDate, 'EEEE, MMMM d, yyyy');
-        new Setting(headerContainer)
-            .setName(formattedDate)
-            .setHeading();
+        const titleContainer = headerContainer.createDiv();
+        titleContainer.createEl('h2', {
+            text: 'Notes',
+            cls: 'notes-view__title'
+        });
+        titleContainer.createEl('div', {
+            text: formattedDate,
+            cls: 'notes-view__date'
+        });
         
         // Add actions
-        const actionsContainer = headerContainer.createDiv({ cls: 'detail-view-actions' });
+        const actionsContainer = headerContainer.createDiv({ cls: 'notes-view__actions' });
         
         // Add refresh button
         const refreshButton = actionsContainer.createEl('button', { 
             text: 'Refresh', 
-            cls: 'refresh-notes-button tasknotes-button tasknotes-button-secondary',
+            cls: 'notes-view__refresh-button',
             attr: {
                 'aria-label': 'Refresh notes list',
                 'title': 'Refresh notes list'
@@ -153,13 +159,11 @@ export class NotesView extends ItemView {
     
     async createNotesContent(container: HTMLElement, forceRefresh: boolean = false) {
         // Notes list
-        const notesList = container.createDiv({ cls: 'notes-list' });
+        const notesList = container.createDiv({ cls: 'notes-view__list' });
         
         // Add loading indicator
-        this.loadingIndicator = notesList.createDiv({ cls: 'loading-indicator' });
-        this.loadingIndicator.createDiv({ cls: 'loading-spinner' });
-        this.loadingIndicator.createDiv({ cls: 'loading-text', text: 'Loading notes...' });
-        this.loadingIndicator.addClass('is-hidden');
+        this.loadingIndicator = notesList.createDiv({ cls: 'notes-view__loading is-hidden' });
+        this.loadingIndicator.createSpan({ text: 'Loading notes...' });
         
         // Show loading state
         this.isNotesLoading = true;
@@ -174,10 +178,19 @@ export class NotesView extends ItemView {
         
         if (notes.length === 0) {
             // Placeholder for empty notes list
-            notesList.createEl('p', { text: 'No notes found for the selected date.' });
+            const emptyState = notesList.createDiv({ cls: 'notes-view__empty' });
+            emptyState.createDiv({ cls: 'notes-view__empty-icon', text: '📝' });
+            emptyState.createEl('h3', {
+                text: 'No Notes Found',
+                cls: 'notes-view__empty-title'
+            });
+            emptyState.createEl('p', {
+                text: 'No notes found for the selected date. Try selecting a different date or create some notes.',
+                cls: 'notes-view__empty-description'
+            });
         } else {
             // Create a div to hold all note items
-            const notesContainer = notesList.createDiv({ cls: 'notes-container' });
+            const notesContainer = notesList.createDiv({ cls: 'notes-view__container' });
             
             // Use DOMReconciler for efficient updates
             this.renderNotesWithReconciler(notesContainer, notes);
@@ -235,9 +248,9 @@ export class NotesView extends ItemView {
         if (!this.loadingIndicator) return;
         
         if (this.isNotesLoading) {
-            this.loadingIndicator.removeClass('is-hidden');
+            this.loadingIndicator?.classList.remove('is-hidden');
         } else {
-            this.loadingIndicator.addClass('is-hidden');
+            this.loadingIndicator?.classList.add('is-hidden');
         }
     }
     

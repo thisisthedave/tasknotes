@@ -26,37 +26,44 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
     const opts = { ...DEFAULT_NOTE_CARD_OPTIONS, ...options };
     
     const item = document.createElement('div');
-    item.className = 'tasknotes-card tasknotes-card--compact tasknotes-card--shadow-light note-item';
-    item.dataset.notePath = note.path;
-    
-    // Check if this is a daily note
     const isDailyNote = note.path.startsWith(plugin.settings.dailyNotesFolder);
-    if (isDailyNote) {
-        item.classList.add('daily-note-item');
-    }
+    
+    // Build BEM class names
+    const cardClasses = ['note-card'];
+    
+    // Add modifiers
+    if (isDailyNote) cardClasses.push('note-card--daily-note');
+    cardClasses.push('note-card--compact', 'note-card--shadow-light');
+    
+    // Legacy support - keep old classes for backward compatibility during transition
+    cardClasses.push('tasknotes-card', 'tasknotes-card--compact', 'tasknotes-card--shadow-light', 'note-item');
+    if (isDailyNote) cardClasses.push('daily-note-item');
+    
+    item.className = cardClasses.join(' ');
+    item.dataset.notePath = note.path;
     
     // Daily note badge (if enabled and applicable)
     if (opts.showDailyNoteBadge && isDailyNote) {
         const dailyBadge = item.createSpan({ 
-            cls: 'daily-note-badge',
+            cls: 'note-card__badge daily-note-badge', // BEM + legacy class
             text: 'Daily',
             attr: { title: 'Daily Note' }
         });
     }
     
     // Main content container  
-    const contentContainer = item.createDiv({ cls: 'note-content' });
+    const contentContainer = item.createDiv({ cls: 'note-card__content note-content' }); // BEM + legacy class
     
     // Title
     const title = contentContainer.createDiv({ 
-        cls: 'note-title',
+        cls: 'note-card__title note-title', // BEM + legacy class
         text: note.title
     });
     
     // Tags section (separate from other metadata)
     if (opts.showTags && note.tags && note.tags.length > 0) {
         // Divider line
-        const divider = contentContainer.createEl('div', { cls: 'note-divider' });
+        const divider = contentContainer.createEl('div', { cls: 'note-card__divider note-divider' }); // BEM + legacy class
         
         // Tags line
         const tagsToShow = note.tags.slice(0, opts.maxTags);
@@ -68,7 +75,7 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
         }
         
         const tagsLine = contentContainer.createEl('div', { 
-            cls: 'note-tags-line',
+            cls: 'note-card__tags-text note-tags-line', // BEM + legacy class
             text: tagsText
         });
     }
@@ -79,7 +86,7 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
             ? format(new Date(note.createdDate), 'MMM d, yyyy h:mm a') 
             : note.createdDate;
         const dateEl = contentContainer.createDiv({ 
-            cls: 'note-metadata-line',
+            cls: 'note-card__metadata note-metadata-line', // BEM + legacy class
             text: `Created: ${dateStr}`,
             attr: { title: `Created: ${dateStr}` }
         });
@@ -87,7 +94,7 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
     
     if (opts.showPath) {
         const pathEl = contentContainer.createDiv({ 
-            cls: 'note-metadata-line',
+            cls: 'note-card__metadata note-metadata-line', // BEM + legacy class
             text: note.path,
             attr: { title: `Path: ${note.path}` }
         });
@@ -125,18 +132,30 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
 export function updateNoteCard(element: HTMLElement, note: NoteInfo, plugin: TaskNotesPlugin, options: Partial<NoteCardOptions> = {}): void {
     const opts = { ...DEFAULT_NOTE_CARD_OPTIONS, ...options };
     
-    // Update main element classes
+    // Update main element classes using BEM structure
     const isDailyNote = note.path.startsWith(plugin.settings.dailyNotesFolder);
-    element.className = `note-item tasknotes-card ${isDailyNote ? 'daily-note-item' : ''}`;
     
-    // Update title
-    const titleEl = element.querySelector('.note-item-title') as HTMLElement;
+    // Build BEM class names for update
+    const cardClasses = ['note-card'];
+    
+    // Add modifiers
+    if (isDailyNote) cardClasses.push('note-card--daily-note');
+    cardClasses.push('note-card--compact', 'note-card--shadow-light');
+    
+    // Legacy support - keep old classes for backward compatibility during transition
+    cardClasses.push('tasknotes-card', 'tasknotes-card--compact', 'tasknotes-card--shadow-light', 'note-item');
+    if (isDailyNote) cardClasses.push('daily-note-item');
+    
+    element.className = cardClasses.join(' ');
+    
+    // Update title using both BEM and legacy selectors
+    const titleEl = element.querySelector('.note-card__title, .note-title, .note-item-title') as HTMLElement;
     if (titleEl) {
         titleEl.textContent = note.title;
     }
     
-    // Update created date
-    const dateEl = element.querySelector('.note-item-date') as HTMLElement;
+    // Update created date using both BEM and legacy selectors
+    const dateEl = element.querySelector('.note-card__metadata, .note-metadata-line, .note-item-date') as HTMLElement;
     if (dateEl && opts.showCreatedDate && note.createdDate) {
         const dateStr = note.createdDate.indexOf('T') > 0 
             ? format(new Date(note.createdDate), 'MMM d, yyyy h:mm a') 
@@ -144,38 +163,29 @@ export function updateNoteCard(element: HTMLElement, note: NoteInfo, plugin: Tas
         dateEl.textContent = `Created: ${dateStr}`;
     }
     
-    // Update path
-    const pathEl = element.querySelector('.note-item-path') as HTMLElement;
+    // Update path using both BEM and legacy selectors
+    const pathEl = element.querySelector('.note-card__metadata, .note-metadata-line, .note-item-path') as HTMLElement;
     if (pathEl && opts.showPath) {
         pathEl.textContent = note.path;
     }
     
-    // Update tags
-    const tagContainer = element.querySelector('.note-item-tags') as HTMLElement;
+    // Update tags using both BEM and legacy selectors
+    const tagContainer = element.querySelector('.note-card__tags, .note-tags-line, .note-item-tags') as HTMLElement;
     if (tagContainer && opts.showTags && note.tags && note.tags.length > 0) {
-        tagContainer.empty();
-        
+        // For the new BEM structure, update the text content directly
         const tagsToShow = note.tags.slice(0, opts.maxTags);
-        tagsToShow.forEach(tag => {
-            const tagEl = tagContainer.createSpan({ 
-                cls: 'note-tag',
-                text: tag,
-                attr: { title: `Tag: ${tag}` }
-            });
-        });
+        let tagsText = tagsToShow.map(tag => `#${tag}`).join(' ');
         
         if (note.tags.length > opts.maxTags) {
-            const moreTagsEl = tagContainer.createSpan({ 
-                cls: 'more-tags',
-                text: `+${note.tags.length - opts.maxTags}`,
-                attr: { title: `${note.tags.length - opts.maxTags} more tags` }
-            });
+            tagsText += ` +${note.tags.length - opts.maxTags}`;
         }
+        
+        tagContainer.textContent = tagsText;
     }
     
-    // Add update animation
-    element.classList.add('note-updated');
+    // Add update animation with new BEM class
+    element.classList.add('note-card--updated', 'note-updated'); // BEM + legacy class
     setTimeout(() => {
-        element.classList.remove('note-updated');
+        element.classList.remove('note-card--updated', 'note-updated');
     }, 1000);
 }

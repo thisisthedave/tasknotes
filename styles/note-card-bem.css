@@ -1,0 +1,405 @@
+/* =================================================================
+   NOTECARD COMPONENT - BEM NAMING CONVENTION & PROPER SCOPING
+   ================================================================= */
+
+/* All NoteCard styles are scoped under .tasknotes-plugin for proper isolation */
+
+.tasknotes-plugin .note-card {
+    /* Layout & Structure */
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    position: relative;
+    
+    /* Spacing & Sizing */
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    margin-bottom: 0;
+    
+    /* Visual Styling */
+    background-color: var(--tn-bg-primary);
+    border: none;
+    border-bottom: 1px solid var(--tn-border-color);
+    border-radius: 0;
+    border-left: 3px solid transparent; /* For potential categorization */
+    
+    /* Interactions */
+    cursor: pointer;
+    transition: background-color var(--tn-transition-fast),
+                border-color var(--tn-transition-fast),
+                transform var(--tn-transition-fast),
+                box-shadow var(--tn-transition-fast);
+    will-change: transform, box-shadow;
+}
+
+.tasknotes-plugin .note-card:hover {
+    background-color: var(--tn-interactive-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--tn-shadow-light);
+}
+
+/* Remove border radius for cleaner list appearance */
+.tasknotes-plugin .note-card:first-child,
+.tasknotes-plugin .note-card:last-child,
+.tasknotes-plugin .note-card:first-child:last-child {
+    border-radius: 0;
+}
+
+/* =================================================================
+   NOTECARD ELEMENTS (BEM __element)
+   ================================================================= */
+
+.tasknotes-plugin .note-card__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tn-spacing-xs);
+    min-width: 0;
+}
+
+.tasknotes-plugin .note-card__title {
+    font-size: var(--tn-font-size-md);
+    font-weight: var(--tn-font-weight-normal);
+    line-height: 1.3;
+    color: var(--tn-text-normal);
+    margin: 0;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    transition: color var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .note-card__divider {
+    height: 1px;
+    background: var(--tn-border-color);
+    margin: var(--tn-spacing-xs) 0;
+    opacity: 0.6;
+}
+
+.tasknotes-plugin .note-card__tags {
+    font-size: var(--tn-font-size-xs);
+    color: var(--tn-text-muted);
+    line-height: 1.2;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tn-spacing-xs);
+}
+
+.tasknotes-plugin .note-card__tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px var(--tn-spacing-xs);
+    border-radius: var(--tn-radius-xs);
+    background: var(--tn-bg-secondary);
+    font-size: var(--tn-font-size-xs);
+    color: var(--tn-text-muted);
+    border: 1px solid var(--tn-border-color);
+    transition: all var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .note-card__tag:hover {
+    background: var(--tn-interactive-hover);
+    color: var(--tn-text-normal);
+}
+
+.tasknotes-plugin .note-card__tags-text {
+    font-size: var(--tn-font-size-xs);
+    color: var(--tn-text-muted);
+    line-height: 1.2;
+    margin: 0;
+    font-style: italic;
+}
+
+.tasknotes-plugin .note-card__metadata {
+    font-size: var(--tn-font-size-xs);
+    color: var(--tn-text-faint);
+    line-height: 1.2;
+    margin: 0;
+    opacity: 0.8;
+}
+
+.tasknotes-plugin .note-card__preview {
+    font-size: var(--tn-font-size-xs);
+    color: var(--tn-text-muted);
+    line-height: 1.3;
+    margin-top: var(--tn-spacing-xs);
+    max-height: 2.6em; /* Approximately 2 lines */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.tasknotes-plugin .note-card__badge {
+    position: absolute;
+    top: var(--tn-spacing-md);
+    right: var(--tn-spacing-md);
+    padding: 2px var(--tn-spacing-xs);
+    border-radius: var(--tn-radius-xs);
+    font-size: var(--tn-font-size-xs);
+    font-weight: var(--tn-font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    z-index: 2;
+    opacity: 0.8;
+    transition: opacity var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .note-card:hover .note-card__badge {
+    opacity: 1;
+}
+
+/* =================================================================
+   NOTECARD MODIFIERS (BEM --modifier)
+   ================================================================= */
+
+/* Compact Layout */
+.tasknotes-plugin .note-card--compact {
+    padding: var(--tn-spacing-sm) var(--tn-spacing-md);
+}
+
+.tasknotes-plugin .note-card--compact .note-card__content {
+    gap: 2px;
+}
+
+.tasknotes-plugin .note-card--compact .note-card__title {
+    font-size: var(--tn-font-size-sm);
+}
+
+.tasknotes-plugin .note-card--compact .note-card__preview {
+    display: none; /* Hide preview in compact mode */
+}
+
+/* Daily Note Variant */
+.tasknotes-plugin .note-card--daily-note {
+    border-left-color: var(--tn-color-daily-note);
+    background: linear-gradient(
+        135deg,
+        var(--tn-bg-primary) 0%,
+        color-mix(in srgb, var(--tn-color-daily-note) 3%, var(--tn-bg-primary)) 100%
+    );
+}
+
+.tasknotes-plugin .note-card--daily-note .note-card__badge {
+    background: var(--tn-color-daily-note);
+    color: var(--tn-bg-primary);
+}
+
+/* Shadow Variants */
+.tasknotes-plugin .note-card--shadow-light:hover {
+    box-shadow: var(--tn-shadow-light);
+}
+
+.tasknotes-plugin .note-card--shadow-medium:hover {
+    box-shadow: var(--tn-shadow-medium);
+}
+
+.tasknotes-plugin .note-card--shadow-strong:hover {
+    box-shadow: var(--tn-shadow-strong);
+}
+
+/* Update Animation */
+.tasknotes-plugin .note-card--updated {
+    animation: note-card-update 1.2s ease-out;
+}
+
+@keyframes note-card-update {
+    0% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--tn-color-info) 40%, transparent);
+        border-color: var(--tn-border-color);
+    }
+    50% {
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--tn-color-info) 30%, transparent);
+        border-left-color: var(--tn-color-info);
+    }
+    100% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--tn-color-info) 0%, transparent);
+        border-color: var(--tn-border-color);
+    }
+}
+
+/* =================================================================
+   SHARED BASE CARD STYLES
+   ================================================================= */
+
+/* Base card component that can be shared between TaskCard and NoteCard */
+.tasknotes-plugin .tn-card {
+    /* Common card styling */
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    position: relative;
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    margin-bottom: 0;
+    background-color: var(--tn-bg-primary);
+    border: none;
+    border-bottom: 1px solid var(--tn-border-color);
+    border-radius: 0;
+    cursor: pointer;
+    transition: background-color var(--tn-transition-fast),
+                border-color var(--tn-transition-fast),
+                transform var(--tn-transition-fast),
+                box-shadow var(--tn-transition-fast);
+    will-change: transform, box-shadow;
+}
+
+.tasknotes-plugin .tn-card:hover {
+    background-color: var(--tn-interactive-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--tn-shadow-light);
+}
+
+.tasknotes-plugin .tn-card__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tn-spacing-xs);
+    min-width: 0;
+}
+
+.tasknotes-plugin .tn-card__title {
+    font-size: var(--tn-font-size-md);
+    font-weight: var(--tn-font-weight-normal);
+    line-height: 1.3;
+    color: var(--tn-text-normal);
+    margin: 0;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    transition: color var(--tn-transition-fast);
+}
+
+/* =================================================================
+   RESPONSIVE DESIGN
+   ================================================================= */
+
+/* Touch-specific adjustments */
+@media (pointer: coarse) {
+    .tasknotes-plugin .note-card {
+        padding: var(--tn-spacing-lg) var(--tn-spacing-xl);
+        min-height: 44px;
+    }
+    
+    .tasknotes-plugin .note-card:hover {
+        transform: none;
+    }
+    
+    .tasknotes-plugin .note-card:active {
+        transform: scale(0.98);
+        transition: transform 0.1s;
+    }
+    
+    .tasknotes-plugin .note-card__badge {
+        padding: var(--tn-spacing-xs) var(--tn-spacing-sm);
+        font-size: var(--tn-font-size-sm);
+    }
+}
+
+/* =================================================================
+   LEGACY COMPATIBILITY - DEPRECATED
+   
+   Keep existing classes for backward compatibility but prefer BEM structure above.
+   These will be removed in a future version.
+   ================================================================= */
+
+/* DEPRECATED - Use .note-card instead */
+.tasknotes-plugin .tasknotes-card.note-card {
+    /* Inherit new styles */
+}
+
+/* DEPRECATED - Use .note-card instead */
+.tasknotes-plugin .note-item {
+    /* Map to new BEM structure */
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    position: relative;
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    margin-bottom: 0;
+    background-color: var(--tn-bg-primary);
+    border: none;
+    border-bottom: 1px solid var(--tn-border-color);
+    border-radius: 0;
+    cursor: pointer;
+    transition: background-color var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .note-item:hover {
+    background-color: var(--tn-interactive-hover);
+}
+
+/* DEPRECATED - Use .note-card__content instead */
+.tasknotes-plugin .note-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tn-spacing-xs);
+    min-width: 0;
+}
+
+/* DEPRECATED - Use .note-card__title instead */
+.tasknotes-plugin .note-title {
+    font-size: var(--tn-font-size-md);
+    font-weight: var(--tn-font-weight-normal);
+    line-height: 1.3;
+    color: var(--tn-text-normal);
+    margin: 0;
+    word-wrap: break-word;
+}
+
+/* DEPRECATED - Use .note-card__divider instead */
+.tasknotes-plugin .note-divider {
+    height: 1px;
+    background: var(--tn-border-color);
+    margin: var(--tn-spacing-xs) 0;
+}
+
+/* DEPRECATED - Use .note-card__tags-text instead */
+.tasknotes-plugin .note-tags-line {
+    font-size: var(--tn-font-size-xs);
+    color: var(--tn-text-muted);
+    line-height: 1.2;
+    margin: 0;
+}
+
+/* DEPRECATED - Use .note-card__metadata instead */
+.tasknotes-plugin .note-metadata-line {
+    font-size: var(--tn-font-size-xs);
+    color: var(--tn-text-faint);
+    line-height: 1.2;
+    margin: 0;
+}
+
+/* DEPRECATED - Use .note-card__preview instead */
+.tasknotes-plugin .note-preview {
+    font-size: var(--tn-font-size-xs);
+    color: var(--tn-text-muted);
+    line-height: 1.3;
+    margin-top: var(--tn-spacing-xs);
+}
+
+/* DEPRECATED - Use .note-card--daily-note instead */
+.tasknotes-plugin .daily-note-item {
+    border-left: 3px solid var(--tn-color-daily-note);
+}
+
+/* DEPRECATED - Use .note-card__badge instead */
+.tasknotes-plugin .daily-note-badge {
+    position: absolute;
+    top: var(--tn-spacing-md);
+    right: var(--tn-spacing-md);
+    padding: 2px var(--tn-spacing-xs);
+    border-radius: var(--tn-radius-xs);
+    background: var(--tn-color-daily-note);
+    color: var(--tn-bg-primary);
+    font-size: var(--tn-font-size-xs);
+    font-weight: var(--tn-font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* DEPRECATED - Use .note-card--updated instead */
+.tasknotes-plugin .note-updated {
+    animation: note-card-update 1.2s ease-out;
+}

@@ -1,3 +1,12 @@
+/* ================================================
+   KANBAN VIEW LEGACY STYLES
+   ================================================
+   
+   NOTE: This file contains legacy styles for backward compatibility.
+   New styles are in kanban-view.css with proper BEM structure.
+   
+   ================================================ */
+
 /* Header top row - Board selector and actions */
 .kanban-header-top {
     display: flex;

@@ -82,7 +82,7 @@ export class CalendarView extends ItemView {
         contentEl.empty();
         
         // Add a container for our view content
-        const container = contentEl.createDiv({ cls: 'tasknotes-container calendar-view-container' });
+        const container = contentEl.createDiv({ cls: 'tasknotes-plugin tasknotes-container calendar-view-container' });
         
         // Show loading indicator while loading initial data
         this.showLoadingIndicator();
@@ -727,7 +727,7 @@ export class CalendarView extends ItemView {
             const notesCache = calendarData.notes;
         
         // Find all calendar days
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
         
         // Add note indicators
         calendarDays.forEach(day => {
@@ -803,7 +803,7 @@ export class CalendarView extends ItemView {
         const tasksCache = calendarData.tasks;
         
         // Find all calendar days
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
         
         // Add task indicators
         calendarDays.forEach(day => {
@@ -899,7 +899,7 @@ export class CalendarView extends ItemView {
         
         
         // Find all calendar days
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-day');
+        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
         
         // Add daily note indicators
         calendarDays.forEach(day => {

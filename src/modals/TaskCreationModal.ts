@@ -119,7 +119,7 @@ export class TaskCreationModal extends BaseTaskModal {
   
 	onOpen() {
 		const { contentEl } = this;
-		contentEl.addClass('task-creation-modal');
+		contentEl.addClass('tasknotes-plugin', 'task-creation-modal');
 		new Setting(contentEl)
 			.setName('Create new task')
 			.setHeading();
@@ -132,17 +132,17 @@ export class TaskCreationModal extends BaseTaskModal {
 		
 		// Title with character count and filename preview updates
 		this.createFormGroup(contentEl, 'Title', (container) => {
-			const inputContainer = container.createDiv({ cls: 'input-with-counter' });
+			const inputContainer = container.createDiv({ cls: 'modal-form__input-container' });
 			const input = inputContainer.createEl('input', { 
 				type: 'text',
-				cls: 'form-input title-input',
+				cls: 'modal-form__input modal-form__input--title',
 				attr: { 
 					placeholder: 'Enter task title...',
 					maxlength: '200'
 				}
 			});
 			const counter = inputContainer.createDiv({ 
-				cls: 'character-counter',
+				cls: 'modal-form__char-counter',
 				text: '0/200'
 			});
 			
@@ -167,7 +167,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		// Filename preview
 		this.createFormGroup(contentEl, 'Filename preview', (container) => {
 			this.filenamePreview = container.createDiv({ 
-				cls: 'filename-preview',
+				cls: 'task-creation-modal__preview',
 				text: 'Enter a title to see filename preview...'
 			});
 		});
@@ -175,7 +175,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		// Details
 		this.createFormGroup(contentEl, 'Details', (container) => {
 			const textarea = container.createEl('textarea', {
-				cls: 'form-input',
+				cls: 'modal-form__input modal-form__input--textarea',
 				attr: { 
 					placeholder: 'Optional details or description...',
 					rows: '3'
@@ -271,11 +271,11 @@ export class TaskCreationModal extends BaseTaskModal {
 	}
 
 	protected createActionButtons(container: HTMLElement): void {
-		const buttonContainer = container.createDiv({ cls: 'button-container' });
+		const buttonContainer = container.createDiv({ cls: 'modal-form__buttons' });
 		
 		const createButton = buttonContainer.createEl('button', { 
 			text: 'Create task', 
-			cls: 'create-button' 
+			cls: 'modal-form__button modal-form__button--primary' 
 		});
 		createButton.addEventListener('click', () => {
 			this.createTask();
@@ -283,7 +283,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		
 		const cancelButton = buttonContainer.createEl('button', { 
 			text: 'Cancel', 
-			cls: 'cancel-button' 
+			cls: 'modal-form__button modal-form__button--secondary' 
 		});
 		cancelButton.addEventListener('click', () => {
 			this.close();
@@ -299,7 +299,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		
 		if (!this.title || !this.title.trim()) {
 			this.filenamePreview.textContent = 'Enter a title to see filename preview...';
-			this.filenamePreview.className = 'filename-preview';
+			this.filenamePreview.className = 'task-creation-modal__preview';
 			return;
 		}
 		
@@ -313,10 +313,10 @@ export class TaskCreationModal extends BaseTaskModal {
 			
 			const filename = generateTaskFilename(filenameContext, this.plugin.settings);
 			this.filenamePreview.textContent = `${filename}.md`;
-			this.filenamePreview.className = 'filename-preview filename-preview-valid';
+			this.filenamePreview.className = 'task-creation-modal__preview task-creation-modal__preview--valid';
 		} catch (error) {
 			this.filenamePreview.textContent = 'Error generating filename preview';
-			this.filenamePreview.className = 'filename-preview filename-preview-error';
+			this.filenamePreview.className = 'task-creation-modal__preview task-creation-modal__preview--error';
 		}
 	}
 
@@ -523,7 +523,7 @@ export class TaskCreationModal extends BaseTaskModal {
 	private createDueDateInputWithRef(container: HTMLElement): void {
 		this.dueDateInput = container.createEl('input', {
 			type: 'date',
-			cls: 'form-input'
+			cls: 'modal-form__input'
 		});
 
 		// Set the value to the current dueDate property

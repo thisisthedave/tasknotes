@@ -43,7 +43,7 @@ export class PomodoroStatsView extends ItemView {
     }
     
     async render() {
-        const container = this.contentEl.createDiv({ cls: 'tasknotes-container pomodoro-stats-container' });
+        const container = this.contentEl.createDiv({ cls: 'tasknotes-plugin tasknotes-container pomodoro-stats-container' });
         
         // Header
         const header = container.createDiv({ cls: 'pomodoro-stats-header' });

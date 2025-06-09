@@ -84,9 +84,9 @@ export class KanbanView extends ItemView {
                     });
                     
                     // Add update animation for real user updates
-                    taskElement.classList.add('task-updated');
+                    taskElement.classList.add('task-card--updated');
                     setTimeout(() => {
-                        taskElement.classList.remove('task-updated');
+                        taskElement.classList.remove('task-card--updated');
                     }, 1000);
                 } catch (error) {
                     console.error('Error updating task card in kanban:', error);
@@ -144,20 +144,20 @@ export class KanbanView extends ItemView {
     async render() {
         const container = this.contentEl;
         container.empty();
-        container.addClass('kanban-view');
+        container.addClass('tasknotes-plugin', 'kanban-view');
 
         await this.renderHeader(container);
         
-        this.boardContainer = container.createDiv({ cls: 'kanban-board-container' });
+        this.boardContainer = container.createDiv({ cls: 'kanban-view__board-container' });
 
         await this.loadAndRenderBoard();
     }
 
     private async renderHeader(container: HTMLElement) {
-        const header = container.createDiv({ cls: 'kanban-header' });
+        const header = container.createDiv({ cls: 'kanban-view__header' });
 
         // FilterBar container
-        const filterBarContainer = header.createDiv({ cls: 'kanban-filter-bar-container' });
+        const filterBarContainer = header.createDiv({ cls: 'kanban-view__filter-container' });
         
         // Get filter options from FilterService
         const filterOptions = await this.plugin.filterService.getFilterOptions();
@@ -187,19 +187,25 @@ export class KanbanView extends ItemView {
         });
 
         // Actions row
-        const actionsRow = header.createDiv({ cls: 'kanban-header-actions' });
+        const actionsRow = header.createDiv({ cls: 'kanban-view__actions' });
+        
+        // Left actions
+        const leftActions = actionsRow.createDiv({ cls: 'kanban-view__actions-left' });
         
         // Add new task button
-        const newTaskButton = actionsRow.createEl('button', { 
-            cls: 'kanban-new-task-button tasknotes-button tasknotes-button-primary',
+        const newTaskButton = leftActions.createEl('button', { 
+            cls: 'kanban-view__new-task-button',
             text: 'New Task'
         });
         newTaskButton.addEventListener('click', () => {
             this.plugin.openTaskCreationModal();
         });
 
+        // Right actions
+        const rightActions = actionsRow.createDiv({ cls: 'kanban-view__actions-right' });
+        
         // Board stats
-        const statsContainer = header.createDiv({ cls: 'kanban-stats' });
+        const statsContainer = rightActions.createDiv({ cls: 'kanban-view__stats' });
         this.updateBoardStats(statsContainer);
     }
 
@@ -218,7 +224,7 @@ export class KanbanView extends ItemView {
             const completionRate = Math.round((completedTasks / totalTasks) * 100);
             container.createSpan({ 
                 text: `${totalTasks} tasks • ${completionRate}% complete`,
-                cls: 'board-stats-simple'
+                cls: 'kanban-view__stats-simple'
             });
         }
     }
@@ -237,7 +243,7 @@ export class KanbanView extends ItemView {
         // Show loading indicator only if board is empty
         let loadingIndicator: HTMLElement | null = null;
         if (this.boardContainer.children.length === 0) {
-            loadingIndicator = this.boardContainer.createDiv({ cls: 'loading-indicator', text: 'Loading board...' });
+            loadingIndicator = this.boardContainer.createDiv({ cls: 'kanban-view__loading', text: 'Loading board...' });
         }
 
         try {
@@ -256,7 +262,7 @@ export class KanbanView extends ItemView {
             const allTasks = Array.from(groupedTasks.values()).flat();
             
             // Update stats after rendering
-            const statsContainer = this.contentEl.querySelector('.kanban-stats') as HTMLElement;
+            const statsContainer = this.contentEl.querySelector('.kanban-view__stats') as HTMLElement;
             if (statsContainer) {
                 this.updateBoardStats(statsContainer, allTasks);
             }
@@ -271,7 +277,7 @@ export class KanbanView extends ItemView {
             
             // Show error state
             this.boardContainer.empty();
-            this.boardContainer.createDiv({ cls: 'kanban-error', text: 'Error loading board.' });
+            this.boardContainer.createDiv({ cls: 'kanban-view__error', text: 'Error loading board.' });
         }
     }
 
@@ -294,16 +300,16 @@ export class KanbanView extends ItemView {
 
 
     private renderColumn(container: HTMLElement, columnId: string, tasks: TaskInfo[]) {
-        const columnEl = container.createDiv({ cls: 'kanban-column' });
+        const columnEl = container.createDiv({ cls: 'kanban-view__column' });
         columnEl.dataset.columnId = columnId;
 
         // Add column status classes for styling
         if (columnId === 'uncategorized') {
-            columnEl.addClass('uncategorized-column');
+            columnEl.addClass('kanban-view__column--uncategorized');
         }
 
         // Column header
-        const headerEl = columnEl.createDiv({ cls: 'kanban-column-header' });
+        const headerEl = columnEl.createDiv({ cls: 'kanban-view__column-header' });
         
         // Make columns draggable for reordering
         headerEl.draggable = true;
@@ -312,22 +318,22 @@ export class KanbanView extends ItemView {
         
         // Title line
         const title = this.formatColumnTitle(columnId, this.currentQuery.groupKey);
-        headerEl.createEl('div', { text: title, cls: 'kanban-column-title' });
+        headerEl.createEl('div', { text: title, cls: 'kanban-view__column-title' });
         
         // Count line
         headerEl.createEl('div', { 
             text: `${tasks.length} tasks`, 
-            cls: 'kanban-column-count' 
+            cls: 'kanban-view__column-count' 
         });
 
         
         // Column body for tasks
-        const bodyEl = columnEl.createDiv({ cls: 'kanban-column-body' });
+        const bodyEl = columnEl.createDiv({ cls: 'kanban-view__column-body' });
         
         if (tasks.length === 0) {
             // Empty column placeholder
             const emptyEl = bodyEl.createDiv({ 
-                cls: 'kanban-column-empty',
+                cls: 'kanban-view__column-empty',
                 text: 'No tasks'
             });
             
@@ -361,11 +367,11 @@ export class KanbanView extends ItemView {
                     e.dataTransfer.effectAllowed = 'move';
                 }
             }
-            headerEl.classList.add('is-dragging-column');
+            headerEl.classList.add('kanban-view__column-header--dragging');
         });
 
         headerEl.addEventListener('dragend', () => {
-            headerEl.classList.remove('is-dragging-column');
+            headerEl.classList.remove('kanban-view__column-header--dragging');
         });
 
         // Note: Drop handling is now handled by the column-level handlers
@@ -377,7 +383,7 @@ export class KanbanView extends ItemView {
     private async reorderColumns(sourceColumnId: string, targetColumnId: string) {
         // Get current column order or create it from DOM
         if (this.columnOrder.length === 0) {
-            const columns = this.boardContainer?.querySelectorAll('.kanban-column');
+            const columns = this.boardContainer?.querySelectorAll('.kanban-view__column');
             this.columnOrder = Array.from(columns || []).map(col => 
                 (col as HTMLElement).dataset.columnId || ''
             ).filter(id => id);
@@ -410,7 +416,7 @@ export class KanbanView extends ItemView {
             
             // Update stats after rendering
             const allTasks = Array.from(groupedTasks.values()).flat();
-            const statsContainer = this.contentEl.querySelector('.kanban-stats') as HTMLElement;
+            const statsContainer = this.contentEl.querySelector('.kanban-view__stats') as HTMLElement;
             if (statsContainer) {
                 this.updateBoardStats(statsContainer, allTasks);
             }
@@ -428,9 +434,9 @@ export class KanbanView extends ItemView {
         if (!this.boardContainer) return;
 
         // Get or create board element
-        let boardEl = this.boardContainer.querySelector('.kanban-board') as HTMLElement;
+        let boardEl = this.boardContainer.querySelector('.kanban-view__board') as HTMLElement;
         if (!boardEl) {
-            boardEl = this.boardContainer.createDiv({ cls: 'kanban-board' });
+            boardEl = this.boardContainer.createDiv({ cls: 'kanban-view__board' });
         } else {
             boardEl.empty();
         }
@@ -462,11 +468,11 @@ export class KanbanView extends ItemView {
                 e.dataTransfer.setData('text/plain', task.path);
                 e.dataTransfer.effectAllowed = 'move';
             }
-            setTimeout(() => card.classList.add('is-dragging'), 0);
+            setTimeout(() => card.classList.add('task-card--dragging'), 0);
         });
 
         card.addEventListener('dragend', () => {
-            card.classList.remove('is-dragging');
+            card.classList.remove('task-card--dragging');
         });
     }
 
@@ -477,13 +483,13 @@ export class KanbanView extends ItemView {
                 e.dataTransfer.dropEffect = 'move';
                 
                 // Check if we're dragging a column by looking for the dragging column class
-                const draggingColumn = this.boardContainer?.querySelector('.is-dragging-column');
+                const draggingColumn = this.boardContainer?.querySelector('.kanban-view__column-header--dragging');
                 if (draggingColumn) {
                     // We're dragging a column, use column drop styling
-                    columnEl.classList.add('column-drop-target');
+                    columnEl.classList.add('kanban-view__column--column-drop-target');
                 } else {
                     // We're dragging a task, use task drop styling
-                    columnEl.classList.add('is-dragover');
+                    columnEl.classList.add('kanban-view__column--dragover');
                 }
             }
         });
@@ -492,8 +498,8 @@ export class KanbanView extends ItemView {
             // Only remove drop styling if we're actually leaving the column
             // and not just moving to a child element
             if (!columnEl.contains(e.relatedTarget as Node)) {
-                columnEl.classList.remove('is-dragover');
-                columnEl.classList.remove('column-drop-target');
+                columnEl.classList.remove('kanban-view__column--dragover');
+                columnEl.classList.remove('kanban-view__column--column-drop-target');
             }
         });
 
@@ -502,8 +508,8 @@ export class KanbanView extends ItemView {
             e.stopPropagation(); // Prevent event bubbling
             
             // Remove drop styling from all columns (cleanup)
-            this.boardContainer?.querySelectorAll('.kanban-column.is-dragover, .kanban-column.column-drop-target').forEach(col => {
-                col.classList.remove('is-dragover', 'column-drop-target');
+            this.boardContainer?.querySelectorAll('.kanban-view__column--dragover, .kanban-view__column--column-drop-target').forEach(col => {
+                col.classList.remove('kanban-view__column--dragover', 'kanban-view__column--column-drop-target');
             });
 
             const data = e.dataTransfer?.getData('text/plain');
@@ -526,7 +532,7 @@ export class KanbanView extends ItemView {
             let targetColumnId = columnEl.dataset.columnId;
             if (!targetColumnId) {
                 // If dropped on a child element, find the parent column
-                const parentColumn = (e.target as HTMLElement).closest('.kanban-column');
+                const parentColumn = (e.target as HTMLElement).closest('.kanban-view__column');
                 targetColumnId = parentColumn?.getAttribute('data-column-id') || undefined;
             }
 
@@ -577,9 +583,9 @@ export class KanbanView extends ItemView {
         if (!this.boardContainer) return;
 
         // Get or create board element
-        let boardEl = this.boardContainer.querySelector('.kanban-board') as HTMLElement;
+        let boardEl = this.boardContainer.querySelector('.kanban-view__board') as HTMLElement;
         if (!boardEl) {
-            boardEl = this.boardContainer.createDiv({ cls: 'kanban-board' });
+            boardEl = this.boardContainer.createDiv({ cls: 'kanban-view__board' });
         }
         
         // Get all possible columns from the grouped tasks
@@ -628,16 +634,16 @@ export class KanbanView extends ItemView {
      */
     private createColumnElement(columnId: string, tasks: TaskInfo[]): HTMLElement {
         const columnEl = document.createElement('div');
-        columnEl.className = 'kanban-column';
+        columnEl.className = 'kanban-view__column';
         columnEl.dataset.columnId = columnId;
 
         // Add column status classes for styling
         if (columnId === 'uncategorized') {
-            columnEl.classList.add('uncategorized-column');
+            columnEl.classList.add('kanban-view__column--uncategorized');
         }
 
         // Column header
-        const headerEl = columnEl.createDiv({ cls: 'kanban-column-header' });
+        const headerEl = columnEl.createDiv({ cls: 'kanban-view__column-header' });
         
         // Make columns draggable for reordering
         headerEl.draggable = true;
@@ -646,21 +652,21 @@ export class KanbanView extends ItemView {
         
         // Title line
         const title = this.formatColumnTitle(columnId, this.currentQuery.groupKey);
-        headerEl.createEl('div', { text: title, cls: 'kanban-column-title' });
+        headerEl.createEl('div', { text: title, cls: 'kanban-view__column-title' });
         
         // Count line
         headerEl.createEl('div', { 
             text: `${tasks.length} tasks`, 
-            cls: 'kanban-column-count' 
+            cls: 'kanban-view__column-count' 
         });
 
         // Column body for tasks
-        const bodyEl = columnEl.createDiv({ cls: 'kanban-column-body' });
+        const bodyEl = columnEl.createDiv({ cls: 'kanban-view__column-body' });
         
         if (tasks.length === 0) {
             // Empty column placeholder
             const emptyEl = bodyEl.createDiv({ 
-                cls: 'kanban-column-empty',
+                cls: 'kanban-view__column-empty',
                 text: 'No tasks'
             });
             
@@ -688,25 +694,25 @@ export class KanbanView extends ItemView {
      */
     private updateColumnElement(element: HTMLElement, columnId: string, tasks: TaskInfo[]): void {
         // Update count
-        const countEl = element.querySelector('.kanban-column-count');
+        const countEl = element.querySelector('.kanban-view__column-count');
         if (countEl) {
             countEl.textContent = `${tasks.length} tasks`;
         }
 
         // Update body
-        const bodyEl = element.querySelector('.kanban-column-body') as HTMLElement;
+        const bodyEl = element.querySelector('.kanban-view__column-body') as HTMLElement;
         if (bodyEl) {
             if (tasks.length === 0) {
                 // Clear and show empty state
                 bodyEl.empty();
                 const emptyEl = bodyEl.createDiv({ 
-                    cls: 'kanban-column-empty',
+                    cls: 'kanban-view__column-empty',
                     text: 'No tasks'
                 });
                 this.addColumnDropHandlers(emptyEl);
             } else {
                 // Remove empty state if it exists
-                const emptyEl = bodyEl.querySelector('.kanban-column-empty');
+                const emptyEl = bodyEl.querySelector('.kanban-view__column-empty');
                 if (emptyEl) {
                     emptyEl.remove();
                 }

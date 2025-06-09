@@ -17,6 +17,7 @@ export class DueDateModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
+        contentEl.addClass('tasknotes-plugin');
 
         new Setting(contentEl)
             .setName('Set due date')
@@ -25,7 +26,7 @@ export class DueDateModal extends Modal {
         // Task title display
         contentEl.createEl('p', { 
             text: `Task: ${this.task.title}`,
-            cls: 'task-title-display'
+            cls: 'due-date-modal__task-title'
         });
 
         // Due date input
@@ -54,48 +55,49 @@ export class DueDateModal extends Modal {
             });
 
         // Quick date buttons
-        const quickDatesContainer = contentEl.createDiv({ cls: 'quick-dates-container' });
+        const quickDatesContainer = contentEl.createDiv({ cls: 'modal-form__group' });
         new Setting(quickDatesContainer)
             .setName('Quick options')
             .setHeading();
 
-        const buttonsContainer = quickDatesContainer.createDiv({ cls: 'quick-date-buttons' });
+        const buttonsContainer = quickDatesContainer.createDiv({ cls: 'modal-form__quick-actions' });
 
         // Today button
-        buttonsContainer.createEl('button', { text: 'Today', cls: 'quick-date-btn' })
+        buttonsContainer.createEl('button', { text: 'Today', cls: 'modal-form__button modal-form__button--quick-date' })
             .addEventListener('click', () => {
                 this.dueDateInput.value = format(new Date(), 'yyyy-MM-dd');
             });
 
         // Tomorrow button
-        buttonsContainer.createEl('button', { text: 'Tomorrow', cls: 'quick-date-btn' })
+        buttonsContainer.createEl('button', { text: 'Tomorrow', cls: 'modal-form__button modal-form__button--quick-date' })
             .addEventListener('click', () => {
                 this.dueDateInput.value = format(add(new Date(), { days: 1 }), 'yyyy-MM-dd');
             });
 
         // Next week button
-        buttonsContainer.createEl('button', { text: 'Next week', cls: 'quick-date-btn' })
+        buttonsContainer.createEl('button', { text: 'Next week', cls: 'modal-form__button modal-form__button--quick-date' })
             .addEventListener('click', () => {
                 this.dueDateInput.value = format(add(new Date(), { weeks: 1 }), 'yyyy-MM-dd');
             });
 
         // Clear button
-        buttonsContainer.createEl('button', { text: 'Clear', cls: 'quick-date-btn clear-btn' })
+        buttonsContainer.createEl('button', { text: 'Clear', cls: 'modal-form__button modal-form__button--quick-date modal-form__button--quick-date--clear' })
             .addEventListener('click', () => {
                 this.dueDateInput.value = '';
             });
 
         // Action buttons
-        const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
+        const buttonContainer = contentEl.createDiv({ cls: 'modal-form__buttons' });
         
         const saveButton = buttonContainer.createEl('button', { 
             text: 'Save',
-            cls: 'mod-cta'
+            cls: 'modal-form__button modal-form__button--primary'
         });
         saveButton.addEventListener('click', () => this.save());
 
         const cancelButton = buttonContainer.createEl('button', { 
-            text: 'Cancel'
+            text: 'Cancel',
+            cls: 'modal-form__button modal-form__button--secondary'
         });
         cancelButton.addEventListener('click', () => this.close());
     }
@@ -108,7 +110,7 @@ export class DueDateModal extends Modal {
             // Show error message
             const errorEl = this.contentEl.createEl('div', { 
                 text: 'Please enter a valid date in YYYY-MM-DD format',
-                cls: 'error-message'
+                cls: 'modal-form__error'
             });
             setTimeout(() => errorEl.remove(), 3000);
             return;
@@ -126,7 +128,7 @@ export class DueDateModal extends Modal {
             console.error('Failed to update due date:', error);
             const errorEl = this.contentEl.createEl('div', { 
                 text: 'Failed to update due date. Please try again.',
-                cls: 'error-message'
+                cls: 'modal-form__error'
             });
             setTimeout(() => errorEl.remove(), 3000);
         }

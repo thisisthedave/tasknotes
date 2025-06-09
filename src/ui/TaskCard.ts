@@ -35,26 +35,61 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         ? getEffectiveTaskStatus(task, targetDate)
         : task.status;
     
-    // Main container
+    // Main container with BEM class structure
     const card = document.createElement('div');
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
     const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
     const isRecurring = !!task.recurrence;
-    card.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''} ${isRecurring ? 'task-recurring' : ''}`;
-    card.dataset.taskPath = task.path;
     
-    // Apply priority as left border color
+    // Build BEM class names
+    const cardClasses = ['task-card'];
+    
+    // Add modifiers
+    if (isCompleted) cardClasses.push('task-card--completed');
+    if (task.archived) cardClasses.push('task-card--archived');
+    if (isActivelyTracked) cardClasses.push('task-card--actively-tracked');
+    if (isRecurring) cardClasses.push('task-card--recurring');
+    if (opts.showCheckbox) cardClasses.push('task-card--checkbox-enabled');
+    
+    // Add priority modifier
+    if (task.priority) {
+        cardClasses.push(`task-card--priority-${task.priority}`);
+    }
+    
+    // Add status modifier
+    if (effectiveStatus) {
+        cardClasses.push(`task-card--status-${effectiveStatus}`);
+    }
+    
+    // Legacy support - keep old classes for backward compatibility during transition
+    cardClasses.push('tasknotes-card', 'tasknotes-card--normal', 'tasknotes-card--flex');
+    if (task.archived) cardClasses.push('archived');
+    if (isActivelyTracked) cardClasses.push('actively-tracked');
+    if (isCompleted) cardClasses.push('task-completed');
+    if (isRecurring) cardClasses.push('task-recurring');
+    cardClasses.push(effectiveStatus);
+    
+    card.className = cardClasses.join(' ');
+    card.dataset.taskPath = task.path;
+    card.dataset.status = effectiveStatus;
+    
+    // Apply priority and status colors as CSS custom properties
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);
     if (priorityConfig) {
         card.style.setProperty('--priority-color', priorityConfig.color);
         card.style.borderLeftColor = priorityConfig.color;
     }
     
+    const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
+    if (statusConfig) {
+        card.style.setProperty('--current-status-color', statusConfig.color);
+    }
+    
     // Completion checkbox (if enabled)
     if (opts.showCheckbox) {
         const checkbox = card.createEl('input', { 
             type: 'checkbox',
-            cls: 'task-checkbox'
+            cls: 'task-card__checkbox task-checkbox' // BEM + legacy class
         });
         checkbox.checked = plugin.statusManager.isCompletedStatus(effectiveStatus);
         
@@ -74,8 +109,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     }
     
     // Status indicator dot
-    const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
-    const statusDot = card.createEl('span', { cls: 'status-dot' });
+    const statusDot = card.createEl('span', { cls: 'task-card__status-dot status-dot' }); // BEM + legacy class
     if (statusConfig) {
         statusDot.style.backgroundColor = statusConfig.color;
     }
@@ -83,7 +117,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     // Recurring task indicator
     if (task.recurrence) {
         const recurringIndicator = card.createEl('div', { 
-            cls: 'recurring-indicator',
+            cls: 'task-card__recurring-indicator recurring-indicator', // BEM + legacy class
             attr: { 'aria-label': `Recurring: ${task.recurrence.frequency}` }
         });
         
@@ -92,11 +126,11 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     }
     
     // Main content container
-    const contentContainer = card.createEl('div', { cls: 'task-content' });
+    const contentContainer = card.createEl('div', { cls: 'task-card__content task-content' }); // BEM + legacy class
     
     // Context menu icon (appears on hover)
     const contextIcon = card.createEl('div', { 
-        cls: 'task-context-icon',
+        cls: 'task-card__context-menu task-context-icon', // BEM + legacy class
         attr: { 
             'aria-label': 'Task options',
             'title': 'More options'
@@ -114,7 +148,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     
     // First line: Task title
     const titleEl = contentContainer.createEl('div', { 
-        cls: 'task-title', 
+        cls: 'task-card__title task-title', // BEM + legacy class
         text: task.title
     });
     if (plugin.statusManager.isCompletedStatus(effectiveStatus)) {
@@ -122,7 +156,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     }
     
     // Second line: Metadata
-    const metadataLine = contentContainer.createEl('div', { cls: 'task-metadata-line' });
+    const metadataLine = contentContainer.createEl('div', { cls: 'task-card__metadata task-metadata-line' }); // BEM + legacy class
     const metadataItems: string[] = [];
     
     // Recurrence info (if recurring)
@@ -416,43 +450,74 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         ? getEffectiveTaskStatus(task, targetDate)
         : task.status;
     
-    // Update main element classes
+    // Update main element classes using BEM structure
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
     const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
     const isRecurring = !!task.recurrence;
-    element.className = `tasknotes-card tasknotes-card--normal tasknotes-card--flex task-card ${effectiveStatus} ${task.archived ? 'archived' : ''} ${isActivelyTracked ? 'actively-tracked' : ''} ${isCompleted ? 'task-completed' : ''} ${isRecurring ? 'task-recurring' : ''}`;
     
-    // Update priority left border color
+    // Build BEM class names for update
+    const cardClasses = ['task-card'];
+    
+    // Add modifiers
+    if (isCompleted) cardClasses.push('task-card--completed');
+    if (task.archived) cardClasses.push('task-card--archived');
+    if (isActivelyTracked) cardClasses.push('task-card--actively-tracked');
+    if (isRecurring) cardClasses.push('task-card--recurring');
+    
+    // Add priority modifier
+    if (task.priority) {
+        cardClasses.push(`task-card--priority-${task.priority}`);
+    }
+    
+    // Add status modifier
+    if (effectiveStatus) {
+        cardClasses.push(`task-card--status-${effectiveStatus}`);
+    }
+    
+    // Legacy support - keep old classes for backward compatibility during transition
+    cardClasses.push('tasknotes-card', 'tasknotes-card--normal', 'tasknotes-card--flex');
+    if (task.archived) cardClasses.push('archived');
+    if (isActivelyTracked) cardClasses.push('actively-tracked');
+    if (isCompleted) cardClasses.push('task-completed');
+    if (isRecurring) cardClasses.push('task-recurring');
+    cardClasses.push(effectiveStatus);
+    
+    element.className = cardClasses.join(' ');
+    element.dataset.status = effectiveStatus;
+    
+    // Update priority and status colors
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);
     if (priorityConfig) {
         element.style.setProperty('--priority-color', priorityConfig.color);
         element.style.borderLeftColor = priorityConfig.color;
     }
     
+    const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
+    if (statusConfig) {
+        element.style.setProperty('--current-status-color', statusConfig.color);
+    }
+    
     // Update checkbox if present
-    const checkbox = element.querySelector('.task-checkbox') as HTMLInputElement;
+    const checkbox = element.querySelector('.task-card__checkbox, .task-checkbox') as HTMLInputElement;
     if (checkbox) {
         checkbox.checked = plugin.statusManager.isCompletedStatus(effectiveStatus);
     }
     
     // Update status dot
-    const statusDot = element.querySelector('.status-dot') as HTMLElement;
-    if (statusDot) {
-        const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
-        if (statusConfig) {
-            statusDot.style.backgroundColor = statusConfig.color;
-        }
+    const statusDot = element.querySelector('.task-card__status-dot, .status-dot') as HTMLElement;
+    if (statusDot && statusConfig) {
+        statusDot.style.backgroundColor = statusConfig.color;
     }
     
     // Update recurring indicator
-    const existingRecurringIndicator = element.querySelector('.recurring-indicator');
+    const existingRecurringIndicator = element.querySelector('.task-card__recurring-indicator, .recurring-indicator');
     if (task.recurrence && !existingRecurringIndicator) {
         // Add recurring indicator if task is now recurring but didn't have one
         const recurringIndicator = element.createEl('span', { 
-            cls: 'recurring-indicator',
+            cls: 'task-card__recurring-indicator recurring-indicator', // BEM + legacy class
             attr: { 'aria-label': `Recurring: ${task.recurrence.frequency}` }
         });
-        statusDot.insertAdjacentElement('afterend', recurringIndicator);
+        statusDot?.insertAdjacentElement('afterend', recurringIndicator);
     } else if (!task.recurrence && existingRecurringIndicator) {
         // Remove recurring indicator if task is no longer recurring
         existingRecurringIndicator.remove();
@@ -462,14 +527,14 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     }
     
     // Update title
-    const titleEl = element.querySelector('.task-title') as HTMLElement;
+    const titleEl = element.querySelector('.task-card__title, .task-title') as HTMLElement;
     if (titleEl) {
         titleEl.textContent = task.title;
         titleEl.classList.toggle('completed', plugin.statusManager.isCompletedStatus(effectiveStatus));
     }
     
     // Update metadata line
-    const metadataLine = element.querySelector('.task-metadata-line') as HTMLElement;
+    const metadataLine = element.querySelector('.task-card__metadata, .task-metadata-line') as HTMLElement;
     if (metadataLine) {
         const metadataItems: string[] = [];
         

@@ -74,9 +74,9 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createFormGroup(container: HTMLElement, label: string, inputCallback: (container: HTMLElement) => void): HTMLElement {
-        const formGroup = container.createDiv({ cls: 'form-group' });
-        formGroup.createEl('label', { text: label, cls: 'form-label' });
-        const inputContainer = formGroup.createDiv({ cls: 'form-input-container' });
+        const formGroup = container.createDiv({ cls: 'modal-form__group' });
+        formGroup.createEl('label', { text: label, cls: 'modal-form__label' });
+        const inputContainer = formGroup.createDiv({ cls: 'modal-form__input-container' });
         inputCallback(inputContainer);
         return formGroup;
     }
@@ -89,7 +89,7 @@ export abstract class BaseTaskModal extends Modal {
     ): Promise<void> {
         const input = container.createEl('input', {
             type: 'text',
-            cls: 'form-input'
+            cls: 'modal-form__input'
         });
 
         input.value = (this as any)[fieldName] || '';
@@ -122,11 +122,11 @@ export abstract class BaseTaskModal extends Modal {
         });
 
         input.addEventListener('keydown', (e) => {
-            const suggestionsList = container.querySelector('.autocomplete-suggestions') as HTMLElement;
+            const suggestionsList = container.querySelector('.modal-form__suggestions') as HTMLElement;
             if (!suggestionsList) return;
 
-            const suggestions = suggestionsList.querySelectorAll('.suggestion-item');
-            let selectedIndex = Array.from(suggestions).findIndex(el => el.hasClass('selected'));
+            const suggestions = suggestionsList.querySelectorAll('.modal-form__suggestion');
+            let selectedIndex = Array.from(suggestions).findIndex(el => el.hasClass('modal-form__suggestion--selected'));
 
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
@@ -158,7 +158,7 @@ export abstract class BaseTaskModal extends Modal {
 
         if (suggestions.length === 0) return;
 
-        const suggestionsList = container.createDiv({ cls: 'autocomplete-suggestions' });
+        const suggestionsList = container.createDiv({ cls: 'modal-form__suggestions' });
         
         // Get the current partial value being typed (after the last comma)
         const inputValue = input.value;
@@ -176,12 +176,12 @@ export abstract class BaseTaskModal extends Modal {
 
         filteredSuggestions.slice(0, 10).forEach((suggestion, index) => {
             const suggestionItem = suggestionsList.createDiv({ 
-                cls: 'suggestion-item',
+                cls: 'modal-form__suggestion',
                 text: suggestion
             });
 
             if (index === 0) {
-                suggestionItem.addClass('selected');
+                suggestionItem.addClass('modal-form__suggestion--selected');
             }
 
             suggestionItem.addEventListener('click', () => {
@@ -210,15 +210,15 @@ export abstract class BaseTaskModal extends Modal {
     protected updateSelectedSuggestion(suggestions: NodeListOf<Element>, selectedIndex: number): void {
         suggestions.forEach((suggestion, index) => {
             if (index === selectedIndex) {
-                suggestion.addClass('selected');
+                suggestion.addClass('modal-form__suggestion--selected');
             } else {
-                suggestion.removeClass('selected');
+                suggestion.removeClass('modal-form__suggestion--selected');
             }
         });
     }
 
     protected hideSuggestions(container: HTMLElement): void {
-        const existingSuggestions = container.querySelector('.autocomplete-suggestions');
+        const existingSuggestions = container.querySelector('.modal-form__suggestions');
         if (existingSuggestions) {
             existingSuggestions.remove();
         }
@@ -227,13 +227,13 @@ export abstract class BaseTaskModal extends Modal {
     protected createTitleInputWithCounter(container: HTMLElement, maxLength: number): void {
         const titleInput = container.createEl('input', {
             type: 'text',
-            cls: 'form-input title-input',
+            cls: 'modal-form__input modal-form__input--title',
             attr: { maxlength: maxLength.toString() }
         });
 
         titleInput.value = this.title;
 
-        const charCounter = container.createDiv({ cls: 'char-counter' });
+        const charCounter = container.createDiv({ cls: 'modal-form__char-counter' });
         this.updateCharCounter(charCounter, this.title.length, maxLength);
 
         titleInput.addEventListener('input', (e) => {
@@ -247,14 +247,14 @@ export abstract class BaseTaskModal extends Modal {
         counter.textContent = `${currentLength}/${maxLength}`;
         
         if (currentLength > maxLength * 0.9) {
-            counter.addClass('warning');
+            counter.addClass('modal-form__char-counter--warning');
         } else {
-            counter.removeClass('warning');
+            counter.removeClass('modal-form__char-counter--warning');
         }
     }
 
     protected createPriorityDropdown(container: HTMLElement): void {
-        const select = container.createEl('select', { cls: 'form-select' });
+        const select = container.createEl('select', { cls: 'modal-form__select' });
 
         this.plugin.priorityManager.getPrioritiesByWeight().forEach(priorityConfig => {
             const option = select.createEl('option', {
@@ -273,7 +273,7 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createStatusDropdown(container: HTMLElement): void {
-        const select = container.createEl('select', { cls: 'form-select' });
+        const select = container.createEl('select', { cls: 'modal-form__select' });
 
         this.plugin.statusManager.getAllStatuses().forEach(statusConfig => {
             const option = select.createEl('option', {
@@ -294,7 +294,7 @@ export abstract class BaseTaskModal extends Modal {
     protected createDueDateInput(container: HTMLElement): void {
         const input = container.createEl('input', {
             type: 'date',
-            cls: 'form-input'
+            cls: 'modal-form__input'
         });
 
         input.value = this.dueDate;
@@ -307,7 +307,7 @@ export abstract class BaseTaskModal extends Modal {
     protected createScheduledDateInput(container: HTMLElement): void {
         const input = container.createEl('input', {
             type: 'date',
-            cls: 'form-input'
+            cls: 'modal-form__input'
         });
 
         input.value = this.scheduledDate;
@@ -318,17 +318,17 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createTimeEstimateInput(container: HTMLElement): void {
-        const inputContainer = container.createDiv({ cls: 'time-estimate-container' });
+        const inputContainer = container.createDiv({ cls: 'modal-form__time-estimate' });
         
         const input = inputContainer.createEl('input', {
             type: 'number',
-            cls: 'form-input time-estimate-input',
+            cls: 'modal-form__input modal-form__input--number',
             attr: { min: '0', step: '5' }
         });
 
         input.value = this.timeEstimate.toString();
 
-        const label = inputContainer.createSpan({ cls: 'time-estimate-label' });
+        const label = inputContainer.createSpan({ cls: 'modal-form__time-label' });
         this.updateTimeLabel(label, this.timeEstimate);
 
         input.addEventListener('input', (e) => {
@@ -355,7 +355,7 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createRecurrenceDropdown(container: HTMLElement): void {
-        const select = container.createEl('select', { cls: 'form-select' });
+        const select = container.createEl('select', { cls: 'modal-form__select' });
 
         const options = [
             { value: 'none', text: 'No recurrence' },
@@ -383,14 +383,14 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected updateRecurrenceOptions(container: HTMLElement): void {
-        const existingOptions = container.querySelector('.recurrence-options');
+        const existingOptions = container.querySelector('.modal-form__recurrence-options');
         if (existingOptions) {
             existingOptions.remove();
         }
 
         if (this.recurrence === 'none') return;
 
-        const optionsContainer = container.createDiv({ cls: 'recurrence-options' });
+        const optionsContainer = container.createDiv({ cls: 'modal-form__recurrence-options' });
 
         switch (this.recurrence) {
             case 'weekly':
@@ -408,24 +408,24 @@ export abstract class BaseTaskModal extends Modal {
     protected createDaysOfWeekSelector(container: HTMLElement): void {
         const label = container.createEl('label', { 
             text: 'Days of week:', 
-            cls: 'form-label recurrence-label' 
+            cls: 'modal-form__recurrence-label' 
         });
 
-        const daysContainer = container.createDiv({ cls: 'days-of-week-container' });
+        const daysContainer = container.createDiv({ cls: 'modal-form__days-grid' });
 
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
         days.forEach(day => {
-            const dayContainer = daysContainer.createDiv({ cls: 'day-checkbox-container' });
+            const dayContainer = daysContainer.createDiv({ cls: 'modal-form__day-checkbox' });
             
             const checkbox = dayContainer.createEl('input', {
                 type: 'checkbox',
-                cls: 'day-checkbox'
+                cls: 'modal-form__day-input'
             });
 
             checkbox.checked = this.daysOfWeek.includes(day);
 
-            dayContainer.createEl('label', { text: day, cls: 'day-label' });
+            dayContainer.createEl('label', { text: day, cls: 'modal-form__day-label' });
 
             checkbox.addEventListener('change', (e) => {
                 if ((e.target as HTMLInputElement).checked) {
@@ -442,12 +442,12 @@ export abstract class BaseTaskModal extends Modal {
     protected createDayOfMonthSelector(container: HTMLElement): void {
         const label = container.createEl('label', { 
             text: 'Day of month:', 
-            cls: 'form-label recurrence-label' 
+            cls: 'modal-form__recurrence-label' 
         });
 
         const input = container.createEl('input', {
             type: 'number',
-            cls: 'form-input',
+            cls: 'modal-form__input',
             attr: { min: '1', max: '31' }
         });
 
@@ -461,10 +461,10 @@ export abstract class BaseTaskModal extends Modal {
     protected createYearlySelector(container: HTMLElement): void {
         const monthLabel = container.createEl('label', { 
             text: 'Month:', 
-            cls: 'form-label recurrence-label' 
+            cls: 'modal-form__recurrence-label' 
         });
 
-        const monthSelect = container.createEl('select', { cls: 'form-select' });
+        const monthSelect = container.createEl('select', { cls: 'modal-form__select' });
 
         const months = [
             'January', 'February', 'March', 'April', 'May', 'June',
@@ -488,12 +488,12 @@ export abstract class BaseTaskModal extends Modal {
 
         const dayLabel = container.createEl('label', { 
             text: 'Day:', 
-            cls: 'form-label recurrence-label' 
+            cls: 'modal-form__recurrence-label' 
         });
 
         const dayInput = container.createEl('input', {
             type: 'number',
-            cls: 'form-input',
+            cls: 'modal-form__input',
             attr: { min: '1', max: '31' }
         });
 

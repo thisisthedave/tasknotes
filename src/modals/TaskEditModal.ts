@@ -34,7 +34,7 @@ export class TaskEditModal extends BaseTaskModal {
 
     async onOpen() {
         const { contentEl } = this;
-        contentEl.addClass('task-edit-modal');
+        contentEl.addClass('tasknotes-plugin', 'task-edit-modal');
         new Setting(contentEl)
             .setName('Edit task')
             .setHeading();
@@ -123,12 +123,12 @@ export class TaskEditModal extends BaseTaskModal {
     }
 
     protected createActionButtons(container: HTMLElement): void {
-        const buttonContainer = container.createDiv({ cls: 'button-container' });
+        const buttonContainer = container.createDiv({ cls: 'modal-form__buttons' });
         
         // Open Note button
         const openButton = buttonContainer.createEl('button', { 
             text: 'Open note', 
-            cls: 'open-note-button' 
+            cls: 'modal-form__button modal-form__button--tertiary' 
         });
         openButton.addEventListener('click', () => {
             this.openNote();
@@ -137,7 +137,7 @@ export class TaskEditModal extends BaseTaskModal {
         // Save button
         const saveButton = buttonContainer.createEl('button', { 
             text: 'Save', 
-            cls: 'save-button' 
+            cls: 'modal-form__button modal-form__button--primary' 
         });
         saveButton.addEventListener('click', () => {
             this.saveTask();
@@ -146,7 +146,7 @@ export class TaskEditModal extends BaseTaskModal {
         // Cancel button
         const cancelButton = buttonContainer.createEl('button', { 
             text: 'Cancel', 
-            cls: 'cancel-button' 
+            cls: 'modal-form__button modal-form__button--secondary' 
         });
         cancelButton.addEventListener('click', () => {
             this.close();
@@ -158,14 +158,14 @@ export class TaskEditModal extends BaseTaskModal {
     }
 
     private createMetadataFooter(container: HTMLElement): void {
-        const footer = container.createDiv({ cls: 'task-metadata-footer' });
+        const footer = container.createDiv({ cls: 'task-edit-modal__metadata' });
         
-        const metadataContainer = footer.createDiv({ cls: 'task-metadata' });
+        const metadataContainer = footer.createDiv({ cls: 'task-edit-modal__metadata-container' });
         
         if (this.task.dateCreated) {
             const createdDate = new Date(this.task.dateCreated);
             metadataContainer.createDiv({
-                cls: 'metadata-item',
+                cls: 'task-edit-modal__metadata-item',
                 text: `Created: ${format(createdDate, 'MMM d, yyyy \'at\' h:mm a')}`
             });
         }
@@ -173,7 +173,7 @@ export class TaskEditModal extends BaseTaskModal {
         if (this.task.dateModified) {
             const modifiedDate = new Date(this.task.dateModified);
             metadataContainer.createDiv({
-                cls: 'metadata-item',
+                cls: 'task-edit-modal__metadata-item',
                 text: `Modified: ${format(modifiedDate, 'MMM d, yyyy \'at\' h:mm a')}`
             });
         }

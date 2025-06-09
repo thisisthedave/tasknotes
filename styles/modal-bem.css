@@ -1,0 +1,644 @@
+/* =====================================================================
+   MODAL COMPONENTS - BEM with TaskNotes Plugin Scoping
+   ===================================================================== */
+
+/* =====================================================================
+   BASE MODAL CONTAINER STYLES
+   ===================================================================== */
+
+.tasknotes-plugin .task-creation-modal,
+.tasknotes-plugin .task-edit-modal,
+.tasknotes-plugin .due-date-modal,
+.tasknotes-plugin .scheduled-date-modal,
+.tasknotes-plugin .task-selector-modal {
+    padding: var(--tn-spacing-xl);
+    max-width: 580px;
+    width: 100%;
+    background: var(--tn-bg-primary);
+    border-radius: var(--tn-radius-md);
+    box-shadow: var(--tn-shadow-strong);
+}
+
+/* =====================================================================
+   MODAL HEADERS AND HEADINGS
+   ===================================================================== */
+
+.tasknotes-plugin .task-creation-modal .setting-item-heading,
+.tasknotes-plugin .task-edit-modal .setting-item-heading,
+.tasknotes-plugin .due-date-modal .setting-item-heading,
+.tasknotes-plugin .scheduled-date-modal .setting-item-heading {
+    font-size: var(--tn-font-size-xl);
+    font-weight: var(--tn-font-weight-semibold);
+    color: var(--tn-text-normal);
+    line-height: 1.3;
+    border-bottom: 1px solid var(--tn-border-color);
+    margin-bottom: var(--tn-spacing-lg);
+    padding-bottom: var(--tn-spacing-md);
+}
+
+/* =====================================================================
+   SHARED FORM COMPONENTS (BEM)
+   ===================================================================== */
+
+/* Form Group Container */
+.tasknotes-plugin .modal-form__group {
+    margin-bottom: var(--tn-spacing-lg);
+    position: relative;
+}
+
+/* Form Labels */
+.tasknotes-plugin .modal-form__label {
+    display: block;
+    font-size: var(--tn-font-size-md);
+    font-weight: var(--tn-font-weight-medium);
+    color: var(--tn-text-normal);
+    margin-bottom: var(--tn-spacing-sm);
+    line-height: 1.4;
+}
+
+/* Input Container */
+.tasknotes-plugin .modal-form__input-container {
+    position: relative;
+}
+
+/* Base Input Styles */
+.tasknotes-plugin .modal-form__input,
+.tasknotes-plugin .modal-form__select {
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-family: inherit;
+    font-size: var(--tn-font-size-md);
+    font-weight: var(--tn-font-weight-normal);
+    line-height: 1.4;
+    transition: border-color var(--tn-transition-fast);
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.tasknotes-plugin .modal-form__input:hover,
+.tasknotes-plugin .modal-form__select:hover {
+    border-color: var(--tn-border-color-hover);
+}
+
+.tasknotes-plugin .modal-form__input:focus,
+.tasknotes-plugin .modal-form__select:focus {
+    border-color: var(--tn-border-color-interactive);
+    box-shadow: 0 0 0 2px rgba(var(--tn-interactive-accent), 0.15);
+}
+
+/* Input Modifiers */
+.tasknotes-plugin .modal-form__input--textarea {
+    min-height: 80px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.tasknotes-plugin .modal-form__input--title {
+    font-weight: var(--tn-font-weight-medium);
+}
+
+.tasknotes-plugin .modal-form__input--number {
+    width: 80px;
+    flex-shrink: 0;
+}
+
+/* =====================================================================
+   CHARACTER COUNTER COMPONENT
+   ===================================================================== */
+
+.tasknotes-plugin .modal-form__char-counter {
+    position: absolute;
+    top: calc(-1 * var(--tn-spacing-lg));
+    right: 0;
+    font-size: var(--tn-font-size-sm);
+    color: var(--tn-text-muted);
+    font-weight: var(--tn-font-weight-normal);
+    line-height: 1.4;
+    pointer-events: none;
+}
+
+.tasknotes-plugin .modal-form__char-counter--warning {
+    color: var(--tn-color-error);
+    font-weight: var(--tn-font-weight-medium);
+}
+
+/* =====================================================================
+   AUTOCOMPLETE COMPONENT
+   ===================================================================== */
+
+.tasknotes-plugin .modal-form__autocomplete {
+    position: relative;
+}
+
+.tasknotes-plugin .modal-form__suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--tn-bg-primary);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    box-shadow: var(--tn-shadow-strong);
+    z-index: var(--tn-z-dropdown);
+    max-height: 240px;
+    overflow-y: auto;
+    padding: var(--tn-spacing-sm) 0;
+}
+
+.tasknotes-plugin .modal-form__suggestion {
+    padding: var(--tn-spacing-sm) var(--tn-spacing-lg);
+    cursor: pointer;
+    font-size: var(--tn-font-size-md);
+    color: var(--tn-text-normal);
+    line-height: 1.5;
+    transition: background-color var(--tn-transition-fast);
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.tasknotes-plugin .modal-form__suggestion:hover,
+.tasknotes-plugin .modal-form__suggestion--selected {
+    background: var(--tn-interactive-hover);
+}
+
+/* =====================================================================
+   TIME ESTIMATE COMPONENT
+   ===================================================================== */
+
+.tasknotes-plugin .modal-form__time-estimate {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-md);
+}
+
+.tasknotes-plugin .modal-form__time-label {
+    font-size: var(--tn-font-size-md);
+    color: var(--tn-text-muted);
+    white-space: nowrap;
+}
+
+/* =====================================================================
+   RECURRENCE COMPONENTS
+   ===================================================================== */
+
+.tasknotes-plugin .modal-form__recurrence {
+    position: relative;
+}
+
+.tasknotes-plugin .modal-form__recurrence-options {
+    margin-top: var(--tn-spacing-lg);
+    padding: var(--tn-spacing-lg);
+    background: var(--tn-bg-secondary);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-md);
+}
+
+.tasknotes-plugin .modal-form__recurrence-label {
+    font-size: var(--tn-font-size-md);
+    font-weight: var(--tn-font-weight-medium);
+    color: var(--tn-text-normal);
+    margin-bottom: var(--tn-spacing-md);
+}
+
+/* Days of Week Grid */
+.tasknotes-plugin .modal-form__days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--tn-spacing-md);
+    margin-top: var(--tn-spacing-md);
+    padding: var(--tn-spacing-lg);
+    background: var(--tn-bg-primary);
+    border-radius: var(--tn-radius-sm);
+    border: 1px solid var(--tn-border-color);
+}
+
+.tasknotes-plugin .modal-form__day-checkbox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tn-spacing-sm);
+    cursor: pointer;
+}
+
+.tasknotes-plugin .modal-form__day-input {
+    margin: 0;
+    cursor: pointer;
+    transform: scale(1.1);
+}
+
+.tasknotes-plugin .modal-form__day-label {
+    font-size: var(--tn-font-size-sm);
+    font-weight: var(--tn-font-weight-medium);
+    color: var(--tn-text-normal);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+}
+
+/* =====================================================================
+   BUTTON COMPONENTS
+   ===================================================================== */
+
+.tasknotes-plugin .modal-form__buttons {
+    display: flex;
+    gap: var(--tn-spacing-lg);
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: var(--tn-spacing-xxl);
+    padding-top: var(--tn-spacing-lg);
+    border-top: 1px solid var(--tn-border-color);
+}
+
+/* Base Button */
+.tasknotes-plugin .modal-form__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tn-spacing-sm);
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    border-radius: var(--tn-radius-md);
+    font-family: inherit;
+    font-size: var(--tn-font-size-md);
+    font-weight: var(--tn-font-weight-medium);
+    cursor: pointer;
+    user-select: none;
+    transition: all var(--tn-transition-fast);
+    border: none;
+    outline: none;
+    min-height: var(--tn-button-height-md);
+}
+
+/* Primary Button (Submit actions) */
+.tasknotes-plugin .modal-form__button--primary {
+    background: var(--tn-interactive-accent);
+    color: var(--text-on-accent);
+    border: 1px solid var(--tn-interactive-accent);
+}
+
+.tasknotes-plugin .modal-form__button--primary:hover {
+    background: var(--tn-interactive-accent-hover);
+    border-color: var(--tn-interactive-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--tn-shadow-hover);
+}
+
+.tasknotes-plugin .modal-form__button--primary:active {
+    transform: translateY(0);
+    box-shadow: var(--tn-shadow-light);
+}
+
+/* Secondary Button (Cancel, etc.) */
+.tasknotes-plugin .modal-form__button--secondary {
+    background: transparent;
+    color: var(--tn-text-normal);
+    border: 1px solid var(--tn-border-color);
+}
+
+.tasknotes-plugin .modal-form__button--secondary:hover {
+    background: var(--tn-interactive-hover);
+    border-color: var(--tn-border-color-hover);
+    transform: translateY(-1px);
+}
+
+.tasknotes-plugin .modal-form__button--secondary:active {
+    transform: translateY(0);
+}
+
+/* Tertiary Button (Open note, etc.) */
+.tasknotes-plugin .modal-form__button--tertiary {
+    background: transparent;
+    color: var(--tn-interactive-accent);
+    border: none;
+    padding: var(--tn-spacing-md);
+}
+
+.tasknotes-plugin .modal-form__button--tertiary:hover {
+    background: var(--tn-interactive-hover);
+    color: var(--tn-interactive-accent-hover);
+}
+
+/* Quick Date Buttons */
+.tasknotes-plugin .modal-form__quick-actions {
+    display: flex;
+    gap: var(--tn-spacing-md);
+    flex-wrap: wrap;
+    margin-top: var(--tn-spacing-md);
+}
+
+.tasknotes-plugin .modal-form__button--quick-date {
+    flex: 1;
+    min-width: 0;
+    padding: var(--tn-spacing-sm) var(--tn-spacing-md);
+    background: var(--tn-bg-secondary);
+    color: var(--tn-text-normal);
+    border: 1px solid var(--tn-border-color);
+    font-size: var(--tn-font-size-sm);
+}
+
+.tasknotes-plugin .modal-form__button--quick-date:hover {
+    background: var(--tn-interactive-hover);
+    border-color: var(--tn-border-color-hover);
+}
+
+.tasknotes-plugin .modal-form__button--quick-date--clear {
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-muted);
+}
+
+.tasknotes-plugin .modal-form__button--quick-date--clear:hover {
+    background: var(--tn-interactive-hover);
+    color: var(--tn-text-normal);
+}
+
+/* =====================================================================
+   TASK CREATION MODAL SPECIFIC
+   ===================================================================== */
+
+.tasknotes-plugin .task-creation-modal__preview {
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    background: var(--tn-bg-secondary);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    font-size: var(--tn-font-size-sm);
+    font-family: var(--font-monospace);
+    color: var(--tn-text-muted);
+    margin-top: var(--tn-spacing-md);
+    word-break: break-all;
+}
+
+.tasknotes-plugin .task-creation-modal__preview--valid {
+    background: rgba(var(--tn-interactive-success), 0.1);
+    border-color: var(--tn-interactive-success);
+    color: var(--tn-text-normal);
+}
+
+.tasknotes-plugin .task-creation-modal__preview--error {
+    background: rgba(var(--tn-color-error), 0.1);
+    border-color: var(--tn-color-error);
+    color: var(--tn-color-error);
+}
+
+/* =====================================================================
+   TASK EDIT MODAL SPECIFIC
+   ===================================================================== */
+
+.tasknotes-plugin .task-edit-modal__metadata {
+    margin-top: var(--tn-spacing-xxl);
+    padding-top: var(--tn-spacing-lg);
+    border-top: 1px solid var(--tn-border-color);
+}
+
+.tasknotes-plugin .task-edit-modal__metadata-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tn-spacing-md);
+}
+
+.tasknotes-plugin .task-edit-modal__metadata-item {
+    font-size: var(--tn-font-size-sm);
+    color: var(--tn-text-muted);
+    line-height: 1.4;
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    background: var(--tn-bg-secondary);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    font-weight: var(--tn-font-weight-normal);
+}
+
+/* =====================================================================
+   QUICK DATE MODALS SPECIFIC
+   ===================================================================== */
+
+.tasknotes-plugin .due-date-modal__task-title,
+.tasknotes-plugin .scheduled-date-modal__task-title {
+    font-size: var(--tn-font-size-md);
+    color: var(--tn-text-normal);
+    margin-bottom: var(--tn-spacing-lg);
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    background: var(--tn-bg-secondary);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    font-weight: var(--tn-font-weight-medium);
+}
+
+/* =====================================================================
+   TASK SELECTOR MODAL SPECIFIC
+   ===================================================================== */
+
+.tasknotes-plugin .task-selector-modal__suggestion {
+    padding: var(--tn-spacing-md);
+    border-radius: var(--tn-radius-sm);
+    border-left: 3px solid transparent;
+    transition: all var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .task-selector-modal__suggestion:hover {
+    background: var(--tn-interactive-hover);
+}
+
+.tasknotes-plugin .task-selector-modal__title {
+    margin-bottom: var(--tn-spacing-xs);
+}
+
+.tasknotes-plugin .task-selector-modal__task-title {
+    font-weight: var(--tn-font-weight-medium);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-md);
+}
+
+.tasknotes-plugin .task-selector-modal__task-title--completed {
+    text-decoration: line-through;
+    color: var(--tn-text-muted);
+}
+
+.tasknotes-plugin .task-selector-modal__task-title--high-priority {
+    color: var(--tn-color-error);
+    border-left-color: var(--tn-color-error);
+}
+
+.tasknotes-plugin .task-selector-modal__task-title--low-priority {
+    color: var(--tn-text-muted);
+}
+
+.tasknotes-plugin .task-selector-modal__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-sm);
+    font-size: var(--tn-font-size-sm);
+    color: var(--tn-text-muted);
+}
+
+.tasknotes-plugin .task-selector-modal__due-date {
+    padding: 2px var(--tn-spacing-xs);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-secondary);
+    font-size: var(--tn-font-size-xs);
+}
+
+.tasknotes-plugin .task-selector-modal__due-date--overdue {
+    background: rgba(var(--tn-color-error), 0.1);
+    color: var(--tn-color-error);
+}
+
+.tasknotes-plugin .task-selector-modal__due-date--today {
+    background: rgba(var(--tn-color-warning), 0.1);
+    color: var(--tn-color-warning);
+}
+
+.tasknotes-plugin .task-selector-modal__contexts {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-xs);
+}
+
+.tasknotes-plugin .task-selector-modal__context-tag {
+    padding: 1px var(--tn-spacing-xs);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-secondary);
+    font-size: var(--tn-font-size-xs);
+    color: var(--tn-text-muted);
+}
+
+.tasknotes-plugin .task-selector-modal__status {
+    padding: 2px var(--tn-spacing-xs);
+    border-radius: var(--tn-radius-sm);
+    font-size: var(--tn-font-size-xs);
+    text-transform: capitalize;
+    background: var(--tn-bg-secondary);
+    color: var(--tn-text-normal);
+}
+
+/* =====================================================================
+   ERROR STATES
+   ===================================================================== */
+
+.tasknotes-plugin .modal-form__error {
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    margin: var(--tn-spacing-md) 0;
+    background: rgba(var(--tn-color-error), 0.1);
+    border: 1px solid var(--tn-color-error);
+    border-radius: var(--tn-radius-sm);
+    color: var(--tn-color-error);
+    font-size: var(--tn-font-size-sm);
+    font-weight: var(--tn-font-weight-medium);
+}
+
+/* =====================================================================
+   RESPONSIVE DESIGN
+   ===================================================================== */
+
+@media (max-width: 768px) {
+    .tasknotes-plugin .task-creation-modal,
+    .tasknotes-plugin .task-edit-modal,
+    .tasknotes-plugin .due-date-modal,
+    .tasknotes-plugin .scheduled-date-modal {
+        padding: var(--tn-spacing-lg);
+        max-width: 92vw;
+    }
+    
+    .tasknotes-plugin .modal-form__buttons {
+        flex-direction: column;
+        gap: var(--tn-spacing-md);
+    }
+    
+    .tasknotes-plugin .modal-form__button {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .tasknotes-plugin .modal-form__days-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--tn-spacing-sm);
+    }
+    
+    .tasknotes-plugin .modal-form__quick-actions {
+        flex-direction: column;
+    }
+    
+    .tasknotes-plugin .modal-form__button--quick-date {
+        flex: none;
+    }
+}
+
+/* =====================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ===================================================================== */
+
+.tasknotes-plugin .modal-form__input:focus,
+.tasknotes-plugin .modal-form__select:focus,
+.tasknotes-plugin .modal-form__button:focus {
+    outline: 2px solid var(--tn-interactive-accent);
+    outline-offset: 2px;
+}
+
+.tasknotes-plugin .modal-form__day-input:focus {
+    outline: 2px solid var(--tn-interactive-accent);
+    outline-offset: 2px;
+}
+
+/* Screen reader only text */
+.tasknotes-plugin .modal-form__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* =====================================================================
+   LEGACY CLASS COMPATIBILITY (Temporary)
+   ===================================================================== */
+
+/* Map old classes to new BEM classes for transition period */
+.tasknotes-plugin .form-group {
+    /* Fallback for old class usage during transition */
+    margin-bottom: var(--tn-spacing-lg);
+}
+
+.tasknotes-plugin .form-label {
+    /* Fallback for old class usage during transition */
+    display: block;
+    font-size: var(--tn-font-size-md);
+    font-weight: var(--tn-font-weight-medium);
+    color: var(--tn-text-normal);
+    margin-bottom: var(--tn-spacing-sm);
+}
+
+.tasknotes-plugin .form-input-container {
+    /* Fallback for old class usage during transition */
+    position: relative;
+}
+
+.tasknotes-plugin .form-input,
+.tasknotes-plugin .form-select {
+    /* Fallback for old class usage during transition */
+    padding: var(--tn-spacing-md) var(--tn-spacing-lg);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-family: inherit;
+    font-size: var(--tn-font-size-md);
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .form-input:focus,
+.tasknotes-plugin .form-select:focus {
+    border-color: var(--tn-border-color-interactive);
+    box-shadow: 0 0 0 2px rgba(var(--tn-interactive-accent), 0.15);
+}

@@ -6,11 +6,14 @@
    
    1. variables.css - CSS custom properties and design system variables
    2. base.css - Basic styles, animations, card components, and layout
-   3. components.css - Reusable UI components, utilities, and modals
-   4. calendar.css - Calendar view specific styles
-   5. tasks.css - Task list and task item specific styles
-   6. kanban.css - Kanban board view specific styles
-   7. filters.css - Unified filtering system styles
+   3. task-card-bem.css - NEW BEM TaskCard component with proper scoping
+   4. note-card-bem.css - NEW BEM NoteCard component with proper scoping
+   5. filter-bar-bem.css - NEW BEM FilterBar component with proper scoping
+   6. components.css - Reusable UI components, utilities, and modals
+   7. calendar.css - Calendar view specific styles
+   8. tasks.css - Task list and task item specific styles
+   9. kanban.css - Kanban board view specific styles
+   10. filters.css - Legacy filtering system styles (to be deprecated)
    
    To build the final styles.css file, run:
    npm run build-css
@@ -30,6 +33,27 @@
    - Base card component classes using BEM methodology
    - Accessibility styles and reduced motion support
    - Loading states and transitions
+   
+   task-card-bem.css:
+   - NEW BEM TaskCard component implementation
+   - Properly scoped under .tasknotes-plugin
+   - Uses --tn- CSS variables for consistency
+   - Replaces legacy tasknotes-card and task-card styles
+   
+   note-card-bem.css:
+   - NEW BEM NoteCard component implementation
+   - Properly scoped under .tasknotes-plugin
+   - Uses --tn- CSS variables for consistency
+   - Follows same BEM patterns as TaskCard
+   - Replaces legacy note-item and note-card styles
+   
+   filter-bar-bem.css:
+   - NEW BEM FilterBar component implementation
+   - Properly scoped under .tasknotes-plugin
+   - Uses --tn- CSS variables for consistency
+   - Follows same BEM patterns as TaskCard and NoteCard
+   - Includes advanced filter panel sub-component
+   - Replaces legacy filter-bar and filter styles
    
    components.css:
    - Reusable UI components (buttons, modals, forms)

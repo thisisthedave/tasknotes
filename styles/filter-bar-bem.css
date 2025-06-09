@@ -1,0 +1,663 @@
+/* =================================================================
+   FILTER BAR COMPONENT - BEM NAMING CONVENTION & PROPER SCOPING
+   ================================================================= */
+
+/* All FilterBar styles are scoped under .tasknotes-plugin for proper isolation */
+
+.tasknotes-plugin .filter-bar {
+    /* Layout & Structure */
+    display: flex;
+    flex-direction: column;
+    gap: var(--tn-spacing-sm);
+    
+    /* Visual Styling */
+    background: transparent; /* Inherit from container */
+}
+
+/* =================================================================
+   FILTER BAR ELEMENTS (BEM __element)
+   ================================================================= */
+
+/* Main controls row containing search, sort, group controls */
+.tasknotes-plugin .filter-bar__main {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-md);
+    flex-wrap: wrap;
+}
+
+/* Search section */
+.tasknotes-plugin .filter-bar__search {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.tasknotes-plugin .filter-bar__search-input {
+    width: 100%;
+    padding: var(--tn-spacing-xs) var(--tn-spacing-md);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-md);
+    transition: all var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .filter-bar__search-input:focus {
+    outline: none;
+    border-color: var(--tn-interactive-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--tn-interactive-accent) 20%, transparent);
+}
+
+.tasknotes-plugin .filter-bar__search-input::placeholder {
+    color: var(--tn-text-muted);
+}
+
+/* Controls container for sort, group, and action buttons */
+.tasknotes-plugin .filter-bar__controls {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-md);
+    flex-wrap: wrap;
+}
+
+/* Individual control groups */
+.tasknotes-plugin .filter-bar__sort,
+.tasknotes-plugin .filter-bar__group {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-xs);
+}
+
+/* Labels for form controls */
+.tasknotes-plugin .filter-bar__label {
+    font-size: var(--tn-font-size-sm);
+    color: var(--tn-text-muted);
+    font-weight: var(--tn-font-weight-medium);
+    white-space: nowrap;
+}
+
+/* Select dropdowns */
+.tasknotes-plugin .filter-bar__select {
+    padding: 6px 10px;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-sm);
+    min-width: 100px;
+    cursor: pointer;
+    transition: all var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .filter-bar__select:focus {
+    outline: none;
+    border-color: var(--tn-interactive-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--tn-interactive-accent) 20%, transparent);
+}
+
+.tasknotes-plugin .filter-bar__select:hover {
+    border-color: var(--tn-border-color-hover);
+}
+
+/* Sort direction button */
+.tasknotes-plugin .filter-bar__sort-direction {
+    padding: 6px 8px;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-md);
+    cursor: pointer;
+    transition: all var(--tn-transition-fast);
+    min-width: 32px;
+    text-align: center;
+}
+
+.tasknotes-plugin .filter-bar__sort-direction:hover {
+    background: var(--tn-interactive-hover);
+}
+
+.tasknotes-plugin .filter-bar__sort-direction:focus {
+    outline: none;
+    border-color: var(--tn-interactive-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--tn-interactive-accent) 20%, transparent);
+}
+
+/* Advanced filters toggle button */
+.tasknotes-plugin .filter-bar__advanced-toggle {
+    padding: 6px 12px;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-muted);
+    font-size: var(--tn-font-size-sm);
+    cursor: pointer;
+    transition: all var(--tn-transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-xs);
+    white-space: nowrap;
+}
+
+.tasknotes-plugin .filter-bar__advanced-toggle:hover {
+    background: var(--tn-interactive-hover);
+    color: var(--tn-text-normal);
+}
+
+.tasknotes-plugin .filter-bar__active-indicator {
+    background: var(--tn-interactive-accent);
+    color: var(--text-on-accent);
+    border-radius: var(--tn-radius-full);
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: var(--tn-font-weight-medium);
+    margin-left: 4px;
+    line-height: 1;
+    min-width: 14px;
+    text-align: center;
+}
+
+/* =================================================================
+   FILTER BAR ADVANCED PANEL SUB-COMPONENT
+   ================================================================= */
+
+/* Advanced filters panel - treated as sub-component */
+.tasknotes-plugin .filter-bar__advanced {
+    border-top: 1px solid var(--tn-border-color);
+    padding-top: var(--tn-spacing-sm);
+    margin-top: var(--tn-spacing-sm);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--tn-spacing-md);
+}
+
+.tasknotes-plugin .filter-bar__advanced-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tn-spacing-xs);
+}
+
+.tasknotes-plugin .filter-bar__advanced-item .filter-bar__label {
+    margin-bottom: 4px;
+}
+
+.tasknotes-plugin .filter-bar__advanced-item .filter-bar__select {
+    min-width: auto;
+    width: 100%;
+}
+
+/* =================================================================
+   FILTER BAR FORM ELEMENTS
+   ================================================================= */
+
+/* Checkbox groups for advanced filters */
+.tasknotes-plugin .filter-bar__checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    padding: 6px;
+    background: var(--tn-bg-primary);
+}
+
+.tasknotes-plugin .filter-bar__checkbox-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.tasknotes-plugin .filter-bar__checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-xs);
+    cursor: pointer;
+    font-size: var(--tn-font-size-sm);
+    color: var(--tn-text-normal);
+    user-select: none;
+    padding: 4px 6px;
+    border-radius: var(--tn-radius-sm);
+    transition: background-color var(--tn-transition-fast);
+    width: 100%;
+}
+
+.tasknotes-plugin .filter-bar__checkbox-label:hover {
+    background: var(--tn-interactive-hover);
+}
+
+.tasknotes-plugin .filter-bar__checkbox {
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Empty state for checkbox groups */
+.tasknotes-plugin .filter-bar__checkbox-group:empty::after {
+    content: "No options available";
+    color: var(--tn-text-muted);
+    font-style: italic;
+    font-size: var(--tn-font-size-xs);
+    padding: 8px;
+    text-align: center;
+}
+
+/* =================================================================
+   FILTER BAR DATE RANGE ELEMENTS
+   ================================================================= */
+
+/* Date range inputs container */
+.tasknotes-plugin .filter-bar__date-inputs {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-sm);
+    flex-wrap: wrap;
+    margin-top: var(--tn-spacing-xs);
+}
+
+.tasknotes-plugin .filter-bar__date-input-container {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-xs);
+}
+
+.tasknotes-plugin .filter-bar__date-label {
+    font-size: var(--tn-font-size-sm);
+    color: var(--tn-text-muted);
+    white-space: nowrap;
+}
+
+.tasknotes-plugin .filter-bar__date-input {
+    padding: var(--tn-spacing-xs) var(--tn-spacing-sm);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background-color: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-sm);
+    min-width: 120px;
+    transition: all var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .filter-bar__date-input:focus {
+    outline: none;
+    border-color: var(--tn-interactive-accent);
+    box-shadow: 0 0 0 1px var(--tn-interactive-accent);
+}
+
+.tasknotes-plugin .filter-bar__date-clear {
+    padding: var(--tn-spacing-xs) var(--tn-spacing-sm);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background-color: var(--tn-bg-secondary);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-sm);
+    cursor: pointer;
+    transition: background-color var(--tn-transition-fast);
+}
+
+.tasknotes-plugin .filter-bar__date-clear:hover {
+    background-color: var(--tn-interactive-hover);
+}
+
+.tasknotes-plugin .filter-bar__date-clear:active {
+    background-color: var(--tn-interactive-hover);
+    transform: scale(0.98);
+}
+
+/* =================================================================
+   FILTER BAR MODIFIERS (BEM --modifier)
+   ================================================================= */
+
+/* Advanced panel visibility */
+.tasknotes-plugin .filter-bar__advanced--hidden {
+    display: none;
+}
+
+/* Active advanced toggle state */
+.tasknotes-plugin .filter-bar__advanced-toggle--active {
+    background: var(--tn-interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--tn-interactive-accent);
+}
+
+/* Active indicator visibility */
+.tasknotes-plugin .filter-bar__active-indicator--hidden {
+    display: none;
+}
+
+/* =================================================================
+   FILTER BAR CONTAINER STYLES
+   ================================================================= */
+
+/* Container styles are kept separate as they're applied by views */
+.tasknotes-plugin .filter-bar-container,
+.tasknotes-plugin .agenda-filter-bar-container,
+.tasknotes-plugin .kanban-filter-bar-container {
+    margin-bottom: var(--tn-spacing-md);
+    padding: var(--tn-spacing-md);
+    background: var(--tn-bg-secondary);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-md);
+    box-shadow: var(--tn-shadow-light);
+}
+
+/* =================================================================
+   RESPONSIVE DESIGN
+   ================================================================= */
+
+/* Mobile and tablet responsiveness */
+@media (max-width: 768px) {
+    .tasknotes-plugin .filter-bar-container,
+    .tasknotes-plugin .agenda-filter-bar-container,
+    .tasknotes-plugin .kanban-filter-bar-container {
+        padding: var(--tn-spacing-sm);
+    }
+    
+    .tasknotes-plugin .filter-bar__main {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--tn-spacing-sm);
+    }
+    
+    .tasknotes-plugin .filter-bar__search {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .tasknotes-plugin .filter-bar__controls {
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--tn-spacing-sm);
+    }
+    
+    .tasknotes-plugin .filter-bar__sort,
+    .tasknotes-plugin .filter-bar__group {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .tasknotes-plugin .filter-bar__select {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .tasknotes-plugin .filter-bar__advanced {
+        grid-template-columns: 1fr;
+        gap: var(--tn-spacing-sm);
+    }
+}
+
+@media (max-width: 480px) {
+    .tasknotes-plugin .filter-bar__controls {
+        flex-direction: column;
+    }
+    
+    .tasknotes-plugin .filter-bar__sort,
+    .tasknotes-plugin .filter-bar__group {
+        width: 100%;
+    }
+}
+
+/* =================================================================
+   VIEW-SPECIFIC INTEGRATION
+   ================================================================= */
+
+/* Agenda view specific styles */
+.tasknotes-plugin .agenda-view-container .filter-bar-container {
+    margin-bottom: var(--tn-spacing-sm);
+}
+
+/* Kanban view specific styles */
+.tasknotes-plugin .kanban-view .filter-bar-container {
+    border-radius: var(--tn-radius-md) var(--tn-radius-md) 0 0;
+    border-bottom: none;
+}
+
+/* Task list view specific styles */
+.tasknotes-plugin .task-list-view-container .filter-bar-container {
+    margin-top: var(--tn-spacing-md);
+}
+
+/* =================================================================
+   ACCESSIBILITY & MOTION
+   ================================================================= */
+
+/* Touch-specific adjustments */
+@media (pointer: coarse) {
+    .tasknotes-plugin .filter-bar__search-input,
+    .tasknotes-plugin .filter-bar__select,
+    .tasknotes-plugin .filter-bar__sort-direction,
+    .tasknotes-plugin .filter-bar__advanced-toggle,
+    .tasknotes-plugin .filter-bar__date-input,
+    .tasknotes-plugin .filter-bar__date-clear {
+        min-height: 44px;
+        padding-top: var(--tn-spacing-sm);
+        padding-bottom: var(--tn-spacing-sm);
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .tasknotes-plugin .filter-bar-container,
+    .tasknotes-plugin .agenda-filter-bar-container,
+    .tasknotes-plugin .kanban-filter-bar-container {
+        border-width: 2px;
+    }
+    
+    .tasknotes-plugin .filter-bar__search-input,
+    .tasknotes-plugin .filter-bar__select,
+    .tasknotes-plugin .filter-bar__sort-direction,
+    .tasknotes-plugin .filter-bar__advanced-toggle,
+    .tasknotes-plugin .filter-bar__date-input {
+        border-width: 2px;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .tasknotes-plugin .filter-bar__search-input,
+    .tasknotes-plugin .filter-bar__select,
+    .tasknotes-plugin .filter-bar__sort-direction,
+    .tasknotes-plugin .filter-bar__advanced-toggle,
+    .tasknotes-plugin .filter-bar__checkbox-label,
+    .tasknotes-plugin .filter-bar__date-input,
+    .tasknotes-plugin .filter-bar__date-clear {
+        transition: none;
+    }
+}
+
+/* =================================================================
+   LEGACY COMPATIBILITY - DEPRECATED
+   
+   Keep existing classes for backward compatibility but prefer BEM structure above.
+   These will be removed in a future version.
+   ================================================================= */
+
+/* DEPRECATED - Use .filter-bar instead */
+.tasknotes-plugin .filter-bar.filter-bar {
+    /* Inherit new styles */
+}
+
+/* DEPRECATED - Use .filter-bar__main instead */
+.tasknotes-plugin .filter-bar .filter-bar-main {
+    /* Map to new BEM structure */
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-md);
+    flex-wrap: wrap;
+}
+
+/* DEPRECATED - Use .filter-bar__search instead */
+.tasknotes-plugin .filter-bar .filter-bar-search {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+/* DEPRECATED - Use .filter-bar__search-input instead */
+.tasknotes-plugin .filter-bar .filter-bar-search-input {
+    width: 100%;
+    padding: var(--tn-spacing-xs) var(--tn-spacing-md);
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-md);
+    transition: all var(--tn-transition-fast);
+}
+
+/* DEPRECATED - Use .filter-bar__controls instead */
+.tasknotes-plugin .filter-bar .filter-bar-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-md);
+    flex-wrap: wrap;
+}
+
+/* DEPRECATED - Use .filter-bar__sort instead */
+.tasknotes-plugin .filter-bar .filter-bar-sort {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-xs);
+}
+
+/* DEPRECATED - Use .filter-bar__group instead */
+.tasknotes-plugin .filter-bar .filter-bar-group {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-xs);
+}
+
+/* DEPRECATED - Use .filter-bar__label instead */
+.tasknotes-plugin .filter-bar .filter-bar-label {
+    font-size: var(--tn-font-size-sm);
+    color: var(--tn-text-muted);
+    font-weight: var(--tn-font-weight-medium);
+    white-space: nowrap;
+}
+
+/* DEPRECATED - Use .filter-bar__select instead */
+.tasknotes-plugin .filter-bar .filter-bar-select {
+    padding: 6px 10px;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-sm);
+    min-width: 100px;
+    cursor: pointer;
+    transition: all var(--tn-transition-fast);
+}
+
+/* DEPRECATED - Use .filter-bar__sort-direction instead */
+.tasknotes-plugin .filter-bar .filter-bar-sort-direction {
+    padding: 6px 8px;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-normal);
+    font-size: var(--tn-font-size-md);
+    cursor: pointer;
+    transition: all var(--tn-transition-fast);
+    min-width: 32px;
+    text-align: center;
+}
+
+/* DEPRECATED - Use .filter-bar__advanced-toggle instead */
+.tasknotes-plugin .filter-bar .filter-bar-advanced-toggle {
+    padding: 6px 12px;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    background: var(--tn-bg-primary);
+    color: var(--tn-text-muted);
+    font-size: var(--tn-font-size-sm);
+    cursor: pointer;
+    transition: all var(--tn-transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-xs);
+    white-space: nowrap;
+}
+
+/* DEPRECATED - Use .filter-bar__active-indicator instead */
+.tasknotes-plugin .filter-bar .filter-bar-active-indicator {
+    background: var(--tn-interactive-accent);
+    color: var(--text-on-accent);
+    border-radius: var(--tn-radius-full);
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: var(--tn-font-weight-medium);
+    margin-left: 4px;
+    line-height: 1;
+    min-width: 14px;
+    text-align: center;
+}
+
+/* DEPRECATED - Use .filter-bar__advanced instead */
+.tasknotes-plugin .filter-bar .filter-bar-advanced {
+    border-top: 1px solid var(--tn-border-color);
+    padding-top: var(--tn-spacing-sm);
+    margin-top: var(--tn-spacing-sm);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--tn-spacing-md);
+}
+
+/* DEPRECATED - Use .filter-bar__advanced-item instead */
+.tasknotes-plugin .filter-bar .filter-bar-advanced-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tn-spacing-xs);
+}
+
+/* DEPRECATED - Use .filter-bar__checkbox-group instead */
+.tasknotes-plugin .filter-bar .filter-bar-checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--tn-border-color);
+    border-radius: var(--tn-radius-sm);
+    padding: 6px;
+    background: var(--tn-bg-primary);
+}
+
+/* DEPRECATED - Use .filter-bar__checkbox-wrapper instead */
+.tasknotes-plugin .filter-bar .filter-bar-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+/* DEPRECATED - Use .filter-bar__checkbox-label instead */
+.tasknotes-plugin .filter-bar .filter-bar-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-xs);
+    cursor: pointer;
+    font-size: var(--tn-font-size-sm);
+    color: var(--tn-text-normal);
+    user-select: none;
+    padding: 4px 6px;
+    border-radius: var(--tn-radius-sm);
+    transition: background-color var(--tn-transition-fast);
+    width: 100%;
+}
+
+/* DEPRECATED - Use .filter-bar__checkbox instead */
+.tasknotes-plugin .filter-bar .filter-bar-checkbox {
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* DEPRECATED - Use .filter-bar__date-* instead */
+.tasknotes-plugin .filter-bar .filter-bar-date-inputs,
+.tasknotes-plugin .filter-bar .filter-bar-date-input-container,
+.tasknotes-plugin .filter-bar .filter-bar-date-label,
+.tasknotes-plugin .filter-bar .filter-bar-date-input,
+.tasknotes-plugin .filter-bar .filter-bar-date-clear {
+    /* Map to new BEM structure - styles defined above */
+}

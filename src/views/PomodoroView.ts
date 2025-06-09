@@ -113,7 +113,7 @@ export class PomodoroView extends ItemView {
     }
     
     async render() {
-        const container = this.contentEl.createDiv({ cls: 'tasknotes-container pomodoro-view-container' });
+        const container = this.contentEl.createDiv({ cls: 'tasknotes-plugin tasknotes-container pomodoro-view-container' });
         
         
         // Timer display with progress circle

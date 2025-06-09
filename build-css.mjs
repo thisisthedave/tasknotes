@@ -3,7 +3,17 @@ import { join } from 'path';
 
 const CSS_FILES = [
     'styles/variables.css',
+    'styles/utilities.css',
     'styles/base.css',
+    'styles/task-card-bem.css',
+    'styles/note-card-bem.css',
+    'styles/filter-bar-bem.css',
+    'styles/modal-bem.css',
+    'styles/task-list-view.css',
+    'styles/calendar-view.css',
+    'styles/kanban-view.css',
+    'styles/agenda-view.css',
+    'styles/notes-view.css',
     'styles/components.css',
     'styles/calendar.css',
     'styles/tasks.css',
@@ -23,14 +33,24 @@ const MAIN_CSS_TEMPLATE = `/* TaskNotes Plugin Styles */
    
    Source files:
    - styles/variables.css: CSS custom properties and design system variables
+   - styles/utilities.css: Scoped utility classes for layout, spacing, typography, and states
    - styles/base.css: Basic styles, animations, card components, and layout
+   - styles/task-card-bem.css: NEW BEM TaskCard component with proper scoping
+   - styles/note-card-bem.css: NEW BEM NoteCard component with proper scoping
+   - styles/filter-bar-bem.css: NEW BEM FilterBar component with proper scoping
+   - styles/modal-bem.css: NEW BEM Modal components with proper scoping
+   - styles/task-list-view.css: NEW BEM TaskListView component with proper scoping
+   - styles/calendar-view.css: NEW BEM CalendarView component with proper scoping
+   - styles/kanban-view.css: NEW BEM KanbanView component with proper scoping
+   - styles/agenda-view.css: NEW BEM AgendaView component with proper scoping
+   - styles/notes-view.css: NEW BEM NotesView component with proper scoping
    - styles/components.css: Reusable UI components, utilities, and modals
-   - styles/calendar.css: Calendar view specific styles
-   - styles/tasks.css: Task list and task item specific styles
-   - styles/kanban.css: Kanban board view specific styles
-   - styles/filters.css: Unified filtering system styles
-   - styles/agenda.css: Agenda view specific styles
-   - styles/modals.css: Task creation and edit modal specific styles
+   - styles/calendar.css: Calendar view specific styles (LEGACY - to be deprecated)
+   - styles/tasks.css: Task list and task item specific styles (LEGACY - to be deprecated)
+   - styles/kanban.css: Kanban board view specific styles (LEGACY - to be deprecated)
+   - styles/filters.css: Legacy filtering system styles (LEGACY - to be deprecated)
+   - styles/agenda.css: Agenda view specific styles (LEGACY - to be deprecated)
+   - styles/modals.css: Legacy modal styles (LEGACY - to be deprecated)
    - styles/pomodoro.css: Pomodoro view and stats view specific styles
    - styles/settings.css: Settings page and configuration interface styles
    
