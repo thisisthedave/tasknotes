@@ -1,6 +1,6 @@
 import { Extension, RangeSetBuilder, StateField, Transaction } from '@codemirror/state';
 import { Decoration, DecorationSet, EditorView, WidgetType } from '@codemirror/view';
-import { setIcon } from 'obsidian';
+import { setIcon, MarkdownView } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { TasksPluginParser } from '../utils/TasksPluginParser';
 
@@ -51,16 +51,16 @@ class ConvertButtonWidget extends WidgetType {
             e.stopPropagation();
             
             // Get the editor from the active markdown view
-            const activeLeaf = this.plugin.app.workspace.activeLeaf;
-            if (activeLeaf?.view.getViewType() === 'markdown') {
-                const markdownView = activeLeaf.view as any;
-                const editor = markdownView.editor;
+            const activeMarkdownView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+            if (!activeMarkdownView) {
+                return;
+            }
+            const editor = activeMarkdownView.editor;
                 
                 // Call the instant convert service
                 if (this.plugin.instantTaskConvertService && editor) {
                     await this.plugin.instantTaskConvertService.instantConvertTask(editor, this.lineNumber);
                 }
-            }
         });
         
         // Add hover effects with JavaScript since CSS might not apply

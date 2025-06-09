@@ -4,7 +4,7 @@ import {
     DecorationSet,
     EditorView,
 } from '@codemirror/view';
-import { editorLivePreviewField } from 'obsidian';
+import { editorLivePreviewField, MarkdownView } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { TaskLinkDetectionService, TaskLinkInfo } from '../services/TaskLinkDetectionService';
 import { TaskLinkWidget } from './TaskLinkWidget';
@@ -68,10 +68,11 @@ function buildTaskLinkDecorations(state: any, plugin: TaskNotesPlugin, activeWid
     const detectionService = plugin.taskLinkDetectionService || new TaskLinkDetectionService(plugin);
     
     // Get current file path
-    const activeLeaf = plugin.app.workspace.activeLeaf;
-    const activeView = activeLeaf?.view;
-    const activeFile = (activeView as any)?.file;
-    const currentFile = activeFile?.path;
+    const activeMarkdownView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!activeMarkdownView) {
+        return builder.finish();
+    }
+    const currentFile = activeMarkdownView.file?.path;
     
     if (!currentFile) {
         return builder.finish();
