@@ -3,6 +3,7 @@ import { TFile, setIcon } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { format } from 'date-fns';
+import { parseDate } from '../utils/dateUtils';
 
 export class TaskLinkWidget extends WidgetType {
     private taskInfo: TaskInfo;
@@ -69,26 +70,26 @@ export class TaskLinkWidget extends WidgetType {
         if (this.taskInfo.due) {
             const dueDateSpan = container.createEl('span', {
                 cls: 'task-inline-preview__date task-inline-preview__date--due',
-                attr: { title: `Due: ${format(new Date(this.taskInfo.due), 'MMM d, yyyy')}` }
+                attr: { title: `Due: ${format(parseDate(this.taskInfo.due), 'MMM d, yyyy')}` }
             });
             
             const calendarIcon = dueDateSpan.createEl('span', { cls: 'task-inline-preview__date-icon' });
             setIcon(calendarIcon, 'calendar');
             
-            dueDateSpan.appendText(format(new Date(this.taskInfo.due), 'MMM d'));
+            dueDateSpan.appendText(format(parseDate(this.taskInfo.due), 'MMM d'));
         }
 
         // Scheduled date info with clock icon
         if (this.taskInfo.scheduled && (!this.taskInfo.due || this.taskInfo.scheduled !== this.taskInfo.due)) {
             const scheduledSpan = container.createEl('span', {
                 cls: 'task-inline-preview__date task-inline-preview__date--scheduled',
-                attr: { title: `Scheduled: ${format(new Date(this.taskInfo.scheduled), 'MMM d, yyyy')}` }
+                attr: { title: `Scheduled: ${format(parseDate(this.taskInfo.scheduled), 'MMM d, yyyy')}` }
             });
             
             const clockIcon = scheduledSpan.createEl('span', { cls: 'task-inline-preview__date-icon' });
             setIcon(clockIcon, 'clock');
             
-            scheduledSpan.appendText(format(new Date(this.taskInfo.scheduled), 'MMM d'));
+            scheduledSpan.appendText(format(parseDate(this.taskInfo.scheduled), 'MMM d'));
         }
         
         // Add Lucide pencil icon
