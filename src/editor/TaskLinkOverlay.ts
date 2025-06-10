@@ -1,4 +1,4 @@
-import { Extension, RangeSetBuilder, StateField, Transaction } from '@codemirror/state';
+import { Extension, RangeSetBuilder, StateField, Transaction, StateEffect } from '@codemirror/state';
 import {
     Decoration,
     DecorationSet,
@@ -10,8 +10,11 @@ import { TaskLinkDetectionService, TaskLinkInfo } from '../services/TaskLinkDete
 import { TaskLinkWidget } from './TaskLinkWidget';
 import { EVENT_TASK_UPDATED } from '../types';
 
+// Define a state effect for task updates
+const taskUpdateEffect = StateEffect.define<{ taskPath?: string }>();
+
 // Create a state field factory that takes the plugin as a parameter
-export function createTaskLinkField(plugin: TaskNotesPlugin, refreshController: { needsRefresh: boolean }) {
+export function createTaskLinkField(plugin: TaskNotesPlugin) {
     // Track widget instances for updates
     const activeWidgets = new Map<string, TaskLinkWidget>();
     
@@ -48,23 +51,13 @@ export function createTaskLinkField(plugin: TaskNotesPlugin, refreshController: 
             }
 
             try {
-                // Rebuild if we've been marked for refresh (from EVENT_TASK_UPDATED)
-                if (refreshController && refreshController.needsRefresh) {
-                    refreshController.needsRefresh = false;
-                    return buildTaskLinkDecorations(transaction.state, plugin, activeWidgets);
-                }
-
-                // Check if this is an empty transaction dispatched by the global EVENT_TASK_UPDATED listener
-                // These transactions have no document changes but should trigger decoration refresh
-                const isTaskUpdateRefresh = !transaction.docChanged && 
-                    transaction.effects && 
-                    transaction.effects.length === 0 &&
-                    transaction.changes.empty;
-
-                // Rebuild decorations on document changes OR task update refreshes
-                if (transaction.docChanged || isTaskUpdateRefresh) {
+                // Check for task update effects
+                const hasTaskUpdateEffect = transaction.effects.some(effect => effect.is(taskUpdateEffect));
+                
+                // Rebuild decorations on document changes OR task update effects
+                if (transaction.docChanged || hasTaskUpdateEffect) {
                     // Clear active widgets cache on task updates to ensure fresh widgets are created
-                    if (isTaskUpdateRefresh) {
+                    if (hasTaskUpdateEffect) {
                         activeWidgets.clear();
                     }
                     return buildTaskLinkDecorations(transaction.state, plugin, activeWidgets);
@@ -350,16 +343,19 @@ function getTaskInfoSync(filePath: string, plugin: TaskNotesPlugin): any {
 
 
 export function createTaskLinkOverlay(plugin: TaskNotesPlugin): Extension {
-    // Create a shared refresh controller that can be accessed by the state field
-    const refreshController = { needsRefresh: false };
-    
-    const stateField = createTaskLinkField(plugin, refreshController);
-    
-    // The event listener is now managed globally in main.ts and will trigger
-    // decoration refresh by dispatching to all markdown editor views.
-    // The state field will check refreshController.needsRefresh and rebuild accordingly.
+    const stateField = createTaskLinkField(plugin);
     
     return stateField;
+}
+
+// Export the effect and utility function for triggering updates
+export { taskUpdateEffect };
+
+// Helper function to dispatch task update effects to an editor view
+export function dispatchTaskUpdate(view: EditorView, taskPath?: string): void {
+    view.dispatch({
+        effects: [taskUpdateEffect.of({ taskPath })]
+    });
 }
 
 // Export the service for use elsewhere

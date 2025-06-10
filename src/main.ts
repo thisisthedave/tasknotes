@@ -54,7 +54,7 @@ import { TaskService } from './services/TaskService';
 import { FilterService } from './services/FilterService';
 import { ViewStateManager } from './services/ViewStateManager';
 import { TasksPluginParser } from './utils/TasksPluginParser';
-import { createTaskLinkOverlay } from './editor/TaskLinkOverlay';
+import { createTaskLinkOverlay, dispatchTaskUpdate } from './editor/TaskLinkOverlay';
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -207,14 +207,15 @@ export default class TaskNotesPlugin extends Plugin {
 		this.registerEditorExtension(createInstantConvertButtons(this));
 		
 		// Set up global event listener for task updates to refresh editor decorations
-		this.taskUpdateListenerForEditor = this.emitter.on(EVENT_TASK_UPDATED, () => {
-			// Trigger decoration refresh in all active markdown views
+		this.taskUpdateListenerForEditor = this.emitter.on(EVENT_TASK_UPDATED, (data) => {
+			// Trigger decoration refresh in all active markdown views using proper state effects
 			this.app.workspace.iterateRootLeaves((leaf) => {
 				if (leaf.view.getViewType() === 'markdown') {
 					const editor = (leaf.view as any).editor;
 					if (editor && editor.cm) {
-						// Trigger decoration rebuild by dispatching an empty transaction
-						editor.cm.dispatch({ effects: [] });
+						// Use the proper CodeMirror state effect pattern
+						// The TaskService emits events with 'path' property, not 'taskPath'
+						dispatchTaskUpdate(editor.cm, data?.path);
 					}
 				}
 			});
