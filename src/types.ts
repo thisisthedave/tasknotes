@@ -164,15 +164,21 @@ export interface FileEventHandlers {
 }
 
 // Pomodoro types
+export interface PomodoroTimePeriod {
+	startTime: string; // ISO datetime when active period started
+	endTime?: string; // ISO datetime when active period ended (undefined if currently active)
+}
+
 export interface PomodoroSession {
 	id: string;
 	taskPath?: string; // optional, can run timer without task
-	startTime: string; // ISO datetime
-	endTime?: string; // ISO datetime when completed
-	duration: number; // planned duration in minutes
+	startTime: string; // ISO datetime when session was first created
+	endTime?: string; // ISO datetime when session completed/interrupted
+	plannedDuration: number; // planned duration in minutes
 	type: 'work' | 'short-break' | 'long-break';
 	completed: boolean;
 	interrupted?: boolean;
+	activePeriods: PomodoroTimePeriod[]; // Array of active timing periods (excludes pauses)
 }
 
 export interface PomodoroState {
@@ -183,13 +189,13 @@ export interface PomodoroState {
 
 export interface PomodoroSessionHistory {
 	id: string;
-	startTime: string; // ISO datetime
-	endTime: string; // ISO datetime when completed
-	duration: number; // actual duration in minutes
+	startTime: string; // ISO datetime when session was created
+	endTime: string; // ISO datetime when session completed/interrupted
 	plannedDuration: number; // originally planned duration in minutes
 	type: 'work' | 'short-break' | 'long-break';
 	taskPath?: string; // optional task association
 	completed: boolean; // true if session finished normally, false if interrupted
+	activePeriods: PomodoroTimePeriod[]; // Array of active timing periods (excludes pauses)
 }
 
 export interface PomodoroHistoryStats {

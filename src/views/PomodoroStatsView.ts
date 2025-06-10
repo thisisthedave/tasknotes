@@ -33,6 +33,20 @@ export class PomodoroStatsView extends ItemView {
     getIcon(): string {
         return 'bar-chart';
     }
+
+    /**
+     * Calculate actual duration in minutes from active periods
+     */
+    private calculateActualDuration(activePeriods: Array<{startTime: string; endTime?: string}>): number {
+        return activePeriods
+            .filter(period => period.endTime) // Only completed periods
+            .reduce((total, period) => {
+                const start = new Date(period.startTime);
+                const end = new Date(period.endTime!);
+                const durationMs = end.getTime() - start.getTime();
+                return total + Math.round(durationMs / (1000 * 60)); // Convert to minutes
+            }, 0);
+    }
     
     async onOpen() {
         await this.plugin.onReady();
@@ -163,7 +177,8 @@ export class PomodoroStatsView extends ItemView {
             dateEl.textContent = format(new Date(session.startTime), 'MMM d, HH:mm');
             
             const durationEl = sessionEl.createSpan({ cls: 'session-duration pomodoro-stats-view__session-duration' });
-            durationEl.textContent = `${session.duration}min`;
+            const actualDuration = this.calculateActualDuration(session.activePeriods);
+            durationEl.textContent = `${actualDuration}min`;
             
             const statusEl = sessionEl.createSpan({ cls: 'session-status pomodoro-stats-view__session-status' });
             statusEl.textContent = session.completed ? 'Completed' : 'Interrupted';
@@ -254,7 +269,8 @@ export class PomodoroStatsView extends ItemView {
             }
         }
         
-        const totalMinutes = completedWork.reduce((sum, session) => sum + session.duration, 0);
+        const totalMinutes = completedWork.reduce((sum, session) => 
+            sum + this.calculateActualDuration(session.activePeriods), 0);
         const averageSessionLength = completedWork.length > 0 
             ? totalMinutes / completedWork.length 
             : 0;

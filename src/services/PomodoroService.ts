@@ -6,6 +6,7 @@ import {
     PomodoroState,
     PomodoroSessionHistory,
     PomodoroHistoryStats,
+    PomodoroTimePeriod,
     EVENT_POMODORO_START, 
     EVENT_POMODORO_COMPLETE, 
     EVENT_POMODORO_INTERRUPT, 
@@ -147,18 +148,23 @@ export class PomodoroService {
         // Validate duration settings
         const duration = Math.max(1, Math.min(120, this.plugin.settings.pomodoroWorkDuration));
 
+        const sessionStartTime = getCurrentTimestamp();
         const session: PomodoroSession = {
             id: Date.now().toString(),
             taskPath: task?.path,
-            startTime: getCurrentTimestamp(),
-            duration: duration,
+            startTime: sessionStartTime,
+            plannedDuration: duration,
             type: 'work',
-            completed: false
+            completed: false,
+            activePeriods: [{
+                startTime: sessionStartTime
+                // endTime will be set when paused or completed
+            }]
         };
 
         this.state.currentSession = session;
         this.state.isRunning = true;
-        this.state.timeRemaining = session.duration * 60; // Convert to seconds
+        this.state.timeRemaining = session.plannedDuration * 60; // Convert to seconds
 
         await this.saveState();
         this.startTimer();
@@ -196,17 +202,22 @@ export class PomodoroService {
             ? Math.max(1, Math.min(60, this.plugin.settings.pomodoroLongBreakDuration))
             : Math.max(1, Math.min(30, this.plugin.settings.pomodoroShortBreakDuration));
 
+        const sessionStartTime = getCurrentTimestamp();
         const session: PomodoroSession = {
             id: Date.now().toString(),
-            startTime: getCurrentTimestamp(),
-            duration: duration,
+            startTime: sessionStartTime,
+            plannedDuration: duration,
             type: isLongBreak ? 'long-break' : 'short-break',
-            completed: false
+            completed: false,
+            activePeriods: [{
+                startTime: sessionStartTime
+                // endTime will be set when paused or completed
+            }]
         };
 
         this.state.currentSession = session;
         this.state.isRunning = true;
-        this.state.timeRemaining = session.duration * 60;
+        this.state.timeRemaining = session.plannedDuration * 60;
 
         await this.saveState();
         this.startTimer();
@@ -221,6 +232,27 @@ export class PomodoroService {
 
         this.stopTimer();
         this.state.isRunning = false;
+        
+        // End the current active period
+        if (this.state.currentSession && this.state.currentSession.activePeriods.length > 0) {
+            const currentPeriod = this.state.currentSession.activePeriods[this.state.currentSession.activePeriods.length - 1];
+            if (!currentPeriod.endTime) {
+                currentPeriod.endTime = getCurrentTimestamp();
+            }
+        }
+        
+        // Stop time tracking on the task if applicable
+        if (this.state.currentSession && this.state.currentSession.taskPath) {
+            try {
+                const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, false);
+                if (task) {
+                    await this.plugin.taskService.stopTimeTracking(task);
+                }
+            } catch (error) {
+                console.error('Failed to stop time tracking for Pomodoro pause:', error);
+            }
+        }
+        
         await this.saveState();
         
         // Emit event to update UI
@@ -238,8 +270,32 @@ export class PomodoroService {
         }
 
         this.state.isRunning = true;
+        
+        // Start a new active period
+        if (this.state.currentSession) {
+            this.state.currentSession.activePeriods.push({
+                startTime: getCurrentTimestamp()
+                // endTime will be set when paused or completed
+            });
+        }
+        
         await this.saveState();
         this.startTimer();
+        
+        // Start a new time tracking session on the task if applicable
+        if (this.state.currentSession && this.state.currentSession.taskPath) {
+            try {
+                const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, false);
+                if (task) {
+                    await this.plugin.taskService.startTimeTracking(task);
+                }
+            } catch (error) {
+                // If time tracking is already active, that's fine for Pomodoro resume
+                if (!error.message?.includes('Time tracking is already active')) {
+                    console.error('Failed to start time tracking for Pomodoro resume:', error);
+                }
+            }
+        }
         
         // Emit event to update UI
         this.plugin.emitter.emit(EVENT_POMODORO_TICK, { 
@@ -262,14 +318,22 @@ export class PomodoroService {
             this.state.currentSession.interrupted = true;
             this.state.currentSession.endTime = getCurrentTimestamp();
             
+            // End the current active period if it's still running
+            if (this.state.currentSession.activePeriods.length > 0) {
+                const currentPeriod = this.state.currentSession.activePeriods[this.state.currentSession.activePeriods.length - 1];
+                if (!currentPeriod.endTime) {
+                    currentPeriod.endTime = getCurrentTimestamp();
+                }
+            }
+            
             // Add interrupted session to history
             await this.addSessionToHistory(this.state.currentSession);
         }
 
         this.plugin.emitter.emit(EVENT_POMODORO_INTERRUPT, { session: this.state.currentSession });
 
-        // Stop time tracking on the task if applicable
-        if (this.state.currentSession && this.state.currentSession.taskPath) {
+        // Stop time tracking on the task if applicable (only if it was running)
+        if (this.state.currentSession && this.state.currentSession.taskPath && wasRunning) {
             try {
                 const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, false);
                 if (task) {
@@ -350,7 +414,7 @@ export class PomodoroService {
             }
             
             const elapsed = Math.floor((now - startTime) / 1000);
-            const totalDuration = this.state.currentSession.duration * 60;
+            const totalDuration = this.state.currentSession.plannedDuration * 60;
             
             // Account for paused time by using actual time remaining from state
             // rather than calculating from start time when session was paused
@@ -381,9 +445,18 @@ export class PomodoroService {
         const session = this.state.currentSession;
         session.completed = true;
         session.endTime = getCurrentTimestamp();
+        
+        // End the current active period if it's still running
+        if (session.activePeriods.length > 0) {
+            const currentPeriod = session.activePeriods[session.activePeriods.length - 1];
+            if (!currentPeriod.endTime) {
+                currentPeriod.endTime = getCurrentTimestamp();
+            }
+        }
 
         // Stop time tracking on task if applicable for work sessions
-        if (session.type === 'work') {
+        // Only stop if timer was running (if paused, time tracking should already be stopped)
+        if (session.type === 'work' && this.state.isRunning) {
             // Stop time tracking on task if applicable
             if (session.taskPath) {
                 try {
@@ -395,8 +468,10 @@ export class PomodoroService {
                     console.error('Failed to stop time tracking for Pomodoro completion:', error);
                 }
             }
+        }
 
-            // Update daily note with pomodoro count
+        // Update daily note with pomodoro count for work sessions
+        if (session.type === 'work') {
             await this.updateDailyNotePomodoros();
         }
 
@@ -625,25 +700,35 @@ export class PomodoroService {
         }
     }
 
+    /**
+     * Calculate actual duration in minutes from active periods
+     */
+    private calculateActualDuration(activePeriods: PomodoroTimePeriod[]): number {
+        return activePeriods
+            .filter(period => period.endTime) // Only completed periods
+            .reduce((total, period) => {
+                const start = new Date(period.startTime);
+                const end = new Date(period.endTime!);
+                const durationMs = end.getTime() - start.getTime();
+                return total + Math.round(durationMs / (1000 * 60)); // Convert to minutes
+            }, 0);
+    }
+
     async addSessionToHistory(session: PomodoroSession): Promise<void> {
         if (!session.endTime) {
             console.warn('Cannot add session to history without end time');
             return;
         }
 
-        const startTime = new Date(session.startTime);
-        const endTime = new Date(session.endTime);
-        const actualDuration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // minutes
-
         const historyEntry: PomodoroSessionHistory = {
             id: session.id,
             startTime: session.startTime,
             endTime: session.endTime,
-            duration: actualDuration,
-            plannedDuration: session.duration,
+            plannedDuration: session.plannedDuration,
             type: session.type,
             taskPath: session.taskPath,
-            completed: session.completed && !session.interrupted
+            completed: session.completed && !session.interrupted,
+            activePeriods: session.activePeriods.slice() // Copy the active periods array
         };
 
         try {
@@ -679,7 +764,8 @@ export class PomodoroService {
             }
         }
 
-        const totalMinutes = completedWork.reduce((sum, session) => sum + session.duration, 0);
+        const totalMinutes = completedWork.reduce((sum, session) => 
+            sum + this.calculateActualDuration(session.activePeriods), 0);
         const averageSessionLength = completedWork.length > 0 
             ? totalMinutes / completedWork.length 
             : 0;

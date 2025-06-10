@@ -381,7 +381,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				dropdown.selectEl.setAttribute('aria-label', 'Task filename generation format');
 				return dropdown
 					.addOption('title', 'Task title')
-					.addOption('zettel', 'Zettelkasten format (YYMMDD + base36 seconds)')
+					.addOption('zettel', 'Zettelkasten format (YYMMDD + base36 seconds since midnight)')
 					.addOption('timestamp', 'Full timestamp (YYYY-MM-DD-HHMMSS)')
 					.addOption('custom', 'Custom template')
 					.setValue(this.plugin.settings.taskFilenameFormat)
