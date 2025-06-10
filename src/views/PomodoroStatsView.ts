@@ -7,6 +7,7 @@ import {
     PomodoroSessionHistory
 } from '../types';
 import { parseTimestamp } from '../utils/dateUtils';
+import { getSessionDuration } from '../utils/PomodoroMigration';
 
 export class PomodoroStatsView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -35,7 +36,7 @@ export class PomodoroStatsView extends ItemView {
     }
 
     /**
-     * Calculate actual duration in minutes from active periods
+     * Calculate actual duration in minutes with backward compatibility
      */
     private calculateActualDuration(activePeriods: Array<{startTime: string; endTime?: string}>): number {
         return activePeriods
@@ -177,7 +178,7 @@ export class PomodoroStatsView extends ItemView {
             dateEl.textContent = format(new Date(session.startTime), 'MMM d, HH:mm');
             
             const durationEl = sessionEl.createSpan({ cls: 'session-duration pomodoro-stats-view__session-duration' });
-            const actualDuration = this.calculateActualDuration(session.activePeriods);
+            const actualDuration = getSessionDuration(session);
             durationEl.textContent = `${actualDuration}min`;
             
             const statusEl = sessionEl.createSpan({ cls: 'session-status pomodoro-stats-view__session-status' });
@@ -270,7 +271,7 @@ export class PomodoroStatsView extends ItemView {
         }
         
         const totalMinutes = completedWork.reduce((sum, session) => 
-            sum + this.calculateActualDuration(session.activePeriods), 0);
+            sum + getSessionDuration(session), 0);
         const averageSessionLength = completedWork.length > 0 
             ? totalMinutes / completedWork.length 
             : 0;

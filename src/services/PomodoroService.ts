@@ -17,6 +17,7 @@ import {
 } from '../types';
 import { ensureFolderExists } from '../utils/helpers';
 import { getCurrentTimestamp } from '../utils/dateUtils';
+import { needsMigration, migrateAllPomodoroData, logMigrationInfo, getSessionDuration } from '../utils/PomodoroMigration';
 
 export class PomodoroService {
     private plugin: TaskNotesPlugin;
@@ -55,7 +56,22 @@ export class PomodoroService {
 
     async loadState() {
         try {
-            const data = await this.plugin.loadData();
+            let data = await this.plugin.loadData();
+            
+            // Check if data needs migration before processing
+            if (data && needsMigration(data)) {
+                console.log('[PomodoroService] Migrating pomodoro data to new format...');
+                const originalData = { ...data };
+                data = migrateAllPomodoroData(data);
+                
+                // Save migrated data immediately
+                await this.plugin.saveData(data);
+                
+                // Log migration info for debugging
+                logMigrationInfo(originalData, data);
+                console.log('[PomodoroService] Pomodoro data migration completed successfully');
+            }
+            
             if (data?.pomodoroState) {
                 this.state = data.pomodoroState;
                 
@@ -682,7 +698,20 @@ export class PomodoroService {
     // Session History Management
     async getSessionHistory(): Promise<PomodoroSessionHistory[]> {
         try {
-            const data = await this.plugin.loadData();
+            let data = await this.plugin.loadData();
+            
+            // Check if data needs migration before returning history
+            if (data && needsMigration(data)) {
+                const originalData = { ...data };
+                data = migrateAllPomodoroData(data);
+                
+                // Save migrated data
+                await this.plugin.saveData(data);
+                
+                logMigrationInfo(originalData, data);
+                console.log('[PomodoroService] Session history migrated during retrieval');
+            }
+            
             return data?.pomodoroHistory || [];
         } catch (error) {
             console.error('Failed to load session history:', error);
@@ -765,7 +794,7 @@ export class PomodoroService {
         }
 
         const totalMinutes = completedWork.reduce((sum, session) => 
-            sum + this.calculateActualDuration(session.activePeriods), 0);
+            sum + getSessionDuration(session), 0);
         const averageSessionLength = completedWork.length > 0 
             ? totalMinutes / completedWork.length 
             : 0;
