@@ -4,6 +4,7 @@ import TaskNotesPlugin from '../main';
 import { 
     CALENDAR_VIEW_TYPE, 
     EVENT_DATA_CHANGED,
+    EVENT_DATE_SELECTED,
     EVENT_TASK_UPDATED,
     TaskInfo, 
     NoteInfo, 
@@ -27,6 +28,10 @@ export class CalendarView extends ItemView {
     plugin: TaskNotesPlugin;
     colorizeMode: ColorizeMode = 'tasks';
     
+    // Track currently displayed month for proper change detection
+    private displayedMonth: number;
+    private displayedYear: number;
+    
     // Event listeners
     private listeners: (() => void)[] = [];
     
@@ -40,6 +45,11 @@ export class CalendarView extends ItemView {
     constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
         this.plugin = plugin;
+        
+        // Initialize displayed month/year tracking
+        const currentDate = this.plugin.selectedDate;
+        this.displayedMonth = currentDate.getMonth();
+        this.displayedYear = currentDate.getFullYear();
         
         // Register event listeners
         this.registerEvents();
@@ -55,6 +65,32 @@ export class CalendarView extends ItemView {
             this.refresh();
         });
         this.listeners.push(dataListener);
+        
+        // Listen for date selection changes
+        const dateListener = this.plugin.emitter.on(EVENT_DATE_SELECTED, (date: Date) => {
+            // Check if we're changing months compared to what's currently displayed
+            if (this.displayedMonth !== date.getMonth() || this.displayedYear !== date.getFullYear()) {
+                // Month changed - update tracking and do full refresh
+                this.displayedMonth = date.getMonth();
+                this.displayedYear = date.getFullYear();
+                
+                // Clear month calculation cache for performance
+                this.clearMonthCalculationCache();
+                
+                // Force daily notes cache rebuild for the new month if in daily mode
+                if (this.colorizeMode === 'daily') {
+                    this.plugin.cacheManager.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+                }
+                
+                // Do full calendar refresh
+                this.refresh();
+            } else {
+                // Same month, just update selected date and month display
+                this.updateSelectedDate(date);
+                this.updateMonthDisplay();
+            }
+        });
+        this.listeners.push(dateListener);
         
         // Listen for individual task updates for granular calendar updates
         const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, ({ path, originalTask, updatedTask }) => {
@@ -137,25 +173,9 @@ export class CalendarView extends ItemView {
         
         // Go to previous month
         date.setMonth(date.getMonth() - 1);
-        this.plugin.setSelectedDate(date);
         
-        // Check if we're changing months - if so, we need a full refresh
-        if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
-            // Clear month calculation cache for performance
-            this.clearMonthCalculationCache();
-            
-            // Force daily notes cache rebuild for the new month
-            if (this.colorizeMode === 'daily') {
-                this.plugin.cacheManager.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
-            }
-            
-            // Use debounced refresh for better performance
-            this.initializeDebouncedRefresh();
-            this.debouncedRefresh!();
-        } else {
-            // Same month, just update selected date
-            this.updateSelectedDate(date);
-        }
+        // Set the selected date - the event listener will handle the calendar update
+        this.plugin.setSelectedDate(date);
     }
     
     async navigateToNextPeriod() {
@@ -164,51 +184,16 @@ export class CalendarView extends ItemView {
         
         // Go to next month
         date.setMonth(date.getMonth() + 1);
-        this.plugin.setSelectedDate(date);
         
-        // Check if we're changing months - if so, we need a full refresh
-        if (currentDate.getMonth() !== date.getMonth() || currentDate.getFullYear() !== date.getFullYear()) {
-            // Clear month calculation cache for performance
-            this.clearMonthCalculationCache();
-            
-            // Force daily notes cache rebuild for the new month
-            if (this.colorizeMode === 'daily') {
-                this.plugin.cacheManager.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
-            }
-            
-            // Use debounced refresh for better performance
-            this.initializeDebouncedRefresh();
-            this.debouncedRefresh!();
-        } else {
-            // Same month, just update selected date
-            this.updateSelectedDate(date);
-        }
+        // Set the selected date - the event listener will handle the calendar update
+        this.plugin.setSelectedDate(date);
     }
     
     async navigateToToday() {
-        const currentDate = new Date(this.plugin.selectedDate);
         const today = new Date();
-        this.plugin.setSelectedDate(today);
         
-        // Check if we're changing months - if so, we need a full refresh
-        if (currentDate.getMonth() !== today.getMonth() || 
-            currentDate.getFullYear() !== today.getFullYear()) {
-            
-            // Clear month calculation cache for performance
-            this.clearMonthCalculationCache();
-            
-            // Force daily notes cache rebuild for the current month
-            if (this.colorizeMode === 'daily') {
-                this.plugin.cacheManager.rebuildDailyNotesCache(today.getFullYear(), today.getMonth());
-            }
-            
-            // Use debounced refresh for better performance
-            this.initializeDebouncedRefresh();
-            this.debouncedRefresh!();
-        } else {
-            // Same month, just update selected date
-            this.updateSelectedDate(today);
-        }
+        // Set the selected date - the event listener will handle the calendar update
+        this.plugin.setSelectedDate(today);
     }
     
   
@@ -281,16 +266,8 @@ export class CalendarView extends ItemView {
             if (newDate) {
                 e.preventDefault();
                 
-                // Check if we're navigating to a different month
-                const currentDate = this.plugin.selectedDate;
-                if (currentDate.getMonth() !== newDate.getMonth() || currentDate.getFullYear() !== newDate.getFullYear()) {
-                    // Different month, need full refresh
-                    this.plugin.setSelectedDate(newDate);
-                    this.refresh();
-                } else {
-                    // Same month, just update selected date
-                    this.updateSelectedDate(newDate);
-                }
+                // Set the selected date - the event listener will handle the calendar update
+                this.plugin.setSelectedDate(newDate);
             }
         });
     }
@@ -313,20 +290,8 @@ export class CalendarView extends ItemView {
         // Apply week offset (7 days per week)
         newDate.setDate(currentDate.getDate() + (weekOffset * 7) + dayOffset);
         
-        // Check if we're navigating to a different month
-        const currentMonth = this.plugin.selectedDate.getMonth();
-        const currentYear = this.plugin.selectedDate.getFullYear();
-        const newMonth = newDate.getMonth();
-        const newYear = newDate.getFullYear();
-        
-        if (currentMonth !== newMonth || currentYear !== newYear) {
-            // Different month, need full refresh
-            this.plugin.setSelectedDate(newDate);
-            this.refresh();
-        } else {
-            // Same month, just update selected date
-            this.updateSelectedDate(newDate);
-        }
+        // Set the selected date - the event listener will handle the calendar update
+        this.plugin.setSelectedDate(newDate);
     }
     
     // Helper method to refresh the view
@@ -334,11 +299,14 @@ export class CalendarView extends ItemView {
         this.showLoadingIndicator();
         
         try {
-            const container = this.contentEl.querySelector('.tasknotes-container') as HTMLElement;
-            if (container) {
-                // Simply render the view and get fresh data from CacheManager
-                this.renderView(container);
+            let container = this.contentEl.querySelector('.calendar-view') as HTMLElement;
+            if (!container) {
+                // Create container if it doesn't exist
+                container = this.contentEl.createDiv({ cls: 'tasknotes-plugin calendar-view' });
             }
+            
+            // Simply render the view and get fresh data from CacheManager
+            this.renderView(container);
         } finally {
             this.hideLoadingIndicator();
         }
@@ -368,15 +336,23 @@ export class CalendarView extends ItemView {
             }
         });
         
-        // Update the plugin's selected date
-        this.plugin.setSelectedDate(newDate);
+        // Update the plugin's selected date - but don't trigger the event again
+        // since this is already in response to a date selection event
+        this.plugin.selectedDate = newDate;
+    }
+    
+    // Update the month display text in the header
+    private updateMonthDisplay() {
+        const monthDisplay = this.contentEl.querySelector('.calendar-view__month-display');
+        if (monthDisplay) {
+            monthDisplay.textContent = format(this.plugin.selectedDate, 'MMMM yyyy');
+        }
     }
     
     // Show a loading indicator while building cache
     private showLoadingIndicator() {
-        const container = this.contentEl.querySelector('.tasknotes-container');
-        if (!container) return;
-
+        const container = this.contentEl.querySelector('.calendar-view') || this.contentEl;
+        
         // Check if indicator already exists
         if (container.querySelector('.cache-loading-indicator')) return;
 
@@ -605,7 +581,7 @@ export class CalendarView extends ItemView {
             
             // Add click handler
             dayEl.addEventListener('click', () => {
-                this.updateSelectedDate(dayDate);
+                this.plugin.setSelectedDate(dayDate);
             });
             
             // Add hover preview functionality for daily notes
@@ -617,7 +593,7 @@ export class CalendarView extends ItemView {
             dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.updateSelectedDate(dayDate);
+                    this.plugin.setSelectedDate(dayDate);
                 }
             });
         }
@@ -656,7 +632,7 @@ export class CalendarView extends ItemView {
             
             // Add click handler
             dayEl.addEventListener('click', () => {
-                this.updateSelectedDate(dayDate);
+                this.plugin.setSelectedDate(dayDate);
             });
             
             // Add hover preview functionality for daily notes
@@ -668,7 +644,7 @@ export class CalendarView extends ItemView {
             dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.updateSelectedDate(dayDate);
+                    this.plugin.setSelectedDate(dayDate);
                 }
             });
         }
@@ -700,7 +676,7 @@ export class CalendarView extends ItemView {
             
             // Add click handler
             dayEl.addEventListener('click', () => {
-                this.updateSelectedDate(dayDate);
+                this.plugin.setSelectedDate(dayDate);
             });
             
             // Add hover preview functionality for daily notes
@@ -712,7 +688,7 @@ export class CalendarView extends ItemView {
             dayEl.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.updateSelectedDate(dayDate);
+                    this.plugin.setSelectedDate(dayDate);
                 }
             });
         }
