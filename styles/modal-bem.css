@@ -79,6 +79,13 @@
     outline: none;
 }
 
+/* Make select elements taller to prevent dropdown option clipping */
+.tasknotes-plugin .modal-form__select {
+    padding: var(--tn-spacing-lg) var(--tn-spacing-lg);
+    min-height: 44px;
+    line-height: 1.6;
+}
+
 .tasknotes-plugin .modal-form__input:hover,
 .tasknotes-plugin .modal-form__select:hover {
     border-color: var(--tn-border-color-hover);
