@@ -5,7 +5,7 @@ import { PriorityManager } from './PriorityManager';
 import { EventEmitter } from '../utils/EventEmitter';
 import { isRecurringTaskDueOn, isTaskOverdue } from '../utils/helpers';
 import { format, isToday, isBefore, parseISO } from 'date-fns';
-import { parseDate, getTodayString, isBeforeDateSafe, isSameDateSafe, startOfDayForDateString } from '../utils/dateUtils';
+import { parseDate, getTodayString, isBeforeDateSafe, isSameDateSafe, startOfDayForDateString, isPastDate } from '../utils/dateUtils';
 
 /**
  * Unified filtering, sorting, and grouping service for all task views.
@@ -182,6 +182,22 @@ export class FilterService extends EventEmitter {
     }
 
     /**
+     * Check if a date string falls within a date range (inclusive)
+     */
+    private isDateInRange(dateString: string, startDateString: string, endDateString: string): boolean {
+        try {
+            const date = startOfDayForDateString(dateString);
+            const startDate = startOfDayForDateString(startDateString);
+            const endDate = startOfDayForDateString(endDateString);
+            
+            return date >= startDate && date <= endDate;
+        } catch (error) {
+            console.error('Error checking date range:', { dateString, startDateString, endDateString, error });
+            return false;
+        }
+    }
+
+    /**
      * Check if a task matches the filter query
      */
     private matchesQuery(task: TaskInfo, query: FilterQuery): boolean {
@@ -249,45 +265,25 @@ export class FilterService extends EventEmitter {
             }
             // For tasks with due dates or scheduled dates, check if either falls within range
             else if (task.due || task.scheduled) {
-                const startDate = new Date(query.dateRange.start);
-                startDate.setHours(0, 0, 0, 0);
-                const endDate = new Date(query.dateRange.end);
-                endDate.setHours(0, 0, 0, 0);
                 let inRange = false;
                 
                 // Check due date
                 if (task.due) {
-                    try {
-                        const dueDate = parseISO(task.due); // Safe parsing
-                        const dueDateOnly = new Date(dueDate);
-                        dueDateOnly.setHours(0, 0, 0, 0);
-                        
-                        if (query.includeOverdue && isBefore(dueDate, new Date())) {
-                            // This is an overdue task and we want to include overdue tasks
-                            inRange = true;
-                        } else if (dueDateOnly >= startDate && dueDateOnly <= endDate) {
-                            inRange = true;
-                        }
-                    } catch (error) {
-                        console.error(`Error parsing due date ${task.due}:`, error);
+                    if (query.includeOverdue && isPastDate(task.due)) {
+                        // This is an overdue task and we want to include overdue tasks
+                        inRange = true;
+                    } else if (this.isDateInRange(task.due, query.dateRange.start, query.dateRange.end)) {
+                        inRange = true;
                     }
                 }
                 
                 // Check scheduled date if due date doesn't qualify
                 if (!inRange && task.scheduled) {
-                    try {
-                        const scheduledDate = parseISO(task.scheduled); // Safe parsing
-                        const scheduledDateOnly = new Date(scheduledDate);
-                        scheduledDateOnly.setHours(0, 0, 0, 0);
-                        
-                        if (query.includeOverdue && isBefore(scheduledDate, new Date())) {
-                            // This is an overdue scheduled task and we want to include overdue tasks
-                            inRange = true;
-                        } else if (scheduledDateOnly >= startDate && scheduledDateOnly <= endDate) {
-                            inRange = true;
-                        }
-                    } catch (error) {
-                        console.error(`Error parsing scheduled date ${task.scheduled}:`, error);
+                    if (query.includeOverdue && isPastDate(task.scheduled)) {
+                        // This is an overdue scheduled task and we want to include overdue tasks
+                        inRange = true;
+                    } else if (this.isDateInRange(task.scheduled, query.dateRange.start, query.dateRange.end)) {
+                        inRange = true;
                     }
                 }
                 
@@ -706,25 +702,15 @@ export class FilterService extends EventEmitter {
             if (includeOverdue && isViewingToday) {
                 // Check if due date is overdue (show on today)
                 if (task.due && task.due !== dateStr) {
-                    try {
-                        const taskDueDate = parseISO(task.due);
-                        if (isBefore(taskDueDate, dateOnlyDate)) {
-                            return true;
-                        }
-                    } catch (error) {
-                        console.error(`Error parsing due date ${task.due}:`, error);
+                    if (isPastDate(task.due)) {
+                        return true;
                     }
                 }
                 
                 // Check if scheduled date is overdue (show on today)
                 if (task.scheduled && task.scheduled !== dateStr) {
-                    try {
-                        const taskScheduledDate = parseISO(task.scheduled);
-                        if (isBefore(taskScheduledDate, dateOnlyDate)) {
-                            return true;
-                        }
-                    } catch (error) {
-                        console.error(`Error parsing scheduled date ${task.scheduled}:`, error);
+                    if (isPastDate(task.scheduled)) {
+                        return true;
                     }
                 }
             }
