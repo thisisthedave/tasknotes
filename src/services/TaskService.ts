@@ -2,7 +2,7 @@ import { TFile, Notice } from 'obsidian';
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import TaskNotesPlugin from '../main';
-import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
+import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED, EVENT_TASK_DELETED } from '../types';
 import { getCurrentTimestamp, getCurrentDateString } from '../utils/dateUtils';
 import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
 import { ensureFolderExists } from '../utils/helpers';
@@ -570,6 +570,41 @@ export class TaskService {
             });
             
             throw new Error(`Failed to update task: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * Delete a task file and remove it from all caches and indexes
+     */
+    async deleteTask(task: TaskInfo): Promise<void> {
+        try {
+            const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
+            if (!(file instanceof TFile)) {
+                throw new Error(`Cannot find task file: ${task.path}`);
+            }
+
+            // Step 1: Delete the file from the vault
+            await this.plugin.app.vault.delete(file);
+
+            // Step 2: Remove from cache and indexes (this will be done by the file delete event)
+            // But we'll also do it proactively to ensure immediate UI updates
+            this.plugin.cacheManager.clearCacheEntry(task.path);
+
+            // Step 3: Emit task deleted event
+            this.plugin.emitter.emit(EVENT_TASK_DELETED, {
+                path: task.path,
+                deletedTask: task
+            });
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Error deleting task:', {
+                error: errorMessage,
+                stack: error instanceof Error ? error.stack : undefined,
+                taskPath: task.path
+            });
+            
+            throw new Error(`Failed to delete task: ${errorMessage}`);
         }
     }
 

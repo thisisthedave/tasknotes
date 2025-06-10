@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { TFile, Menu, setIcon, Notice } from 'obsidian';
+import { TFile, Menu, setIcon, Notice, Modal, App } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { calculateTotalTimeSpent, isRecurringTaskDueOn, getEffectiveTaskStatus, shouldUseRecurringTaskUI, getRecurringTaskCompletionText } from '../utils/helpers';
@@ -443,6 +443,26 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
                 navigator.clipboard.writeText(task.title);
             });
         });
+        
+        menu.addSeparator();
+        
+        // Delete Task
+        menu.addItem((item) => {
+            item.setTitle('Delete task');
+            item.setIcon('trash');
+            item.onClick(async () => {
+                try {
+                    await showDeleteConfirmationModal(task, plugin);
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    console.error('Error deleting task:', {
+                        error: errorMessage,
+                        taskPath: task.path
+                    });
+                    new Notice(`Failed to delete task: ${errorMessage}`);
+                }
+            });
+        });
     
         menu.showAtMouseEvent(event);
     } catch (error) {
@@ -609,4 +629,95 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     }
     
     // Animation is now handled separately - don't add it here during reconciler updates
+}
+
+/**
+ * Confirmation modal for task deletion
+ */
+class DeleteTaskConfirmationModal extends Modal {
+    private task: TaskInfo;
+    private plugin: TaskNotesPlugin;
+    private onConfirm: () => Promise<void>;
+
+    constructor(app: App, task: TaskInfo, plugin: TaskNotesPlugin, onConfirm: () => Promise<void>) {
+        super(app);
+        this.task = task;
+        this.plugin = plugin;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+
+        contentEl.createEl('h2', { text: 'Delete Task' });
+        
+        const description = contentEl.createEl('p');
+        description.innerHTML = `Are you sure you want to delete the task "<strong>${this.task.title}</strong>"?`;
+        
+        const warningText = contentEl.createEl('p', { 
+            cls: 'mod-warning',
+            text: 'This action cannot be undone. The task file will be permanently deleted.' 
+        });
+
+        const buttonContainer = contentEl.createEl('div', { cls: 'modal-button-container' });
+        buttonContainer.style.display = 'flex';
+        buttonContainer.style.gap = '10px';
+        buttonContainer.style.justifyContent = 'flex-end';
+        buttonContainer.style.marginTop = '20px';
+
+        const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
+        cancelButton.addEventListener('click', () => {
+            this.close();
+        });
+
+        const deleteButton = buttonContainer.createEl('button', { 
+            text: 'Delete',
+            cls: 'mod-warning'
+        });
+        deleteButton.style.backgroundColor = 'var(--color-red)';
+        deleteButton.style.color = 'white';
+        
+        deleteButton.addEventListener('click', async () => {
+            try {
+                await this.onConfirm();
+                this.close();
+                new Notice('Task deleted successfully');
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                new Notice(`Failed to delete task: ${errorMessage}`);
+                console.error('Error in delete confirmation:', error);
+            }
+        });
+
+        // Focus the cancel button by default
+        cancelButton.focus();
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
+
+/**
+ * Show delete confirmation modal and handle task deletion
+ */
+export async function showDeleteConfirmationModal(task: TaskInfo, plugin: TaskNotesPlugin): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const modal = new DeleteTaskConfirmationModal(
+            plugin.app,
+            task,
+            plugin,
+            async () => {
+                try {
+                    await plugin.taskService.deleteTask(task);
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            }
+        );
+        modal.open();
+    });
 }

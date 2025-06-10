@@ -12,6 +12,7 @@ export const EVENT_DATE_SELECTED = 'date-selected';
 export const EVENT_TAB_CHANGED = 'tab-changed';
 export const EVENT_DATA_CHANGED = 'data-changed';
 export const EVENT_TASK_UPDATED = 'task-updated';
+export const EVENT_TASK_DELETED = 'task-deleted';
 export const EVENT_POMODORO_START = 'pomodoro-start';
 export const EVENT_POMODORO_COMPLETE = 'pomodoro-complete';
 export const EVENT_POMODORO_INTERRUPT = 'pomodoro-interrupt';
