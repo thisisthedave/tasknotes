@@ -250,17 +250,22 @@ export class FilterService extends EventEmitter {
             // For tasks with due dates or scheduled dates, check if either falls within range
             else if (task.due || task.scheduled) {
                 const startDate = new Date(query.dateRange.start);
+                startDate.setHours(0, 0, 0, 0);
                 const endDate = new Date(query.dateRange.end);
+                endDate.setHours(0, 0, 0, 0);
                 let inRange = false;
                 
                 // Check due date
                 if (task.due) {
                     try {
                         const dueDate = parseISO(task.due); // Safe parsing
+                        const dueDateOnly = new Date(dueDate);
+                        dueDateOnly.setHours(0, 0, 0, 0);
+                        
                         if (query.includeOverdue && isBefore(dueDate, new Date())) {
                             // This is an overdue task and we want to include overdue tasks
                             inRange = true;
-                        } else if (dueDate >= startDate && dueDate <= endDate) {
+                        } else if (dueDateOnly >= startDate && dueDateOnly <= endDate) {
                             inRange = true;
                         }
                     } catch (error) {
@@ -272,7 +277,13 @@ export class FilterService extends EventEmitter {
                 if (!inRange && task.scheduled) {
                     try {
                         const scheduledDate = parseISO(task.scheduled); // Safe parsing
-                        if (scheduledDate >= startDate && scheduledDate <= endDate) {
+                        const scheduledDateOnly = new Date(scheduledDate);
+                        scheduledDateOnly.setHours(0, 0, 0, 0);
+                        
+                        if (query.includeOverdue && isBefore(scheduledDate, new Date())) {
+                            // This is an overdue scheduled task and we want to include overdue tasks
+                            inRange = true;
+                        } else if (scheduledDateOnly >= startDate && scheduledDateOnly <= endDate) {
                             inRange = true;
                         }
                     } catch (error) {
@@ -667,6 +678,7 @@ export class FilterService extends EventEmitter {
         const dateStr = format(date, 'yyyy-MM-dd');
         const dateOnlyDate = new Date(date);
         dateOnlyDate.setHours(0, 0, 0, 0);
+        const isViewingToday = isToday(dateOnlyDate);
         
         // Get tasks using existing query logic but apply date-specific filtering
         const allTasks = await this.filterTasksByQuery(
@@ -690,21 +702,29 @@ export class FilterService extends EventEmitter {
                 return true;
             }
             
-            // If showing overdue tasks and this is today, include overdue tasks
-            if (includeOverdue && isToday(dateOnlyDate)) {
-                // Check if due date is overdue
-                if (task.due) {
-                    const taskDueDate = parseISO(task.due);
-                    if (isBefore(taskDueDate, dateOnlyDate)) {
-                        return true;
+            // If showing overdue tasks and this is today, include overdue tasks on today
+            if (includeOverdue && isViewingToday) {
+                // Check if due date is overdue (show on today)
+                if (task.due && task.due !== dateStr) {
+                    try {
+                        const taskDueDate = parseISO(task.due);
+                        if (isBefore(taskDueDate, dateOnlyDate)) {
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error(`Error parsing due date ${task.due}:`, error);
                     }
                 }
                 
-                // Check if scheduled date is overdue
-                if (task.scheduled) {
-                    const taskScheduledDate = parseISO(task.scheduled);
-                    if (isBefore(taskScheduledDate, dateOnlyDate)) {
-                        return true;
+                // Check if scheduled date is overdue (show on today)
+                if (task.scheduled && task.scheduled !== dateStr) {
+                    try {
+                        const taskScheduledDate = parseISO(task.scheduled);
+                        if (isBefore(taskScheduledDate, dateOnlyDate)) {
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error(`Error parsing scheduled date ${task.scheduled}:`, error);
                     }
                 }
             }
@@ -724,6 +744,9 @@ export class FilterService extends EventEmitter {
     ): Promise<Array<{date: Date; tasks: TaskInfo[]}>> {
         // Build the complete query with date range
         const dateRange = FilterService.createDateRangeFromDates(dates);
+        
+        // Always include overdue tasks in the initial set if today is in the date range,
+        // but control their display per-date in getTasksForDate
         const includeOverdue = FilterService.shouldIncludeOverdueForRange(dates, showOverdueOnToday);
         
         const completeQuery: FilterQuery = {
