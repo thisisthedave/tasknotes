@@ -153,10 +153,27 @@ export function formatDateForDisplay(dateString: string, formatString: string = 
 }
 
 /**
- * Get current timestamp in consistent ISO format
+ * Get current timestamp in local timezone ISO format for consistent timestamp generation
  */
 export function getCurrentTimestamp(): string {
-    return new Date().toISOString();
+    const now = new Date();
+    const tzOffset = -now.getTimezoneOffset();
+    const diff = tzOffset >= 0 ? '+' : '-';
+    const pad = (num: number) => String(Math.abs(num)).padStart(2, '0');
+    
+    const tzOffsetHours = pad(Math.floor(Math.abs(tzOffset) / 60));
+    const tzOffsetMinutes = pad(Math.abs(tzOffset) % 60);
+    
+    // Get local date/time components
+    const year = now.getFullYear();
+    const month = pad(now.getMonth() + 1);
+    const day = pad(now.getDate());
+    const hours = pad(now.getHours());
+    const minutes = pad(now.getMinutes());
+    const seconds = pad(now.getSeconds());
+    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}${diff}${tzOffsetHours}:${tzOffsetMinutes}`;
 }
 
 /**
