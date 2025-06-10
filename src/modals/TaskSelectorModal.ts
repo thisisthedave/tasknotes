@@ -1,5 +1,6 @@
 import { App, FuzzySuggestModal, Notice, FuzzyMatch } from 'obsidian';
 import { TaskInfo } from '../types';
+import { isPastDate, isToday } from '../utils/dateUtils';
 
 export class TaskSelectorModal extends FuzzySuggestModal<TaskInfo> {
     private tasks: TaskInfo[];
@@ -83,10 +84,8 @@ export class TaskSelectorModal extends FuzzySuggestModal<TaskInfo> {
         
         // Due date
         if (task.due) {
-            const dueDate = new Date(task.due);
-            const today = new Date();
-            const isOverdue = dueDate < today;
-            const isToday = dueDate.toDateString() === today.toDateString();
+            const isOverdue = isPastDate(task.due);
+            const isDueToday = isToday(task.due);
             
             let dueDateText = task.due;
             let dueDateClass = 'task-selector-modal__due-date';
@@ -94,7 +93,7 @@ export class TaskSelectorModal extends FuzzySuggestModal<TaskInfo> {
             if (isOverdue) {
                 dueDateText = `Overdue (${task.due})`;
                 dueDateClass += ' task-selector-modal__due-date--overdue';
-            } else if (isToday) {
+            } else if (isDueToday) {
                 dueDateText = 'Due today';
                 dueDateClass += ' task-selector-modal__due-date--today';
             }

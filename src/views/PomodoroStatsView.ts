@@ -1,11 +1,12 @@
 import { ItemView, WorkspaceLeaf } from 'obsidian';
-import { format, subDays, startOfWeek, endOfWeek } from 'date-fns';
+import { format, subDays, startOfWeek, endOfWeek, startOfDay } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
     POMODORO_STATS_VIEW_TYPE,
     PomodoroHistoryStats,
     PomodoroSessionHistory
 } from '../types';
+import { parseTimestamp } from '../utils/dateUtils';
 
 export class PomodoroStatsView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -209,10 +210,26 @@ export class PomodoroStatsView extends ItemView {
     private async calculateStatsForRange(startDate: Date, endDate: Date): Promise<PomodoroHistoryStats> {
         const history = await this.plugin.pomodoroService.getSessionHistory();
         
+        // Normalize range boundaries to start of day for safe comparison
+        const normalizedStartDate = startOfDay(startDate);
+        const normalizedEndDate = startOfDay(endDate);
+        
         // Filter sessions within date range
         const rangeSessions = history.filter(session => {
-            const sessionDate = new Date(session.startTime);
-            return sessionDate >= startDate && sessionDate <= endDate;
+            try {
+                // Parse the session timestamp safely and normalize to start of day
+                const sessionTimestamp = parseTimestamp(session.startTime);
+                const sessionDate = startOfDay(sessionTimestamp);
+                
+                // Safe date comparison using normalized dates
+                return sessionDate >= normalizedStartDate && sessionDate <= normalizedEndDate;
+            } catch (error) {
+                console.error('Error parsing session timestamp for filtering:', { 
+                    sessionStartTime: session.startTime, 
+                    error 
+                });
+                return false; // Exclude sessions with invalid timestamps
+            }
         });
         
         return this.calculateStatsFromSessions(rangeSessions);

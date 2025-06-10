@@ -133,7 +133,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	pomodoroSoundVolume: 50,
 	// Editor defaults
 	enableTaskLinkOverlay: true,
-	enableInstantTaskConvert: false,
+	enableInstantTaskConvert: true,
 	// Customization defaults
 	fieldMapping: DEFAULT_FIELD_MAPPING,
 	customStatuses: DEFAULT_STATUSES,

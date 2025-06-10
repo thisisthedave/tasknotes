@@ -1,5 +1,5 @@
 import { format, parse } from 'date-fns';
-import { parseDate } from './dateUtils';
+import { parseDate, isPastDate, isToday } from './dateUtils';
 
 export interface ParsedTaskData {
 	title: string;
@@ -165,8 +165,8 @@ export class TasksPluginParser {
 				status = 'done';
 			} else if (startDate) {
 				try {
-					const startDateObj = new Date(startDate);
-					if (startDateObj > new Date()) {
+					// Use safe date comparison to check if start date is in the future
+					if (!isPastDate(startDate) && !isToday(startDate)) {
 						status = 'scheduled';
 					}
 				} catch {

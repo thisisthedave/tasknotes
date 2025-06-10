@@ -5,7 +5,7 @@ import { PriorityManager } from './PriorityManager';
 import { EventEmitter } from '../utils/EventEmitter';
 import { isRecurringTaskDueOn, isTaskOverdue } from '../utils/helpers';
 import { format, isToday, isBefore, parseISO } from 'date-fns';
-import { parseDate, getTodayString, isBeforeDateSafe, isSameDateSafe, startOfDayForDateString, isPastDate } from '../utils/dateUtils';
+import { parseDate, getTodayString, isBeforeDateSafe, isSameDateSafe, startOfDayForDateString, isPastDate, isToday as isTodayUtil } from '../utils/dateUtils';
 
 /**
  * Unified filtering, sorting, and grouping service for all task views.
@@ -198,6 +198,21 @@ export class FilterService extends EventEmitter {
     }
 
     /**
+     * Check if a Date object represents the same day as a date string
+     */
+    private isSameDayAs(dateObj: Date, dateString: string): boolean {
+        try {
+            const dateObjNormalized = new Date(dateObj);
+            dateObjNormalized.setHours(0, 0, 0, 0);
+            const targetDate = startOfDayForDateString(dateString);
+            return dateObjNormalized.getTime() === targetDate.getTime();
+        } catch (error) {
+            console.error('Error comparing date object with date string:', { dateObj, dateString, error });
+            return false;
+        }
+    }
+
+    /**
      * Check if a task matches the filter query
      */
     private matchesQuery(task: TaskInfo, query: FilterQuery): boolean {
@@ -323,14 +338,22 @@ export class FilterService extends EventEmitter {
     }
 
     /**
-     * Compare due dates with proper null handling
+     * Compare due dates with proper null handling using safe date utilities
      */
     private compareDates(dateA?: string, dateB?: string): number {
         if (!dateA && !dateB) return 0;
         if (!dateA) return 1; // No due date sorts last
         if (!dateB) return -1;
         
-        return new Date(dateA).getTime() - new Date(dateB).getTime();
+        try {
+            const dateObjA = startOfDayForDateString(dateA);
+            const dateObjB = startOfDayForDateString(dateB);
+            return dateObjA.getTime() - dateObjB.getTime();
+        } catch (error) {
+            console.error('Error comparing dates:', { dateA, dateB, error });
+            // Fallback to string comparison
+            return dateA.localeCompare(dateB);
+        }
     }
 
     /**
@@ -402,21 +425,8 @@ export class FilterService extends EventEmitter {
         if (task.recurrence) {
             if (isRecurringTaskDueOn(task, referenceDate)) {
                 // If due on target date, determine which group based on target date vs today
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                const tomorrow = new Date(today);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                
-                const thisWeek = new Date(today);
-                thisWeek.setDate(thisWeek.getDate() + 7);
-                
-                if (referenceDate.getTime() < today.getTime()) return 'Overdue';
-                if (referenceDate.getTime() === today.getTime()) return 'Today';
-                if (referenceDate.getTime() === tomorrow.getTime()) return 'Tomorrow';
-                if (referenceDate <= thisWeek) return 'This week';
-                
-                return 'Later';
+                const referenceDateStr = format(referenceDate, 'yyyy-MM-dd');
+                return this.getDateGroupFromDateString(referenceDateStr);
             } else {
                 // Recurring task not due on target date
                 // If it has an original due date, use that, otherwise no due date
@@ -433,33 +443,37 @@ export class FilterService extends EventEmitter {
     }
     
     /**
-     * Helper method to get due date group from a specific date string
+     * Helper method to get date group from a date string (shared logic)
      */
-    private getDueDateGroupFromDate(dueDate: string): string {
+    private getDateGroupFromDateString(dateString: string): string {
+        const todayStr = getTodayString();
+        
+        if (isBeforeDateSafe(dateString, todayStr)) return 'Overdue';
+        if (isSameDateSafe(dateString, todayStr)) return 'Today';
+        
         try {
-            const due = parseDate(dueDate); // Safe parsing
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            const tomorrow = new Date(today);
+            const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-
-            const thisWeek = new Date(today);
+            const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
+            if (isSameDateSafe(dateString, tomorrowStr)) return 'Tomorrow';
+            
+            const thisWeek = new Date();
             thisWeek.setDate(thisWeek.getDate() + 7);
-
-            const dueDateOnly = new Date(due);
-            dueDateOnly.setHours(0, 0, 0, 0);
-
-            if (dueDateOnly < today) return 'Overdue';
-            if (dueDateOnly.getTime() === today.getTime()) return 'Today';
-            if (dueDateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow';
-            if (dueDateOnly <= thisWeek) return 'This week';
+            const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
+            if (isBeforeDateSafe(dateString, thisWeekStr) || isSameDateSafe(dateString, thisWeekStr)) return 'This week';
             
             return 'Later';
         } catch (error) {
-            console.error(`Error parsing due date ${dueDate}:`, error);
+            console.error(`Error categorizing date ${dateString}:`, error);
             return 'Invalid Date';
         }
+    }
+
+    /**
+     * Helper method to get due date group from a specific date string
+     */
+    private getDueDateGroupFromDate(dueDate: string): string {
+        return this.getDateGroupFromDateString(dueDate);
     }
 
     private getScheduledDateGroup(task: TaskInfo, targetDate?: Date): string {
@@ -471,28 +485,25 @@ export class FilterService extends EventEmitter {
      * Helper method to get scheduled date group from a specific date string
      */
     private getScheduledDateGroupFromDate(scheduledDate: string): string {
+        const todayStr = getTodayString();
+        
+        if (isBeforeDateSafe(scheduledDate, todayStr)) return 'Past scheduled';
+        if (isSameDateSafe(scheduledDate, todayStr)) return 'Today';
+        
         try {
-            const scheduled = parseDate(scheduledDate); // Safe parsing
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            const tomorrow = new Date(today);
+            const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-
-            const thisWeek = new Date(today);
+            const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
+            if (isSameDateSafe(scheduledDate, tomorrowStr)) return 'Tomorrow';
+            
+            const thisWeek = new Date();
             thisWeek.setDate(thisWeek.getDate() + 7);
-
-            const scheduledDateOnly = new Date(scheduled);
-            scheduledDateOnly.setHours(0, 0, 0, 0);
-
-            if (scheduledDateOnly < today) return 'Past scheduled';
-            if (scheduledDateOnly.getTime() === today.getTime()) return 'Today';
-            if (scheduledDateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow';
-            if (scheduledDateOnly <= thisWeek) return 'This week';
+            const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
+            if (isBeforeDateSafe(scheduledDate, thisWeekStr) || isSameDateSafe(scheduledDate, thisWeekStr)) return 'This week';
             
             return 'Later';
         } catch (error) {
-            console.error(`Error parsing scheduled date ${scheduledDate}:`, error);
+            console.error(`Error categorizing scheduled date ${scheduledDate}:`, error);
             return 'Invalid Date';
         }
     }
@@ -672,9 +683,7 @@ export class FilterService extends EventEmitter {
         includeOverdue: boolean = false
     ): Promise<TaskInfo[]> {
         const dateStr = format(date, 'yyyy-MM-dd');
-        const dateOnlyDate = new Date(date);
-        dateOnlyDate.setHours(0, 0, 0, 0);
-        const isViewingToday = isToday(dateOnlyDate);
+        const isViewingToday = isTodayUtil(dateStr);
         
         // Get tasks using existing query logic but apply date-specific filtering
         const allTasks = await this.filterTasksByQuery(
@@ -685,7 +694,7 @@ export class FilterService extends EventEmitter {
         return allTasks.filter(task => {
             // Handle recurring tasks
             if (task.recurrence) {
-                return isRecurringTaskDueOn(task, dateOnlyDate);
+                return isRecurringTaskDueOn(task, date);
             }
             
             // Handle regular tasks with due dates for this specific date
