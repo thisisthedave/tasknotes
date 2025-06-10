@@ -331,34 +331,20 @@ export class AgendaView extends ItemView {
     }
 
     /**
-     * Add notes to agenda data by filtering notes for each date
+     * Add notes to agenda data by fetching notes for each specific date
      */
     private async addNotesToAgendaData(agendaData: Array<{date: Date; tasks: TaskInfo[]}>): Promise<Array<{date: Date; tasks: TaskInfo[]; notes: NoteInfo[]}>> {
         if (!this.showNotes) {
             return agendaData.map(dayData => ({ ...dayData, notes: [] }));
         }
 
-        const allNotes = await this.plugin.cacheManager.getAllNotes();
-        
-        return agendaData.map(dayData => {
-            const dateStr = format(dayData.date, 'yyyy-MM-dd');
-            
-            const notesForDate = allNotes.filter(note => {
-                if (note.createdDate) {
-                    try {
-                        // Safely parse the note's date and compare it to the agenda's date
-                        const noteDate = parseDate(note.createdDate);
-                        return isSameDay(noteDate, dayData.date);
-                    } catch (e) {
-                        // Handle cases where the date string might be invalid
-                        return false;
-                    }
-                }
-                return false;
-            });
-            
+        // Use Promise.all to fetch notes for all dates in parallel for optimal performance
+        const notesPromises = agendaData.map(async (dayData) => {
+            const notesForDate = await this.plugin.cacheManager.getNotesForDate(dayData.date);
             return { ...dayData, notes: notesForDate };
         });
+        
+        return Promise.all(notesPromises);
     }
     
     private async renderAgendaContent(container: HTMLElement) {
