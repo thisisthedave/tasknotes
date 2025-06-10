@@ -430,7 +430,7 @@ export class FilterService extends EventEmitter {
      */
     private getDueDateGroupFromDate(dueDate: string): string {
         try {
-            const due = parseISO(dueDate); // Safe parsing
+            const due = parseDate(dueDate); // Safe parsing
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
@@ -465,7 +465,7 @@ export class FilterService extends EventEmitter {
      */
     private getScheduledDateGroupFromDate(scheduledDate: string): string {
         try {
-            const scheduled = parseISO(scheduledDate); // Safe parsing
+            const scheduled = parseDate(scheduledDate); // Safe parsing
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
