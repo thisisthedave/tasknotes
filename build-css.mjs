@@ -9,6 +9,7 @@ const CSS_FILES = [
     
     // BEM Component Files
     'styles/task-card-bem.css',      // TaskCard component with proper BEM scoping
+    'styles/task-inline-widget.css', // Inline task widget for editor with proper BEM scoping
     'styles/note-card-bem.css',      // NoteCard component with proper BEM scoping
     'styles/filter-bar-bem.css',     // FilterBar component with proper BEM scoping
     'styles/modal-bem.css',          // Modal components with proper BEM scoping
@@ -43,6 +44,7 @@ const MAIN_CSS_TEMPLATE = `/* TaskNotes Plugin Styles */
    
    BEM Component Files:
    - styles/task-card-bem.css: TaskCard component with proper BEM scoping
+   - styles/task-inline-widget.css: Inline task widget for editor with proper BEM scoping
    - styles/note-card-bem.css: NoteCard component with proper BEM scoping
    - styles/filter-bar-bem.css: FilterBar component with proper BEM scoping
    - styles/modal-bem.css: Modal components with proper BEM scoping
