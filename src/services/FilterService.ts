@@ -5,6 +5,7 @@ import { PriorityManager } from './PriorityManager';
 import { EventEmitter } from '../utils/EventEmitter';
 import { isRecurringTaskDueOn, isTaskOverdue } from '../utils/helpers';
 import { format, isToday, isBefore, parseISO } from 'date-fns';
+import { parseDate, getTodayString, isBeforeDateSafe, isSameDateSafe, startOfDayForDateString } from '../utils/dateUtils';
 
 /**
  * Unified filtering, sorting, and grouping service for all task views.

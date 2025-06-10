@@ -5,6 +5,7 @@ import * as YAML from 'yaml';
 import { YAMLCache } from './YAMLCache';
 import { FieldMapper } from '../services/FieldMapper';
 import { DEFAULT_FIELD_MAPPING } from '../settings/settings';
+import { isBeforeDateSafe, getTodayString, parseDate, isSameDateSafe } from './dateUtils';
 // import { RegexOptimizer } from './RegexOptimizer'; // Temporarily disabled
 
 /**
@@ -494,26 +495,16 @@ export function extractTaskInfo(
  * Checks if a task is overdue (either due date or scheduled date is in the past)
  */
 export function isTaskOverdue(task: {due?: string; scheduled?: string}): boolean {
-	const today = startOfDay(new Date());
+	const today = getTodayString();
 	
 	// Check due date
 	if (task.due) {
-		try {
-			const dueDate = startOfDay(parseISO(task.due));
-			if (isBefore(dueDate, today)) return true;
-		} catch (error) {
-			console.error(`Error parsing due date ${task.due}:`, error);
-		}
+		if (isBeforeDateSafe(task.due, today)) return true;
 	}
 	
 	// Check scheduled date
 	if (task.scheduled) {
-		try {
-			const scheduledDate = startOfDay(parseISO(task.scheduled));
-			if (isBefore(scheduledDate, today)) return true;
-		} catch (error) {
-			console.error(`Error parsing scheduled date ${task.scheduled}:`, error);
-		}
+		if (isBeforeDateSafe(task.scheduled, today)) return true;
 	}
 	
 	return false;
@@ -526,8 +517,7 @@ export function isRecurringTaskDueOn(task: any, date: Date): boolean {
 	if (!task.recurrence) return true; // Non-recurring tasks are always shown
 	
 	const frequency = task.recurrence.frequency;
-	const targetDate = new Date(date);
-	targetDate.setHours(0, 0, 0, 0);
+	const targetDate = parseDate(format(date, 'yyyy-MM-dd'));
 	const dayOfWeek = targetDate.getDay();
 	const dayOfMonth = targetDate.getDate();
 	const monthOfYear = targetDate.getMonth() + 1; // JavaScript months are 0-indexed
@@ -554,7 +544,7 @@ export function isRecurringTaskDueOn(task: any, date: Date): boolean {
 			// Fall back to using the original due date
 			else if (task.due) {
 				try {
-					const originalDueDate = parseISO(task.due); // Safe parsing
+					const originalDueDate = parseDate(task.due); // Safe parsing
 					return originalDueDate.getDate() === dayOfMonth && 
 						originalDueDate.getMonth() === targetDate.getMonth();
 				} catch (error) {
@@ -665,7 +655,7 @@ export function extractNoteInfo(content: string, path: string, file?: TFile): {t
 		// If it's a full ISO timestamp or similar, extract just the date part
 		else {
 			try {
-				const date = parseISO(createdDate); // Use parseISO for safe parsing
+				const date = parseDate(createdDate); // Use safe parsing
 				if (!isNaN(date.getTime())) {
 					// Format to YYYY-MM-DD to ensure consistency
 					createdDate = format(date, "yyyy-MM-dd");

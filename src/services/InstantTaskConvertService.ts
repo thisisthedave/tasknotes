@@ -6,6 +6,7 @@ import { TasksPluginParser, ParsedTaskData } from '../utils/TasksPluginParser';
 import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
 import { ensureFolderExists } from '../utils/helpers';
 import { TaskFrontmatter, TaskInfo, EVENT_TASK_UPDATED } from '../types';
+import { getCurrentTimestamp } from '../utils/dateUtils';
 
 export class InstantTaskConvertService {
     private plugin: TaskNotesPlugin;
@@ -196,15 +197,15 @@ export class InstantTaskConvertService {
             due: dueDate || undefined,
             scheduled: scheduledDate || undefined,
             contexts: contextsArray.length > 0 ? contextsArray : undefined,
-            dateCreated: new Date().toISOString(),
-            dateModified: new Date().toISOString()
+            dateCreated: getCurrentTimestamp(),
+            dateModified: getCurrentTimestamp()
         };
 
         // Create frontmatter using field mapper
         const taskDataForFrontmatter = {
             title: title,
-            dateCreated: new Date().toISOString(),
-            dateModified: new Date().toISOString(),
+            dateCreated: getCurrentTimestamp(),
+            dateModified: getCurrentTimestamp(),
             status: status,
             priority: priority,
             tags: tagsArray,

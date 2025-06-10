@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { BaseTaskModal } from './BaseTaskModal';
 import { TaskInfo, EVENT_TASK_UPDATED } from '../types';
+import { getCurrentTimestamp, getCurrentDateString, formatTimestampForDisplay } from '../utils/dateUtils';
 
 export class TaskEditModal extends BaseTaskModal {
     task: TaskInfo;
@@ -163,18 +164,16 @@ export class TaskEditModal extends BaseTaskModal {
         const metadataContainer = footer.createDiv({ cls: 'task-edit-modal__metadata-container' });
         
         if (this.task.dateCreated) {
-            const createdDate = new Date(this.task.dateCreated);
             metadataContainer.createDiv({
                 cls: 'task-edit-modal__metadata-item',
-                text: `Created: ${format(createdDate, 'MMM d, yyyy \'at\' h:mm a')}`
+                text: `Created: ${formatTimestampForDisplay(this.task.dateCreated, 'MMM d, yyyy \'at\' h:mm a')}`
             });
         }
         
         if (this.task.dateModified) {
-            const modifiedDate = new Date(this.task.dateModified);
             metadataContainer.createDiv({
                 cls: 'task-edit-modal__metadata-item',
-                text: `Modified: ${format(modifiedDate, 'MMM d, yyyy \'at\' h:mm a')}`
+                text: `Modified: ${formatTimestampForDisplay(this.task.dateModified, 'MMM d, yyyy \'at\' h:mm a')}`
             });
         }
     }
@@ -248,13 +247,13 @@ export class TaskEditModal extends BaseTaskModal {
                     scheduled: this.scheduledDate || undefined,
                     contexts: contextsArray.length > 0 ? contextsArray : undefined,
                     timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
-                    dateModified: new Date().toISOString()
+                    dateModified: getCurrentTimestamp()
                 };
 
                 // Handle completion date for status changes
                 if (this.plugin.statusManager.isCompletedStatus(this.status) && !this.task.recurrence) {
                     if (!this.task.completedDate) {
-                        updatedTaskData.completedDate = format(new Date(), 'yyyy-MM-dd');
+                        updatedTaskData.completedDate = getCurrentDateString();
                     }
                 } else if (!this.plugin.statusManager.isCompletedStatus(this.status)) {
                     updatedTaskData.completedDate = undefined;
@@ -337,7 +336,7 @@ export class TaskEditModal extends BaseTaskModal {
                 contexts: contextsArray.length > 0 ? contextsArray : undefined,
                 tags: tagsArray,
                 timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
-                dateModified: new Date().toISOString(),
+                dateModified: getCurrentTimestamp(),
                 recurrence: this.recurrence !== 'none' ? {
                     frequency: this.recurrence,
                     days_of_week: this.recurrence === 'weekly' ? this.convertFullNamesToAbbreviations(this.daysOfWeek) : undefined,
@@ -348,7 +347,7 @@ export class TaskEditModal extends BaseTaskModal {
 
             // Handle completion date for non-recurring tasks
             if (this.plugin.statusManager.isCompletedStatus(this.status) && !updatedTask.recurrence) {
-                updatedTask.completedDate = this.task.completedDate || format(new Date(), 'yyyy-MM-dd');
+                updatedTask.completedDate = this.task.completedDate || getCurrentDateString();
             } else if (!this.plugin.statusManager.isCompletedStatus(this.status)) {
                 updatedTask.completedDate = undefined;
             }

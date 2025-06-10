@@ -1,4 +1,5 @@
 import { format, parse } from 'date-fns';
+import { parseDate } from './dateUtils';
 
 export interface ParsedTaskData {
 	title: string;
@@ -215,7 +216,7 @@ export class TasksPluginParser {
 				
 				// Validate date format and range
 				try {
-					const date = parse(dateString, 'yyyy-MM-dd', new Date());
+					const date = parseDate(dateString);
 					
 					// Check if date is valid and within reasonable range
 					if (isNaN(date.getTime())) {

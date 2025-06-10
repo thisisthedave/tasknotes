@@ -2,6 +2,7 @@ import { App, Modal, Setting } from 'obsidian';
 import { format, add, isValid, parse } from 'date-fns';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
+import { validateDateInput } from '../utils/dateUtils';
 
 export class DueDateModal extends Modal {
     private task: TaskInfo;
@@ -131,7 +132,7 @@ export class DueDateModal extends Modal {
         const dateValue = this.dueDateInput.value.trim();
         
         // Validate date format if not empty
-        if (dateValue && !isValid(parse(dateValue, 'yyyy-MM-dd', new Date()))) {
+        if (!validateDateInput(dateValue)) {
             // Show error message
             const errorEl = this.contentEl.createEl('div', { 
                 text: 'Please enter a valid date in YYYY-MM-DD format',

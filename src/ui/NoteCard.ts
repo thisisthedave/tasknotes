@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { TFile } from 'obsidian';
 import { NoteInfo } from '../types';
 import TaskNotesPlugin from '../main';
+import { formatDateForDisplay } from '../utils/dateUtils';
 
 export interface NoteCardOptions {
     showCreatedDate: boolean;
@@ -80,7 +81,7 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
     // Other metadata (date, path) if needed
     if (opts.showCreatedDate && note.createdDate) {
         const dateStr = note.createdDate.indexOf('T') > 0 
-            ? format(new Date(note.createdDate), 'MMM d, yyyy h:mm a') 
+            ? formatDateForDisplay(note.createdDate, 'MMM d, yyyy h:mm a') 
             : note.createdDate;
         const dateEl = contentContainer.createDiv({ 
             cls: 'note-card__metadata',
@@ -152,7 +153,7 @@ export function updateNoteCard(element: HTMLElement, note: NoteInfo, plugin: Tas
     const dateEl = element.querySelector('.note-card__metadata') as HTMLElement;
     if (dateEl && opts.showCreatedDate && note.createdDate) {
         const dateStr = note.createdDate.indexOf('T') > 0 
-            ? format(new Date(note.createdDate), 'MMM d, yyyy h:mm a') 
+            ? formatDateForDisplay(note.createdDate, 'MMM d, yyyy h:mm a') 
             : note.createdDate;
         dateEl.textContent = `Created: ${dateStr}`;
     }

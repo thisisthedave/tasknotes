@@ -2,6 +2,7 @@ import { TFile, Notice } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
+import { getCurrentTimestamp, getCurrentDateString } from '../utils/dateUtils';
 
 export class TaskService {
     constructor(private plugin: TaskNotesPlugin) {}
@@ -44,12 +45,12 @@ export class TaskService {
             // Step 1: Construct new state in memory
             const updatedTask = { ...task } as Record<string, any>;
             updatedTask[property] = value;
-            updatedTask.dateModified = new Date().toISOString();
+            updatedTask.dateModified = getCurrentTimestamp();
             
             // Handle derivative changes for status updates
             if (property === 'status' && !task.recurrence) {
                 if (this.plugin.statusManager.isCompletedStatus(value)) {
-                    updatedTask.completedDate = format(new Date(), 'yyyy-MM-dd');
+                    updatedTask.completedDate = getCurrentDateString();
                 } else {
                     updatedTask.completedDate = undefined;
                 }
@@ -67,7 +68,7 @@ export class TaskService {
                     if (!task.recurrence) {
                         const completedDateField = this.plugin.fieldMapper.toUserField('completedDate');
                         if (this.plugin.statusManager.isCompletedStatus(value)) {
-                            frontmatter[completedDateField] = format(new Date(), 'yyyy-MM-dd');
+                            frontmatter[completedDateField] = getCurrentDateString();
                         } else {
                             // Remove completed date when marking as incomplete
                             if (frontmatter[completedDateField]) {
@@ -144,7 +145,7 @@ export class TaskService {
         // Step 1: Construct new state in memory
         const updatedTask = { ...task };
         updatedTask.archived = !isCurrentlyArchived;
-        updatedTask.dateModified = new Date().toISOString();
+        updatedTask.dateModified = getCurrentTimestamp();
         
         // Update tags array to include/exclude archive tag
         if (!updatedTask.tags) {
@@ -222,14 +223,14 @@ export class TaskService {
 
         // Step 1: Construct new state in memory
         const updatedTask = { ...task };
-        updatedTask.dateModified = new Date().toISOString();
+        updatedTask.dateModified = getCurrentTimestamp();
         
         if (!updatedTask.timeEntries) {
             updatedTask.timeEntries = [];
         }
         
         const newEntry: TimeEntry = {
-            startTime: new Date().toISOString(),
+            startTime: getCurrentTimestamp(),
             description: 'Work session'
         };
         updatedTask.timeEntries = [...updatedTask.timeEntries, newEntry];
@@ -278,7 +279,7 @@ export class TaskService {
 
         // Step 1: Construct new state in memory
         const updatedTask = { ...task };
-        updatedTask.dateModified = new Date().toISOString();
+        updatedTask.dateModified = getCurrentTimestamp();
         
         if (updatedTask.timeEntries && Array.isArray(updatedTask.timeEntries)) {
             const entryIndex = updatedTask.timeEntries.findIndex((entry: TimeEntry) => 
@@ -288,7 +289,7 @@ export class TaskService {
                 updatedTask.timeEntries = [...updatedTask.timeEntries];
                 updatedTask.timeEntries[entryIndex] = {
                     ...updatedTask.timeEntries[entryIndex],
-                    endTime: new Date().toISOString()
+                    endTime: getCurrentTimestamp()
                 };
             }
         }
@@ -305,7 +306,7 @@ export class TaskService {
                 );
 
                 if (entryIndex !== -1) {
-                    frontmatter[timeEntriesField][entryIndex].endTime = new Date().toISOString();
+                    frontmatter[timeEntriesField][entryIndex].endTime = getCurrentTimestamp();
                 }
             }
             frontmatter[dateModifiedField] = updatedTask.dateModified;
@@ -349,7 +350,7 @@ export class TaskService {
         
         // Step 1: Construct new state in memory
         const updatedTask = { ...task };
-        updatedTask.dateModified = new Date().toISOString();
+        updatedTask.dateModified = getCurrentTimestamp();
         
         if (newComplete) {
             // Add date to completed instances if not already present

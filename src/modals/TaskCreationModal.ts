@@ -7,6 +7,7 @@ import { ensureFolderExists } from '../utils/helpers';
 import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
 import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
 import { ParsedTaskData } from '../utils/TasksPluginParser';
+import { getCurrentTimestamp } from '../utils/dateUtils';
 
 export interface TaskConversionOptions {
 	parsedData?: ParsedTaskData;
@@ -462,8 +463,8 @@ export class TaskCreationModal extends BaseTaskModal {
 			scheduled: this.scheduledDate || undefined,
 			contexts: contextsArray.length > 0 ? contextsArray : undefined,
 			timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
-			dateCreated: new Date().toISOString(),
-			dateModified: new Date().toISOString()
+			dateCreated: getCurrentTimestamp(),
+			dateModified: getCurrentTimestamp()
 		};
 
 		// Add recurrence data

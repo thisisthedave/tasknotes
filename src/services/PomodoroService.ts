@@ -15,6 +15,7 @@ import {
     TimeEntry
 } from '../types';
 import { ensureFolderExists } from '../utils/helpers';
+import { getCurrentTimestamp } from '../utils/dateUtils';
 
 export class PomodoroService {
     private plugin: TaskNotesPlugin;
@@ -149,7 +150,7 @@ export class PomodoroService {
         const session: PomodoroSession = {
             id: Date.now().toString(),
             taskPath: task?.path,
-            startTime: new Date().toISOString(),
+            startTime: getCurrentTimestamp(),
             duration: duration,
             type: 'work',
             completed: false
@@ -197,7 +198,7 @@ export class PomodoroService {
 
         const session: PomodoroSession = {
             id: Date.now().toString(),
-            startTime: new Date().toISOString(),
+            startTime: getCurrentTimestamp(),
             duration: duration,
             type: isLongBreak ? 'long-break' : 'short-break',
             completed: false
@@ -259,7 +260,7 @@ export class PomodoroService {
 
         if (this.state.currentSession) {
             this.state.currentSession.interrupted = true;
-            this.state.currentSession.endTime = new Date().toISOString();
+            this.state.currentSession.endTime = getCurrentTimestamp();
             
             // Add interrupted session to history
             await this.addSessionToHistory(this.state.currentSession);
@@ -379,7 +380,7 @@ export class PomodoroService {
 
         const session = this.state.currentSession;
         session.completed = true;
-        session.endTime = new Date().toISOString();
+        session.endTime = getCurrentTimestamp();
 
         // Stop time tracking on task if applicable for work sessions
         if (session.type === 'work') {

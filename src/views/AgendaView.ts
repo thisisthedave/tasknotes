@@ -15,6 +15,7 @@ import { createTaskCard, updateTaskCard } from '../ui/TaskCard';
 import { createNoteCard } from '../ui/NoteCard';
 import { FilterBar } from '../ui/FilterBar';
 import { FilterService } from '../services/FilterService';
+import { parseDate } from '../utils/dateUtils';
 
 export class AgendaView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -346,7 +347,7 @@ export class AgendaView extends ItemView {
                 if (note.createdDate) {
                     try {
                         // Safely parse the note's date and compare it to the agenda's date
-                        const noteDate = parseISO(note.createdDate);
+                        const noteDate = parseDate(note.createdDate);
                         return isSameDay(noteDate, dayData.date);
                     } catch (e) {
                         // Handle cases where the date string might be invalid

@@ -3,6 +3,7 @@ import { TFile, Menu, setIcon, Notice } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { calculateTotalTimeSpent, isRecurringTaskDueOn, getEffectiveTaskStatus, shouldUseRecurringTaskUI, getRecurringTaskCompletionText } from '../utils/helpers';
+import { isSameDateSafe, isBeforeDateSafe, getTodayString, formatDateForDisplay, isToday, isPastDate } from '../utils/dateUtils';
 
 export interface TaskCardOptions {
     showDueDate: boolean;
@@ -164,33 +165,29 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     
     // Due date (if has due date)
     if (task.due) {
-        const dueDate = new Date(task.due);
-        const today = new Date();
-        const isToday = dueDate.toDateString() === today.toDateString();
-        const isOverdue = dueDate < today;
+        const isDueToday = isToday(task.due);
+        const isDueOverdue = isPastDate(task.due);
         
-        if (isToday) {
+        if (isDueToday) {
             metadataItems.push('Due: Today');
-        } else if (isOverdue) {
-            metadataItems.push(`Due: ${format(dueDate, 'MMM d')} (overdue)`);
+        } else if (isDueOverdue) {
+            metadataItems.push(`Due: ${formatDateForDisplay(task.due, 'MMM d')} (overdue)`);
         } else {
-            metadataItems.push(`Due: ${format(dueDate, 'MMM d')}`);
+            metadataItems.push(`Due: ${formatDateForDisplay(task.due, 'MMM d')}`);
         }
     }
     
     // Scheduled date (if has scheduled date)
     if (task.scheduled) {
-        const scheduledDate = new Date(task.scheduled);
-        const today = new Date();
-        const isToday = scheduledDate.toDateString() === today.toDateString();
-        const isPast = scheduledDate < today;
+        const isScheduledToday = isToday(task.scheduled);
+        const isScheduledPast = isPastDate(task.scheduled);
         
-        if (isToday) {
+        if (isScheduledToday) {
             metadataItems.push('Scheduled: Today');
-        } else if (isPast) {
-            metadataItems.push(`Scheduled: ${format(scheduledDate, 'MMM d')} (past)`);
+        } else if (isScheduledPast) {
+            metadataItems.push(`Scheduled: ${formatDateForDisplay(task.scheduled, 'MMM d')} (past)`);
         } else {
-            metadataItems.push(`Scheduled: ${format(scheduledDate, 'MMM d')}`);
+            metadataItems.push(`Scheduled: ${formatDateForDisplay(task.scheduled, 'MMM d')}`);
         }
     }
     
@@ -558,33 +555,29 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         
         // Due date (if has due date)
         if (task.due) {
-            const dueDate = new Date(task.due);
-            const today = new Date();
-            const isToday = dueDate.toDateString() === today.toDateString();
-            const isOverdue = dueDate < today;
+            const isDueToday = isToday(task.due);
+            const isDueOverdue = isPastDate(task.due);
             
-            if (isToday) {
+            if (isDueToday) {
                 metadataItems.push('Due: Today');
-            } else if (isOverdue) {
-                metadataItems.push(`Due: ${format(dueDate, 'MMM d')} (overdue)`);
+            } else if (isDueOverdue) {
+                metadataItems.push(`Due: ${formatDateForDisplay(task.due, 'MMM d')} (overdue)`);
             } else {
-                metadataItems.push(`Due: ${format(dueDate, 'MMM d')}`);
+                metadataItems.push(`Due: ${formatDateForDisplay(task.due, 'MMM d')}`);
             }
         }
         
         // Scheduled date (if has scheduled date)
         if (task.scheduled) {
-            const scheduledDate = new Date(task.scheduled);
-            const today = new Date();
-            const isToday = scheduledDate.toDateString() === today.toDateString();
-            const isPast = scheduledDate < today;
+            const isScheduledToday = isToday(task.scheduled);
+            const isScheduledPast = isPastDate(task.scheduled);
             
-            if (isToday) {
+            if (isScheduledToday) {
                 metadataItems.push('Scheduled: Today');
-            } else if (isPast) {
-                metadataItems.push(`Scheduled: ${format(scheduledDate, 'MMM d')} (past)`);
+            } else if (isScheduledPast) {
+                metadataItems.push(`Scheduled: ${formatDateForDisplay(task.scheduled, 'MMM d')} (past)`);
             } else {
-                metadataItems.push(`Scheduled: ${format(scheduledDate, 'MMM d')}`);
+                metadataItems.push(`Scheduled: ${formatDateForDisplay(task.scheduled, 'MMM d')}`);
             }
         }
         

@@ -4,6 +4,7 @@ import { extractNoteInfo, extractTaskInfo, debounce } from './helpers';
 import { FieldMapper } from '../services/FieldMapper';
 import * as YAML from 'yaml';
 import { format } from 'date-fns';
+import { parseDate, getTodayString, isBeforeDateSafe, createSafeDate, getCurrentTimestamp, parseTimestamp } from './dateUtils';
 
 /**
  * Unified cache manager that provides centralized data access and caching
@@ -419,8 +420,8 @@ export class CacheManager {
         dailyNotes: Set<string>
     }> {
         // This method aggregates data from the indexes
-        const startOfMonth = new Date(year, month, 1);
-        const endOfMonth = new Date(year, month + 1, 0);
+        const startOfMonth = createSafeDate(year, month, 1);
+        const endOfMonth = createSafeDate(year, month + 1, 0);
         
         const notesMap = new Map<string, number>();
         const tasksMap = new Map<string, {
@@ -433,7 +434,7 @@ export class CacheManager {
         
         // Aggregate notes by date
         for (const [dateStr, notePaths] of this.notesByDate) {
-            const date = new Date(dateStr);
+            const date = parseDate(dateStr);
             if (date >= startOfMonth && date <= endOfMonth) {
                 notesMap.set(dateStr, notePaths.size);
             }
@@ -441,7 +442,7 @@ export class CacheManager {
         
         // Aggregate tasks by date
         for (const [dateStr, taskPaths] of this.tasksByDate) {
-            const date = new Date(dateStr);
+            const date = parseDate(dateStr);
             if (date >= startOfMonth && date <= endOfMonth) {
                 const taskInfos = await Promise.all(
                     Array.from(taskPaths).map(path => this.getTaskInfo(path))
@@ -793,11 +794,9 @@ export class CacheManager {
             
             // Remove from overdue tasks index (targeted removal)
             if (oldTask.due && !oldTask.recurrence) {
-                const taskDueDate = new Date(oldTask.due);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                const today = getTodayString();
                 
-                if (taskDueDate < today) {
+                if (isBeforeDateSafe(oldTask.due, today)) {
                     this.overdueTasks.delete(path);
                 }
             }
@@ -1070,9 +1069,14 @@ export class CacheManager {
         // Sort by last access time (using dateModified as proxy)
         const entries = Array.from(this.taskInfoCache.entries())
             .sort((a, b) => {
-                const timeA = new Date(a[1].dateModified || 0).getTime();
-                const timeB = new Date(b[1].dateModified || 0).getTime();
-                return timeA - timeB;
+                try {
+                    const timeA = a[1].dateModified ? parseTimestamp(a[1].dateModified).getTime() : 0;
+                    const timeB = b[1].dateModified ? parseTimestamp(b[1].dateModified).getTime() : 0;
+                    return timeA - timeB;
+                } catch (error) {
+                    // Fallback to string comparison if parsing fails
+                    return (a[1].dateModified || '').localeCompare(b[1].dateModified || '');
+                }
             });
         
         const toRemove = entries.slice(0, entries.length - CacheManager.MAX_TASK_CACHE_SIZE);
@@ -1095,9 +1099,14 @@ export class CacheManager {
         // Sort by creation date
         const entries = Array.from(this.noteInfoCache.entries())
             .sort((a, b) => {
-                const timeA = new Date(a[1].createdDate || 0).getTime();
-                const timeB = new Date(b[1].createdDate || 0).getTime();
-                return timeA - timeB;
+                try {
+                    const timeA = a[1].createdDate ? parseTimestamp(a[1].createdDate).getTime() : 0;
+                    const timeB = b[1].createdDate ? parseTimestamp(b[1].createdDate).getTime() : 0;
+                    return timeA - timeB;
+                } catch (error) {
+                    // Fallback to string comparison if parsing fails
+                    return (a[1].createdDate || '').localeCompare(b[1].createdDate || '');
+                }
             });
         
         const toRemove = entries.slice(0, entries.length - CacheManager.MAX_NOTE_CACHE_SIZE);
@@ -1205,7 +1214,7 @@ export class CacheManager {
                 // Update the dateModified timestamp to reflect the current time
                 const updatedTaskInfo: TaskInfo = {
                     ...taskInfo,
-                    dateModified: new Date().toISOString()
+                    dateModified: getCurrentTimestamp()
                 };
                 
                 // Update the task info cache with the new authoritative data
@@ -1442,23 +1451,20 @@ export class CacheManager {
         
         // Add to overdue index if task is overdue (check both due and scheduled dates)
         if (!taskInfo.recurrence) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0); // Start of today
+            const today = getTodayString();
             
             let isOverdue = false;
             
             // Check due date
             if (taskInfo.due) {
-                const taskDueDate = new Date(taskInfo.due);
-                if (taskDueDate < today) {
+                if (isBeforeDateSafe(taskInfo.due, today)) {
                     isOverdue = true;
                 }
             }
             
             // Check scheduled date
             if (!isOverdue && taskInfo.scheduled) {
-                const taskScheduledDate = new Date(taskInfo.scheduled);
-                if (taskScheduledDate < today) {
+                if (isBeforeDateSafe(taskInfo.scheduled, today)) {
                     isOverdue = true;
                 }
             }

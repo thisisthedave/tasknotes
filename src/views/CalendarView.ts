@@ -18,6 +18,7 @@ import {
     isRecurringTaskDueOn
 } from '../utils/helpers';
 import { perfMonitor } from '../utils/PerformanceMonitor';
+import { createSafeDate, normalizeDateString } from '../utils/dateUtils';
 
 export class CalendarView extends ItemView {
     // Static property to track initialization status for daily notes
@@ -781,7 +782,7 @@ export class CalendarView extends ItemView {
                     }
                 }
                 
-                const dateObj = new Date(year, actualMonth, date);
+                const dateObj = createSafeDate(year, actualMonth, date);
                 const dateKey = format(dateObj, 'yyyy-MM-dd');
                 
                 // Get note count for this date
@@ -862,7 +863,7 @@ export class CalendarView extends ItemView {
                         }
                     }
                     
-                    const dateObj = new Date(year, actualMonth, date);
+                    const dateObj = createSafeDate(year, actualMonth, date);
                     const dateKey = format(dateObj, 'yyyy-MM-dd');
                     
                     cachedResult = { actualMonth, dateObj, dateKey };
@@ -969,7 +970,7 @@ export class CalendarView extends ItemView {
                         }
                     }
                     
-                    const dateObj = new Date(year, actualMonth, date);
+                    const dateObj = createSafeDate(year, actualMonth, date);
                     const dateKey = format(dateObj, 'yyyy-MM-dd');
                     
                     cachedResult = { actualMonth, dateObj, dateKey };
@@ -1013,22 +1014,22 @@ export class CalendarView extends ItemView {
         
         // Add original due date if it exists
         if (originalTask?.due) {
-            affectedDates.add(format(new Date(originalTask.due), 'yyyy-MM-dd'));
+            affectedDates.add(normalizeDateString(originalTask.due));
         }
         
         // Add new due date if it exists
         if (updatedTask.due) {
-            affectedDates.add(format(new Date(updatedTask.due), 'yyyy-MM-dd'));
+            affectedDates.add(normalizeDateString(updatedTask.due));
         }
         
         // Add original scheduled date if it exists
         if (originalTask?.scheduled) {
-            affectedDates.add(format(new Date(originalTask.scheduled), 'yyyy-MM-dd'));
+            affectedDates.add(normalizeDateString(originalTask.scheduled));
         }
         
         // Add new scheduled date if it exists
         if (updatedTask.scheduled) {
-            affectedDates.add(format(new Date(updatedTask.scheduled), 'yyyy-MM-dd'));
+            affectedDates.add(normalizeDateString(updatedTask.scheduled));
         }
         
         // If no dates are affected, nothing to update
@@ -1154,7 +1155,7 @@ export class CalendarView extends ItemView {
         }
         
         try {
-            return new Date(currentYear, actualMonth, dayNum);
+            return createSafeDate(currentYear, actualMonth, dayNum);
         } catch (error) {
             console.error('Error creating date:', error);
             return null;
@@ -1224,12 +1225,12 @@ export class CalendarView extends ItemView {
     // Helper methods for date calculations
     getViewStartDate(): Date {
         // First day of the month
-        return new Date(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth(), 1);
+        return createSafeDate(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth(), 1);
     }
     
     getViewEndDate(): Date {
         // Last day of the month
-        return new Date(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth() + 1, 0);
+        return createSafeDate(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth() + 1, 0);
     }
     
     // Helper method to show day preview on hover
