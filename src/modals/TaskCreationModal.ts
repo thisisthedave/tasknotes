@@ -1,13 +1,11 @@
 import { App, Notice, TFile, Setting, Editor, MarkdownView } from 'obsidian';
 import { format } from 'date-fns';
-import * as YAML from 'yaml';
 import TaskNotesPlugin from '../main';
 import { BaseTaskModal } from './BaseTaskModal';
-import { ensureFolderExists } from '../utils/helpers';
-import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
-import { CALENDAR_VIEW_TYPE, TaskFrontmatter, TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
+import { CALENDAR_VIEW_TYPE, TaskInfo } from '../types';
 import { ParsedTaskData } from '../utils/TasksPluginParser';
 import { getCurrentTimestamp } from '../utils/dateUtils';
+import { generateTaskFilename, FilenameContext } from '../utils/filenameGenerator';
 
 export interface TaskConversionOptions {
 	parsedData?: ParsedTaskData;
@@ -424,7 +422,7 @@ export class TaskCreationModal extends BaseTaskModal {
 	}
 
 	/**
-	 * Perform the actual task creation
+	 * Perform the actual task creation using the centralized service
 	 */
 	private async performTaskCreation(): Promise<TFile> {
 		// Prepare contexts and tags arrays
@@ -434,35 +432,17 @@ export class TaskCreationModal extends BaseTaskModal {
 		// Add task tag
 		tagsArray.unshift(this.plugin.settings.taskTag);
 
-		// Generate filename
-		const filenameContext: FilenameContext = {
-			title: this.title,
-			priority: this.priority,
-			status: this.status,
-			date: new Date()
-		};
-
-		const baseFilename = generateTaskFilename(filenameContext, this.plugin.settings);
-		const folder = this.plugin.settings.tasksFolder || '';
-		
-		// Ensure folder exists
-		if (folder) {
-			await ensureFolderExists(this.app.vault, folder);
-		}
-		
-		// Generate unique filename
-		const uniqueFilename = await generateUniqueFilename(baseFilename, folder, this.app.vault);
-		const fullPath = folder ? `${folder}/${uniqueFilename}.md` : `${uniqueFilename}.md`;
-
-		// Create TaskInfo object with all the data
-		const taskData: Partial<TaskInfo> = {
+		// Create TaskCreationData object with all the data
+		const taskData: import('../services/TaskService').TaskCreationData = {
 			title: this.title,
 			status: this.status,
 			priority: this.priority,
 			due: this.dueDate || undefined,
 			scheduled: this.scheduledDate || undefined,
 			contexts: contextsArray.length > 0 ? contextsArray : undefined,
+			tags: tagsArray,
 			timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
+			details: this.details && this.details.trim() ? this.details.trim() : undefined,
 			dateCreated: getCurrentTimestamp(),
 			dateModified: getCurrentTimestamp()
 		};
@@ -492,39 +472,8 @@ export class TaskCreationModal extends BaseTaskModal {
 			}
 		}
 
-		// Use field mapper to convert to frontmatter with proper field mapping
-		const frontmatter = this.plugin.fieldMapper.mapToFrontmatter(taskData, this.plugin.settings.taskTag);
-		
-		// Tags are handled separately (not via field mapper)
-		frontmatter.tags = tagsArray;
-
-		// Prepare file content
-		const yamlHeader = YAML.stringify(frontmatter);
-		let content = `---\n${yamlHeader}---\n\n`;
-		
-		if (this.details && this.details.trim()) {
-			content += `${this.details.trim()}\n\n`;
-		}
-
-		// Create the file
-		const file = await this.app.vault.create(fullPath, content);
-
-		// Create TaskInfo object for cache and events
-		const taskInfo: TaskInfo = {
-			...frontmatter,
-			path: file.path,
-			tags: tagsArray,
-			archived: false
-		};
-
-		// Update cache proactively
-		await this.plugin.cacheManager.updateTaskInfoInCache(file.path, taskInfo);
-
-		// Emit task created event
-		this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-			path: file.path,
-			updatedTask: taskInfo
-		});
+		// Use the centralized task creation service
+		const { file } = await this.plugin.taskService.createTask(taskData);
 
 		// If calendar view is open, update it to show the new task
 		const leaves = this.app.workspace.getLeavesOfType(CALENDAR_VIEW_TYPE);

@@ -1,9 +1,8 @@
 import { App, Notice, TFile, Setting } from 'obsidian';
-import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { BaseTaskModal } from './BaseTaskModal';
-import { TaskInfo, EVENT_TASK_UPDATED } from '../types';
-import { getCurrentTimestamp, getCurrentDateString, formatTimestampForDisplay } from '../utils/dateUtils';
+import { TaskInfo } from '../types';
+import { formatTimestampForDisplay } from '../utils/dateUtils';
 
 export class TaskEditModal extends BaseTaskModal {
     task: TaskInfo;
@@ -221,12 +220,6 @@ export class TaskEditModal extends BaseTaskModal {
         }
 
         try {
-            const file = this.app.vault.getAbstractFileByPath(this.task.path);
-            if (!(file instanceof TFile)) {
-                new Notice('Could not find task file');
-                return;
-            }
-
             // Prepare contexts and tags arrays
             const contextsArray = this.contexts ? this.contexts.split(',').map(c => c.trim()).filter(c => c) : [];
             const tagsArray = this.tags ? this.tags.split(',').map(t => t.trim()).filter(t => t) : [];
@@ -236,131 +229,65 @@ export class TaskEditModal extends BaseTaskModal {
                 tagsArray.unshift(this.plugin.settings.taskTag);
             }
 
-            // Update the task file
-            await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                // Create updated TaskInfo object
-                const updatedTaskData: Partial<TaskInfo> = {
-                    title: this.title,
-                    priority: this.priority,
-                    status: this.status,
-                    due: this.dueDate || undefined,
-                    scheduled: this.scheduledDate || undefined,
-                    contexts: contextsArray.length > 0 ? contextsArray : undefined,
-                    timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
-                    dateModified: getCurrentTimestamp()
-                };
+            // Detect changes by comparing current form values with original task
+            const updates: Partial<TaskInfo> = {};
 
-                // Handle completion date for status changes
-                if (this.plugin.statusManager.isCompletedStatus(this.status) && !this.task.recurrence) {
-                    if (!this.task.completedDate) {
-                        updatedTaskData.completedDate = getCurrentDateString();
-                    }
-                } else if (!this.plugin.statusManager.isCompletedStatus(this.status)) {
-                    updatedTaskData.completedDate = undefined;
-                }
-
-                // Handle recurrence
-                if (this.recurrence !== 'none') {
-                    updatedTaskData.recurrence = {
-                        frequency: this.recurrence
-                    };
-
-                    if (this.recurrence === 'weekly' && this.daysOfWeek.length > 0) {
-                        // Convert full names back to abbreviations for storage
-                        updatedTaskData.recurrence.days_of_week = this.convertFullNamesToAbbreviations(this.daysOfWeek);
-                    }
-
-                    if (this.recurrence === 'monthly' && this.dayOfMonth) {
-                        updatedTaskData.recurrence.day_of_month = parseInt(this.dayOfMonth);
-                    }
-
-                    if (this.recurrence === 'yearly') {
-                        if (this.monthOfYear) {
-                            updatedTaskData.recurrence.month_of_year = parseInt(this.monthOfYear);
-                        }
-                        if (this.dayOfMonth) {
-                            updatedTaskData.recurrence.day_of_month = parseInt(this.dayOfMonth);
-                        }
-                    }
-                } else {
-                    updatedTaskData.recurrence = undefined;
-                }
-
-                // Preserve complete_instances for recurring tasks
-                if (this.task.complete_instances) {
-                    updatedTaskData.complete_instances = this.task.complete_instances;
-                }
-
-                // Use field mapper to update frontmatter with proper field mapping
-                const mappedUpdates = this.plugin.fieldMapper.mapToFrontmatter(updatedTaskData, this.plugin.settings.taskTag);
-                
-                // Apply all updates to frontmatter
-                Object.keys(mappedUpdates).forEach(key => {
-                    if (mappedUpdates[key] !== undefined) {
-                        frontmatter[key] = mappedUpdates[key];
-                    }
-                });
-
-                // Remove fields that are now undefined
-                if (updatedTaskData.due === undefined) {
-                    delete frontmatter[this.plugin.fieldMapper.toUserField('due')];
-                }
-                if (updatedTaskData.scheduled === undefined) {
-                    delete frontmatter[this.plugin.fieldMapper.toUserField('scheduled')];
-                }
-                if (updatedTaskData.contexts === undefined) {
-                    delete frontmatter[this.plugin.fieldMapper.toUserField('contexts')];
-                }
-                if (updatedTaskData.timeEstimate === undefined) {
-                    delete frontmatter[this.plugin.fieldMapper.toUserField('timeEstimate')];
-                }
-                if (updatedTaskData.completedDate === undefined) {
-                    delete frontmatter[this.plugin.fieldMapper.toUserField('completedDate')];
-                }
-                if (updatedTaskData.recurrence === undefined) {
-                    delete frontmatter[this.plugin.fieldMapper.toUserField('recurrence')];
-                }
-
-                // Tags are handled separately (not via field mapper)
-                frontmatter.tags = tagsArray;
-            });
-
-            // Create updated TaskInfo for cache and events
-            const updatedTask: TaskInfo = {
-                ...this.task,
-                title: this.title,
-                priority: this.priority,
-                status: this.status,
-                due: this.dueDate || undefined,
-                scheduled: this.scheduledDate || undefined,
-                contexts: contextsArray.length > 0 ? contextsArray : undefined,
-                tags: tagsArray,
-                timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
-                dateModified: getCurrentTimestamp(),
-                recurrence: this.recurrence !== 'none' ? {
-                    frequency: this.recurrence,
-                    days_of_week: this.recurrence === 'weekly' ? this.convertFullNamesToAbbreviations(this.daysOfWeek) : undefined,
-                    day_of_month: (this.recurrence === 'monthly' || this.recurrence === 'yearly') && this.dayOfMonth ? parseInt(this.dayOfMonth) : undefined,
-                    month_of_year: this.recurrence === 'yearly' && this.monthOfYear ? parseInt(this.monthOfYear) : undefined
-                } : undefined
-            };
-
-            // Handle completion date for non-recurring tasks
-            if (this.plugin.statusManager.isCompletedStatus(this.status) && !updatedTask.recurrence) {
-                updatedTask.completedDate = this.task.completedDate || getCurrentDateString();
-            } else if (!this.plugin.statusManager.isCompletedStatus(this.status)) {
-                updatedTask.completedDate = undefined;
+            // Check for changes in simple fields
+            if (this.title !== this.task.title) {
+                updates.title = this.title;
+            }
+            if (this.priority !== this.task.priority) {
+                updates.priority = this.priority;
+            }
+            if (this.status !== this.task.status) {
+                updates.status = this.status;
+            }
+            if (this.dueDate !== (this.task.due || '')) {
+                updates.due = this.dueDate || undefined;
+            }
+            if (this.scheduledDate !== (this.task.scheduled || '')) {
+                updates.scheduled = this.scheduledDate || undefined;
+            }
+            if (this.timeEstimate !== (this.task.timeEstimate || 0)) {
+                updates.timeEstimate = this.timeEstimate > 0 ? this.timeEstimate : undefined;
             }
 
-            // Update cache proactively
-            await this.plugin.cacheManager.updateTaskInfoInCache(this.task.path, updatedTask);
+            // Check for changes in contexts array
+            const originalContexts = this.task.contexts || [];
+            const arraysEqual = (a: string[], b: string[]) => a.length === b.length && a.every((val, index) => val === b[index]);
+            if (!arraysEqual(contextsArray, originalContexts)) {
+                updates.contexts = contextsArray.length > 0 ? contextsArray : undefined;
+            }
 
-            // Emit task updated event
-            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-                path: this.task.path,
-                originalTask: this.task,
-                updatedTask: updatedTask
-            });
+            // Check for changes in tags array
+            const originalTags = this.task.tags || [];
+            if (!arraysEqual(tagsArray, originalTags)) {
+                updates.tags = tagsArray;
+            }
+
+            // Check for changes in recurrence
+            const currentRecurrence = this.recurrence !== 'none' ? {
+                frequency: this.recurrence,
+                days_of_week: this.recurrence === 'weekly' ? this.convertFullNamesToAbbreviations(this.daysOfWeek) : undefined,
+                day_of_month: (this.recurrence === 'monthly' || this.recurrence === 'yearly') && this.dayOfMonth ? parseInt(this.dayOfMonth) : undefined,
+                month_of_year: this.recurrence === 'yearly' && this.monthOfYear ? parseInt(this.monthOfYear) : undefined
+            } : undefined;
+            
+            const originalRecurrence = this.task.recurrence;
+            const recurrenceChanged = JSON.stringify(currentRecurrence) !== JSON.stringify(originalRecurrence);
+            if (recurrenceChanged) {
+                updates.recurrence = currentRecurrence;
+            }
+
+            // If no changes detected, show message and return
+            if (Object.keys(updates).length === 0) {
+                new Notice('No changes detected');
+                this.close();
+                return;
+            }
+
+            // Call the centralized update service
+            await this.plugin.taskService.updateTask(this.task, updates);
 
             new Notice('Task updated successfully');
             this.close();

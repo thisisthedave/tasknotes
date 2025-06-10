@@ -1,11 +1,131 @@
 import { TFile, Notice } from 'obsidian';
 import { format } from 'date-fns';
+import * as YAML from 'yaml';
 import TaskNotesPlugin from '../main';
 import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED } from '../types';
 import { getCurrentTimestamp, getCurrentDateString } from '../utils/dateUtils';
+import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
+import { ensureFolderExists } from '../utils/helpers';
+
+export interface TaskCreationData extends Partial<TaskInfo> {
+    details?: string; // Optional details/description for file content
+}
 
 export class TaskService {
     constructor(private plugin: TaskNotesPlugin) {}
+
+    /**
+     * Create a new task file with all the necessary setup
+     * This is the central method for task creation used by all components
+     */
+    async createTask(taskData: TaskCreationData): Promise<{ file: TFile; taskInfo: TaskInfo }> {
+        try {
+            // Validate required fields
+            if (!taskData.title || !taskData.title.trim()) {
+                throw new Error('Title is required');
+            }
+
+            if (taskData.title.length > 200) {
+                throw new Error('Title is too long (max 200 characters)');
+            }
+
+            // Apply defaults for missing fields
+            const title = taskData.title.trim();
+            const priority = taskData.priority || this.plugin.settings.defaultTaskPriority;
+            const status = taskData.status || this.plugin.settings.defaultTaskStatus;
+            const dateCreated = taskData.dateCreated || getCurrentTimestamp();
+            const dateModified = taskData.dateModified || getCurrentTimestamp();
+
+            // Prepare contexts and tags arrays
+            const contextsArray = taskData.contexts || [];
+            const tagsArray = taskData.tags || [this.plugin.settings.taskTag];
+            
+            // Ensure task tag is always included
+            if (!tagsArray.includes(this.plugin.settings.taskTag)) {
+                tagsArray.unshift(this.plugin.settings.taskTag);
+            }
+
+            // Generate filename
+            const filenameContext: FilenameContext = {
+                title: title,
+                priority: priority,
+                status: status,
+                date: new Date()
+            };
+
+            const baseFilename = generateTaskFilename(filenameContext, this.plugin.settings);
+            const folder = this.plugin.settings.tasksFolder || '';
+            
+            // Ensure folder exists
+            if (folder) {
+                await ensureFolderExists(this.plugin.app.vault, folder);
+            }
+            
+            // Generate unique filename
+            const uniqueFilename = await generateUniqueFilename(baseFilename, folder, this.plugin.app.vault);
+            const fullPath = folder ? `${folder}/${uniqueFilename}.md` : `${uniqueFilename}.md`;
+
+            // Create complete TaskInfo object with all the data
+            const completeTaskData: Partial<TaskInfo> = {
+                title: title,
+                status: status,
+                priority: priority,
+                due: taskData.due || undefined,
+                scheduled: taskData.scheduled || undefined,
+                contexts: contextsArray.length > 0 ? contextsArray : undefined,
+                timeEstimate: taskData.timeEstimate && taskData.timeEstimate > 0 ? taskData.timeEstimate : undefined,
+                dateCreated: dateCreated,
+                dateModified: dateModified,
+                recurrence: taskData.recurrence || undefined
+            };
+
+            // Use field mapper to convert to frontmatter with proper field mapping
+            const frontmatter = this.plugin.fieldMapper.mapToFrontmatter(completeTaskData, this.plugin.settings.taskTag);
+            
+            // Tags are handled separately (not via field mapper)
+            frontmatter.tags = tagsArray;
+
+            // Prepare file content
+            const yamlHeader = YAML.stringify(frontmatter);
+            let content = `---\n${yamlHeader}---\n\n`;
+            
+            // Add details if provided
+            if (taskData.details && taskData.details.trim()) {
+                content += `${taskData.details.trim()}\n\n`;
+            }
+
+            // Create the file
+            const file = await this.plugin.app.vault.create(fullPath, content);
+
+            // Create final TaskInfo object for cache and events
+            const taskInfo: TaskInfo = {
+                ...frontmatter,
+                path: file.path,
+                tags: tagsArray,
+                archived: false
+            };
+
+            // Update cache proactively
+            await this.plugin.cacheManager.updateTaskInfoInCache(file.path, taskInfo);
+
+            // Emit task created event
+            this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                path: file.path,
+                updatedTask: taskInfo
+            });
+
+            return { file, taskInfo };
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Error creating task:', {
+                error: errorMessage,
+                stack: error instanceof Error ? error.stack : undefined,
+                taskData
+            });
+            
+            throw new Error(`Failed to create task: ${errorMessage}`);
+        }
+    }
 
     /**
      * Toggle the status of a task between completed and open
@@ -324,6 +444,133 @@ export class TaskService {
         
         // Step 5: Return authoritative data
         return updatedTask;
+    }
+
+    /**
+     * Update a task with multiple property changes following the deterministic data flow pattern
+     * This is the centralized method for bulk task updates used by the TaskEditModal
+     */
+    async updateTask(originalTask: TaskInfo, updates: Partial<TaskInfo>): Promise<TaskInfo> {
+        try {
+            const file = this.plugin.app.vault.getAbstractFileByPath(originalTask.path);
+            if (!(file instanceof TFile)) {
+                throw new Error(`Cannot find task file: ${originalTask.path}`);
+            }
+            
+            // Step 1: Construct new state in memory by merging updates with original task
+            const updatedTask = { ...originalTask, ...updates };
+            updatedTask.dateModified = getCurrentTimestamp();
+            
+            // Handle derivative changes for status updates
+            if (updates.status !== undefined && !originalTask.recurrence) {
+                if (this.plugin.statusManager.isCompletedStatus(updates.status)) {
+                    if (!originalTask.completedDate) {
+                        updatedTask.completedDate = getCurrentDateString();
+                    }
+                } else {
+                    updatedTask.completedDate = undefined;
+                }
+            }
+            
+            // Preserve complete_instances for recurring tasks
+            if (originalTask.complete_instances) {
+                updatedTask.complete_instances = originalTask.complete_instances;
+            }
+            
+            // Step 2: Persist to file
+            await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                // Create updated TaskInfo object for field mapping
+                const updatedTaskData: Partial<TaskInfo> = {
+                    ...updates,
+                    dateModified: updatedTask.dateModified
+                };
+                
+                // Handle completion date for status changes
+                if (updates.status !== undefined && !originalTask.recurrence) {
+                    if (this.plugin.statusManager.isCompletedStatus(updates.status)) {
+                        if (!originalTask.completedDate) {
+                            updatedTaskData.completedDate = getCurrentDateString();
+                        }
+                    } else {
+                        updatedTaskData.completedDate = undefined;
+                    }
+                }
+                
+                // Use field mapper to update frontmatter with proper field mapping
+                const mappedUpdates = this.plugin.fieldMapper.mapToFrontmatter(updatedTaskData, this.plugin.settings.taskTag);
+                
+                // Apply all updates to frontmatter
+                Object.keys(mappedUpdates).forEach(key => {
+                    if (mappedUpdates[key] !== undefined) {
+                        frontmatter[key] = mappedUpdates[key];
+                    }
+                });
+                
+                // Remove fields that are now undefined
+                if (updatedTaskData.due === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('due')];
+                }
+                if (updatedTaskData.scheduled === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('scheduled')];
+                }
+                if (updatedTaskData.contexts === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('contexts')];
+                }
+                if (updatedTaskData.timeEstimate === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('timeEstimate')];
+                }
+                if (updatedTaskData.completedDate === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('completedDate')];
+                }
+                if (updatedTaskData.recurrence === undefined) {
+                    delete frontmatter[this.plugin.fieldMapper.toUserField('recurrence')];
+                }
+                
+                // Tags are handled separately (not via field mapper)
+                if (updates.tags !== undefined) {
+                    frontmatter.tags = updates.tags;
+                }
+            });
+            
+            // Step 3: Proactively update cache
+            try {
+                await this.plugin.cacheManager.updateTaskInfoInCache(originalTask.path, updatedTask);
+            } catch (cacheError) {
+                // Cache errors shouldn't break the operation, just log them
+                console.error('Error updating task cache:', {
+                    error: cacheError instanceof Error ? cacheError.message : String(cacheError),
+                    taskPath: originalTask.path
+                });
+            }
+            
+            // Step 4: Notify system of change
+            try {
+                this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
+                    path: originalTask.path,
+                    originalTask: originalTask,
+                    updatedTask: updatedTask
+                });
+            } catch (eventError) {
+                console.error('Error emitting task update event:', {
+                    error: eventError instanceof Error ? eventError.message : String(eventError),
+                    taskPath: originalTask.path
+                });
+                // Event emission errors shouldn't break the operation
+            }
+            
+            // Step 5: Return authoritative data
+            return updatedTask;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Error updating task:', {
+                error: errorMessage,
+                stack: error instanceof Error ? error.stack : undefined,
+                taskPath: originalTask.path,
+                updates
+            });
+            
+            throw new Error(`Failed to update task: ${errorMessage}`);
+        }
     }
 
     /**

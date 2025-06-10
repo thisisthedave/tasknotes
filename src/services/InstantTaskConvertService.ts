@@ -1,11 +1,6 @@
 import { Editor, TFile, Notice, EditorPosition } from 'obsidian';
-import { format } from 'date-fns';
-import * as YAML from 'yaml';
 import TaskNotesPlugin from '../main';
 import { TasksPluginParser, ParsedTaskData } from '../utils/TasksPluginParser';
-import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
-import { ensureFolderExists } from '../utils/helpers';
-import { TaskFrontmatter, TaskInfo, EVENT_TASK_UPDATED } from '../types';
 import { getCurrentTimestamp } from '../utils/dateUtils';
 
 export class InstantTaskConvertService {
@@ -157,78 +152,29 @@ export class InstantTaskConvertService {
         const title = this.sanitizeTitle(parsedData.title) || 'Untitled Task';
         const priority = this.sanitizePriority(parsedData.priority) || this.plugin.settings.defaultTaskPriority;
         const status = this.sanitizeStatus(parsedData.status) || this.plugin.settings.defaultTaskStatus;
-        const dueDate = this.sanitizeDate(parsedData.dueDate) || '';
-        const scheduledDate = this.sanitizeDate(parsedData.scheduledDate) || '';
+        const dueDate = this.sanitizeDate(parsedData.dueDate) || undefined;
+        const scheduledDate = this.sanitizeDate(parsedData.scheduledDate) || undefined;
         
         // Prepare contexts and tags arrays
         const contextsArray: string[] = [];
         const tagsArray = [this.plugin.settings.taskTag];
 
-        // Generate filename
-        const filenameContext: FilenameContext = {
-            title: title,
-            priority: priority,
-            status: status,
-            date: new Date()
-        };
-
-        const baseFilename = generateTaskFilename(filenameContext, this.plugin.settings);
-        const folder = this.plugin.settings.tasksFolder || '';
-        
-        // Ensure folder exists
-        if (folder) {
-            await ensureFolderExists(this.plugin.app.vault, folder);
-        }
-        
-        // Generate unique filename with additional validation
-        const uniqueFilename = await generateUniqueFilename(baseFilename, folder, this.plugin.app.vault);
-        const fullPath = folder ? `${folder}/${uniqueFilename}.md` : `${uniqueFilename}.md`;
-        
-        // Final validation of the complete file path
-        if (!this.isValidFilePath(fullPath)) {
-            throw new Error('Generated file path contains invalid characters or is too long.');
-        }
-
-        // Create TaskInfo object with all the data
-        const taskData: Partial<TaskInfo> = {
+        // Create TaskCreationData object with all the data
+        const taskData: import('./TaskService').TaskCreationData = {
             title: title,
             status: status,
             priority: priority,
-            due: dueDate || undefined,
-            scheduled: scheduledDate || undefined,
+            due: dueDate,
+            scheduled: scheduledDate,
             contexts: contextsArray.length > 0 ? contextsArray : undefined,
+            tags: tagsArray,
+            details: `# ${title}\n\n<!-- Add task details below -->`,
             dateCreated: getCurrentTimestamp(),
             dateModified: getCurrentTimestamp()
         };
 
-        // Create frontmatter using field mapper
-        const taskDataForFrontmatter = {
-            title: title,
-            dateCreated: getCurrentTimestamp(),
-            dateModified: getCurrentTimestamp(),
-            status: status,
-            priority: priority,
-            tags: tagsArray,
-            due: dueDate || undefined,
-            scheduled: scheduledDate || undefined,
-            contexts: contextsArray.length > 0 ? contextsArray : undefined
-        };
-        
-        const frontmatter = this.plugin.fieldMapper.mapToFrontmatter(taskDataForFrontmatter, this.plugin.settings.taskTag);
-
-        // Create file content
-        const yamlContent = YAML.stringify(frontmatter);
-        const fileContent = `---\n${yamlContent}---\n\n# ${title}\n\n<!-- Add task details below -->\n`;
-
-        // Create the file
-        const file = await this.plugin.app.vault.create(fullPath, fileContent);
-
-        // Emit task updated event
-        this.plugin.emitter.emit(EVENT_TASK_UPDATED, {
-            path: file.path,
-            originalTask: null,
-            updatedTask: taskData
-        });
+        // Use the centralized task creation service
+        const { file } = await this.plugin.taskService.createTask(taskData);
 
         return file;
     }
@@ -267,18 +213,6 @@ export class InstantTaskConvertService {
         return dateString;
     }
 
-    /**
-     * Validate file path
-     */
-    private isValidFilePath(filePath: string): boolean {
-        if (!filePath || filePath.length > 260) { // Windows path limit
-            return false;
-        }
-        
-        // Check for invalid characters in path
-        const invalidChars = /[<>:"|?*\x00-\x1f\x7f]/;
-        return !invalidChars.test(filePath);
-    }
 
     /**
      * Replace the original Tasks Plugin line with a link to the new TaskNote
