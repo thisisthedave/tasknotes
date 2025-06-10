@@ -861,7 +861,11 @@ private injectCustomStyles(): void {
 	 * Opens the task edit modal for a specific task
 	 */
 	openTaskEditModal(task: TaskInfo) {
-		new TaskEditModal(this.app, this, task).open();
+		// Get fresh task data from cache to ensure we have the latest values
+		const freshTask = this.cacheManager.getCachedTaskInfo(task.path);
+		const taskToEdit = freshTask || task; // Fallback to original if cache lookup fails
+		
+		new TaskEditModal(this.app, this, taskToEdit).open();
 	}
 
 	/**

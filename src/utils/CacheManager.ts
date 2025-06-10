@@ -1203,47 +1203,85 @@ export class CacheManager {
      * after successful file writes to ensure the cache reflects the new state.
      */
     async updateTaskInfoInCache(path: string, taskInfo: TaskInfo | null): Promise<void> {
-        try {
-            // Track this as a recent programmatic update
-            this.recentUpdates.set(path, Date.now());
-            
-            if (taskInfo) {
-                // Get old task info for atomic scheduled date index updates
-                const oldTaskInfo = this.taskInfoCache.get(path);
+        const maxRetries = 3;
+        let attempts = 0;
+        
+        while (attempts < maxRetries) {
+            try {
+                // Track this as a recent programmatic update
+                this.recentUpdates.set(path, Date.now());
                 
-                // Update the dateModified timestamp to reflect the current time
-                const updatedTaskInfo: TaskInfo = {
-                    ...taskInfo,
-                    dateModified: getCurrentTimestamp()
-                };
+                if (taskInfo) {
+                    // Get old task info for atomic scheduled date index updates
+                    const oldTaskInfo = this.taskInfoCache.get(path);
+                    
+                    // Validate taskInfo has required fields
+                    if (!taskInfo.path || !taskInfo.title) {
+                        throw new Error('Invalid task info: missing required fields');
+                    }
+                    
+                    // Update the dateModified timestamp to reflect the current time
+                    const updatedTaskInfo: TaskInfo = {
+                        ...taskInfo,
+                        dateModified: getCurrentTimestamp()
+                    };
+                    
+                    // Update the task info cache with the new authoritative data
+                    this.taskInfoCache.set(path, updatedTaskInfo);
+                    
+                    // Update the indexed files cache
+                    this.indexedFilesCache.set(path, {
+                        path,
+                        mtime: Date.now(),
+                        ctime: Date.now(),
+                        isTask: true,
+                        tags: updatedTaskInfo.tags || [],
+                        cachedInfo: updatedTaskInfo
+                    });
+                    
+                    // Update all indexes including canonical sets (with old task info for atomic updates)
+                    try {
+                        this.updateTaskIndexes(path, updatedTaskInfo);
+                    } catch (indexError) {
+                        console.warn(`Error updating task indexes for ${path}:`, indexError);
+                        // Don't fail the entire operation for index errors
+                    }
+                } else {
+                    // Get old task info for proper cleanup
+                    const oldTaskInfo = this.taskInfoCache.get(path);
+                    
+                    // Remove from all caches and indexes
+                    this.taskInfoCache.delete(path);
+                    this.indexedFilesCache.delete(path);
+                    
+                    try {
+                        this.removeFromIndexes(path, 'task', oldTaskInfo);
+                    } catch (indexError) {
+                        console.warn(`Error removing from indexes for ${path}:`, indexError);
+                        // Don't fail the entire operation for index errors
+                    }
+                }
                 
-                // Update the task info cache with the new authoritative data
-                this.taskInfoCache.set(path, updatedTaskInfo);
+                // Success - break out of retry loop
+                return;
                 
-                // Update the indexed files cache
-                this.indexedFilesCache.set(path, {
-                    path,
-                    mtime: Date.now(),
-                    ctime: Date.now(),
-                    isTask: true,
-                    tags: updatedTaskInfo.tags || [],
-                    cachedInfo: updatedTaskInfo
-                });
+            } catch (error) {
+                attempts++;
+                const errorMessage = error instanceof Error ? error.message : String(error);
                 
-                // Update all indexes including canonical sets (with old task info for atomic updates)
-                this.updateTaskIndexes(path, updatedTaskInfo);
-            } else {
-                // Get old task info for proper cleanup
-                const oldTaskInfo = this.taskInfoCache.get(path);
-                
-                // Remove from all caches and indexes
-                this.taskInfoCache.delete(path);
-                this.indexedFilesCache.delete(path);
-                this.removeFromIndexes(path, 'task', oldTaskInfo);
+                if (attempts >= maxRetries) {
+                    console.error(`Failed to update task info in cache for ${path} after ${maxRetries} attempts:`, {
+                        error: errorMessage,
+                        stack: error instanceof Error ? error.stack : undefined,
+                        taskInfo: taskInfo ? { path: taskInfo.path, title: taskInfo.title } : null
+                    });
+                    throw new Error(`Cache update failed after ${maxRetries} attempts: ${errorMessage}`);
+                } else {
+                    console.warn(`Cache update attempt ${attempts} failed for ${path}, retrying:`, errorMessage);
+                    // Wait briefly before retry (exponential backoff)
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 100));
+                }
             }
-        } catch (error) {
-            console.error(`Error updating task info in cache for ${path}:`, error);
-            throw error;
         }
     }
     

@@ -1,5 +1,6 @@
 import { App, Modal } from 'obsidian';
 import TaskNotesPlugin from '../main';
+import { normalizeDateString, validateDateInput } from '../utils/dateUtils';
 
 export abstract class BaseTaskModal extends Modal {
     plugin: TaskNotesPlugin;
@@ -381,7 +382,12 @@ export abstract class BaseTaskModal extends Modal {
             }
         });
 
-        input.value = this.dueDate;
+        // Normalize and validate date before setting input value
+        if (this.dueDate && validateDateInput(this.dueDate)) {
+            input.value = normalizeDateString(this.dueDate);
+        } else {
+            input.value = this.dueDate || '';
+        }
 
         input.addEventListener('change', (e) => {
             this.dueDate = (e.target as HTMLInputElement).value;
@@ -399,7 +405,12 @@ export abstract class BaseTaskModal extends Modal {
             }
         });
 
-        input.value = this.scheduledDate;
+        // Normalize and validate date before setting input value
+        if (this.scheduledDate && validateDateInput(this.scheduledDate)) {
+            input.value = normalizeDateString(this.scheduledDate);
+        } else {
+            input.value = this.scheduledDate || '';
+        }
 
         input.addEventListener('change', (e) => {
             this.scheduledDate = (e.target as HTMLInputElement).value;
@@ -422,7 +433,9 @@ export abstract class BaseTaskModal extends Modal {
             }
         });
 
-        input.value = this.timeEstimate.toString();
+        // Ensure timeEstimate is properly initialized and preserved
+        const currentTimeEstimate = this.timeEstimate || 0;
+        input.value = currentTimeEstimate.toString();
 
         const label = inputContainer.createSpan({ 
             cls: 'modal-form__time-label',

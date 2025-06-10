@@ -2,7 +2,7 @@ import { App, Notice, TFile, Setting } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { BaseTaskModal } from './BaseTaskModal';
 import { TaskInfo } from '../types';
-import { formatTimestampForDisplay } from '../utils/dateUtils';
+import { formatTimestampForDisplay, normalizeDateString } from '../utils/dateUtils';
 
 export class TaskEditModal extends BaseTaskModal {
     task: TaskInfo;
@@ -15,13 +15,15 @@ export class TaskEditModal extends BaseTaskModal {
     protected initializeFormData(): void {
         // Initialize form fields with current task data
         this.title = this.task.title;
-        this.dueDate = this.task.due || '';
-        this.scheduledDate = this.task.scheduled || '';
+        // Normalize dates to YYYY-MM-DD format for HTML date inputs
+        this.dueDate = this.task.due ? normalizeDateString(this.task.due) : '';
+        this.scheduledDate = this.task.scheduled ? normalizeDateString(this.task.scheduled) : '';
         this.priority = this.task.priority;
         this.status = this.task.status;
         this.contexts = this.task.contexts ? this.task.contexts.join(', ') : '';
         this.tags = this.task.tags ? this.task.tags.filter(tag => tag !== this.plugin.settings.taskTag).join(', ') : '';
-        this.timeEstimate = this.task.timeEstimate || 0;
+        // Preserve the original time estimate value, ensuring it's not reset to 0
+        this.timeEstimate = this.task.timeEstimate !== undefined ? this.task.timeEstimate : 0;
         this.recurrence = this.task.recurrence?.frequency || 'none';
         
         if (this.task.recurrence) {
@@ -242,13 +244,22 @@ export class TaskEditModal extends BaseTaskModal {
             if (this.status !== this.task.status) {
                 updates.status = this.status;
             }
-            if (this.dueDate !== (this.task.due || '')) {
+            // Check for changes in date fields (normalize for comparison)
+            const normalizedDueDate = this.dueDate ? normalizeDateString(this.dueDate) : '';
+            const originalDueDate = this.task.due ? normalizeDateString(this.task.due) : '';
+            if (normalizedDueDate !== originalDueDate) {
                 updates.due = this.dueDate || undefined;
             }
-            if (this.scheduledDate !== (this.task.scheduled || '')) {
+            
+            const normalizedScheduledDate = this.scheduledDate ? normalizeDateString(this.scheduledDate) : '';
+            const originalScheduledDate = this.task.scheduled ? normalizeDateString(this.task.scheduled) : '';
+            if (normalizedScheduledDate !== originalScheduledDate) {
                 updates.scheduled = this.scheduledDate || undefined;
             }
-            if (this.timeEstimate !== (this.task.timeEstimate || 0)) {
+            
+            // Check time estimate with proper handling of undefined vs 0
+            const originalTimeEstimate = this.task.timeEstimate !== undefined ? this.task.timeEstimate : 0;
+            if (this.timeEstimate !== originalTimeEstimate) {
                 updates.timeEstimate = this.timeEstimate > 0 ? this.timeEstimate : undefined;
             }
 
