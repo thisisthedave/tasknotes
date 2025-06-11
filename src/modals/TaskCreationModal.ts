@@ -32,7 +32,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		this.conversionOptions = conversionOptions || {};
 	}
 
-	protected initializeFormData(): void {
+	protected async initializeFormData(): Promise<void> {
 		// Check if we have parsed data to pre-populate
 		if (this.conversionOptions.parsedData) {
 			this.populateFromParsedData(this.conversionOptions.parsedData);
@@ -136,7 +136,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		}
 	}
   
-	onOpen() {
+	async onOpen() {
 		const { contentEl } = this;
 		contentEl.addClass('tasknotes-plugin', 'task-creation-modal');
 		new Setting(contentEl)
@@ -144,7 +144,7 @@ export class TaskCreationModal extends BaseTaskModal {
 			.setHeading();
 
 		// Initialize form data
-		this.initializeFormData();
+		await this.initializeFormData();
 
 		// Cache autocomplete data
 		this.cacheAutocompleteData();

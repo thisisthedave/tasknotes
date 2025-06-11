@@ -105,7 +105,7 @@ export class TaskLinkWidget extends WidgetType {
         container.dataset.originalText = this.originalText;
         
         // Click handler - open task edit modal (same as TaskCard)
-        container.addEventListener('click', (e) => {
+        container.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
             
@@ -123,8 +123,9 @@ export class TaskLinkWidget extends WidgetType {
                     this.plugin.app.workspace.getLeaf(false).openFile(file);
                 }
             } else {
-                // Left-click: Open edit modal
-                this.plugin.openTaskEditModal(this.taskInfo);
+                // Left-click: Open edit modal with fresh data
+                const freshTask = await this.plugin.cacheManager.getTaskInfo(this.taskInfo.path);
+                await this.plugin.openTaskEditModal(freshTask || this.taskInfo);
             }
         });
         
@@ -164,8 +165,9 @@ export class TaskLinkWidget extends WidgetType {
             await showTaskContextMenu(event, this.taskInfo.path, this.plugin, targetDate);
         } catch (error) {
             console.error(`Error showing context menu for task ${this.taskInfo.path}:`, error);
-            // Fallback to edit modal
-            this.plugin.openTaskEditModal(this.taskInfo);
+            // Fallback to edit modal with fresh data
+            const freshTask = await this.plugin.cacheManager.getTaskInfo(this.taskInfo.path);
+            await this.plugin.openTaskEditModal(freshTask || this.taskInfo);
         }
     }
 

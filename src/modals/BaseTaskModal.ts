@@ -29,7 +29,7 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     // Abstract methods for subclasses to implement
-    protected abstract initializeFormData(): void;
+    protected abstract initializeFormData(): Promise<void>;
     protected abstract createActionButtons(container: HTMLElement): void;
     protected abstract handleSubmit(): Promise<void>;
 

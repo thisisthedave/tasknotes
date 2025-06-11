@@ -12,7 +12,13 @@ export class TaskEditModal extends BaseTaskModal {
         this.task = task;
     }
 
-    protected initializeFormData(): void {
+    protected async initializeFormData(): Promise<void> {
+        // Always ensure we have the latest task data before initialization
+        const latestTask = await this.plugin.cacheManager.getTaskInfo(this.task.path, false);
+        if (latestTask) {
+            this.task = latestTask;
+        }
+        
         // Initialize form fields with current task data
         this.title = this.task.title;
         // Normalize dates to YYYY-MM-DD format for HTML date inputs
@@ -42,7 +48,7 @@ export class TaskEditModal extends BaseTaskModal {
             .setHeading();
 
         // Initialize form data and cache autocomplete data
-        this.initializeFormData();
+        await this.initializeFormData();
         this.existingContexts = await this.getExistingContexts();
         this.existingTags = await this.getExistingTags();
 
@@ -297,8 +303,11 @@ export class TaskEditModal extends BaseTaskModal {
                 return;
             }
 
-            // Call the centralized update service
-            await this.plugin.taskService.updateTask(this.task, updates);
+            // Get the absolute latest task state before saving to prevent overwrites
+            const currentTask = await this.plugin.cacheManager.getTaskInfo(this.task.path, false) || this.task;
+            
+            // Call the centralized update service with current state
+            await this.plugin.taskService.updateTask(currentTask, updates);
 
             new Notice('Task updated successfully');
             this.close();

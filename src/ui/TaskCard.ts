@@ -217,7 +217,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     }
     
     // Add click handlers
-    card.addEventListener('click', (e) => {
+    card.addEventListener('click', async (e) => {
         if (e.target === card.querySelector('.task-card__checkbox')) {
             return; // Let checkbox handle its own click
         }
@@ -230,7 +230,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
             }
         } else {
             // Left-click: Open edit modal
-            plugin.openTaskEditModal(task);
+            await plugin.openTaskEditModal(task);
         }
     });
     
