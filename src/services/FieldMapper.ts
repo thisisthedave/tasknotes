@@ -54,7 +54,6 @@ export class FieldMapper {
             mapped.timeEstimate = frontmatter[this.mapping.timeEstimate];
         }
         
-        
         if (frontmatter[this.mapping.completedDate] !== undefined) {
             mapped.completedDate = frontmatter[this.mapping.completedDate];
         }

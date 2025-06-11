@@ -419,6 +419,7 @@ export function extractTaskInfo(
 	path: string, 
 	fieldMapper?: FieldMapper
 ): TaskInfo | null {
+	
 	// Try to extract task info from frontmatter
 	if (content.startsWith('---')) {
 		const endOfFrontmatter = content.indexOf('---', 3);

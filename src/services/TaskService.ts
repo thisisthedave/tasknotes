@@ -479,9 +479,10 @@ export class TaskService {
             
             // Step 2: Persist to file
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                // Create updated TaskInfo object for field mapping
-                const updatedTaskData: Partial<TaskInfo> = {
-                    ...updates,
+                // Create updated TaskInfo object for field mapping - include ALL current task data to preserve fields
+                const completeTaskData: Partial<TaskInfo> = {
+                    ...originalTask,  // Start with all current fields
+                    ...updates,       // Apply only the changes
                     dateModified: updatedTask.dateModified
                 };
                 
@@ -489,46 +490,54 @@ export class TaskService {
                 if (updates.status !== undefined && !originalTask.recurrence) {
                     if (this.plugin.statusManager.isCompletedStatus(updates.status)) {
                         if (!originalTask.completedDate) {
-                            updatedTaskData.completedDate = getCurrentDateString();
+                            completeTaskData.completedDate = getCurrentDateString();
                         }
                     } else {
-                        updatedTaskData.completedDate = undefined;
+                        completeTaskData.completedDate = undefined;
                     }
                 }
                 
-                // Use field mapper to update frontmatter with proper field mapping
-                const mappedUpdates = this.plugin.fieldMapper.mapToFrontmatter(updatedTaskData, this.plugin.settings.taskTag);
+                // Use field mapper to convert ALL task data to frontmatter with proper field mapping
+                const mappedFrontmatter = this.plugin.fieldMapper.mapToFrontmatter(completeTaskData, this.plugin.settings.taskTag);
                 
-                // Apply all updates to frontmatter
-                Object.keys(mappedUpdates).forEach(key => {
-                    if (mappedUpdates[key] !== undefined) {
-                        frontmatter[key] = mappedUpdates[key];
+                // Clear frontmatter and rebuild with complete mapped data to ensure all fields are preserved
+                Object.keys(frontmatter).forEach(key => {
+                    delete frontmatter[key];
+                });
+                
+                // Apply complete mapped frontmatter
+                Object.keys(mappedFrontmatter).forEach(key => {
+                    if (mappedFrontmatter[key] !== undefined) {
+                        frontmatter[key] = mappedFrontmatter[key];
                     }
                 });
                 
-                // Remove fields that are now undefined
-                if (updatedTaskData.due === undefined) {
+                // Remove fields that are explicitly set to undefined in updates
+                if (updates.hasOwnProperty('due') && updates.due === undefined) {
                     delete frontmatter[this.plugin.fieldMapper.toUserField('due')];
                 }
-                if (updatedTaskData.scheduled === undefined) {
+                if (updates.hasOwnProperty('scheduled') && updates.scheduled === undefined) {
                     delete frontmatter[this.plugin.fieldMapper.toUserField('scheduled')];
                 }
-                if (updatedTaskData.contexts === undefined) {
+                if (updates.hasOwnProperty('contexts') && updates.contexts === undefined) {
                     delete frontmatter[this.plugin.fieldMapper.toUserField('contexts')];
                 }
-                if (updatedTaskData.timeEstimate === undefined) {
+                if (updates.hasOwnProperty('timeEstimate') && updates.timeEstimate === undefined) {
                     delete frontmatter[this.plugin.fieldMapper.toUserField('timeEstimate')];
                 }
-                if (updatedTaskData.completedDate === undefined) {
+                if (updates.hasOwnProperty('completedDate') && updates.completedDate === undefined) {
                     delete frontmatter[this.plugin.fieldMapper.toUserField('completedDate')];
                 }
-                if (updatedTaskData.recurrence === undefined) {
+                if (updates.hasOwnProperty('recurrence') && updates.recurrence === undefined) {
                     delete frontmatter[this.plugin.fieldMapper.toUserField('recurrence')];
                 }
                 
-                // Tags are handled separately (not via field mapper)
-                if (updates.tags !== undefined) {
+                // Tags are handled separately (not via field mapper) - preserve existing tags if not being updated
+                if (updates.hasOwnProperty('tags')) {
                     frontmatter.tags = updates.tags;
+                } else if (originalTask.tags) {
+                    // Preserve existing tags if not being updated
+                    frontmatter.tags = originalTask.tags;
                 }
             });
             

@@ -2,6 +2,7 @@ import { TFile, Vault, normalizePath } from 'obsidian';
 import { TaskInfo, NoteInfo, IndexedFile, FileEventHandlers } from '../types';
 import { extractNoteInfo, extractTaskInfo, debounce } from './helpers';
 import { FieldMapper } from '../services/FieldMapper';
+import { YAMLCache } from './YAMLCache';
 import * as YAML from 'yaml';
 import { format } from 'date-fns';
 import { parseDate, getTodayString, isBeforeDateSafe, createSafeDate, getCurrentTimestamp, parseTimestamp } from './dateUtils';
@@ -236,8 +237,9 @@ export class CacheManager {
     async getTaskInfo(path: string, forceRefresh = false): Promise<TaskInfo | null> {
         // Check cache first
         if (!forceRefresh && this.taskInfoCache.has(path)) {
+            const cachedTask = this.taskInfoCache.get(path)!;
             this.stats.cacheHits++;
-            return this.taskInfoCache.get(path)!;
+            return cachedTask;
         }
         
         const content = await this.getFileContent(path, forceRefresh);
@@ -1013,6 +1015,8 @@ export class CacheManager {
         this.taskInfoCache.delete(path);
         this.noteInfoCache.delete(path);
         this.indexedFilesCache.delete(path);
+        // Also clear the YAMLCache static cache
+        YAMLCache.clearCacheEntry(path);
     }
     
     /**
