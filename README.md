@@ -1,5 +1,7 @@
 # TaskNotes for Obsidian
 
+![Version](https://img.shields.io/badge/version-3.0.0-blue)
+
 TaskNotes is a comprehensive task and note management plugin for Obsidian with integrated calendar views and daily notes.
 
 ## Why TaskNotes?
@@ -25,6 +27,9 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - Context menu interactions for quick task property changes
 
 ### Calendar Integration
+- **Advanced Calendar Views**: Full-featured month view with comprehensive task and note display
+- **Mini Calendar Views**: Compact calendar options for space-efficient layouts
+- **Unscheduled Tasks Modal**: Dedicated interface for managing tasks without dates
 - Month view with agenda display showing tasks and notes
 - Visual indicators for daily notes and due tasks
 - Keyboard navigation and date selection synchronized across all views
@@ -59,7 +64,8 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - **Live Task Previews**: Hover and click interactions for task editing without leaving the current note
 
 ### Views and Layouts
-- **Calendar View**: Month calendar with agenda display and integrated controls
+- **Calendar View**: Advanced and mini calendar modes with agenda display and integrated controls
+- **Unscheduled Tasks Modal**: Dedicated modal for managing tasks without specific dates
 - **Task List View**: Unified task management with advanced filtering and grouping
 - **Kanban Board**: Visual task management with drag-and-drop functionality and dynamic grouping
 - **Agenda View**: Combined daily overview of tasks and notes with timeline organization
@@ -345,6 +351,10 @@ Define custom priority levels with weight-based sorting:
 
 - `npm run dev`: Builds the plugin and watches for changes
 - `npm run build`: Builds the plugin for production
+
+## Credits
+
+This plugin uses [FullCalendar.io](https://fullcalendar.io/) for its calendar components, providing the robust calendar functionality that powers TaskNotes' calendar views.
 
 ## License
 
