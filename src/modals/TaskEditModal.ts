@@ -13,8 +13,8 @@ export class TaskEditModal extends BaseTaskModal {
     }
 
     protected async initializeFormData(): Promise<void> {
-        // Always ensure we have the latest task data before initialization
-        const latestTask = await this.plugin.cacheManager.getTaskInfo(this.task.path, false);
+        // Always ensure we have the latest task data before initialization - use forceRefresh to match openTaskEditModal behavior
+        const latestTask = await this.plugin.cacheManager.getTaskInfo(this.task.path, true);
         if (latestTask) {
             this.task = latestTask;
         }
@@ -303,8 +303,8 @@ export class TaskEditModal extends BaseTaskModal {
                 return;
             }
 
-            // Get the absolute latest task state before saving to prevent overwrites
-            const currentTask = await this.plugin.cacheManager.getTaskInfo(this.task.path, false) || this.task;
+            // Get the absolute latest task state before saving to prevent overwrites - use consistent forceRefresh
+            const currentTask = await this.plugin.cacheManager.getTaskInfo(this.task.path, true) || this.task;
             
             // Call the centralized update service with current state
             await this.plugin.taskService.updateTask(currentTask, updates);

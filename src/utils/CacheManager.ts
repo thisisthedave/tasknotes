@@ -242,11 +242,17 @@ export class CacheManager {
             return cachedTask;
         }
         
+        // If forcing refresh, clear related caches
+        if (forceRefresh) {
+            this.taskInfoCache.delete(path);
+            this.yamlCache.delete(path);
+            YAMLCache.clearCacheEntry(path);
+        }
+        
         const content = await this.getFileContent(path, forceRefresh);
         if (!content) {
             return null;
         }
-        
         try {
             const taskInfo = extractTaskInfo(content, path, this.fieldMapper || undefined);
             
