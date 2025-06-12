@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from 'obsidian';
+import { App, Modal, Setting, setIcon } from 'obsidian';
 import { format, add, isValid, parse } from 'date-fns';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
@@ -17,7 +17,6 @@ export class DueDateModal extends Modal {
     private plugin: TaskNotesPlugin;
     private dueDateInput: HTMLInputElement;
     private dueTimeInput: HTMLInputElement;
-    private includeTimeCheckbox: HTMLInputElement;
 
     constructor(app: App, task: TaskInfo, plugin: TaskNotesPlugin) {
         super(app);
@@ -47,77 +46,55 @@ export class DueDateModal extends Modal {
             cls: 'due-date-modal__task-title'
         });
 
-        // Due date input
-        new Setting(contentEl)
-            .setName('Due Date')
-            .setDesc('Enter due date or leave empty to remove due date')
-            .addText(text => {
-                this.dueDateInput = text.inputEl;
-                this.dueDateInput.setAttribute('aria-label', 'Due date for task');
-                this.dueDateInput.setAttribute('aria-describedby', 'due-date-desc');
-                text.setPlaceholder('YYYY-MM-DD')
-                    .setValue(getDatePart(this.task.due || ''));
+        // Due date and time input
+        const dateTimeSetting = new Setting(contentEl)
+            .setName('Due Date & Time')
+            .setDesc('Enter due date and optional time (leave time empty for date-only)');
 
-                // Set input type to date for better UX
-                text.inputEl.type = 'date';
-                
-                // Focus the input
-                setTimeout(() => text.inputEl.focus(), 100);
-                
-                // Handle Enter key
-                text.inputEl.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        this.save();
-                    } else if (e.key === 'Escape') {
-                        this.close();
-                    }
-                });
-            });
-
-        // Include time checkbox
-        new Setting(contentEl)
-            .setName('Include time')
-            .setDesc('Add a specific time to the due date')
-            .addToggle(toggle => {
-                this.includeTimeCheckbox = toggle.toggleEl as HTMLInputElement;
-                toggle.setValue(hasTimeComponent(this.task.due || ''))
-                    .onChange((value) => {
-                        this.dueTimeInput.style.display = value ? 'block' : 'none';
-                        if (!value) {
-                            this.dueTimeInput.value = '';
-                        } else if (!this.dueTimeInput.value) {
-                            // Default to current time
-                            const now = new Date();
-                            this.dueTimeInput.value = format(now, 'HH:mm');
-                        }
-                    });
-            });
-
-        // Due time input (initially hidden)
-        new Setting(contentEl)
-            .setName('Time')
-            .setDesc('Time in 24-hour format (HH:MM)')
-            .addText(text => {
-                this.dueTimeInput = text.inputEl;
-                this.dueTimeInput.setAttribute('aria-label', 'Due time for task');
-                text.setPlaceholder('HH:MM')
-                    .setValue(getTimePart(this.task.due || '') || '');
-
-                // Set input type to time for better UX
-                text.inputEl.type = 'time';
-                
-                // Initially hide if no time component
-                text.inputEl.style.display = hasTimeComponent(this.task.due || '') ? 'block' : 'none';
-                
-                // Handle Enter key
-                text.inputEl.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        this.save();
-                    } else if (e.key === 'Escape') {
-                        this.close();
-                    }
-                });
-            });
+        // Create a container for the date and time inputs
+        const dateTimeContainer = dateTimeSetting.controlEl.createDiv({ cls: 'modal-form__datetime-container' });
+        
+        // Date input
+        this.dueDateInput = dateTimeContainer.createEl('input', {
+            type: 'date',
+            cls: 'modal-form__input modal-form__input--date',
+            attr: { 
+                'aria-label': 'Due date for task',
+                'placeholder': 'YYYY-MM-DD'
+            }
+        });
+        this.dueDateInput.value = getDatePart(this.task.due || '');
+        
+        // Time input (always visible)
+        this.dueTimeInput = dateTimeContainer.createEl('input', {
+            type: 'time',
+            cls: 'modal-form__input modal-form__input--time',
+            attr: { 
+                'aria-label': 'Due time for task (optional)',
+                'placeholder': 'HH:MM'
+            }
+        });
+        this.dueTimeInput.value = getTimePart(this.task.due || '') || '';
+        
+        // Event listeners
+        this.dueDateInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.save();
+            } else if (e.key === 'Escape') {
+                this.close();
+            }
+        });
+        
+        this.dueTimeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.save();
+            } else if (e.key === 'Escape') {
+                this.close();
+            }
+        });
+        
+        // Focus the date input
+        setTimeout(() => this.dueDateInput.focus(), 100);
 
         // Quick date buttons
         const quickDatesContainer = contentEl.createDiv({ cls: 'modal-form__group' });
@@ -167,8 +144,6 @@ export class DueDateModal extends Modal {
             const now = new Date();
             this.dueDateInput.value = format(now, 'yyyy-MM-dd');
             this.dueTimeInput.value = format(now, 'HH:mm');
-            this.includeTimeCheckbox.checked = true;
-            this.dueTimeInput.style.display = 'block';
         });
 
         // Clear button
@@ -180,8 +155,6 @@ export class DueDateModal extends Modal {
         clearBtn.addEventListener('click', () => {
             this.dueDateInput.value = '';
             this.dueTimeInput.value = '';
-            this.includeTimeCheckbox.checked = false;
-            this.dueTimeInput.style.display = 'none';
         });
 
         // Action buttons
@@ -203,21 +176,20 @@ export class DueDateModal extends Modal {
     private async save() {
         const dateValue = this.dueDateInput.value.trim();
         const timeValue = this.dueTimeInput.value.trim();
-        const includeTime = this.includeTimeCheckbox.checked;
         
         // Build the final date/datetime value
         let finalValue: string | undefined;
         
         if (!dateValue) {
             finalValue = undefined; // Clear the due date
-        } else if (includeTime && timeValue) {
+        } else if (timeValue) {
             finalValue = combineDateAndTime(dateValue, timeValue);
         } else {
             finalValue = dateValue; // Date only
         }
         
         // Validate the final value
-        if (!validateDateTimeInput(dateValue, includeTime ? timeValue : undefined)) {
+        if (!validateDateTimeInput(dateValue, timeValue)) {
             // Show error message
             const errorEl = this.contentEl.createEl('div', { 
                 text: 'Please enter a valid date and time format',

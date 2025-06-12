@@ -181,54 +181,20 @@
 /* DateTime Container */
 .tasknotes-plugin .modal-form__datetime-container {
     display: flex;
-    flex-direction: column;
-    gap: var(--tn-spacing-sm);
-}
-
-/* Date Container */
-.tasknotes-plugin .modal-form__date-container {
-    display: flex;
     align-items: center;
     gap: var(--tn-spacing-sm);
-}
-
-/* Time Toggle Container */
-.tasknotes-plugin .modal-form__time-toggle-container {
-    display: flex;
-    align-items: center;
-    gap: var(--tn-spacing-sm);
-    margin-left: var(--tn-spacing-sm);
-}
-
-/* Time Toggle Checkbox */
-.tasknotes-plugin .modal-form__time-toggle {
-    margin: 0;
-    cursor: pointer;
-    transform: scale(1.1);
-}
-
-.tasknotes-plugin .modal-form__time-toggle-label {
-    font-size: var(--tn-font-size-sm);
-    color: var(--tn-text-normal);
-    cursor: pointer;
-    user-select: none;
-    margin: 0;
-}
-
-/* Time Container */
-.tasknotes-plugin .modal-form__time-container {
-    margin-left: var(--tn-spacing-lg);
-    transition: opacity var(--tn-transition-fast), height var(--tn-transition-fast);
+    flex-wrap: wrap;
 }
 
 /* Date and Time Input Modifiers */
 .tasknotes-plugin .modal-form__input--date {
     flex: 1;
-    min-width: 0;
+    min-width: 140px;
 }
 
 .tasknotes-plugin .modal-form__input--time {
     width: 120px;
+    font-family: var(--tn-font-mono);
     flex-shrink: 0;
 }
 

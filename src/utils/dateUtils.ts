@@ -307,9 +307,19 @@ export function formatDateTimeForDisplay(dateString: string, options: {
         const hasTime = hasTimeComponent(dateString);
         
         if (hasTime && showTime) {
-            return format(parsed, `${dateFormat} ${timeFormat}`);
+            // Handle empty dateFormat case (e.g., for "Today at" scenarios)
+            if (!dateFormat || dateFormat.trim() === '') {
+                return format(parsed, timeFormat);
+            } else {
+                return format(parsed, `${dateFormat} ${timeFormat}`);
+            }
         } else {
-            return format(parsed, dateFormat);
+            // For date-only, return the dateFormat or fallback
+            if (!dateFormat || dateFormat.trim() === '') {
+                return ''; // Return empty for time-only requests when no time available
+            } else {
+                return format(parsed, dateFormat);
+            }
         }
     } catch (error) {
         console.error('Error formatting datetime for display:', { dateString, error });

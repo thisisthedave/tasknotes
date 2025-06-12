@@ -17,7 +17,6 @@ export class ScheduledDateModal extends Modal {
     private plugin: TaskNotesPlugin;
     private scheduledDateInput: HTMLInputElement;
     private scheduledTimeInput: HTMLInputElement;
-    private includeTimeCheckbox: HTMLInputElement;
 
     constructor(app: App, task: TaskInfo, plugin: TaskNotesPlugin) {
         super(app);
@@ -29,6 +28,13 @@ export class ScheduledDateModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
         contentEl.addClass('tasknotes-plugin');
+        
+        // Set up modal accessibility
+        this.titleEl.setText('Set Scheduled Date');
+        this.titleEl.setAttribute('id', 'scheduled-date-modal-title');
+        this.containerEl.setAttribute('aria-labelledby', 'scheduled-date-modal-title');
+        this.containerEl.setAttribute('role', 'dialog');
+        this.containerEl.setAttribute('aria-modal', 'true');
 
         new Setting(contentEl)
             .setName('Set scheduled date')
@@ -40,76 +46,55 @@ export class ScheduledDateModal extends Modal {
             cls: 'scheduled-date-modal__task-title'
         });
 
-        // Scheduled date input
-        new Setting(contentEl)
-            .setName('Scheduled date')
-            .setDesc('Enter scheduled date or leave empty to remove scheduled date')
-            .addText(text => {
-                this.scheduledDateInput = text.inputEl;
-                this.scheduledDateInput.setAttribute('aria-label', 'Scheduled date for task');
-                text.setPlaceholder('YYYY-MM-DD')
-                    .setValue(getDatePart(this.task.scheduled || ''));
+        // Scheduled date and time inputs
+        const dateTimeSetting = new Setting(contentEl)
+            .setName('Scheduled Date & Time')
+            .setDesc('Enter scheduled date and optional time (leave time empty for date-only)');
 
-                // Set input type to date for better UX
-                text.inputEl.type = 'date';
-                
-                // Focus the input
-                setTimeout(() => text.inputEl.focus(), 100);
-                
-                // Handle Enter key
-                text.inputEl.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        this.save();
-                    } else if (e.key === 'Escape') {
-                        this.close();
-                    }
-                });
-            });
-
-        // Include time checkbox
-        new Setting(contentEl)
-            .setName('Include time')
-            .setDesc('Add a specific time to the scheduled date')
-            .addToggle(toggle => {
-                this.includeTimeCheckbox = toggle.toggleEl as HTMLInputElement;
-                toggle.setValue(hasTimeComponent(this.task.scheduled || ''))
-                    .onChange((value) => {
-                        this.scheduledTimeInput.style.display = value ? 'block' : 'none';
-                        if (!value) {
-                            this.scheduledTimeInput.value = '';
-                        } else if (!this.scheduledTimeInput.value) {
-                            // Default to current time
-                            const now = new Date();
-                            this.scheduledTimeInput.value = format(now, 'HH:mm');
-                        }
-                    });
-            });
-
-        // Scheduled time input (initially hidden)
-        new Setting(contentEl)
-            .setName('Time')
-            .setDesc('Time in 24-hour format (HH:MM)')
-            .addText(text => {
-                this.scheduledTimeInput = text.inputEl;
-                this.scheduledTimeInput.setAttribute('aria-label', 'Scheduled time for task');
-                text.setPlaceholder('HH:MM')
-                    .setValue(getTimePart(this.task.scheduled || '') || '');
-
-                // Set input type to time for better UX
-                text.inputEl.type = 'time';
-                
-                // Initially hide if no time component
-                text.inputEl.style.display = hasTimeComponent(this.task.scheduled || '') ? 'block' : 'none';
-                
-                // Handle Enter key
-                text.inputEl.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        this.save();
-                    } else if (e.key === 'Escape') {
-                        this.close();
-                    }
-                });
-            });
+        // Create a container for the date and time inputs
+        const dateTimeContainer = dateTimeSetting.controlEl.createDiv({ cls: 'modal-form__datetime-container' });
+        
+        // Date input
+        this.scheduledDateInput = dateTimeContainer.createEl('input', {
+            type: 'date',
+            cls: 'modal-form__input modal-form__input--date',
+            attr: { 
+                'aria-label': 'Scheduled date for task',
+                'placeholder': 'YYYY-MM-DD'
+            }
+        });
+        this.scheduledDateInput.value = getDatePart(this.task.scheduled || '');
+        
+        // Time input (always visible but optional)
+        this.scheduledTimeInput = dateTimeContainer.createEl('input', {
+            type: 'time',
+            cls: 'modal-form__input modal-form__input--time',
+            attr: { 
+                'aria-label': 'Scheduled time for task (optional)',
+                'placeholder': 'HH:MM'
+            }
+        });
+        this.scheduledTimeInput.value = getTimePart(this.task.scheduled || '') || '';
+        
+        // Event listeners for keyboard navigation
+        this.scheduledDateInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.save();
+            } else if (e.key === 'Escape') {
+                this.close();
+            }
+        });
+        
+        this.scheduledTimeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.save();
+            } else if (e.key === 'Escape') {
+                this.close();
+            }
+        });
+        
+        // Focus the date input
+        setTimeout(() => this.scheduledDateInput.focus(), 100);
 
         // Quick date buttons
         const quickDatesContainer = contentEl.createDiv({ cls: 'modal-form__group' });
@@ -120,61 +105,57 @@ export class ScheduledDateModal extends Modal {
         const buttonsContainer = quickDatesContainer.createDiv({ cls: 'modal-form__quick-actions' });
 
         // Today button
-        buttonsContainer.createEl('button', { 
+        const todayBtn = buttonsContainer.createEl('button', { 
             text: 'Today', 
             cls: 'modal-form__button modal-form__button--quick-date',
             attr: { 'aria-label': 'Set scheduled date to today' }
-        })
-            .addEventListener('click', () => {
-                this.scheduledDateInput.value = format(new Date(), 'yyyy-MM-dd');
-            });
+        });
+        todayBtn.addEventListener('click', () => {
+            this.scheduledDateInput.value = format(new Date(), 'yyyy-MM-dd');
+        });
 
         // Tomorrow button
-        buttonsContainer.createEl('button', { 
+        const tomorrowBtn = buttonsContainer.createEl('button', { 
             text: 'Tomorrow', 
             cls: 'modal-form__button modal-form__button--quick-date',
             attr: { 'aria-label': 'Set scheduled date to tomorrow' }
-        })
-            .addEventListener('click', () => {
-                this.scheduledDateInput.value = format(add(new Date(), { days: 1 }), 'yyyy-MM-dd');
-            });
+        });
+        tomorrowBtn.addEventListener('click', () => {
+            this.scheduledDateInput.value = format(add(new Date(), { days: 1 }), 'yyyy-MM-dd');
+        });
 
         // Next week button
-        buttonsContainer.createEl('button', { 
+        const nextWeekBtn = buttonsContainer.createEl('button', { 
             text: 'Next week', 
             cls: 'modal-form__button modal-form__button--quick-date',
             attr: { 'aria-label': 'Set scheduled date to next week' }
-        })
-            .addEventListener('click', () => {
-                this.scheduledDateInput.value = format(add(new Date(), { weeks: 1 }), 'yyyy-MM-dd');
-            });
+        });
+        nextWeekBtn.addEventListener('click', () => {
+            this.scheduledDateInput.value = format(add(new Date(), { weeks: 1 }), 'yyyy-MM-dd');
+        });
 
         // Now button (today with current time)
-        buttonsContainer.createEl('button', { 
+        const nowBtn = buttonsContainer.createEl('button', { 
             text: 'Now', 
             cls: 'modal-form__button modal-form__button--quick-date',
             attr: { 'aria-label': 'Set scheduled date and time to now' }
-        })
-            .addEventListener('click', () => {
-                const now = new Date();
-                this.scheduledDateInput.value = format(now, 'yyyy-MM-dd');
-                this.scheduledTimeInput.value = format(now, 'HH:mm');
-                this.includeTimeCheckbox.checked = true;
-                this.scheduledTimeInput.style.display = 'block';
-            });
+        });
+        nowBtn.addEventListener('click', () => {
+            const now = new Date();
+            this.scheduledDateInput.value = format(now, 'yyyy-MM-dd');
+            this.scheduledTimeInput.value = format(now, 'HH:mm');
+        });
 
         // Clear button
-        buttonsContainer.createEl('button', { 
+        const clearBtn = buttonsContainer.createEl('button', { 
             text: 'Clear', 
             cls: 'modal-form__button modal-form__button--quick-date modal-form__button--quick-date--clear',
             attr: { 'aria-label': 'Clear scheduled date' }
-        })
-            .addEventListener('click', () => {
-                this.scheduledDateInput.value = '';
-                this.scheduledTimeInput.value = '';
-                this.includeTimeCheckbox.checked = false;
-                this.scheduledTimeInput.style.display = 'none';
-            });
+        });
+        clearBtn.addEventListener('click', () => {
+            this.scheduledDateInput.value = '';
+            this.scheduledTimeInput.value = '';
+        });
 
         // Action buttons
         const buttonContainer = contentEl.createDiv({ cls: 'modal-form__buttons' });
@@ -192,24 +173,24 @@ export class ScheduledDateModal extends Modal {
         cancelButton.addEventListener('click', () => this.close());
     }
 
+
     private async save() {
         const dateValue = this.scheduledDateInput.value.trim();
         const timeValue = this.scheduledTimeInput.value.trim();
-        const includeTime = this.includeTimeCheckbox.checked;
         
         // Build the final date/datetime value
         let finalValue: string | undefined;
         
         if (!dateValue) {
             finalValue = undefined; // Clear the scheduled date
-        } else if (includeTime && timeValue) {
+        } else if (timeValue) {
             finalValue = combineDateAndTime(dateValue, timeValue);
         } else {
             finalValue = dateValue; // Date only
         }
         
         // Validate the final value
-        if (!validateDateTimeInput(dateValue, includeTime ? timeValue : undefined)) {
+        if (!validateDateTimeInput(dateValue, timeValue)) {
             // Show error message
             const errorEl = this.contentEl.createEl('div', { 
                 text: 'Please enter a valid date and time format',
@@ -220,9 +201,12 @@ export class ScheduledDateModal extends Modal {
                 }
             });
             this.scheduledDateInput.setAttribute('aria-invalid', 'true');
+            this.scheduledDateInput.setAttribute('aria-describedby', 'scheduled-date-error');
+            errorEl.setAttribute('id', 'scheduled-date-error');
             setTimeout(() => {
                 errorEl.remove();
                 this.scheduledDateInput.removeAttribute('aria-invalid');
+                this.scheduledDateInput.removeAttribute('aria-describedby');
             }, 3000);
             return;
         }
