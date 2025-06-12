@@ -29,9 +29,7 @@ export abstract class BaseTaskModal extends Modal {
     
     // Time-related properties
     protected dueTimeInput?: HTMLInputElement;
-    protected dueTimeEnabled: boolean = false;
     protected scheduledTimeInput?: HTMLInputElement;
-    protected scheduledTimeEnabled: boolean = false;
     
     // Cached data
     protected existingContexts: string[] = [];
@@ -449,88 +447,46 @@ export abstract class BaseTaskModal extends Modal {
         const inputContainer = container.createDiv({ cls: 'modal-form__datetime-container' });
         
         // Date input
-        const dateContainer = inputContainer.createDiv({ cls: 'modal-form__date-container' });
-        const inputId = `scheduled-date-input-${Math.random().toString(36).substr(2, 9)}`;
-        const dateInput = dateContainer.createEl('input', {
+        const dateInput = inputContainer.createEl('input', {
             type: 'date',
             cls: 'modal-form__input modal-form__input--date',
             attr: {
-                'id': inputId,
-                'aria-label': 'Scheduled date'
+                'aria-label': 'Scheduled date',
+                'placeholder': 'YYYY-MM-DD'
             }
         });
-
+        
         // Extract and set date part
         const datePart = getDatePart(this.scheduledDate);
         if (datePart && validateDateInput(datePart)) {
             dateInput.value = datePart;
         }
-
-        dateInput.addEventListener('change', (e) => {
-            const dateValue = (e.target as HTMLInputElement).value;
-            this.updateScheduledDateValue(dateValue, this.scheduledTimeEnabled ? (this.scheduledTimeInput?.value || '') : '');
-        });
         
-        // Time toggle container
-        const timeToggleContainer = inputContainer.createDiv({ cls: 'modal-form__time-toggle-container' });
-        
-        const timeToggleId = `scheduled-time-toggle-${Math.random().toString(36).substr(2, 9)}`;
-        const timeToggle = timeToggleContainer.createEl('input', {
-            type: 'checkbox',
-            cls: 'modal-form__time-toggle',
-            attr: {
-                'id': timeToggleId,
-                'aria-label': 'Include time for scheduled date'
-            }
-        });
-        
-        const timeToggleLabel = timeToggleContainer.createEl('label', {
-            text: 'Include time',
-            cls: 'modal-form__time-toggle-label',
-            attr: { 'for': timeToggleId }
-        });
-        
-        // Time input (initially hidden)
-        const timeContainer = inputContainer.createDiv({ cls: 'modal-form__time-container' });
-        const timeInputId = `scheduled-time-input-${Math.random().toString(36).substr(2, 9)}`;
-        this.scheduledTimeInput = timeContainer.createEl('input', {
+        // Time input (always visible but optional)
+        this.scheduledTimeInput = inputContainer.createEl('input', {
             type: 'time',
             cls: 'modal-form__input modal-form__input--time',
             attr: {
-                'id': timeInputId,
-                'aria-label': 'Scheduled time'
+                'aria-label': 'Scheduled time (optional)',
+                'placeholder': 'HH:MM'
             }
         });
         
-        // Initialize time components
-        this.scheduledTimeEnabled = hasTimeComponent(this.scheduledDate);
+        // Extract and set time part
         const timePart = getTimePart(this.scheduledDate);
-        if (timePart && this.scheduledTimeEnabled) {
+        if (timePart) {
             this.scheduledTimeInput.value = timePart;
         }
         
-        timeToggle.checked = this.scheduledTimeEnabled;
-        timeContainer.style.display = this.scheduledTimeEnabled ? 'block' : 'none';
-        
-        // Time toggle event listener
-        timeToggle.addEventListener('change', (e) => {
-            this.scheduledTimeEnabled = (e.target as HTMLInputElement).checked;
-            timeContainer.style.display = this.scheduledTimeEnabled ? 'block' : 'none';
-            
-            if (!this.scheduledTimeEnabled) {
-                this.scheduledTimeInput!.value = '';
-            } else if (!this.scheduledTimeInput!.value) {
-                // Default to current time
-                const now = new Date();
-                this.scheduledTimeInput!.value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-            }
-            
-            this.updateScheduledDateValue(dateInput.value, this.scheduledTimeEnabled ? this.scheduledTimeInput!.value : '');
+        // Event listeners
+        dateInput.addEventListener('change', (e) => {
+            const dateValue = (e.target as HTMLInputElement).value;
+            this.updateScheduledDateValue(dateValue, this.scheduledTimeInput?.value || '');
         });
         
-        // Time input event listener
         this.scheduledTimeInput.addEventListener('change', (e) => {
-            this.updateScheduledDateValue(dateInput.value, (e.target as HTMLInputElement).value);
+            const timeValue = (e.target as HTMLInputElement).value;
+            this.updateScheduledDateValue(dateInput.value, timeValue);
         });
     }
     
@@ -540,7 +496,7 @@ export abstract class BaseTaskModal extends Modal {
             return;
         }
         
-        if (this.scheduledTimeEnabled && timeValue) {
+        if (timeValue && timeValue.trim()) {
             this.scheduledDate = combineDateAndTime(dateValue, timeValue);
         } else {
             this.scheduledDate = dateValue;

@@ -61,11 +61,9 @@ export class TaskCreationModal extends BaseTaskModal {
 		if (values.priority !== undefined) this.priority = values.priority;
 		if (values.due !== undefined) {
 			this.dueDate = values.due;
-			this.dueTimeEnabled = hasTimeComponent(values.due);
 		}
 		if (values.scheduled !== undefined) {
 			this.scheduledDate = values.scheduled;
-			this.scheduledTimeEnabled = hasTimeComponent(values.scheduled);
 		}
 		if (values.contexts !== undefined && values.contexts.length > 0) {
 			this.contexts = values.contexts.join(', ');
@@ -81,9 +79,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		this.scheduledDate = ''; // Always reset scheduled date for converted tasks
 		this.details = ''; // Reset details too
 		
-		// Initialize time components
-		this.dueTimeEnabled = hasTimeComponent(this.dueDate);
-		this.scheduledTimeEnabled = hasTimeComponent(this.scheduledDate);
+		// Time components will be set by the input fields automatically
 		
 		// Update input field if it exists
 		if (this.dueDateInput) {

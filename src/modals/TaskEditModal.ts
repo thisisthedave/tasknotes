@@ -24,8 +24,7 @@ export class TaskEditModal extends BaseTaskModal {
         // Initialize date and time components properly
         this.dueDate = this.task.due || '';
         this.scheduledDate = this.task.scheduled || '';
-        this.dueTimeEnabled = hasTimeComponent(this.task.due || '');
-        this.scheduledTimeEnabled = hasTimeComponent(this.task.scheduled || '');
+        // Time components will be handled by the input fields automatically
         
         this.priority = this.task.priority;
         this.status = this.task.status;
