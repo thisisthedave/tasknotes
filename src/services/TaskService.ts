@@ -162,13 +162,16 @@ export class TaskService {
                 throw new Error(`Cannot find task file: ${task.path}`);
             }
             
-            // Step 1: Construct new state in memory
-            const updatedTask = { ...task } as Record<string, any>;
+            // Get fresh task data to prevent overwrites
+            const freshTask = await this.plugin.cacheManager.getTaskInfo(task.path, true) || task;
+            
+            // Step 1: Construct new state in memory using fresh data
+            const updatedTask = { ...freshTask } as Record<string, any>;
             updatedTask[property] = value;
             updatedTask.dateModified = getCurrentTimestamp();
             
             // Handle derivative changes for status updates
-            if (property === 'status' && !task.recurrence) {
+            if (property === 'status' && !freshTask.recurrence) {
                 if (this.plugin.statusManager.isCompletedStatus(value)) {
                     updatedTask.completedDate = getCurrentDateString();
                 } else {

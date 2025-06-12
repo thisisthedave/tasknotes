@@ -260,7 +260,7 @@ export class PomodoroService {
         // Stop time tracking on the task if applicable
         if (this.state.currentSession && this.state.currentSession.taskPath) {
             try {
-                const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, false);
+                const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, true);
                 if (task) {
                     await this.plugin.taskService.stopTimeTracking(task);
                 }
@@ -301,7 +301,7 @@ export class PomodoroService {
         // Start a new time tracking session on the task if applicable
         if (this.state.currentSession && this.state.currentSession.taskPath) {
             try {
-                const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, false);
+                const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, true);
                 if (task) {
                     await this.plugin.taskService.startTimeTracking(task);
                 }
@@ -351,7 +351,7 @@ export class PomodoroService {
         // Stop time tracking on the task if applicable (only if it was running)
         if (this.state.currentSession && this.state.currentSession.taskPath && wasRunning) {
             try {
-                const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, false);
+                const task = await this.plugin.cacheManager.getTaskInfo(this.state.currentSession.taskPath, true);
                 if (task) {
                     await this.plugin.taskService.stopTimeTracking(task);
                 }
@@ -476,7 +476,7 @@ export class PomodoroService {
             // Stop time tracking on task if applicable
             if (session.taskPath) {
                 try {
-                    const task = await this.plugin.cacheManager.getTaskInfo(session.taskPath, false);
+                    const task = await this.plugin.cacheManager.getTaskInfo(session.taskPath, true);
                     if (task) {
                         await this.plugin.taskService.stopTimeTracking(task);
                     }
