@@ -266,6 +266,16 @@
     color: var(--interactive-accent-hover);
 }
 
+/* Current time indicator (red line) */
+.advanced-calendar-view .fc-timegrid-now-indicator-line {
+    border-color: #ff0000;
+    border-width: 1px;
+}
+
+.advanced-calendar-view .fc-timegrid-now-indicator-arrow {
+    border-color: #ff0000;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .advanced-calendar-view__header {

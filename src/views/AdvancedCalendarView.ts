@@ -234,6 +234,9 @@ export class AdvancedCalendarView extends ItemView {
             selectable: true,
             selectMirror: true,
             
+            // Current time indicator
+            nowIndicator: true,
+            
             // 24-hour view configuration
             slotMinTime: '00:00:00',
             slotMaxTime: '24:00:00',
