@@ -43,6 +43,9 @@ export class UnscheduledTasksSelectorModal extends FuzzySuggestModal<TaskInfo> {
         this.containerEl.setAttribute('role', 'dialog');
         this.containerEl.setAttribute('aria-modal', 'true');
         
+        // Add CSS class to fix positioning
+        this.containerEl.addClass('unscheduled-tasks-selector-modal');
+        
         // Load tasks
         this.loadUnscheduledTasks();
     }

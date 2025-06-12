@@ -104,19 +104,13 @@ export class AdvancedCalendarView extends ItemView {
     createHeader(container: HTMLElement) {
         const header = container.createDiv({ cls: 'advanced-calendar-view__header' });
         
-        // Title
-        const title = header.createEl('h2', {
-            text: 'Advanced Calendar',
-            cls: 'advanced-calendar-view__title'
-        });
-        
         // View toggles
         const toggles = header.createDiv({ cls: 'advanced-calendar-view__toggles' });
         
         // Show Scheduled Tasks toggle
         const scheduledToggle = this.createToggle(
             toggles,
-            'Show Scheduled Tasks',
+            'Show scheduled tasks',
             this.showScheduled,
             (enabled) => {
                 this.showScheduled = enabled;
@@ -148,7 +142,7 @@ export class AdvancedCalendarView extends ItemView {
         
         // Schedule Tasks button
         const scheduleTasksBtn = header.createEl('button', {
-            text: 'Schedule Tasks',
+            text: 'Schedule tasks',
             cls: 'advanced-calendar-view__schedule-tasks-btn'
         });
         scheduleTasksBtn.addEventListener('click', () => {
@@ -231,7 +225,7 @@ export class AdvancedCalendarView extends ItemView {
             initialView: 'dayGridMonth',
             headerToolbar: {
                 left: 'prev,next today',
-                center: 'title',
+                center: '',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
             height: '100%',
@@ -316,15 +310,19 @@ export class AdvancedCalendarView extends ItemView {
             endDate = format(end, "yyyy-MM-dd'T'HH:mm");
         }
         
+        // Get priority-based color for border
+        const priorityConfig = this.plugin.priorityManager.getPriorityConfig(task.priority);
+        const borderColor = priorityConfig?.color || '#6B73FF';
+        
         return {
             id: `scheduled-${task.path}`,
             title: task.title,
             start: startDate,
             end: endDate,
             allDay: !hasTime,
-            backgroundColor: '#4CAF50',
-            borderColor: '#4CAF50',
-            textColor: '#FFFFFF',
+            backgroundColor: 'transparent',
+            borderColor: borderColor,
+            textColor: borderColor,
             extendedProps: {
                 taskInfo: task,
                 eventType: 'scheduled'
@@ -346,20 +344,39 @@ export class AdvancedCalendarView extends ItemView {
             endDate = format(end, "yyyy-MM-dd'T'HH:mm");
         }
         
+        // Get priority-based color with faded background
+        const priorityConfig = this.plugin.priorityManager.getPriorityConfig(task.priority);
+        const borderColor = priorityConfig?.color || '#FF5722';
+        
+        // Create faded background color from priority color
+        const fadedBackground = this.hexToRgba(borderColor, 0.15);
+        
         return {
             id: `due-${task.path}`,
-            title: `📅 ${task.title}`,
+            title: `DUE: ${task.title}`,
             start: startDate,
             end: endDate,
             allDay: !hasTime,
-            backgroundColor: '#F44336',
-            borderColor: '#F44336',
-            textColor: '#FFFFFF',
+            backgroundColor: fadedBackground,
+            borderColor: borderColor,
+            textColor: borderColor,
             extendedProps: {
                 taskInfo: task,
                 eventType: 'due'
             }
         };
+    }
+
+    hexToRgba(hex: string, alpha: number): string {
+        // Remove # if present
+        hex = hex.replace('#', '');
+        
+        // Parse hex color
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
     createTimeEntryEvents(task: TaskInfo): CalendarEvent[] {

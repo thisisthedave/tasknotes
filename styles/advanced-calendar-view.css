@@ -17,18 +17,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--background-modifier-border);
+    padding: 0.5rem 1rem;
     background: var(--background-primary);
     flex-shrink: 0;
-    min-height: 60px;
-}
-
-.advanced-calendar-view__title {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 500;
-    color: var(--text-normal);
+    min-height: 50px;
 }
 
 .advanced-calendar-view__toggles {
@@ -83,51 +75,64 @@
     font-family: var(--font-interface);
 }
 
-/* Clean borders */
-.advanced-calendar-view .fc-theme-standard td,
-.advanced-calendar-view .fc-theme-standard th {
-    border: 1px solid var(--background-modifier-border);
+/* Remove outer borders only */
+.advanced-calendar-view .fc-theme-standard .fc-scrollgrid {
+    border: none;
 }
 
-.advanced-calendar-view .fc-theme-standard .fc-scrollgrid {
-    border: 1px solid var(--background-modifier-border);
+/* Light dividers for clean look */
+.advanced-calendar-view .fc-col-header-cell {
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.advanced-calendar-view .fc-daygrid-day {
+    border-right: 1px solid var(--background-modifier-border-hover);
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+
+.advanced-calendar-view .fc-timegrid-slot {
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+
+.advanced-calendar-view .fc-timegrid-col {
+    border-right: 1px solid var(--background-modifier-border-hover);
 }
 
 /* Header toolbar styling */
 .advanced-calendar-view .fc-header-toolbar {
-    margin-bottom: 1rem;
-    padding: 0 0.5rem;
+    margin-bottom: 0.5rem;
+    padding: 0;
+    border: none;
+    background: transparent;
 }
 
 .advanced-calendar-view .fc-toolbar-chunk {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem;
 }
 
-/* Clean button styling */
+/* Minimal button styling */
 .advanced-calendar-view .fc-button-primary {
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    color: var(--text-normal);
-    font-size: 0.85rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
     font-weight: 400;
-    padding: 0.4rem 0.8rem;
+    padding: 0.3rem 0.6rem;
     border-radius: 4px;
     transition: all 0.2s ease;
 }
 
 .advanced-calendar-view .fc-button-primary:hover:not(:disabled) {
     background: var(--background-modifier-hover);
-    border-color: var(--interactive-accent);
     color: var(--text-normal);
 }
 
 .advanced-calendar-view .fc-button-primary:disabled {
-    background: var(--background-modifier-form-field);
-    border-color: var(--background-modifier-border);
-    color: var(--text-muted);
-    opacity: 0.6;
+    background: transparent;
+    color: var(--text-faint);
+    opacity: 0.5;
 }
 
 .advanced-calendar-view .fc-button-active {
@@ -175,11 +180,11 @@
 .advanced-calendar-view .fc-col-header-cell {
     background: var(--background-primary);
     color: var(--text-muted);
-    font-weight: 500;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0.75rem 0.5rem;
+    font-weight: 400;
+    font-size: 0.75rem;
+    text-transform: lowercase;
+    letter-spacing: 0;
+    padding: 0.5rem 0.5rem;
 }
 
 /* Day numbers */
@@ -193,7 +198,7 @@
 /* Clean event styling */
 .advanced-calendar-view .fc-event {
     border-radius: 6px;
-    border: none;
+    border: 1px solid;
     font-size: 0.8rem;
     font-weight: 500;
     padding: 0.2rem 0.5rem;

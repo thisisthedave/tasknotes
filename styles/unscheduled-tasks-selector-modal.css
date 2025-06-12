@@ -115,11 +115,50 @@
     line-height: 1.5;
 }
 
-/* Modal container overrides */
-.modal-container:has(.unscheduled-tasks-selector__suggestion) {
-    max-width: 600px;
+/* Fix modal positioning issues */
+.unscheduled-tasks-selector-modal {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: auto !important;
+    max-width: 600px !important;
+    min-width: 500px !important;
 }
 
-.prompt-results:has(.unscheduled-tasks-selector__suggestion) {
+.unscheduled-tasks-selector-modal .modal-content {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+.unscheduled-tasks-selector-modal .prompt {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+}
+
+.unscheduled-tasks-selector-modal .prompt-results {
     max-height: 400px;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+}
+
+/* Ensure input and results container stay in place */
+.unscheduled-tasks-selector-modal .prompt-input-container {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+}
+
+.unscheduled-tasks-selector-modal .prompt-input {
+    width: 100% !important;
 }
