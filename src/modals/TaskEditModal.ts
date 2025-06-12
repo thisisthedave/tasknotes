@@ -2,7 +2,7 @@ import { App, Notice, TFile, Setting } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { BaseTaskModal } from './BaseTaskModal';
 import { TaskInfo } from '../types';
-import { formatTimestampForDisplay, normalizeDateString } from '../utils/dateUtils';
+import { formatTimestampForDisplay, normalizeDateString, hasTimeComponent, getDatePart, getTimePart } from '../utils/dateUtils';
 
 export class TaskEditModal extends BaseTaskModal {
     task: TaskInfo;
@@ -21,9 +21,12 @@ export class TaskEditModal extends BaseTaskModal {
         
         // Initialize form fields with current task data
         this.title = this.task.title;
-        // Normalize dates to YYYY-MM-DD format for HTML date inputs
-        this.dueDate = this.task.due ? normalizeDateString(this.task.due) : '';
-        this.scheduledDate = this.task.scheduled ? normalizeDateString(this.task.scheduled) : '';
+        // Initialize date and time components properly
+        this.dueDate = this.task.due || '';
+        this.scheduledDate = this.task.scheduled || '';
+        this.dueTimeEnabled = hasTimeComponent(this.task.due || '');
+        this.scheduledTimeEnabled = hasTimeComponent(this.task.scheduled || '');
+        
         this.priority = this.task.priority;
         this.status = this.task.status;
         this.contexts = this.task.contexts ? this.task.contexts.join(', ') : '';
@@ -250,16 +253,16 @@ export class TaskEditModal extends BaseTaskModal {
             if (this.status !== this.task.status) {
                 updates.status = this.status;
             }
-            // Check for changes in date fields (normalize for comparison)
-            const normalizedDueDate = this.dueDate ? normalizeDateString(this.dueDate) : '';
-            const originalDueDate = this.task.due ? normalizeDateString(this.task.due) : '';
-            if (normalizedDueDate !== originalDueDate) {
+            // Check for changes in date fields (compare full datetime values)
+            const currentDueDate = this.dueDate || '';
+            const originalDueDate = this.task.due || '';
+            if (currentDueDate !== originalDueDate) {
                 updates.due = this.dueDate || undefined;
             }
             
-            const normalizedScheduledDate = this.scheduledDate ? normalizeDateString(this.scheduledDate) : '';
-            const originalScheduledDate = this.task.scheduled ? normalizeDateString(this.task.scheduled) : '';
-            if (normalizedScheduledDate !== originalScheduledDate) {
+            const currentScheduledDate = this.scheduledDate || '';
+            const originalScheduledDate = this.task.scheduled || '';
+            if (currentScheduledDate !== originalScheduledDate) {
                 updates.scheduled = this.scheduledDate || undefined;
             }
             

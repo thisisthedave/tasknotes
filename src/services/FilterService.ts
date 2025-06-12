@@ -5,7 +5,19 @@ import { PriorityManager } from './PriorityManager';
 import { EventEmitter } from '../utils/EventEmitter';
 import { isRecurringTaskDueOn, isTaskOverdue } from '../utils/helpers';
 import { format, isToday, isBefore, parseISO } from 'date-fns';
-import { parseDate, getTodayString, isBeforeDateSafe, isSameDateSafe, startOfDayForDateString, isPastDate, isToday as isTodayUtil } from '../utils/dateUtils';
+import { 
+    parseDate, 
+    getTodayString, 
+    isBeforeDateSafe, 
+    isSameDateSafe, 
+    startOfDayForDateString, 
+    isPastDate, 
+    isToday as isTodayUtil,
+    isBeforeDateTimeAware,
+    isOverdueTimeAware,
+    hasTimeComponent,
+    getDatePart
+} from '../utils/dateUtils';
 
 /**
  * Unified filtering, sorting, and grouping service for all task views.
@@ -183,12 +195,18 @@ export class FilterService extends EventEmitter {
 
     /**
      * Check if a date string falls within a date range (inclusive)
+     * Works with both date-only and datetime strings
      */
     private isDateInRange(dateString: string, startDateString: string, endDateString: string): boolean {
         try {
-            const date = startOfDayForDateString(dateString);
-            const startDate = startOfDayForDateString(startDateString);
-            const endDate = startOfDayForDateString(endDateString);
+            // Extract date parts for range comparison
+            const datePart = getDatePart(dateString);
+            const startDatePart = getDatePart(startDateString);
+            const endDatePart = getDatePart(endDateString);
+            
+            const date = startOfDayForDateString(datePart);
+            const startDate = startOfDayForDateString(startDatePart);
+            const endDate = startOfDayForDateString(endDatePart);
             
             return date >= startDate && date <= endDate;
         } catch (error) {
@@ -284,7 +302,7 @@ export class FilterService extends EventEmitter {
                 
                 // Check due date
                 if (task.due) {
-                    if (query.includeOverdue && isPastDate(task.due)) {
+                    if (query.includeOverdue && isOverdueTimeAware(task.due)) {
                         // This is an overdue task and we want to include overdue tasks
                         inRange = true;
                     } else if (this.isDateInRange(task.due, query.dateRange.start, query.dateRange.end)) {
@@ -294,7 +312,7 @@ export class FilterService extends EventEmitter {
                 
                 // Check scheduled date if due date doesn't qualify
                 if (!inRange && task.scheduled) {
-                    if (query.includeOverdue && isPastDate(task.scheduled)) {
+                    if (query.includeOverdue && isOverdueTimeAware(task.scheduled)) {
                         // This is an overdue scheduled task and we want to include overdue tasks
                         inRange = true;
                     } else if (this.isDateInRange(task.scheduled, query.dateRange.start, query.dateRange.end)) {
@@ -338,7 +356,8 @@ export class FilterService extends EventEmitter {
     }
 
     /**
-     * Compare due dates with proper null handling using safe date utilities
+     * Compare due dates with proper null handling using time-aware utilities
+     * Supports both date-only (YYYY-MM-DD) and datetime (YYYY-MM-DDTHH:mm) formats
      */
     private compareDates(dateA?: string, dateB?: string): number {
         if (!dateA && !dateB) return 0;
@@ -346,11 +365,16 @@ export class FilterService extends EventEmitter {
         if (!dateB) return -1;
         
         try {
-            const dateObjA = startOfDayForDateString(dateA);
-            const dateObjB = startOfDayForDateString(dateB);
-            return dateObjA.getTime() - dateObjB.getTime();
+            // Use time-aware comparison for precise sorting
+            if (isBeforeDateTimeAware(dateA, dateB)) {
+                return -1;
+            } else if (isBeforeDateTimeAware(dateB, dateA)) {
+                return 1;
+            } else {
+                return 0;
+            }
         } catch (error) {
-            console.error('Error comparing dates:', { dateA, dateB, error });
+            console.error('Error comparing dates time-aware:', { dateA, dateB, error });
             // Fallback to string comparison
             return dateA.localeCompare(dateB);
         }
@@ -444,23 +468,28 @@ export class FilterService extends EventEmitter {
     
     /**
      * Helper method to get date group from a date string (shared logic)
+     * Uses time-aware overdue detection for precise categorization
      */
     private getDateGroupFromDateString(dateString: string): string {
         const todayStr = getTodayString();
         
-        if (isBeforeDateSafe(dateString, todayStr)) return 'Overdue';
-        if (isSameDateSafe(dateString, todayStr)) return 'Today';
+        // Use time-aware overdue detection
+        if (isOverdueTimeAware(dateString)) return 'Overdue';
+        
+        // Extract date part for day-level comparisons
+        const datePart = getDatePart(dateString);
+        if (isSameDateSafe(datePart, todayStr)) return 'Today';
         
         try {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-            if (isSameDateSafe(dateString, tomorrowStr)) return 'Tomorrow';
+            if (isSameDateSafe(datePart, tomorrowStr)) return 'Tomorrow';
             
             const thisWeek = new Date();
             thisWeek.setDate(thisWeek.getDate() + 7);
             const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
-            if (isBeforeDateSafe(dateString, thisWeekStr) || isSameDateSafe(dateString, thisWeekStr)) return 'This week';
+            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return 'This week';
             
             return 'Later';
         } catch (error) {
@@ -483,23 +512,28 @@ export class FilterService extends EventEmitter {
     
     /**
      * Helper method to get scheduled date group from a specific date string
+     * Uses time-aware overdue detection for precise categorization
      */
     private getScheduledDateGroupFromDate(scheduledDate: string): string {
         const todayStr = getTodayString();
         
-        if (isBeforeDateSafe(scheduledDate, todayStr)) return 'Past scheduled';
-        if (isSameDateSafe(scheduledDate, todayStr)) return 'Today';
+        // Use time-aware overdue detection for past scheduled
+        if (isOverdueTimeAware(scheduledDate)) return 'Past scheduled';
+        
+        // Extract date part for day-level comparisons
+        const datePart = getDatePart(scheduledDate);
+        if (isSameDateSafe(datePart, todayStr)) return 'Today';
         
         try {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-            if (isSameDateSafe(scheduledDate, tomorrowStr)) return 'Tomorrow';
+            if (isSameDateSafe(datePart, tomorrowStr)) return 'Tomorrow';
             
             const thisWeek = new Date();
             thisWeek.setDate(thisWeek.getDate() + 7);
             const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
-            if (isBeforeDateSafe(scheduledDate, thisWeekStr) || isSameDateSafe(scheduledDate, thisWeekStr)) return 'This week';
+            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return 'This week';
             
             return 'Later';
         } catch (error) {
@@ -698,27 +732,29 @@ export class FilterService extends EventEmitter {
             }
             
             // Handle regular tasks with due dates for this specific date
-            if (task.due === dateStr) {
+            // Use date part comparison to support both date-only and datetime formats
+            if (task.due && getDatePart(task.due) === dateStr) {
                 return true;
             }
             
-            // Handle regular tasks with scheduled dates for this specific date
-            if (task.scheduled === dateStr) {
+            // Handle regular tasks with scheduled dates for this specific date  
+            // Use date part comparison to support both date-only and datetime formats
+            if (task.scheduled && getDatePart(task.scheduled) === dateStr) {
                 return true;
             }
             
             // If showing overdue tasks and this is today, include overdue tasks on today
             if (includeOverdue && isViewingToday) {
                 // Check if due date is overdue (show on today)
-                if (task.due && task.due !== dateStr) {
-                    if (isPastDate(task.due)) {
+                if (task.due && getDatePart(task.due) !== dateStr) {
+                    if (isOverdueTimeAware(task.due)) {
                         return true;
                     }
                 }
                 
                 // Check if scheduled date is overdue (show on today)
-                if (task.scheduled && task.scheduled !== dateStr) {
-                    if (isPastDate(task.scheduled)) {
+                if (task.scheduled && getDatePart(task.scheduled) !== dateStr) {
+                    if (isOverdueTimeAware(task.scheduled)) {
                         return true;
                     }
                 }

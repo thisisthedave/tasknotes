@@ -3,7 +3,7 @@ import { TFile, setIcon } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { format } from 'date-fns';
-import { parseDate } from '../utils/dateUtils';
+import { parseDate, formatDateTimeForDisplay, hasTimeComponent } from '../utils/dateUtils';
 
 export class TaskLinkWidget extends WidgetType {
     private taskInfo: TaskInfo;
@@ -68,28 +68,56 @@ export class TaskLinkWidget extends WidgetType {
 
         // Due date info with calendar icon
         if (this.taskInfo.due) {
+            // Format due date with time if available
+            const displayText = formatDateTimeForDisplay(this.taskInfo.due, {
+                dateFormat: 'MMM d',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            
+            // Create tooltip with full date/time info
+            const tooltipText = formatDateTimeForDisplay(this.taskInfo.due, {
+                dateFormat: 'MMM d, yyyy',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            
             const dueDateSpan = container.createEl('span', {
                 cls: 'task-inline-preview__date task-inline-preview__date--due',
-                attr: { title: `Due: ${format(parseDate(this.taskInfo.due), 'MMM d, yyyy')}` }
+                attr: { title: `Due: ${tooltipText}` }
             });
             
             const calendarIcon = dueDateSpan.createEl('span', { cls: 'task-inline-preview__date-icon' });
             setIcon(calendarIcon, 'calendar');
             
-            dueDateSpan.appendText(format(parseDate(this.taskInfo.due), 'MMM d'));
+            dueDateSpan.appendText(displayText);
         }
 
         // Scheduled date info with clock icon
         if (this.taskInfo.scheduled && (!this.taskInfo.due || this.taskInfo.scheduled !== this.taskInfo.due)) {
+            // Format scheduled date with time if available
+            const displayText = formatDateTimeForDisplay(this.taskInfo.scheduled, {
+                dateFormat: 'MMM d',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            
+            // Create tooltip with full date/time info
+            const tooltipText = formatDateTimeForDisplay(this.taskInfo.scheduled, {
+                dateFormat: 'MMM d, yyyy',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            
             const scheduledSpan = container.createEl('span', {
                 cls: 'task-inline-preview__date task-inline-preview__date--scheduled',
-                attr: { title: `Scheduled: ${format(parseDate(this.taskInfo.scheduled), 'MMM d, yyyy')}` }
+                attr: { title: `Scheduled: ${tooltipText}` }
             });
             
             const clockIcon = scheduledSpan.createEl('span', { cls: 'task-inline-preview__date-icon' });
             setIcon(clockIcon, 'clock');
             
-            scheduledSpan.appendText(format(parseDate(this.taskInfo.scheduled), 'MMM d'));
+            scheduledSpan.appendText(displayText);
         }
         
         // Add Lucide pencil icon

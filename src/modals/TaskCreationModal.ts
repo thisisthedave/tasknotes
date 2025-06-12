@@ -4,7 +4,7 @@ import TaskNotesPlugin from '../main';
 import { BaseTaskModal } from './BaseTaskModal';
 import { CALENDAR_VIEW_TYPE, TaskInfo } from '../types';
 import { ParsedTaskData } from '../utils/TasksPluginParser';
-import { getCurrentTimestamp } from '../utils/dateUtils';
+import { getCurrentTimestamp, hasTimeComponent, getDatePart, getTimePart } from '../utils/dateUtils';
 import { generateTaskFilename, FilenameContext } from '../utils/filenameGenerator';
 
 export interface TaskConversionOptions {
@@ -59,8 +59,14 @@ export class TaskCreationModal extends BaseTaskModal {
 		if (values.title !== undefined) this.title = values.title;
 		if (values.status !== undefined) this.status = values.status;
 		if (values.priority !== undefined) this.priority = values.priority;
-		if (values.due !== undefined) this.dueDate = values.due;
-		if (values.scheduled !== undefined) this.scheduledDate = values.scheduled;
+		if (values.due !== undefined) {
+			this.dueDate = values.due;
+			this.dueTimeEnabled = hasTimeComponent(values.due);
+		}
+		if (values.scheduled !== undefined) {
+			this.scheduledDate = values.scheduled;
+			this.scheduledTimeEnabled = hasTimeComponent(values.scheduled);
+		}
 		if (values.contexts !== undefined && values.contexts.length > 0) {
 			this.contexts = values.contexts.join(', ');
 		}
@@ -75,9 +81,13 @@ export class TaskCreationModal extends BaseTaskModal {
 		this.scheduledDate = ''; // Always reset scheduled date for converted tasks
 		this.details = ''; // Reset details too
 		
+		// Initialize time components
+		this.dueTimeEnabled = hasTimeComponent(this.dueDate);
+		this.scheduledTimeEnabled = hasTimeComponent(this.scheduledDate);
+		
 		// Update input field if it exists
 		if (this.dueDateInput) {
-			this.dueDateInput.value = this.dueDate;
+			this.dueDateInput.value = getDatePart(this.dueDate);
 		}
 		
 		// Set other optional fields if available
@@ -491,16 +501,10 @@ export class TaskCreationModal extends BaseTaskModal {
 	 * Create due date input with reference for later updates
 	 */
 	private createDueDateInputWithRef(container: HTMLElement): void {
-		this.dueDateInput = container.createEl('input', {
-			type: 'date',
-			cls: 'modal-form__input'
-		});
-
-		// Set the value to the current dueDate property
-		this.dueDateInput.value = this.dueDate || '';
-
-		this.dueDateInput.addEventListener('change', (e) => {
-			this.dueDate = (e.target as HTMLInputElement).value;
-		});
+		// Use the base implementation
+		this.createDueDateInput(container);
+		
+		// Get reference to the date input for compatibility
+		this.dueDateInput = container.querySelector('input[type="date"]') as HTMLInputElement;
 	}
 }

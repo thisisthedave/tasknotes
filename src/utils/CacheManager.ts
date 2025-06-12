@@ -5,7 +5,17 @@ import { FieldMapper } from '../services/FieldMapper';
 import { YAMLCache } from './YAMLCache';
 import * as YAML from 'yaml';
 import { format } from 'date-fns';
-import { parseDate, getTodayString, isBeforeDateSafe, createSafeDate, getCurrentTimestamp, parseTimestamp } from './dateUtils';
+import { 
+    parseDate, 
+    getTodayString, 
+    isBeforeDateSafe, 
+    createSafeDate, 
+    getCurrentTimestamp, 
+    parseTimestamp,
+    isOverdueTimeAware,
+    getDatePart,
+    hasTimeComponent
+} from './dateUtils';
 
 /**
  * Unified cache manager that provides centralized data access and caching
@@ -459,8 +469,9 @@ export class CacheManager {
                 const validTasks = taskInfos.filter(Boolean) as TaskInfo[];
                 if (validTasks.length > 0) {
                     // Check if any tasks have due dates or scheduled dates for this date
-                    const hasDue = validTasks.some(t => t.due === dateStr);
-                    const hasScheduled = validTasks.some(t => t.scheduled === dateStr);
+                    // Use date part comparison to handle both date-only and datetime formats
+                    const hasDue = validTasks.some(t => t.due && getDatePart(t.due) === dateStr);
+                    const hasScheduled = validTasks.some(t => t.scheduled && getDatePart(t.scheduled) === dateStr);
                     
                     tasksMap.set(dateStr, {
                         count: validTasks.length,
@@ -1580,11 +1591,13 @@ export class CacheManager {
      */
     private clearScheduledDateFromIndex(path: string, oldScheduledDate: string): void {
         try {
-            const pathSet = this.tasksByDate.get(oldScheduledDate);
+            // Use date part for consistent indexing
+            const dateStr = getDatePart(oldScheduledDate);
+            const pathSet = this.tasksByDate.get(dateStr);
             if (pathSet) {
                 pathSet.delete(path);
                 if (pathSet.size === 0) {
-                    this.tasksByDate.delete(oldScheduledDate);
+                    this.tasksByDate.delete(dateStr);
                 }
             }
         } catch (error) {
@@ -1597,11 +1610,13 @@ export class CacheManager {
      */
     private clearDueDateFromIndex(path: string, oldDueDate: string): void {
         try {
-            const pathSet = this.tasksByDate.get(oldDueDate);
+            // Use date part for consistent indexing
+            const dateStr = getDatePart(oldDueDate);
+            const pathSet = this.tasksByDate.get(dateStr);
             if (pathSet) {
                 pathSet.delete(path);
                 if (pathSet.size === 0) {
-                    this.tasksByDate.delete(oldDueDate);
+                    this.tasksByDate.delete(dateStr);
                 }
             }
         } catch (error) {

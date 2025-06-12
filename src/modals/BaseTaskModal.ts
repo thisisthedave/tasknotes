@@ -1,6 +1,14 @@
 import { App, Modal } from 'obsidian';
 import TaskNotesPlugin from '../main';
-import { normalizeDateString, validateDateInput } from '../utils/dateUtils';
+import { 
+    normalizeDateString, 
+    validateDateInput,
+    hasTimeComponent,
+    getDatePart,
+    getTimePart,
+    combineDateAndTime,
+    validateDateTimeInput
+} from '../utils/dateUtils';
 
 export abstract class BaseTaskModal extends Modal {
     plugin: TaskNotesPlugin;
@@ -18,6 +26,12 @@ export abstract class BaseTaskModal extends Modal {
     daysOfWeek: string[] = [];
     dayOfMonth: string = '';
     monthOfYear: string = '';
+    
+    // Time-related properties
+    protected dueTimeInput?: HTMLInputElement;
+    protected dueTimeEnabled: boolean = false;
+    protected scheduledTimeInput?: HTMLInputElement;
+    protected scheduledTimeEnabled: boolean = false;
     
     // Cached data
     protected existingContexts: string[] = [];
@@ -372,49 +386,207 @@ export abstract class BaseTaskModal extends Modal {
     }
 
     protected createDueDateInput(container: HTMLElement): void {
+        const inputContainer = container.createDiv({ cls: 'modal-form__datetime-container' });
+        
+        // Date input
+        const dateContainer = inputContainer.createDiv({ cls: 'modal-form__date-container' });
         const inputId = `due-date-input-${Math.random().toString(36).substr(2, 9)}`;
-        const input = container.createEl('input', {
+        const dateInput = dateContainer.createEl('input', {
             type: 'date',
-            cls: 'modal-form__input',
+            cls: 'modal-form__input modal-form__input--date',
             attr: {
                 'id': inputId,
                 'aria-label': 'Due date'
             }
         });
 
-        // Normalize and validate date before setting input value
-        if (this.dueDate && validateDateInput(this.dueDate)) {
-            input.value = normalizeDateString(this.dueDate);
-        } else {
-            input.value = this.dueDate || '';
+        // Extract and set date part
+        const datePart = getDatePart(this.dueDate);
+        if (datePart && validateDateInput(datePart)) {
+            dateInput.value = datePart;
         }
 
-        input.addEventListener('change', (e) => {
-            this.dueDate = (e.target as HTMLInputElement).value;
+        dateInput.addEventListener('change', (e) => {
+            const dateValue = (e.target as HTMLInputElement).value;
+            this.updateDueDateValue(dateValue, this.dueTimeEnabled ? (this.dueTimeInput?.value || '') : '');
         });
+        
+        // Time toggle container
+        const timeToggleContainer = inputContainer.createDiv({ cls: 'modal-form__time-toggle-container' });
+        
+        const timeToggleId = `due-time-toggle-${Math.random().toString(36).substr(2, 9)}`;
+        const timeToggle = timeToggleContainer.createEl('input', {
+            type: 'checkbox',
+            cls: 'modal-form__time-toggle',
+            attr: {
+                'id': timeToggleId,
+                'aria-label': 'Include time for due date'
+            }
+        });
+        
+        const timeToggleLabel = timeToggleContainer.createEl('label', {
+            text: 'Include time',
+            cls: 'modal-form__time-toggle-label',
+            attr: { 'for': timeToggleId }
+        });
+        
+        // Time input (initially hidden)
+        const timeContainer = inputContainer.createDiv({ cls: 'modal-form__time-container' });
+        const timeInputId = `due-time-input-${Math.random().toString(36).substr(2, 9)}`;
+        this.dueTimeInput = timeContainer.createEl('input', {
+            type: 'time',
+            cls: 'modal-form__input modal-form__input--time',
+            attr: {
+                'id': timeInputId,
+                'aria-label': 'Due time'
+            }
+        });
+        
+        // Initialize time components
+        this.dueTimeEnabled = hasTimeComponent(this.dueDate);
+        const timePart = getTimePart(this.dueDate);
+        if (timePart && this.dueTimeEnabled) {
+            this.dueTimeInput.value = timePart;
+        }
+        
+        timeToggle.checked = this.dueTimeEnabled;
+        timeContainer.style.display = this.dueTimeEnabled ? 'block' : 'none';
+        
+        // Time toggle event listener
+        timeToggle.addEventListener('change', (e) => {
+            this.dueTimeEnabled = (e.target as HTMLInputElement).checked;
+            timeContainer.style.display = this.dueTimeEnabled ? 'block' : 'none';
+            
+            if (!this.dueTimeEnabled) {
+                this.dueTimeInput!.value = '';
+            } else if (!this.dueTimeInput!.value) {
+                // Default to current time
+                const now = new Date();
+                this.dueTimeInput!.value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            }
+            
+            this.updateDueDateValue(dateInput.value, this.dueTimeEnabled ? this.dueTimeInput!.value : '');
+        });
+        
+        // Time input event listener
+        this.dueTimeInput.addEventListener('change', (e) => {
+            this.updateDueDateValue(dateInput.value, (e.target as HTMLInputElement).value);
+        });
+    }
+    
+    private updateDueDateValue(dateValue: string, timeValue: string): void {
+        if (!dateValue) {
+            this.dueDate = '';
+            return;
+        }
+        
+        if (this.dueTimeEnabled && timeValue) {
+            this.dueDate = combineDateAndTime(dateValue, timeValue);
+        } else {
+            this.dueDate = dateValue;
+        }
     }
 
     protected createScheduledDateInput(container: HTMLElement): void {
+        const inputContainer = container.createDiv({ cls: 'modal-form__datetime-container' });
+        
+        // Date input
+        const dateContainer = inputContainer.createDiv({ cls: 'modal-form__date-container' });
         const inputId = `scheduled-date-input-${Math.random().toString(36).substr(2, 9)}`;
-        const input = container.createEl('input', {
+        const dateInput = dateContainer.createEl('input', {
             type: 'date',
-            cls: 'modal-form__input',
+            cls: 'modal-form__input modal-form__input--date',
             attr: {
                 'id': inputId,
                 'aria-label': 'Scheduled date'
             }
         });
 
-        // Normalize and validate date before setting input value
-        if (this.scheduledDate && validateDateInput(this.scheduledDate)) {
-            input.value = normalizeDateString(this.scheduledDate);
-        } else {
-            input.value = this.scheduledDate || '';
+        // Extract and set date part
+        const datePart = getDatePart(this.scheduledDate);
+        if (datePart && validateDateInput(datePart)) {
+            dateInput.value = datePart;
         }
 
-        input.addEventListener('change', (e) => {
-            this.scheduledDate = (e.target as HTMLInputElement).value;
+        dateInput.addEventListener('change', (e) => {
+            const dateValue = (e.target as HTMLInputElement).value;
+            this.updateScheduledDateValue(dateValue, this.scheduledTimeEnabled ? (this.scheduledTimeInput?.value || '') : '');
         });
+        
+        // Time toggle container
+        const timeToggleContainer = inputContainer.createDiv({ cls: 'modal-form__time-toggle-container' });
+        
+        const timeToggleId = `scheduled-time-toggle-${Math.random().toString(36).substr(2, 9)}`;
+        const timeToggle = timeToggleContainer.createEl('input', {
+            type: 'checkbox',
+            cls: 'modal-form__time-toggle',
+            attr: {
+                'id': timeToggleId,
+                'aria-label': 'Include time for scheduled date'
+            }
+        });
+        
+        const timeToggleLabel = timeToggleContainer.createEl('label', {
+            text: 'Include time',
+            cls: 'modal-form__time-toggle-label',
+            attr: { 'for': timeToggleId }
+        });
+        
+        // Time input (initially hidden)
+        const timeContainer = inputContainer.createDiv({ cls: 'modal-form__time-container' });
+        const timeInputId = `scheduled-time-input-${Math.random().toString(36).substr(2, 9)}`;
+        this.scheduledTimeInput = timeContainer.createEl('input', {
+            type: 'time',
+            cls: 'modal-form__input modal-form__input--time',
+            attr: {
+                'id': timeInputId,
+                'aria-label': 'Scheduled time'
+            }
+        });
+        
+        // Initialize time components
+        this.scheduledTimeEnabled = hasTimeComponent(this.scheduledDate);
+        const timePart = getTimePart(this.scheduledDate);
+        if (timePart && this.scheduledTimeEnabled) {
+            this.scheduledTimeInput.value = timePart;
+        }
+        
+        timeToggle.checked = this.scheduledTimeEnabled;
+        timeContainer.style.display = this.scheduledTimeEnabled ? 'block' : 'none';
+        
+        // Time toggle event listener
+        timeToggle.addEventListener('change', (e) => {
+            this.scheduledTimeEnabled = (e.target as HTMLInputElement).checked;
+            timeContainer.style.display = this.scheduledTimeEnabled ? 'block' : 'none';
+            
+            if (!this.scheduledTimeEnabled) {
+                this.scheduledTimeInput!.value = '';
+            } else if (!this.scheduledTimeInput!.value) {
+                // Default to current time
+                const now = new Date();
+                this.scheduledTimeInput!.value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            }
+            
+            this.updateScheduledDateValue(dateInput.value, this.scheduledTimeEnabled ? this.scheduledTimeInput!.value : '');
+        });
+        
+        // Time input event listener
+        this.scheduledTimeInput.addEventListener('change', (e) => {
+            this.updateScheduledDateValue(dateInput.value, (e.target as HTMLInputElement).value);
+        });
+    }
+    
+    private updateScheduledDateValue(dateValue: string, timeValue: string): void {
+        if (!dateValue) {
+            this.scheduledDate = '';
+            return;
+        }
+        
+        if (this.scheduledTimeEnabled && timeValue) {
+            this.scheduledDate = combineDateAndTime(dateValue, timeValue);
+        } else {
+            this.scheduledDate = dateValue;
+        }
     }
 
     protected createTimeEstimateInput(container: HTMLElement): void {

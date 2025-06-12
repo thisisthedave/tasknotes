@@ -3,7 +3,17 @@ import { TFile, Menu, setIcon, Notice, Modal, App } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { calculateTotalTimeSpent, isRecurringTaskDueOn, getEffectiveTaskStatus, shouldUseRecurringTaskUI, getRecurringTaskCompletionText } from '../utils/helpers';
-import { isSameDateSafe, isBeforeDateSafe, getTodayString, formatDateForDisplay, isToday, isPastDate } from '../utils/dateUtils';
+import { 
+    isSameDateSafe, 
+    isBeforeDateSafe, 
+    getTodayString, 
+    formatDateForDisplay, 
+    isToday, 
+    isPastDate,
+    formatDateTimeForDisplay,
+    isTodayTimeAware,
+    isOverdueTimeAware
+} from '../utils/dateUtils';
 
 export interface TaskCardOptions {
     showDueDate: boolean;
@@ -165,29 +175,73 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     
     // Due date (if has due date)
     if (task.due) {
-        const isDueToday = isToday(task.due);
-        const isDueOverdue = isPastDate(task.due);
+        const isDueToday = isTodayTimeAware(task.due);
+        const isDueOverdue = isOverdueTimeAware(task.due);
         
         if (isDueToday) {
-            metadataItems.push('Due: Today');
+            // For today, show time if available
+            const timeDisplay = formatDateTimeForDisplay(task.due, {
+                dateFormat: '',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            if (timeDisplay.trim() === '') {
+                metadataItems.push('Due: Today');
+            } else {
+                metadataItems.push(`Due: Today at ${timeDisplay}`);
+            }
         } else if (isDueOverdue) {
-            metadataItems.push(`Due: ${formatDateForDisplay(task.due, 'MMM d')} (overdue)`);
+            // For overdue, show date and time if available
+            const display = formatDateTimeForDisplay(task.due, {
+                dateFormat: 'MMM d',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            metadataItems.push(`Due: ${display} (overdue)`);
         } else {
-            metadataItems.push(`Due: ${formatDateForDisplay(task.due, 'MMM d')}`);
+            // For future dates, show date and time if available
+            const display = formatDateTimeForDisplay(task.due, {
+                dateFormat: 'MMM d',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            metadataItems.push(`Due: ${display}`);
         }
     }
     
     // Scheduled date (if has scheduled date)
     if (task.scheduled) {
-        const isScheduledToday = isToday(task.scheduled);
-        const isScheduledPast = isPastDate(task.scheduled);
+        const isScheduledToday = isTodayTimeAware(task.scheduled);
+        const isScheduledPast = isOverdueTimeAware(task.scheduled);
         
         if (isScheduledToday) {
-            metadataItems.push('Scheduled: Today');
+            // For today, show time if available
+            const timeDisplay = formatDateTimeForDisplay(task.scheduled, {
+                dateFormat: '',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            if (timeDisplay.trim() === '') {
+                metadataItems.push('Scheduled: Today');
+            } else {
+                metadataItems.push(`Scheduled: Today at ${timeDisplay}`);
+            }
         } else if (isScheduledPast) {
-            metadataItems.push(`Scheduled: ${formatDateForDisplay(task.scheduled, 'MMM d')} (past)`);
+            // For past dates, show date and time if available
+            const display = formatDateTimeForDisplay(task.scheduled, {
+                dateFormat: 'MMM d',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            metadataItems.push(`Scheduled: ${display} (past)`);
         } else {
-            metadataItems.push(`Scheduled: ${formatDateForDisplay(task.scheduled, 'MMM d')}`);
+            // For future dates, show date and time if available
+            const display = formatDateTimeForDisplay(task.scheduled, {
+                dateFormat: 'MMM d',
+                timeFormat: 'h:mm a',
+                showTime: true
+            });
+            metadataItems.push(`Scheduled: ${display}`);
         }
     }
     
@@ -575,29 +629,73 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         
         // Due date (if has due date)
         if (task.due) {
-            const isDueToday = isToday(task.due);
-            const isDueOverdue = isPastDate(task.due);
+            const isDueToday = isTodayTimeAware(task.due);
+            const isDueOverdue = isOverdueTimeAware(task.due);
             
             if (isDueToday) {
-                metadataItems.push('Due: Today');
+                // For today, show time if available
+                const timeDisplay = formatDateTimeForDisplay(task.due, {
+                    dateFormat: '',
+                    timeFormat: 'h:mm a',
+                    showTime: true
+                });
+                if (timeDisplay.trim() === '') {
+                    metadataItems.push('Due: Today');
+                } else {
+                    metadataItems.push(`Due: Today at ${timeDisplay}`);
+                }
             } else if (isDueOverdue) {
-                metadataItems.push(`Due: ${formatDateForDisplay(task.due, 'MMM d')} (overdue)`);
+                // For overdue, show date and time if available
+                const display = formatDateTimeForDisplay(task.due, {
+                    dateFormat: 'MMM d',
+                    timeFormat: 'h:mm a',
+                    showTime: true
+                });
+                metadataItems.push(`Due: ${display} (overdue)`);
             } else {
-                metadataItems.push(`Due: ${formatDateForDisplay(task.due, 'MMM d')}`);
+                // For future dates, show date and time if available
+                const display = formatDateTimeForDisplay(task.due, {
+                    dateFormat: 'MMM d',
+                    timeFormat: 'h:mm a',
+                    showTime: true
+                });
+                metadataItems.push(`Due: ${display}`);
             }
         }
         
         // Scheduled date (if has scheduled date)
         if (task.scheduled) {
-            const isScheduledToday = isToday(task.scheduled);
-            const isScheduledPast = isPastDate(task.scheduled);
+            const isScheduledToday = isTodayTimeAware(task.scheduled);
+            const isScheduledPast = isOverdueTimeAware(task.scheduled);
             
             if (isScheduledToday) {
-                metadataItems.push('Scheduled: Today');
+                // For today, show time if available
+                const timeDisplay = formatDateTimeForDisplay(task.scheduled, {
+                    dateFormat: '',
+                    timeFormat: 'h:mm a',
+                    showTime: true
+                });
+                if (timeDisplay.trim() === '') {
+                    metadataItems.push('Scheduled: Today');
+                } else {
+                    metadataItems.push(`Scheduled: Today at ${timeDisplay}`);
+                }
             } else if (isScheduledPast) {
-                metadataItems.push(`Scheduled: ${formatDateForDisplay(task.scheduled, 'MMM d')} (past)`);
+                // For past dates, show date and time if available
+                const display = formatDateTimeForDisplay(task.scheduled, {
+                    dateFormat: 'MMM d',
+                    timeFormat: 'h:mm a',
+                    showTime: true
+                });
+                metadataItems.push(`Scheduled: ${display} (past)`);
             } else {
-                metadataItems.push(`Scheduled: ${formatDateForDisplay(task.scheduled, 'MMM d')}`);
+                // For future dates, show date and time if available
+                const display = formatDateTimeForDisplay(task.scheduled, {
+                    dateFormat: 'MMM d',
+                    timeFormat: 'h:mm a',
+                    showTime: true
+                });
+                metadataItems.push(`Scheduled: ${display}`);
             }
         }
         

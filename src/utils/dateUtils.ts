@@ -1,4 +1,4 @@
-import { format, parse, parseISO, isSameDay, isBefore, isValid, startOfDay, addDays as addDaysFns } from 'date-fns';
+import { format, parse, parseISO, isSameDay, isBefore, isValid, startOfDay, addDays as addDaysFns, endOfDay, isBefore as isBeforeFns } from 'date-fns';
 
 /**
  * Smart date parsing that detects timezone info and handles appropriately
@@ -214,5 +214,237 @@ export function formatTimestampForDisplay(timestampString: string, formatString:
     } catch (error) {
         console.error('Error formatting timestamp for display:', { timestampString, error });
         return timestampString; // Return original if formatting fails
+    }
+}
+
+// ==========================================
+// TIME-AWARE DATE UTILITIES
+// ==========================================
+
+/**
+ * Check if a date string contains time information
+ */
+export function hasTimeComponent(dateString: string): boolean {
+    if (!dateString) return false;
+    // Check for 'T' followed by time pattern (HH:mm or HH:mm:ss)
+    return /T\d{2}:\d{2}/.test(dateString);
+}
+
+/**
+ * Extract just the date part from a date or datetime string
+ */
+export function getDatePart(dateString: string): string {
+    if (!dateString) return '';
+    
+    try {
+        const parsed = parseDate(dateString);
+        return format(parsed, 'yyyy-MM-dd');
+    } catch (error) {
+        console.error('Error extracting date part:', { dateString, error });
+        return dateString;
+    }
+}
+
+/**
+ * Extract just the time part from a datetime string, returns null if no time
+ */
+export function getTimePart(dateString: string): string | null {
+    if (!dateString || !hasTimeComponent(dateString)) {
+        return null;
+    }
+    
+    try {
+        const parsed = parseDate(dateString);
+        return format(parsed, 'HH:mm');
+    } catch (error) {
+        console.error('Error extracting time part:', { dateString, error });
+        return null;
+    }
+}
+
+/**
+ * Combine a date and time into a datetime string
+ */
+export function combineDateAndTime(dateString: string, timeString: string): string {
+    if (!dateString) return '';
+    if (!timeString) return dateString;
+    
+    try {
+        // Parse the date part
+        const datePart = getDatePart(dateString);
+        
+        // Validate time format (HH:mm)
+        if (!/^\d{2}:\d{2}$/.test(timeString)) {
+            console.warn('Invalid time format, expected HH:mm:', timeString);
+            return dateString;
+        }
+        
+        return `${datePart}T${timeString}`;
+    } catch (error) {
+        console.error('Error combining date and time:', { dateString, timeString, error });
+        return dateString;
+    }
+}
+
+/**
+ * Format a date/datetime string for display, showing time if available
+ */
+export function formatDateTimeForDisplay(dateString: string, options: {
+    dateFormat?: string;
+    timeFormat?: string;
+    showTime?: boolean;
+} = {}): string {
+    if (!dateString) return '';
+    
+    const {
+        dateFormat = 'MMM d, yyyy',
+        timeFormat = 'h:mm a',
+        showTime = true
+    } = options;
+    
+    try {
+        const parsed = parseDate(dateString);
+        const hasTime = hasTimeComponent(dateString);
+        
+        if (hasTime && showTime) {
+            return format(parsed, `${dateFormat} ${timeFormat}`);
+        } else {
+            return format(parsed, dateFormat);
+        }
+    } catch (error) {
+        console.error('Error formatting datetime for display:', { dateString, error });
+        return dateString;
+    }
+}
+
+/**
+ * Time-aware comparison for before/after relationships
+ * For date-only strings, treats them as end-of-day for sorting purposes
+ */
+export function isBeforeDateTimeAware(date1: string, date2: string): boolean {
+    try {
+        const d1 = parseDate(date1);
+        const d2 = parseDate(date2);
+        
+        // If both have time, direct comparison
+        if (hasTimeComponent(date1) && hasTimeComponent(date2)) {
+            return isBeforeFns(d1, d2);
+        }
+        
+        // If neither has time, compare dates only
+        if (!hasTimeComponent(date1) && !hasTimeComponent(date2)) {
+            return isBefore(startOfDay(d1), startOfDay(d2));
+        }
+        
+        // Mixed case: treat date-only as end-of-day for sorting
+        const d1Normalized = hasTimeComponent(date1) ? d1 : endOfDay(d1);
+        const d2Normalized = hasTimeComponent(date2) ? d2 : endOfDay(d2);
+        
+        return isBeforeFns(d1Normalized, d2Normalized);
+    } catch (error) {
+        console.error('Error comparing dates time-aware:', { date1, date2, error });
+        return false;
+    }
+}
+
+/**
+ * Check if a date/datetime is overdue (past current date/time)
+ */
+export function isOverdueTimeAware(dateString: string): boolean {
+    if (!dateString) return false;
+    
+    try {
+        const taskDate = parseDate(dateString);
+        const now = new Date();
+        
+        // If task has time, compare with current date/time
+        if (hasTimeComponent(dateString)) {
+            return isBeforeFns(taskDate, now);
+        }
+        
+        // If task is date-only, it's overdue if the date is before today
+        const today = startOfDay(now);
+        const taskDateStart = startOfDay(taskDate);
+        return isBefore(taskDateStart, today);
+    } catch (error) {
+        console.error('Error checking overdue status:', { dateString, error });
+        return false;
+    }
+}
+
+/**
+ * Check if a date/datetime represents today (time-aware)
+ */
+export function isTodayTimeAware(dateString: string): boolean {
+    if (!dateString) return false;
+    
+    try {
+        const taskDate = parseDate(dateString);
+        const now = new Date();
+        
+        return isSameDay(taskDate, now);
+    } catch (error) {
+        console.error('Error checking if today:', { dateString, error });
+        return false;
+    }
+}
+
+/**
+ * Validate datetime input (supports both date-only and date+time)
+ */
+export function validateDateTimeInput(dateValue: string, timeValue?: string): boolean {
+    if (!dateValue || dateValue.trim() === '') {
+        return true; // Empty is valid (optional field)
+    }
+    
+    try {
+        // Validate date part
+        if (!validateDateInput(dateValue)) {
+            return false;
+        }
+        
+        // If time is provided, validate it
+        if (timeValue && timeValue.trim() !== '') {
+            // Check for HH:mm format
+            if (!/^\d{2}:\d{2}$/.test(timeValue)) {
+                return false;
+            }
+            
+            // Validate the combined datetime
+            const combined = combineDateAndTime(dateValue, timeValue);
+            return validateDateInput(combined);
+        }
+        
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+/**
+ * Get current date+time in local timezone as YYYY-MM-DDTHH:mm format
+ */
+export function getCurrentDateTimeString(): string {
+    const now = new Date();
+    return format(now, "yyyy-MM-dd'T'HH:mm");
+}
+
+/**
+ * Add days to a date/datetime string, preserving time if present
+ */
+export function addDaysToDateTime(dateString: string, days: number): string {
+    try {
+        const parsed = parseDate(dateString);
+        const result = addDaysFns(parsed, days);
+        
+        // Preserve time format if original had time
+        if (hasTimeComponent(dateString)) {
+            return format(result, "yyyy-MM-dd'T'HH:mm");
+        } else {
+            return format(result, 'yyyy-MM-dd');
+        }
+    } catch (error) {
+        console.error('Error adding days to datetime:', { dateString, days, error });
+        throw error;
     }
 }
