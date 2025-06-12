@@ -407,10 +407,7 @@
     background: var(--background-modifier-hover);
 }
 
-.context-menu-item input[type="checkbox"] {
-    margin: 0;
-    cursor: pointer;
-}
+/* Checkbox styling removed */
 
 .context-menu-empty {
     padding: 6px 12px;

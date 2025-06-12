@@ -318,23 +318,8 @@
 }
 
 /* ================================================
-   CHECKBOX
+   CHECKBOX - removed custom styling
    ================================================ */
-
-/* Checkbox Label */
-.tasknotes-plugin .settings-view__checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: var(--tn-spacing-xs);
-    cursor: pointer;
-    font-size: var(--tn-font-size-sm);
-    color: var(--tn-text-normal);
-}
-
-.tasknotes-plugin .settings-view__checkbox {
-    margin: 0;
-    cursor: pointer;
-}
 
 /* ================================================
    BUTTONS

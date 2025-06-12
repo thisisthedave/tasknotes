@@ -142,16 +142,6 @@
     height: 14px;
 }
 
-.tasknotes-plugin .task-card__checkbox {
-    display: none; /* Hidden by default */
-    margin-right: var(--tn-spacing-sm);
-    cursor: pointer;
-}
-
-/* Show checkbox when enabled via modifier */
-.tasknotes-plugin .task-card--checkbox-enabled .task-card__checkbox {
-    display: block;
-}
 
 /* =================================================================
    TASKCARD MODIFIERS (BEM --modifier)
@@ -385,10 +375,4 @@
     opacity: 1;
 }
 
-/* DEPRECATED - Use .task-card__checkbox instead */
-.tasknotes-plugin .task-card .task-checkbox {
-    display: none;
-    margin-right: var(--tn-spacing-sm);
-    cursor: pointer;
-}
 

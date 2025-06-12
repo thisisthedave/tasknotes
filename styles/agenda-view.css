@@ -229,10 +229,6 @@
     background: var(--tn-interactive-hover);
 }
 
-.tasknotes-plugin .agenda-view__toggle-checkbox {
-    margin: 0;
-    cursor: pointer;
-}
 
 /* Content Area */
 .tasknotes-plugin .agenda-view__content {

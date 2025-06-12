@@ -2,7 +2,7 @@ import { Notice, TFile, ItemView, WorkspaceLeaf, normalizePath } from 'obsidian'
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
-    CALENDAR_VIEW_TYPE, 
+    MINI_CALENDAR_VIEW_TYPE, 
     EVENT_DATA_CHANGED,
     EVENT_DATE_SELECTED,
     EVENT_TASK_UPDATED,
@@ -21,7 +21,7 @@ import {
 import { perfMonitor } from '../utils/PerformanceMonitor';
 import { createSafeDate, normalizeDateString } from '../utils/dateUtils';
 
-export class CalendarView extends ItemView {
+export class MiniCalendarView extends ItemView {
     // Static property to track initialization status for daily notes
     static dailyNotesInitialized: boolean = false;
     
@@ -106,11 +106,11 @@ export class CalendarView extends ItemView {
     }
   
     getViewType(): string {
-        return CALENDAR_VIEW_TYPE;
+        return MINI_CALENDAR_VIEW_TYPE;
     }
   
     getDisplayText(): string {
-        return 'Calendar';
+        return 'Mini Calendar';
     }
   
     getIcon(): string {
@@ -126,7 +126,7 @@ export class CalendarView extends ItemView {
         contentEl.empty();
         
         // Add a container for our view content
-        const container = contentEl.createDiv({ cls: 'tasknotes-plugin calendar-view' });
+        const container = contentEl.createDiv({ cls: 'tasknotes-plugin mini-calendar-view' });
         
         // Show loading indicator while loading initial data
         this.showLoadingIndicator();
@@ -276,7 +276,7 @@ export class CalendarView extends ItemView {
      * Helper to check if this view is currently the active one
      */
     private isThisViewActive(): boolean {
-        const activeView = this.app.workspace.getActiveViewOfType(CalendarView);
+        const activeView = this.app.workspace.getActiveViewOfType(MiniCalendarView);
         return activeView === this;
     }
     
@@ -299,10 +299,10 @@ export class CalendarView extends ItemView {
         this.showLoadingIndicator();
         
         try {
-            let container = this.contentEl.querySelector('.calendar-view') as HTMLElement;
+            let container = this.contentEl.querySelector('.mini-calendar-view') as HTMLElement;
             if (!container) {
                 // Create container if it doesn't exist
-                container = this.contentEl.createDiv({ cls: 'tasknotes-plugin calendar-view' });
+                container = this.contentEl.createDiv({ cls: 'tasknotes-plugin mini-calendar-view' });
             }
             
             // Simply render the view and get fresh data from CacheManager
@@ -315,9 +315,9 @@ export class CalendarView extends ItemView {
     // Update selected date without re-rendering entire calendar
     private updateSelectedDate(newDate: Date) {
         // Remove selected class from all days
-        const allDays = this.contentEl.querySelectorAll('.calendar-view__day');
+        const allDays = this.contentEl.querySelectorAll('.mini-mini-calendar-view__day');
         allDays.forEach(day => {
-            day.classList.remove('calendar-view__day--selected');
+            day.classList.remove('mini-mini-calendar-view__day--selected');
             day.setAttribute('aria-selected', 'false');
             day.setAttribute('tabindex', '-1');
         });
@@ -329,7 +329,7 @@ export class CalendarView extends ItemView {
             const ariaLabel = dayEl.getAttribute('aria-label') || '';
             // Check if this element represents the new date
             if (ariaLabel.includes(format(newDate, 'EEEE, MMMM d, yyyy'))) {
-                dayEl.classList.add('calendar-view__day--selected');
+                dayEl.classList.add('mini-mini-calendar-view__day--selected');
                 dayEl.setAttribute('aria-selected', 'true');
                 dayEl.setAttribute('tabindex', '0');
                 dayEl.focus();
@@ -343,7 +343,7 @@ export class CalendarView extends ItemView {
     
     // Update the month display text in the header
     private updateMonthDisplay() {
-        const monthDisplay = this.contentEl.querySelector('.calendar-view__month-display');
+        const monthDisplay = this.contentEl.querySelector('.mini-mini-calendar-view__month-display');
         if (monthDisplay) {
             monthDisplay.textContent = format(this.plugin.selectedDate, 'MMMM yyyy');
         }
@@ -351,7 +351,7 @@ export class CalendarView extends ItemView {
     
     // Show a loading indicator while building cache
     private showLoadingIndicator() {
-        const container = this.contentEl.querySelector('.calendar-view') || this.contentEl;
+        const container = this.contentEl.querySelector('.mini-calendar-view') || this.contentEl;
         
         // Check if indicator already exists
         if (container.querySelector('.cache-loading-indicator')) return;
@@ -371,14 +371,14 @@ export class CalendarView extends ItemView {
     }
   
     createCalendarControls(container: HTMLElement) {
-        const controlsContainer = container.createDiv({ cls: 'calendar-view__controls' });
+        const controlsContainer = container.createDiv({ cls: 'mini-calendar-view__controls' });
         
         // Calendar header with view selector first, then navigation
-        const headerContainer = controlsContainer.createDiv({ cls: 'calendar-view__header' });
+        const headerContainer = controlsContainer.createDiv({ cls: 'mini-calendar-view__header' });
         
         // View Type Dropdown (moved to front)
         const colorizeSelect = headerContainer.createEl('select', { 
-            cls: 'calendar-view__view-selector',
+            cls: 'mini-calendar-view__view-selector',
             attr: {
                 'title': 'Change view',
                 'aria-label': 'Change calendar view'
@@ -416,12 +416,12 @@ export class CalendarView extends ItemView {
         });
         
         // Month Navigation Section (grouped together)
-        const navSection = headerContainer.createDiv({ cls: 'calendar-view__navigation' });
+        const navSection = headerContainer.createDiv({ cls: 'mini-calendar-view__navigation' });
         
         // Previous Month Button
         const prevButton = navSection.createEl('button', { 
             text: '‹', 
-            cls: 'calendar-view__nav-button calendar-view__nav-button--prev',
+            cls: 'mini-calendar-view__nav-button mini-calendar-view__nav-button--prev',
             attr: {
                 'aria-label': 'Previous month',
                 'title': 'Previous month'
@@ -433,14 +433,14 @@ export class CalendarView extends ItemView {
         
         // Current Month Display
         const monthDisplay = navSection.createDiv({ 
-            cls: 'calendar-view__month-display',
+            cls: 'mini-calendar-view__month-display',
             text: format(this.plugin.selectedDate, 'MMMM yyyy')
         });
         
         // Next Month Button
         const nextButton = navSection.createEl('button', { 
             text: '›', 
-            cls: 'calendar-view__nav-button calendar-view__nav-button--next',
+            cls: 'mini-calendar-view__nav-button mini-calendar-view__nav-button--next',
             attr: {
                 'aria-label': 'Next month',
                 'title': 'Next month'
@@ -453,7 +453,7 @@ export class CalendarView extends ItemView {
         // Today button (moved to end)
         const todayButton = headerContainer.createEl('button', { 
             text: 'Today', 
-            cls: 'calendar-view__today-button',
+            cls: 'mini-calendar-view__today-button',
             attr: {
                 'aria-label': 'Go to today',
                 'title': 'Go to today'
@@ -483,7 +483,7 @@ export class CalendarView extends ItemView {
     
     createCalendarGrid(container: HTMLElement) {
         // Create container for the calendar grid
-        const gridContainer = container.createDiv({ cls: 'calendar-view__grid-container' });
+        const gridContainer = container.createDiv({ cls: 'mini-calendar-view__grid-container' });
 
         // Add skip link for accessibility
         const skipLink = gridContainer.createEl('a', {
@@ -513,7 +513,7 @@ export class CalendarView extends ItemView {
         
         // Create the calendar grid with ARIA role
         const calendarGrid = gridContainer.createDiv({ 
-            cls: 'calendar-view__grid',
+            cls: 'mini-calendar-view__grid',
             attr: {
                 'role': 'grid',
                 'aria-label': `Calendar for ${format(this.plugin.selectedDate, 'MMMM yyyy')}`,
@@ -523,7 +523,7 @@ export class CalendarView extends ItemView {
         
         // Create the calendar header (day names)
         const calendarHeader = calendarGrid.createDiv({ 
-            cls: 'calendar-view__grid-header',
+            cls: 'mini-calendar-view__grid-header',
             attr: {
                 'role': 'row'
             }
@@ -536,7 +536,7 @@ export class CalendarView extends ItemView {
         dayNames.forEach((dayName, index) => {
             calendarHeader.createDiv({ 
                 text: dayName, 
-                cls: 'calendar-view__day-header',
+                cls: 'mini-calendar-view__day-header',
                 attr: {
                     'role': 'columnheader',
                     'aria-label': dayName
@@ -557,7 +557,7 @@ export class CalendarView extends ItemView {
         
         // Create calendar days - start new row for first week
         let currentWeekRow = calendarGrid.createDiv({
-            cls: 'calendar-view__week',
+            cls: 'mini-calendar-view__week',
             attr: { 'role': 'row' }
         });
         
@@ -569,7 +569,7 @@ export class CalendarView extends ItemView {
             const isSelected = isSameDay(dayDate, selectedDate);
             
             const dayEl = currentWeekRow.createDiv({ 
-                cls: `calendar-view__day calendar-view__day--outside-month${isSelected ? ' calendar-view__day--selected' : ''}`, 
+                cls: `mini-calendar-view__day mini-calendar-view__day--outside-month${isSelected ? ' mini-calendar-view__day--selected' : ''}`, 
                 text: dayNum.toString(),
                 attr: {
                     'role': 'gridcell',
@@ -604,7 +604,7 @@ export class CalendarView extends ItemView {
             // Start a new row every 7 days (once per week)
             if ((i + daysFromPrevMonth) % 7 === 1) {
                 currentWeekRow = calendarGrid.createDiv({
-                    cls: 'calendar-view__week',
+                    cls: 'mini-calendar-view__week',
                     attr: { 'role': 'row' }
                 });
             }
@@ -614,9 +614,9 @@ export class CalendarView extends ItemView {
             const isToday = isSameDay(dayDate, today);
             const isSelected = isSameDay(dayDate, selectedDate);
             
-            let classNames = 'calendar-view__day';
-            if (isToday) classNames += ' calendar-view__day--today';
-            if (isSelected) classNames += ' calendar-view__day--selected';
+            let classNames = 'mini-calendar-view__day';
+            if (isToday) classNames += ' mini-calendar-view__day--today';
+            if (isSelected) classNames += ' mini-calendar-view__day--selected';
             
             const dayEl = currentWeekRow.createDiv({ 
                 cls: classNames, 
@@ -654,7 +654,7 @@ export class CalendarView extends ItemView {
             // Start a new row every 7 days (once per week)
             if ((i + daysFromPrevMonth + daysThisMonth) % 7 === 1) {
                 currentWeekRow = calendarGrid.createDiv({
-                    cls: 'calendar-view__week',
+                    cls: 'mini-calendar-view__week',
                     attr: { 'role': 'row' }
                 });
             }
@@ -664,7 +664,7 @@ export class CalendarView extends ItemView {
             const isSelected = isSameDay(dayDate, selectedDate);
             
             const dayEl = currentWeekRow.createDiv({ 
-                cls: `calendar-view__day calendar-view__day--outside-month${isSelected ? ' calendar-view__day--selected' : ''}`, 
+                cls: `mini-calendar-view__day mini-calendar-view__day--outside-month${isSelected ? ' mini-calendar-view__day--selected' : ''}`, 
                 text: i.toString(),
                 attr: {
                     'role': 'gridcell',
@@ -697,7 +697,7 @@ export class CalendarView extends ItemView {
     // Clear all colorization to prepare for new colorization
     private clearCalendarColorization() {
         // Get all calendar day elements
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
+        const calendarDays = this.contentEl.querySelectorAll('.mini-calendar-view__day');
         
         // Remove all colorization classes and indicators
         calendarDays.forEach(day => {
@@ -706,9 +706,9 @@ export class CalendarView extends ItemView {
             
             // Remove colorization classes
             day.classList.remove(
-                'calendar-view__day--has-notes-few', 'calendar-view__day--has-notes-some', 'calendar-view__day--has-notes-many',
-                'calendar-view__day--has-tasks', 'calendar-view__day--has-completed-tasks', 'calendar-view__day--has-archived-tasks', 'calendar-view__day--has-scheduled-tasks',
-                'calendar-view__day--has-daily-note'
+                'mini-calendar-view__day--has-notes-few', 'mini-calendar-view__day--has-notes-some', 'mini-calendar-view__day--has-notes-many',
+                'mini-calendar-view__day--has-tasks', 'mini-calendar-view__day--has-completed-tasks', 'mini-calendar-view__day--has-archived-tasks', 'mini-calendar-view__day--has-scheduled-tasks',
+                'mini-calendar-view__day--has-daily-note'
             );
         });
     }
@@ -734,7 +734,7 @@ export class CalendarView extends ItemView {
             const notesCache = calendarData.notes;
         
         // Find all calendar days
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
+        const calendarDays = this.contentEl.querySelectorAll('.mini-calendar-view__day');
         
         // Add note indicators
         calendarDays.forEach(day => {
@@ -750,7 +750,7 @@ export class CalendarView extends ItemView {
                 
                 // Adjust for days outside current month
                 let actualMonth = month;
-                if (day.classList.contains('calendar-view__day--outside-month')) {
+                if (day.classList.contains('mini-calendar-view__day--outside-month')) {
                     if (date > 15) { // Probably previous month
                         actualMonth = month === 0 ? 11 : month - 1;
                     } else { // Probably next month
@@ -773,13 +773,13 @@ export class CalendarView extends ItemView {
                     let noteClass = '';
                     if (noteCount >= 5) {
                         noteClass = 'many-notes';
-                        day.classList.add('calendar-view__day--has-notes-many');
+                        day.classList.add('mini-calendar-view__day--has-notes-many');
                     } else if (noteCount >= 2) {
                         noteClass = 'some-notes';
-                        day.classList.add('calendar-view__day--has-notes-some');
+                        day.classList.add('mini-calendar-view__day--has-notes-some');
                     } else {
                         noteClass = 'few-notes';
-                        day.classList.add('calendar-view__day--has-notes-few');
+                        day.classList.add('mini-calendar-view__day--has-notes-few');
                     }
                     
                     indicator.classList.add(noteClass);
@@ -810,7 +810,7 @@ export class CalendarView extends ItemView {
         const tasksCache = calendarData.tasks;
         
         // Find all calendar days
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
+        const calendarDays = this.contentEl.querySelectorAll('.mini-calendar-view__day');
         
         // Add task indicators
         calendarDays.forEach(day => {
@@ -825,13 +825,13 @@ export class CalendarView extends ItemView {
                 if (isNaN(date)) return;
                 
                 // Use cached month calculation for better performance
-                const cacheKey = `${year}-${month}-${date}-${day.classList.contains('calendar-view__day--outside-month')}`;
+                const cacheKey = `${year}-${month}-${date}-${day.classList.contains('mini-calendar-view__day--outside-month')}`;
                 let cachedResult = this.monthCalculationCache.get(cacheKey);
                 
                 if (!cachedResult) {
                     // Adjust for days outside current month
                     let actualMonth = month;
-                    if (day.classList.contains('calendar-view__day--outside-month')) {
+                    if (day.classList.contains('mini-calendar-view__day--outside-month')) {
                         if (date > 15) { // Probably previous month
                             actualMonth = month === 0 ? 11 : month - 1;
                         } else { // Probably next month
@@ -861,22 +861,22 @@ export class CalendarView extends ItemView {
                     let taskStatus = '';
                     if (taskInfo.hasArchived) {
                         // Archived tasks get a different style
-                        day.classList.add('calendar-view__day--has-archived-tasks');
+                        day.classList.add('mini-calendar-view__day--has-archived-tasks');
                         indicator.classList.add('archived-tasks');
                         taskStatus = 'Archived';
                     } else if (taskInfo.hasCompleted) {
                         // Completed tasks
-                        day.classList.add('calendar-view__day--has-completed-tasks');
+                        day.classList.add('mini-calendar-view__day--has-completed-tasks');
                         indicator.classList.add('completed-tasks');
                         taskStatus = 'Completed';
                     } else if (taskInfo.hasDue) {
                         // Due tasks (prioritized over scheduled)
-                        day.classList.add('calendar-view__day--has-tasks');
+                        day.classList.add('mini-calendar-view__day--has-tasks');
                         indicator.classList.add('due-tasks');
                         taskStatus = 'Due';
                     } else if (taskInfo.hasScheduled) {
                         // Scheduled tasks
-                        day.classList.add('calendar-view__day--has-scheduled-tasks');
+                        day.classList.add('mini-calendar-view__day--has-scheduled-tasks');
                         indicator.classList.add('scheduled-tasks');
                         taskStatus = 'Scheduled';
                     }
@@ -905,10 +905,10 @@ export class CalendarView extends ItemView {
         // Using class property instead of static variable to track first call
         let dailyNotesCache: Set<string>;
         
-        if (!CalendarView.dailyNotesInitialized) {
+        if (!MiniCalendarView.dailyNotesInitialized) {
             // Use the targeted rebuild method instead of rebuilding the entire index
             dailyNotesCache = await this.plugin.cacheManager.rebuildDailyNotesCache(currentYear, currentMonth);
-            CalendarView.dailyNotesInitialized = true;
+            MiniCalendarView.dailyNotesInitialized = true;
         } else {
             // Get calendar data from file indexer
             const calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
@@ -917,7 +917,7 @@ export class CalendarView extends ItemView {
         
         
         // Find all calendar days
-        const calendarDays = this.contentEl.querySelectorAll('.calendar-view__day');
+        const calendarDays = this.contentEl.querySelectorAll('.mini-calendar-view__day');
         
         // Add daily note indicators
         calendarDays.forEach(day => {
@@ -932,13 +932,13 @@ export class CalendarView extends ItemView {
                 if (isNaN(date)) return;
                 
                 // Use cached month calculation for better performance
-                const cacheKey = `${year}-${month}-${date}-${day.classList.contains('calendar-view__day--outside-month')}`;
+                const cacheKey = `${year}-${month}-${date}-${day.classList.contains('mini-calendar-view__day--outside-month')}`;
                 let cachedResult = this.monthCalculationCache.get(cacheKey);
                 
                 if (!cachedResult) {
                     // Adjust for days outside current month
                     let actualMonth = month;
-                    if (day.classList.contains('calendar-view__day--outside-month')) {
+                    if (day.classList.contains('mini-calendar-view__day--outside-month')) {
                         if (date > 15) { // Probably previous month
                             actualMonth = month === 0 ? 11 : month - 1;
                         } else { // Probably next month
@@ -963,7 +963,7 @@ export class CalendarView extends ItemView {
                     indicator.className = 'daily-note-indicator';
                     
                     // Add class to the day
-                    day.classList.add('calendar-view__day--has-daily-note');
+                    day.classList.add('mini-calendar-view__day--has-daily-note');
                     
                     // Add tooltip for daily note
                     indicator.setAttribute('aria-label', 'Daily note exists');
@@ -1032,7 +1032,7 @@ export class CalendarView extends ItemView {
         // Cache calendar day elements if needed or invalidate if month changed
         const currentCacheKey = `${currentYear}-${currentMonth}`;
         if (this.currentCacheKey !== currentCacheKey || !this.calendarDayElements) {
-            this.calendarDayElements = this.contentEl.querySelectorAll('.calendar-view__day');
+            this.calendarDayElements = this.contentEl.querySelectorAll('.mini-calendar-view__day');
             this.currentCacheKey = currentCacheKey;
             this.buildElementToDateMap(currentYear, currentMonth);
         }

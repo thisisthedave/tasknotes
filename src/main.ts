@@ -7,7 +7,8 @@ import {
 	TaskNotesSettingTab 
 } from './settings/settings';
 import { 
-	CALENDAR_VIEW_TYPE, 
+	MINI_CALENDAR_VIEW_TYPE, 
+	ADVANCED_CALENDAR_VIEW_TYPE,
 	NOTES_VIEW_TYPE, 
 	TASK_LIST_VIEW_TYPE,
 	AGENDA_VIEW_TYPE,
@@ -22,7 +23,8 @@ import {
 	EVENT_DATA_CHANGED,
 	EVENT_TASK_UPDATED
 } from './types';
-import { CalendarView } from './views/CalendarView';
+import { MiniCalendarView } from './views/MiniCalendarView';
+import { AdvancedCalendarView } from './views/AdvancedCalendarView';
 import { TaskListView } from './views/TaskListView';
 import { NotesView } from './views/NotesView';
 import { AgendaView } from './views/AgendaView';
@@ -165,8 +167,12 @@ export default class TaskNotesPlugin extends Plugin {
 
 		// Register view types
 		this.registerView(
-			CALENDAR_VIEW_TYPE,
-			(leaf) => new CalendarView(leaf, this)
+			MINI_CALENDAR_VIEW_TYPE,
+			(leaf) => new MiniCalendarView(leaf, this)
+		);
+		this.registerView(
+			ADVANCED_CALENDAR_VIEW_TYPE,
+			(leaf) => new AdvancedCalendarView(leaf, this)
 		);
 		this.registerView(
 			TASK_LIST_VIEW_TYPE,
@@ -420,9 +426,17 @@ export default class TaskNotesPlugin extends Plugin {
 		// View commands
 		this.addCommand({
 			id: 'open-calendar-view',
-			name: 'Open calendar view',
+			name: 'Open mini calendar view',
 			callback: async () => {
 				await this.activateCalendarView();
+			}
+		});
+		
+		this.addCommand({
+			id: 'open-advanced-calendar-view',
+			name: 'Open advanced calendar view',
+			callback: async () => {
+				await this.activateAdvancedCalendarView();
 			}
 		});
 		
@@ -568,7 +582,11 @@ export default class TaskNotesPlugin extends Plugin {
 	}
 	
 	async activateCalendarView() {
-		return this.activateView(CALENDAR_VIEW_TYPE);
+		return this.activateView(MINI_CALENDAR_VIEW_TYPE);
+	}
+	
+	async activateAdvancedCalendarView() {
+		return this.activateView(ADVANCED_CALENDAR_VIEW_TYPE);
 	}
 	
 	async activateTasksView() {
@@ -603,7 +621,7 @@ export default class TaskNotesPlugin extends Plugin {
 	}
 	
 	getCalendarLeaf(): WorkspaceLeaf | null {
-		return this.getLeafOfType(CALENDAR_VIEW_TYPE);
+		return this.getLeafOfType(MINI_CALENDAR_VIEW_TYPE);
 	}
 
 	async navigateToCurrentDailyNote() {
