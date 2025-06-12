@@ -503,12 +503,8 @@ export class TaskService {
                 // Use field mapper to convert ALL task data to frontmatter with proper field mapping
                 const mappedFrontmatter = this.plugin.fieldMapper.mapToFrontmatter(completeTaskData, this.plugin.settings.taskTag);
                 
-                // Clear frontmatter and rebuild with complete mapped data to ensure all fields are preserved
-                Object.keys(frontmatter).forEach(key => {
-                    delete frontmatter[key];
-                });
-                
-                // Apply complete mapped frontmatter
+                // Apply mapped frontmatter properties, preserving any existing non-task properties
+                // The FieldMapper only includes task-related fields, so this is safe
                 Object.keys(mappedFrontmatter).forEach(key => {
                     if (mappedFrontmatter[key] !== undefined) {
                         frontmatter[key] = mappedFrontmatter[key];
