@@ -315,9 +315,9 @@ export class MiniCalendarView extends ItemView {
     // Update selected date without re-rendering entire calendar
     private updateSelectedDate(newDate: Date) {
         // Remove selected class from all days
-        const allDays = this.contentEl.querySelectorAll('.mini-mini-calendar-view__day');
+        const allDays = this.contentEl.querySelectorAll('.mini-calendar-view__day');
         allDays.forEach(day => {
-            day.classList.remove('mini-mini-calendar-view__day--selected');
+            day.classList.remove('mini-calendar-view__day--selected');
             day.setAttribute('aria-selected', 'false');
             day.setAttribute('tabindex', '-1');
         });
@@ -329,7 +329,7 @@ export class MiniCalendarView extends ItemView {
             const ariaLabel = dayEl.getAttribute('aria-label') || '';
             // Check if this element represents the new date
             if (ariaLabel.includes(format(newDate, 'EEEE, MMMM d, yyyy'))) {
-                dayEl.classList.add('mini-mini-calendar-view__day--selected');
+                dayEl.classList.add('mini-calendar-view__day--selected');
                 dayEl.setAttribute('aria-selected', 'true');
                 dayEl.setAttribute('tabindex', '0');
                 dayEl.focus();
@@ -343,7 +343,7 @@ export class MiniCalendarView extends ItemView {
     
     // Update the month display text in the header
     private updateMonthDisplay() {
-        const monthDisplay = this.contentEl.querySelector('.mini-mini-calendar-view__month-display');
+        const monthDisplay = this.contentEl.querySelector('.mini-calendar-view__month-display');
         if (monthDisplay) {
             monthDisplay.textContent = format(this.plugin.selectedDate, 'MMMM yyyy');
         }
