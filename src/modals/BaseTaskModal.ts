@@ -389,88 +389,46 @@ export abstract class BaseTaskModal extends Modal {
         const inputContainer = container.createDiv({ cls: 'modal-form__datetime-container' });
         
         // Date input
-        const dateContainer = inputContainer.createDiv({ cls: 'modal-form__date-container' });
-        const inputId = `due-date-input-${Math.random().toString(36).substr(2, 9)}`;
-        const dateInput = dateContainer.createEl('input', {
+        const dateInput = inputContainer.createEl('input', {
             type: 'date',
             cls: 'modal-form__input modal-form__input--date',
             attr: {
-                'id': inputId,
-                'aria-label': 'Due date'
+                'aria-label': 'Due date',
+                'placeholder': 'YYYY-MM-DD'
             }
         });
-
+        
         // Extract and set date part
         const datePart = getDatePart(this.dueDate);
         if (datePart && validateDateInput(datePart)) {
             dateInput.value = datePart;
         }
-
-        dateInput.addEventListener('change', (e) => {
-            const dateValue = (e.target as HTMLInputElement).value;
-            this.updateDueDateValue(dateValue, this.dueTimeEnabled ? (this.dueTimeInput?.value || '') : '');
-        });
         
-        // Time toggle container
-        const timeToggleContainer = inputContainer.createDiv({ cls: 'modal-form__time-toggle-container' });
-        
-        const timeToggleId = `due-time-toggle-${Math.random().toString(36).substr(2, 9)}`;
-        const timeToggle = timeToggleContainer.createEl('input', {
-            type: 'checkbox',
-            cls: 'modal-form__time-toggle',
-            attr: {
-                'id': timeToggleId,
-                'aria-label': 'Include time for due date'
-            }
-        });
-        
-        const timeToggleLabel = timeToggleContainer.createEl('label', {
-            text: 'Include time',
-            cls: 'modal-form__time-toggle-label',
-            attr: { 'for': timeToggleId }
-        });
-        
-        // Time input (initially hidden)
-        const timeContainer = inputContainer.createDiv({ cls: 'modal-form__time-container' });
-        const timeInputId = `due-time-input-${Math.random().toString(36).substr(2, 9)}`;
-        this.dueTimeInput = timeContainer.createEl('input', {
+        // Time input (always visible but optional)
+        this.dueTimeInput = inputContainer.createEl('input', {
             type: 'time',
             cls: 'modal-form__input modal-form__input--time',
             attr: {
-                'id': timeInputId,
-                'aria-label': 'Due time'
+                'aria-label': 'Due time (optional)',
+                'placeholder': 'HH:MM'
             }
         });
         
-        // Initialize time components
-        this.dueTimeEnabled = hasTimeComponent(this.dueDate);
+        // Extract and set time part
         const timePart = getTimePart(this.dueDate);
-        if (timePart && this.dueTimeEnabled) {
+        if (timePart) {
             this.dueTimeInput.value = timePart;
         }
         
-        timeToggle.checked = this.dueTimeEnabled;
-        timeContainer.style.display = this.dueTimeEnabled ? 'block' : 'none';
-        
-        // Time toggle event listener
-        timeToggle.addEventListener('change', (e) => {
-            this.dueTimeEnabled = (e.target as HTMLInputElement).checked;
-            timeContainer.style.display = this.dueTimeEnabled ? 'block' : 'none';
-            
-            if (!this.dueTimeEnabled) {
-                this.dueTimeInput!.value = '';
-            } else if (!this.dueTimeInput!.value) {
-                // Default to current time
-                const now = new Date();
-                this.dueTimeInput!.value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-            }
-            
-            this.updateDueDateValue(dateInput.value, this.dueTimeEnabled ? this.dueTimeInput!.value : '');
+        // Event listeners
+        dateInput.addEventListener('change', (e) => {
+            const dateValue = (e.target as HTMLInputElement).value;
+            this.updateDueDateValue(dateValue, this.dueTimeInput?.value || '');
         });
         
-        // Time input event listener
         this.dueTimeInput.addEventListener('change', (e) => {
-            this.updateDueDateValue(dateInput.value, (e.target as HTMLInputElement).value);
+            const timeValue = (e.target as HTMLInputElement).value;
+            this.updateDueDateValue(dateInput.value, timeValue);
         });
     }
     
@@ -480,7 +438,7 @@ export abstract class BaseTaskModal extends Modal {
             return;
         }
         
-        if (this.dueTimeEnabled && timeValue) {
+        if (timeValue && timeValue.trim()) {
             this.dueDate = combineDateAndTime(dateValue, timeValue);
         } else {
             this.dueDate = dateValue;

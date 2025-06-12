@@ -2,7 +2,7 @@ import { App, Notice, TFile, Setting, Editor, MarkdownView } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { BaseTaskModal } from './BaseTaskModal';
-import { CALENDAR_VIEW_TYPE, TaskInfo } from '../types';
+import { MINI_CALENDAR_VIEW_TYPE, TaskInfo } from '../types';
 import { ParsedTaskData } from '../utils/TasksPluginParser';
 import { getCurrentTimestamp, hasTimeComponent, getDatePart, getTimePart } from '../utils/dateUtils';
 import { generateTaskFilename, FilenameContext } from '../utils/filenameGenerator';
@@ -486,7 +486,7 @@ export class TaskCreationModal extends BaseTaskModal {
 		const { file } = await this.plugin.taskService.createTask(taskData);
 
 		// If calendar view is open, update it to show the new task
-		const leaves = this.app.workspace.getLeavesOfType(CALENDAR_VIEW_TYPE);
+		const leaves = this.app.workspace.getLeavesOfType(MINI_CALENDAR_VIEW_TYPE);
 		if (leaves.length > 0) {
 			const calendarView = leaves[0].view as any;
 			if (calendarView && typeof calendarView.refresh === 'function') {
