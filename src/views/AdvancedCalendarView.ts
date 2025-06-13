@@ -3,6 +3,7 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
+import multiMonthPlugin from '@fullcalendar/multimonth';
 import interactionPlugin from '@fullcalendar/interaction';
 import TaskNotesPlugin from '../main';
 import {
@@ -10,11 +11,13 @@ import {
     EVENT_DATA_CHANGED,
     EVENT_TASK_UPDATED,
     TaskInfo,
-    TimeEntry
+    TimeEntry,
+    FilterQuery
 } from '../types';
 import { TaskCreationModal } from '../modals/TaskCreationModal';
 import { TaskEditModal } from '../modals/TaskEditModal';
 import { UnscheduledTasksSelectorModal, ScheduleTaskOptions } from '../modals/UnscheduledTasksSelectorModal';
+import { FilterBar } from '../ui/FilterBar';
 import { 
     hasTimeComponent, 
     getDatePart, 
@@ -44,7 +47,11 @@ export class AdvancedCalendarView extends ItemView {
     private calendar: Calendar | null = null;
     private listeners: (() => void)[] = [];
     
-    // View toggles
+    // Filter system
+    private filterBar: FilterBar | null = null;
+    private currentQuery: FilterQuery;
+    
+    // View toggles (keeping for calendar-specific display options)
     private showScheduled: boolean = true;
     private showDue: boolean = true;
     private showTimeEntries: boolean = false;
@@ -52,6 +59,19 @@ export class AdvancedCalendarView extends ItemView {
     constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
         this.plugin = plugin;
+        
+        // Initialize with default filter query
+        this.currentQuery = {
+            searchQuery: undefined,
+            statuses: undefined,
+            contexts: undefined,
+            priorities: undefined,
+            dateRange: undefined,
+            showArchived: false,
+            sortKey: 'due',
+            sortDirection: 'asc',
+            groupKey: 'none'
+        };
     }
 
     getViewType(): string {
@@ -69,13 +89,21 @@ export class AdvancedCalendarView extends ItemView {
     async onOpen() {
         await this.plugin.onReady();
         
+        // Load saved filter state
+        const savedQuery = this.plugin.viewStateManager.getFilterState(ADVANCED_CALENDAR_VIEW_TYPE);
+        if (savedQuery) {
+            this.currentQuery = savedQuery;
+        } else if (this.plugin.filterService) {
+            this.currentQuery = this.plugin.filterService.createDefaultQuery();
+        }
+        
         const contentEl = this.contentEl;
         contentEl.empty();
         contentEl.addClass('tasknotes-plugin');
         contentEl.addClass('advanced-calendar-view');
 
         // Create the calendar container
-        this.renderView();
+        await this.renderView();
         
         // Register event listeners
         this.registerEvents();
@@ -84,7 +112,7 @@ export class AdvancedCalendarView extends ItemView {
         await this.initializeCalendar();
     }
 
-    renderView() {
+    async renderView() {
         const { contentEl } = this;
         contentEl.empty();
         
@@ -92,7 +120,7 @@ export class AdvancedCalendarView extends ItemView {
         const mainContainer = contentEl.createDiv({ cls: 'advanced-calendar-view__container' });
         
         // Create header with controls
-        this.createHeader(mainContainer);
+        await this.createHeader(mainContainer);
         
         // Create calendar container (now full width)
         const calendarContainer = mainContainer.createDiv({ 
@@ -101,16 +129,58 @@ export class AdvancedCalendarView extends ItemView {
         });
     }
 
-    createHeader(container: HTMLElement) {
+    async createHeader(container: HTMLElement) {
         const header = container.createDiv({ cls: 'advanced-calendar-view__header' });
         
-        // View toggles
-        const toggles = header.createDiv({ cls: 'advanced-calendar-view__toggles' });
+        // Create main header row that can contain both FilterBar and controls
+        const mainRow = header.createDiv({ cls: 'advanced-calendar-view__main-row' });
         
-        // Show Scheduled Tasks toggle
+        // Create FilterBar container
+        const filterBarContainer = mainRow.createDiv({ cls: 'filter-bar-container' });
+        
+        // Get filter options from FilterService
+        const filterOptions = await this.plugin.filterService.getFilterOptions();
+        
+        // Create FilterBar with AdvancedCalendarView configuration
+        this.filterBar = new FilterBar(
+            filterBarContainer,
+            this.currentQuery,
+            filterOptions,
+            {
+                showSearch: true,
+                showGroupBy: false, // Calendar doesn't need grouping
+                showSortBy: false,  // Calendar sorts by date
+                showAdvancedFilters: true,
+                showDateRangePicker: false, // Calendar provides date navigation
+                allowedSortKeys: [],
+                allowedGroupKeys: []
+            }
+        );
+        
+        // Initialize FilterBar
+        await this.filterBar.initialize();
+        
+        // Set up cache refresh mechanism for FilterBar
+        this.filterBar.setupCacheRefresh(this.plugin.cacheManager, this.plugin.filterService);
+        
+        // Listen for filter changes
+        this.filterBar.on('queryChange', async (newQuery: FilterQuery) => {
+            this.currentQuery = newQuery;
+            // Save the filter state
+            await this.plugin.viewStateManager.setFilterState(ADVANCED_CALENDAR_VIEW_TYPE, newQuery);
+            this.refreshEvents();
+        });
+        
+        // Controls section - view toggles and button
+        const controlsSection = mainRow.createDiv({ cls: 'advanced-calendar-view__controls' });
+        
+        // View toggles
+        const toggles = controlsSection.createDiv({ cls: 'advanced-calendar-view__toggles' });
+        
+        // Scheduled Tasks toggle
         const scheduledToggle = this.createToggle(
             toggles,
-            'Show scheduled tasks',
+            'Scheduled tasks',
             this.showScheduled,
             (enabled) => {
                 this.showScheduled = enabled;
@@ -118,10 +188,10 @@ export class AdvancedCalendarView extends ItemView {
             }
         );
         
-        // Show Due Dates toggle
+        // Due Dates toggle
         const dueToggle = this.createToggle(
             toggles,
-            'Show Due Dates',
+            'Due dates',
             this.showDue,
             (enabled) => {
                 this.showDue = enabled;
@@ -129,10 +199,10 @@ export class AdvancedCalendarView extends ItemView {
             }
         );
         
-        // Show Time Entries toggle
+        // Time Entries toggle
         const timeEntriesToggle = this.createToggle(
             toggles,
-            'Show Time Entries',
+            'Time entries',
             this.showTimeEntries,
             (enabled) => {
                 this.showTimeEntries = enabled;
@@ -141,7 +211,7 @@ export class AdvancedCalendarView extends ItemView {
         );
         
         // Schedule Tasks button
-        const scheduleTasksBtn = header.createEl('button', {
+        const scheduleTasksBtn = controlsSection.createEl('button', {
             text: 'Schedule tasks',
             cls: 'advanced-calendar-view__schedule-tasks-btn'
         });
@@ -221,12 +291,12 @@ export class AdvancedCalendarView extends ItemView {
         }
 
         this.calendar = new Calendar(calendarEl, {
-            plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
+            plugins: [dayGridPlugin, timeGridPlugin, multiMonthPlugin, interactionPlugin],
             initialView: 'dayGridMonth',
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'dayGridYear,dayGridMonth,timeGridWeek,timeGridDay'
+                right: 'multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay'
             },
             height: '100%',
             editable: true,
@@ -265,16 +335,16 @@ export class AdvancedCalendarView extends ItemView {
         const events: CalendarEvent[] = [];
         
         try {
-            // Get all task paths and then get their task info
-            const allTaskPaths = this.plugin.cacheManager.getAllTaskPaths();
-            const allTasksPromises = Array.from(allTaskPaths).map(path => 
-                this.plugin.cacheManager.getTaskInfo(path)
-            );
-            const allTasks = (await Promise.all(allTasksPromises)).filter((task): task is TaskInfo => task !== null);
+            // Get filtered tasks from FilterService
+            const groupedTasks = await this.plugin.filterService.getGroupedTasks(this.currentQuery);
+            
+            // Flatten grouped tasks since calendar doesn't use grouping
+            const allTasks: TaskInfo[] = [];
+            for (const tasks of groupedTasks.values()) {
+                allTasks.push(...tasks);
+            }
             
             for (const task of allTasks) {
-                if (task.archived) continue;
-                
                 // Add scheduled events
                 if (this.showScheduled && task.scheduled) {
                     const scheduledEvent = this.createScheduledEvent(task);
@@ -608,6 +678,12 @@ export class AdvancedCalendarView extends ItemView {
             this.refreshEvents();
         });
         this.listeners.push(taskUpdateListener);
+        
+        // Listen for filter service data changes
+        const filterDataListener = this.plugin.filterService.on('data-changed', () => {
+            this.refreshEvents();
+        });
+        this.listeners.push(filterDataListener);
     }
 
     async refreshEvents() {
@@ -619,6 +695,12 @@ export class AdvancedCalendarView extends ItemView {
     async onClose() {
         // Remove event listeners
         this.listeners.forEach(unsubscribe => unsubscribe());
+        
+        // Clean up FilterBar
+        if (this.filterBar) {
+            this.filterBar.destroy();
+            this.filterBar = null;
+        }
         
         // Destroy calendar
         if (this.calendar) {

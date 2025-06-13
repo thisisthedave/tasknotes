@@ -14,18 +14,33 @@
 }
 
 .advanced-calendar-view__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     padding: 0.5rem 1rem;
     background: var(--background-primary);
     flex-shrink: 0;
-    min-height: 50px;
+}
+
+.advanced-calendar-view__main-row {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.advanced-calendar-view__main-row .filter-bar-container {
+    flex: 1;
+    min-width: 300px;
+}
+
+.advanced-calendar-view__controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
 }
 
 .advanced-calendar-view__toggles {
     display: flex;
-    gap: 1.5rem;
+    gap: 1.25rem;
     align-items: center;
 }
 
@@ -277,15 +292,37 @@
 }
 
 /* Responsive design */
+@media (max-width: 1200px) {
+    .advanced-calendar-view__main-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    
+    .advanced-calendar-view__main-row .filter-bar-container {
+        min-width: unset;
+    }
+    
+    .advanced-calendar-view__controls {
+        justify-content: space-between;
+    }
+}
+
 @media (max-width: 768px) {
-    .advanced-calendar-view__header {
-        flex-wrap: wrap;
-        gap: 0.5rem;
+    .advanced-calendar-view__controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
     }
     
     .advanced-calendar-view__toggles {
         flex-wrap: wrap;
-        gap: 0.5rem;
+        gap: 0.75rem;
+        justify-content: center;
+    }
+    
+    .advanced-calendar-view__schedule-tasks-btn {
+        align-self: center;
     }
     
     .advanced-calendar-view__calendar-container {
