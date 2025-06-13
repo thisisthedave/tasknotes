@@ -40,6 +40,7 @@ interface CalendarEvent {
     extendedProps: {
         taskInfo: TaskInfo;
         eventType: 'scheduled' | 'due' | 'timeEntry';
+        isCompleted?: boolean;
     };
 }
 
@@ -390,6 +391,9 @@ export class AdvancedCalendarView extends ItemView {
         const priorityConfig = this.plugin.priorityManager.getPriorityConfig(task.priority);
         const borderColor = priorityConfig?.color || '#6B73FF';
         
+        // Check if task is completed
+        const isCompleted = this.plugin.statusManager.isCompletedStatus(task.status);
+        
         return {
             id: `scheduled-${task.path}`,
             title: task.title,
@@ -401,7 +405,8 @@ export class AdvancedCalendarView extends ItemView {
             textColor: borderColor,
             extendedProps: {
                 taskInfo: task,
-                eventType: 'scheduled'
+                eventType: 'scheduled',
+                isCompleted: isCompleted
             }
         };
     }
@@ -427,6 +432,9 @@ export class AdvancedCalendarView extends ItemView {
         // Create faded background color from priority color
         const fadedBackground = this.hexToRgba(borderColor, 0.15);
         
+        // Check if task is completed
+        const isCompleted = this.plugin.statusManager.isCompletedStatus(task.status);
+        
         return {
             id: `due-${task.path}`,
             title: `DUE: ${task.title}`,
@@ -438,7 +446,8 @@ export class AdvancedCalendarView extends ItemView {
             textColor: borderColor,
             extendedProps: {
                 taskInfo: task,
-                eventType: 'due'
+                eventType: 'due',
+                isCompleted: isCompleted
             }
         };
     }
@@ -458,6 +467,9 @@ export class AdvancedCalendarView extends ItemView {
     createTimeEntryEvents(task: TaskInfo): CalendarEvent[] {
         if (!task.timeEntries) return [];
         
+        // Check if task is completed
+        const isCompleted = this.plugin.statusManager.isCompletedStatus(task.status);
+        
         return task.timeEntries
             .filter(entry => entry.endTime) // Only completed time entries
             .map((entry, index) => ({
@@ -471,7 +483,8 @@ export class AdvancedCalendarView extends ItemView {
                 textColor: '#FFFFFF',
                 extendedProps: {
                     taskInfo: task,
-                    eventType: 'timeEntry' as const
+                    eventType: 'timeEntry' as const,
+                    isCompleted: isCompleted
                 }
             }));
     }
@@ -670,25 +683,33 @@ export class AdvancedCalendarView extends ItemView {
             return;
         }
         
-        const { taskInfo, eventType } = arg.event.extendedProps;
-        
-        if (eventType === 'timeEntry') {
-            // Time entries don't need context menu
-            return;
-        }
+        const { taskInfo, eventType, isCompleted } = arg.event.extendedProps;
         
         if (!taskInfo || !taskInfo.path) {
             return;
         }
         
-        // Add context menu event listener
-        arg.el.addEventListener("contextmenu", (jsEvent: MouseEvent) => {
-            jsEvent.preventDefault();
-            jsEvent.stopPropagation();
-            
-            const targetDate = arg.event.start || new Date();
-            showTaskContextMenu(jsEvent, taskInfo.path, this.plugin, targetDate);
-        });
+        // Apply strikethrough styling for completed tasks
+        if (isCompleted) {
+            const titleElement = arg.el.querySelector('.fc-event-title, .fc-event-title-container');
+            if (titleElement) {
+                titleElement.style.textDecoration = 'line-through';
+            } else {
+                // Fallback: apply to the entire event element
+                arg.el.style.textDecoration = 'line-through';
+            }
+        }
+        
+        // Add context menu event listener (not for time entries)
+        if (eventType !== 'timeEntry') {
+            arg.el.addEventListener("contextmenu", (jsEvent: MouseEvent) => {
+                jsEvent.preventDefault();
+                jsEvent.stopPropagation();
+                
+                const targetDate = arg.event.start || new Date();
+                showTaskContextMenu(jsEvent, taskInfo.path, this.plugin, targetDate);
+            });
+        }
     }
 
     registerEvents(): void {
