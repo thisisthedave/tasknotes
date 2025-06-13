@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath, Editor, MarkdownView } from 'obsidian';
+import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath, Editor } from 'obsidian';
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import { 
@@ -219,9 +219,6 @@ export default class TaskNotesPlugin extends Plugin {
 		const { createInstantConvertButtons } = await import('./editor/InstantConvertButtons');
 		this.registerEditorExtension(createInstantConvertButtons(this));
 		
-		const { createTaskDropExtension } = await import('./editor/TaskDropExtension');
-		this.registerEditorExtension(createTaskDropExtension(this));
-		
 		// Set up global event listener for task updates to refresh editor decorations
 		this.taskUpdateListenerForEditor = this.emitter.on(EVENT_TASK_UPDATED, (data) => {
 			// Trigger decoration refresh in all active markdown views using proper state effects
@@ -236,8 +233,6 @@ export default class TaskNotesPlugin extends Plugin {
 				}
 			});
 		});
-		
-		// Note: Task drop handling is now done via CodeMirror extension
 		
 		// Add ribbon icon
 		this.addRibbonIcon('calendar-days', 'Open calendar', async () => {
@@ -829,6 +824,8 @@ private injectCustomStyles(): void {
 	openTaskCreationModal(prePopulatedValues?: Partial<TaskInfo>) {
 		new TaskCreationModal(this.app, this, prePopulatedValues).open();
 	}
+
+
 
 	
 	/**

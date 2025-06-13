@@ -154,7 +154,7 @@
 
 /* Clean today styling */
 .advanced-calendar-view .fc-daygrid-day.fc-day-today {
-    background: transparent;
+    background: color-mix(in srgb, var(--interactive-accent) 8%, transparent) !important;
     border: 2px solid var(--interactive-accent);
     position: relative;
 }
