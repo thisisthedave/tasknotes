@@ -279,3 +279,16 @@ export interface ViewFilterState {
 	[viewType: string]: FilterQuery;
 }
 
+// Calendar view preferences for Advanced Calendar
+export interface CalendarViewPreferences {
+	showScheduled: boolean;
+	showDue: boolean;
+	showTimeEntries: boolean;
+	showRecurring: boolean;
+}
+
+// All view-specific preferences
+export interface ViewPreferences {
+	[viewType: string]: any; // Can be CalendarViewPreferences or other view-specific types
+}
+

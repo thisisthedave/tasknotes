@@ -12,7 +12,8 @@ import {
     EVENT_TASK_UPDATED,
     TaskInfo,
     TimeEntry,
-    FilterQuery
+    FilterQuery,
+    CalendarViewPreferences
 } from '../types';
 import { TaskCreationModal } from '../modals/TaskCreationModal';
 import { TaskEditModal } from '../modals/TaskEditModal';
@@ -61,14 +62,20 @@ export class AdvancedCalendarView extends ItemView {
     private currentQuery: FilterQuery;
     
     // View toggles (keeping for calendar-specific display options)
-    private showScheduled: boolean = true;
-    private showDue: boolean = true;
-    private showTimeEntries: boolean = false;
-    private showRecurring: boolean = true;
+    private showScheduled: boolean;
+    private showDue: boolean;
+    private showTimeEntries: boolean;
+    private showRecurring: boolean;
 
     constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
         this.plugin = plugin;
+        
+        // Initialize view toggles from settings defaults (will be overridden by saved preferences in onOpen)
+        this.showScheduled = this.plugin.settings.calendarViewSettings.defaultShowScheduled;
+        this.showDue = this.plugin.settings.calendarViewSettings.defaultShowDue;
+        this.showTimeEntries = this.plugin.settings.calendarViewSettings.defaultShowTimeEntries;
+        this.showRecurring = this.plugin.settings.calendarViewSettings.defaultShowRecurring;
         
         // Initialize with default filter query
         this.currentQuery = {
@@ -105,6 +112,15 @@ export class AdvancedCalendarView extends ItemView {
             this.currentQuery = savedQuery;
         } else if (this.plugin.filterService) {
             this.currentQuery = this.plugin.filterService.createDefaultQuery();
+        }
+        
+        // Load saved view preferences (toggle states)
+        const savedPreferences = this.plugin.viewStateManager.getViewPreferences<CalendarViewPreferences>(ADVANCED_CALENDAR_VIEW_TYPE);
+        if (savedPreferences) {
+            this.showScheduled = savedPreferences.showScheduled;
+            this.showDue = savedPreferences.showDue;
+            this.showTimeEntries = savedPreferences.showTimeEntries;
+            this.showRecurring = savedPreferences.showRecurring;
         }
         
         const contentEl = this.contentEl;
@@ -194,6 +210,7 @@ export class AdvancedCalendarView extends ItemView {
             this.showScheduled,
             (enabled) => {
                 this.showScheduled = enabled;
+                this.saveViewPreferences();
                 this.refreshEvents();
             }
         );
@@ -205,6 +222,7 @@ export class AdvancedCalendarView extends ItemView {
             this.showDue,
             (enabled) => {
                 this.showDue = enabled;
+                this.saveViewPreferences();
                 this.refreshEvents();
             }
         );
@@ -216,6 +234,7 @@ export class AdvancedCalendarView extends ItemView {
             this.showTimeEntries,
             (enabled) => {
                 this.showTimeEntries = enabled;
+                this.saveViewPreferences();
                 this.refreshEvents();
             }
         );
@@ -227,6 +246,7 @@ export class AdvancedCalendarView extends ItemView {
             this.showRecurring,
             (enabled) => {
                 this.showRecurring = enabled;
+                this.saveViewPreferences();
                 this.refreshEvents();
             }
         );
@@ -311,9 +331,11 @@ export class AdvancedCalendarView extends ItemView {
             return;
         }
 
+        const calendarSettings = this.plugin.settings.calendarViewSettings;
+        
         this.calendar = new Calendar(calendarEl, {
             plugins: [dayGridPlugin, timeGridPlugin, multiMonthPlugin, interactionPlugin],
-            initialView: 'dayGridMonth',
+            initialView: calendarSettings.defaultView,
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
@@ -323,19 +345,28 @@ export class AdvancedCalendarView extends ItemView {
             editable: true,
             droppable: true,
             selectable: true,
-            selectMirror: true,
+            selectMirror: calendarSettings.selectMirror,
+            
+            // Week settings
+            firstDay: calendarSettings.firstDay,
+            weekNumbers: calendarSettings.weekNumbers,
+            weekends: calendarSettings.showWeekends,
             
             // Current time indicator
-            nowIndicator: true,
+            nowIndicator: calendarSettings.nowIndicator,
             
-            // 24-hour view configuration
-            slotMinTime: '00:00:00',
-            slotMaxTime: '24:00:00',
-            scrollTime: '08:00:00', // Start scrolled to 8 AM
+            // Time view configuration
+            slotMinTime: calendarSettings.slotMinTime,
+            slotMaxTime: calendarSettings.slotMaxTime,
+            scrollTime: calendarSettings.scrollTime,
             
             // Time grid configurations
-            slotDuration: '00:30:00', // 1 hour slots
-            slotLabelInterval: '01:00:00', // Show labels every 2 hours
+            slotDuration: calendarSettings.slotDuration,
+            slotLabelInterval: this.getSlotLabelInterval(calendarSettings.slotDuration),
+            
+            // Time format
+            eventTimeFormat: this.getTimeFormat(calendarSettings.timeFormat),
+            slotLabelFormat: this.getTimeFormat(calendarSettings.timeFormat),
             
             // Event handlers
             select: this.handleDateSelect.bind(this),
@@ -351,6 +382,43 @@ export class AdvancedCalendarView extends ItemView {
         });
 
         this.calendar.render();
+    }
+
+    private saveViewPreferences(): void {
+        const preferences: CalendarViewPreferences = {
+            showScheduled: this.showScheduled,
+            showDue: this.showDue,
+            showTimeEntries: this.showTimeEntries,
+            showRecurring: this.showRecurring
+        };
+        this.plugin.viewStateManager.setViewPreferences(ADVANCED_CALENDAR_VIEW_TYPE, preferences);
+    }
+
+    private getSlotLabelInterval(slotDuration: string): string {
+        // Show labels every hour, but at least as often as the slot duration
+        switch (slotDuration) {
+            case '00:15:00': return '01:00:00'; // 15-min slots, hourly labels
+            case '00:30:00': return '01:00:00'; // 30-min slots, hourly labels  
+            case '01:00:00': return '01:00:00'; // 1-hour slots, hourly labels
+            default: return '01:00:00';
+        }
+    }
+
+    private getTimeFormat(timeFormat: '12' | '24'): any {
+        if (timeFormat === '12') {
+            return {
+                hour: 'numeric',
+                minute: '2-digit',
+                omitZeroMinute: true,
+                hour12: true
+            };
+        } else {
+            return {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            };
+        }
     }
 
     async getCalendarEvents(): Promise<CalendarEvent[]> {

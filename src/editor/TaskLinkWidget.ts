@@ -45,11 +45,13 @@ export class TaskLinkWidget extends WidgetType {
         
         // Status indicator dot (after text)
         const statusConfig = this.plugin.statusManager.getStatusConfig(this.taskInfo.status);
+        const statusColor = statusConfig?.color || '#666';
         const statusDot = container.createEl('span', { 
             cls: 'task-inline-preview__status-dot',
             text: '●',
             attr: { title: `Status: ${this.taskInfo.status}` }
         });
+        statusDot.style.setProperty('--status-color', statusColor);
         
         // Priority indicator dot (after status, for all priorities)
         if (this.taskInfo.priority) {
@@ -60,6 +62,7 @@ export class TaskLinkWidget extends WidgetType {
                     text: '●',
                     attr: { title: `Priority: ${priorityConfig.label}` }
                 });
+                priorityDot.style.setProperty('--priority-color', priorityConfig.color);
             }
         }
 

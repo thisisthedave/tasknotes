@@ -1,4 +1,4 @@
-import { FilterQuery, ViewFilterState } from '../types';
+import { FilterQuery, ViewFilterState, ViewPreferences } from '../types';
 import { EventEmitter } from '../utils/EventEmitter';
 
 /**
@@ -6,10 +6,13 @@ import { EventEmitter } from '../utils/EventEmitter';
  */
 export class ViewStateManager extends EventEmitter {
     private filterState: ViewFilterState = {};
+    private viewPreferences: ViewPreferences = {};
     private storageKey = 'tasknotes-view-filter-state';
+    private preferencesStorageKey = 'tasknotes-view-preferences';
     constructor() {
         super();
         this.loadFromStorage();
+        this.loadPreferencesFromStorage();
     }
 
     /**
@@ -47,6 +50,40 @@ export class ViewStateManager extends EventEmitter {
     }
 
     /**
+     * Get view preferences for a specific view
+     */
+    getViewPreferences<T = any>(viewType: string): T | undefined {
+        return this.viewPreferences[viewType];
+    }
+
+    /**
+     * Set view preferences for a specific view
+     */
+    setViewPreferences<T = any>(viewType: string, preferences: T): void {
+        this.viewPreferences[viewType] = { ...preferences };
+        this.savePreferencesToStorage();
+        this.emit('view-preferences-changed', { viewType, preferences });
+    }
+
+    /**
+     * Clear view preferences for a specific view
+     */
+    clearViewPreferences(viewType: string): void {
+        delete this.viewPreferences[viewType];
+        this.savePreferencesToStorage();
+        this.emit('view-preferences-cleared', { viewType });
+    }
+
+    /**
+     * Clear all view preferences
+     */
+    clearAllViewPreferences(): void {
+        this.viewPreferences = {};
+        this.savePreferencesToStorage();
+        this.emit('all-view-preferences-cleared');
+    }
+
+    /**
      * Load state from localStorage
      */
     private loadFromStorage(): void {
@@ -69,6 +106,32 @@ export class ViewStateManager extends EventEmitter {
             localStorage.setItem(this.storageKey, JSON.stringify(this.filterState));
         } catch (error) {
             console.warn('Failed to save view filter state to storage:', error);
+        }
+    }
+
+    /**
+     * Load view preferences from localStorage
+     */
+    private loadPreferencesFromStorage(): void {
+        try {
+            const stored = localStorage.getItem(this.preferencesStorageKey);
+            if (stored) {
+                this.viewPreferences = JSON.parse(stored);
+            }
+        } catch (error) {
+            console.warn('Failed to load view preferences from storage:', error);
+            this.viewPreferences = {};
+        }
+    }
+
+    /**
+     * Save view preferences to localStorage
+     */
+    private savePreferencesToStorage(): void {
+        try {
+            localStorage.setItem(this.preferencesStorageKey, JSON.stringify(this.viewPreferences));
+        } catch (error) {
+            console.warn('Failed to save view preferences to storage:', error);
         }
     }
 

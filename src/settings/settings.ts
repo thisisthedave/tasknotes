@@ -19,6 +19,8 @@ export interface TaskNotesSettings {
 	customFilenameTemplate: string; // Template for custom format
 	// Task creation defaults
 	taskCreationDefaults: TaskCreationDefaults;
+	// Calendar view settings
+	calendarViewSettings: CalendarViewSettings;
 	// Pomodoro settings
 	pomodoroWorkDuration: number; // minutes
 	pomodoroShortBreakDuration: number; // minutes
@@ -51,6 +53,30 @@ export interface TaskCreationDefaults {
 	// Body template settings
 	bodyTemplate: string;     // Path to template file for task body, empty = no template
 	useBodyTemplate: boolean; // Whether to use body template by default
+}
+
+export interface CalendarViewSettings {
+	// Default view
+	defaultView: 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay' | 'multiMonthYear';
+	// Time settings
+	slotDuration: '00:15:00' | '00:30:00' | '01:00:00'; // 15, 30, or 60 minutes
+	slotMinTime: string; // Start time (HH:MM:SS format)
+	slotMaxTime: string; // End time (HH:MM:SS format)
+	scrollTime: string; // Initial scroll position (HH:MM:SS format)
+	// Week settings
+	firstDay: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 1 = Monday, etc.
+	// Display preferences
+	timeFormat: '12' | '24'; // 12-hour or 24-hour format
+	showWeekends: boolean;
+	// Default event type visibility
+	defaultShowScheduled: boolean;
+	defaultShowDue: boolean;
+	defaultShowTimeEntries: boolean;
+	defaultShowRecurring: boolean;
+	// Calendar behavior
+	nowIndicator: boolean;
+	selectMirror: boolean;
+	weekNumbers: boolean;
 }
 
 // Default field mapping maintains backward compatibility
@@ -137,6 +163,30 @@ export const DEFAULT_TASK_CREATION_DEFAULTS: TaskCreationDefaults = {
 	useBodyTemplate: false
 };
 
+export const DEFAULT_CALENDAR_VIEW_SETTINGS: CalendarViewSettings = {
+	// Default view
+	defaultView: 'dayGridMonth',
+	// Time settings
+	slotDuration: '00:30:00', // 30-minute slots
+	slotMinTime: '00:00:00', // Start at midnight
+	slotMaxTime: '24:00:00', // End at midnight next day
+	scrollTime: '08:00:00', // Scroll to 8 AM
+	// Week settings
+	firstDay: 1, // Monday
+	// Display preferences
+	timeFormat: '24', // 24-hour format
+	showWeekends: true,
+	// Default event type visibility
+	defaultShowScheduled: true,
+	defaultShowDue: true,
+	defaultShowTimeEntries: false,
+	defaultShowRecurring: true,
+	// Calendar behavior
+	nowIndicator: true,
+	selectMirror: true,
+	weekNumbers: false
+};
+
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	dailyNotesFolder: 'TaskNotes/Daily',
 	tasksFolder: 'TaskNotes/Tasks',
@@ -152,6 +202,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	customFilenameTemplate: '{title}',  // Simple title template
 	// Task creation defaults
 	taskCreationDefaults: DEFAULT_TASK_CREATION_DEFAULTS,
+	// Calendar view defaults
+	calendarViewSettings: DEFAULT_CALENDAR_VIEW_SETTINGS,
 	// Pomodoro defaults
 	pomodoroWorkDuration: 25,
 	pomodoroShortBreakDuration: 5,
@@ -174,7 +226,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 
 export class TaskNotesSettingTab extends PluginSettingTab {
 	plugin: TaskNotesPlugin;
-	private activeTab: string = 'general';
+	private activeTab: string = 'task-defaults';
 	private tabContents: Record<string, HTMLElement> = {};
   
 	constructor(app: App, plugin: TaskNotesPlugin) {
@@ -193,8 +245,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const tabNav = containerEl.createDiv('settings-tab-nav settings-view__tab-nav');
 		
 		const tabs = [
-			{ id: 'general', name: 'Basic setup' },
 			{ id: 'task-defaults', name: 'Task defaults' },
+			{ id: 'general', name: 'Inline tasks' },
+			{ id: 'calendar', name: 'Calendar' },
 			{ id: 'field-mapping', name: 'Field mapping' },
 			{ id: 'statuses', name: 'Statuses' },
 			{ id: 'priorities', name: 'Priorities' },
@@ -277,6 +330,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			case 'task-defaults':
 				this.renderTaskDefaultsTab();
 				break;
+			case 'calendar':
+				this.renderCalendarTab();
+				break;
 			case 'field-mapping':
 				this.renderFieldMappingTab();
 				break;
@@ -297,6 +353,59 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 	
 	private renderGeneralTab(): void {
 		const container = this.tabContents['general'];
+		
+		// Inline task settings
+		new Setting(container).setName('Inline task settings').setHeading();
+		
+		container.createEl('p', { 
+			text: 'Configure how TaskNotes integrates with your editor and existing Markdown tasks.',
+			cls: 'settings-help-note'
+		});
+		
+		new Setting(container)
+			.setName('Task link overlay')
+			.setDesc('Replace wikilinks to task files with interactive task cards in live preview mode')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Enable task link overlay in live preview mode');
+				return toggle
+					.setValue(this.plugin.settings.enableTaskLinkOverlay)
+					.onChange(async (value) => {
+						this.plugin.settings.enableTaskLinkOverlay = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Instant task convert')
+			.setDesc('Show a convert button next to checkbox tasks for instant conversion to TaskNotes')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Enable instant task conversion buttons');
+				return toggle
+					.setValue(this.plugin.settings.enableInstantTaskConvert)
+					.onChange(async (value) => {
+						this.plugin.settings.enableInstantTaskConvert = value;
+						await this.plugin.saveSettings();
+					});
+			});
+		
+		// Help section
+		const helpContainer = container.createDiv('settings-help-section');
+		helpContainer.createEl('h4', { text: 'How inline task features work:' });
+		const helpList = helpContainer.createEl('ul');
+		helpList.createEl('li', { text: 'Task link overlay: When you link to a task file like [[My Task]], it shows an interactive task card instead of a plain link' });
+		helpList.createEl('li', { text: 'Instant task convert: Shows a "Convert to TaskNote" button next to standard Markdown checkboxes like - [ ] My task' });
+		
+		helpContainer.createEl('p', { 
+			text: 'These features help bridge regular Markdown tasks with the full TaskNotes system.',
+			cls: 'settings-help-note'
+		});
+	}
+	
+	private renderTaskDefaultsTab(): void {
+		const container = this.tabContents['task-defaults'];
+		
+		// Task organization section
+		new Setting(container).setName('Task organization').setHeading();
 		
 		new Setting(container)
 			.setName('Default tasks folder')
@@ -340,35 +449,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					});
 			});
 		
-		// Editor section
-		new Setting(container).setName('Editor settings').setHeading();
-		
-		new Setting(container)
-			.setName('Task link overlay')
-			.setDesc('Replace wikilinks to task files with interactive task cards in live preview mode')
-			.addToggle(toggle => {
-				toggle.toggleEl.setAttribute('aria-label', 'Enable task link overlay in live preview mode');
-				return toggle
-					.setValue(this.plugin.settings.enableTaskLinkOverlay)
-					.onChange(async (value) => {
-						this.plugin.settings.enableTaskLinkOverlay = value;
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(container)
-			.setName('Instant task convert')
-			.setDesc('Show a convert button next to checkbox tasks for instant conversion to TaskNotes')
-			.addToggle(toggle => {
-				toggle.toggleEl.setAttribute('aria-label', 'Enable instant task conversion buttons');
-				return toggle
-					.setValue(this.plugin.settings.enableInstantTaskConvert)
-					.onChange(async (value) => {
-						this.plugin.settings.enableInstantTaskConvert = value;
-						await this.plugin.saveSettings();
-					});
-			});
-		
 		// Task filename settings
 		new Setting(container).setName('Task filenames').setHeading();
 
@@ -405,10 +485,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 						});
 				});
 		}
-	}
-	
-	private renderTaskDefaultsTab(): void {
-		const container = this.tabContents['task-defaults'];
 		
 		// Basic defaults section
 		new Setting(container).setName('Basic defaults').setHeading();
@@ -611,6 +687,253 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			text: 'Variables are replaced when the task is created. Use the same format as daily note templates.',
 			cls: 'settings-help-note'
 		});
+	}
+	
+	private renderCalendarTab(): void {
+		const container = this.tabContents['calendar'];
+		
+		// Calendar view section
+		new Setting(container).setName('Calendar view settings').setHeading();
+		
+		new Setting(container)
+			.setName('Default view')
+			.setDesc('Initial view when opening the Advanced Calendar')
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Default calendar view');
+				return dropdown
+					.addOption('dayGridMonth', 'Month')
+					.addOption('timeGridWeek', 'Week')
+					.addOption('timeGridDay', 'Day')
+					.addOption('multiMonthYear', 'Year')
+					.setValue(this.plugin.settings.calendarViewSettings.defaultView)
+					.onChange(async (value: any) => {
+						this.plugin.settings.calendarViewSettings.defaultView = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('First day of week')
+			.setDesc('Which day should be the first column in week and month views')
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'First day of week');
+				return dropdown
+					.addOption('0', 'Sunday')
+					.addOption('1', 'Monday')
+					.addOption('2', 'Tuesday')
+					.addOption('3', 'Wednesday')
+					.addOption('4', 'Thursday')
+					.addOption('5', 'Friday')
+					.addOption('6', 'Saturday')
+					.setValue(this.plugin.settings.calendarViewSettings.firstDay.toString())
+					.onChange(async (value: any) => {
+						this.plugin.settings.calendarViewSettings.firstDay = parseInt(value) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Show weekends')
+			.setDesc('Display Saturday and Sunday in calendar views')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Show weekends in calendar');
+				return toggle
+					.setValue(this.plugin.settings.calendarViewSettings.showWeekends)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.showWeekends = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Show week numbers')
+			.setDesc('Display week numbers on the left side of calendar views')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Show week numbers');
+				return toggle
+					.setValue(this.plugin.settings.calendarViewSettings.weekNumbers)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.weekNumbers = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Time settings section
+		new Setting(container).setName('Time settings').setHeading();
+
+		new Setting(container)
+			.setName('Time format')
+			.setDesc('Display times in 12-hour or 24-hour format')
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Time format');
+				return dropdown
+					.addOption('12', '12-hour (9:00 AM)')
+					.addOption('24', '24-hour (09:00)')
+					.setValue(this.plugin.settings.calendarViewSettings.timeFormat)
+					.onChange(async (value: any) => {
+						this.plugin.settings.calendarViewSettings.timeFormat = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Time slot duration')
+			.setDesc('Duration of each time slot in week and day views')
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Time slot duration');
+				return dropdown
+					.addOption('00:15:00', '15 minutes')
+					.addOption('00:30:00', '30 minutes')
+					.addOption('01:00:00', '1 hour')
+					.setValue(this.plugin.settings.calendarViewSettings.slotDuration)
+					.onChange(async (value: any) => {
+						this.plugin.settings.calendarViewSettings.slotDuration = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Day start time')
+			.setDesc('First time slot to display in day/week views')
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Day start time (HH:MM:SS format)');
+				return text
+					.setPlaceholder('00:00:00')
+					.setValue(this.plugin.settings.calendarViewSettings.slotMinTime)
+					.onChange(async (value) => {
+						// Validate time format
+						if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(value)) {
+							return; // Invalid format, don't save
+						}
+						this.plugin.settings.calendarViewSettings.slotMinTime = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Day end time')
+			.setDesc('Last time slot to display in day/week views')
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Day end time (HH:MM:SS format)');
+				return text
+					.setPlaceholder('24:00:00')
+					.setValue(this.plugin.settings.calendarViewSettings.slotMaxTime)
+					.onChange(async (value) => {
+						// Validate time format
+						if (!/^([0-1]?[0-9]|2[0-4]):[0-5][0-9]:[0-5][0-9]$/.test(value)) {
+							return; // Invalid format, don't save
+						}
+						this.plugin.settings.calendarViewSettings.slotMaxTime = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Initial scroll time')
+			.setDesc('Time to scroll to when opening day/week views')
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Initial scroll time (HH:MM:SS format)');
+				return text
+					.setPlaceholder('08:00:00')
+					.setValue(this.plugin.settings.calendarViewSettings.scrollTime)
+					.onChange(async (value) => {
+						// Validate time format
+						if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(value)) {
+							return; // Invalid format, don't save
+						}
+						this.plugin.settings.calendarViewSettings.scrollTime = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Event visibility section
+		new Setting(container).setName('Default event visibility').setHeading();
+		
+		container.createEl('p', { 
+			text: 'Configure which event types are visible by default when opening the Advanced Calendar. Users can still toggle these on/off in the calendar view.',
+			cls: 'settings-help-note'
+		});
+
+		new Setting(container)
+			.setName('Show scheduled tasks')
+			.setDesc('Display tasks with scheduled dates by default')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Show scheduled tasks by default');
+				return toggle
+					.setValue(this.plugin.settings.calendarViewSettings.defaultShowScheduled)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.defaultShowScheduled = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Show due dates')
+			.setDesc('Display task due dates by default')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Show due dates by default');
+				return toggle
+					.setValue(this.plugin.settings.calendarViewSettings.defaultShowDue)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.defaultShowDue = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Show time entries')
+			.setDesc('Display completed time tracking entries by default')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Show time entries by default');
+				return toggle
+					.setValue(this.plugin.settings.calendarViewSettings.defaultShowTimeEntries)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.defaultShowTimeEntries = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Show recurring tasks')
+			.setDesc('Display recurring task instances by default')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Show recurring tasks by default');
+				return toggle
+					.setValue(this.plugin.settings.calendarViewSettings.defaultShowRecurring)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.defaultShowRecurring = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Calendar behavior section
+		new Setting(container).setName('Calendar behavior').setHeading();
+
+		new Setting(container)
+			.setName('Current time indicator')
+			.setDesc('Show a line indicating the current time in week and day views')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Show current time indicator');
+				return toggle
+					.setValue(this.plugin.settings.calendarViewSettings.nowIndicator)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.nowIndicator = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Selection mirror')
+			.setDesc('Show a visual preview while dragging to select time ranges')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Enable selection mirror');
+				return toggle
+					.setValue(this.plugin.settings.calendarViewSettings.selectMirror)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.selectMirror = value;
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 	
 	private renderFieldMappingTab(): void {
