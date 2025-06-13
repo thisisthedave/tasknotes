@@ -56,6 +56,15 @@
     line-height: 1.4;
 }
 
+/* Help Text */
+.tasknotes-plugin .modal-form__help-text {
+    font-size: var(--tn-font-size-sm);
+    color: var(--tn-text-muted);
+    margin-top: var(--tn-spacing-sm);
+    line-height: 1.4;
+    font-style: italic;
+}
+
 /* Input Container */
 .tasknotes-plugin .modal-form__input-container {
     position: relative;

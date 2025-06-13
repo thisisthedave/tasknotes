@@ -27,6 +27,10 @@ import {
     getCurrentDateTimeString,
     parseDate 
 } from '../utils/dateUtils';
+import { 
+    isRecurringTaskDueOn, 
+    getEffectiveTaskStatus 
+} from '../utils/helpers';
 
 interface CalendarEvent {
     id: string;
@@ -39,8 +43,11 @@ interface CalendarEvent {
     textColor?: string;
     extendedProps: {
         taskInfo: TaskInfo;
-        eventType: 'scheduled' | 'due' | 'timeEntry';
+        eventType: 'scheduled' | 'due' | 'timeEntry' | 'recurring';
         isCompleted?: boolean;
+        isRecurringInstance?: boolean;
+        instanceDate?: string; // YYYY-MM-DD for this specific occurrence
+        recurringTemplateTime?: string; // Original scheduled time
     };
 }
 
@@ -57,6 +64,7 @@ export class AdvancedCalendarView extends ItemView {
     private showScheduled: boolean = true;
     private showDue: boolean = true;
     private showTimeEntries: boolean = false;
+    private showRecurring: boolean = true;
 
     constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
@@ -212,6 +220,17 @@ export class AdvancedCalendarView extends ItemView {
             }
         );
         
+        // Recurring Tasks toggle
+        const recurringToggle = this.createToggle(
+            toggles,
+            'Recurring tasks',
+            this.showRecurring,
+            (enabled) => {
+                this.showRecurring = enabled;
+                this.refreshEvents();
+            }
+        );
+        
         // Schedule Tasks button
         const scheduleTasksBtn = controlsSection.createEl('button', {
             text: 'Schedule tasks',
@@ -347,11 +366,22 @@ export class AdvancedCalendarView extends ItemView {
                 allTasks.push(...tasks);
             }
             
+            // Get calendar's visible date range for recurring task generation
+            const calendarView = this.calendar?.view;
+            const visibleStart = calendarView?.activeStart || startOfDay(new Date());
+            const visibleEnd = calendarView?.activeEnd || endOfDay(new Date());
+            
             for (const task of allTasks) {
-                // Add scheduled events
-                if (this.showScheduled && task.scheduled) {
-                    const scheduledEvent = this.createScheduledEvent(task);
-                    if (scheduledEvent) events.push(scheduledEvent);
+                // Handle recurring tasks
+                if (this.showRecurring && task.recurrence && task.scheduled) {
+                    const recurringEvents = this.generateRecurringInstances(task, visibleStart, visibleEnd);
+                    events.push(...recurringEvents);
+                } else {
+                    // Add non-recurring scheduled events (only if not recurring)
+                    if (this.showScheduled && task.scheduled && !task.recurrence) {
+                        const scheduledEvent = this.createScheduledEvent(task);
+                        if (scheduledEvent) events.push(scheduledEvent);
+                    }
                 }
                 
                 // Add due events (only if no scheduled event exists to avoid duplicates)
@@ -489,6 +519,89 @@ export class AdvancedCalendarView extends ItemView {
             }));
     }
 
+    generateRecurringInstances(task: TaskInfo, startDate: Date, endDate: Date): CalendarEvent[] {
+        if (!task.recurrence || !task.scheduled) {
+            return [];
+        }
+
+        const instances: CalendarEvent[] = [];
+        const templateTime = this.getRecurringTime(task);
+        
+        // Iterate through each day in the visible range
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            // Check if this recurring task should appear on this date
+            if (isRecurringTaskDueOn(task, currentDate)) {
+                // Stop if past due date
+                if (task.due && currentDate > parseDate(task.due)) {
+                    break;
+                }
+
+                const instanceDate = format(currentDate, 'yyyy-MM-dd');
+                const eventStart = `${instanceDate}T${templateTime}`;
+                
+                // Create the recurring event instance
+                const recurringEvent = this.createRecurringEvent(task, eventStart, instanceDate, templateTime);
+                if (recurringEvent) {
+                    instances.push(recurringEvent);
+                }
+            }
+            
+            // Move to next day
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        return instances;
+    }
+
+    getRecurringTime(task: TaskInfo): string {
+        if (!task.scheduled) return '09:00'; // default
+        const timePart = getTimePart(task.scheduled);
+        return timePart || '09:00';
+    }
+
+    createRecurringEvent(task: TaskInfo, eventStart: string, instanceDate: string, templateTime: string): CalendarEvent | null {
+        const hasTime = hasTimeComponent(eventStart);
+        
+        // Calculate end time if time estimate is available
+        let endDate: string | undefined;
+        if (hasTime && task.timeEstimate) {
+            const start = parseDate(eventStart);
+            const end = new Date(start.getTime() + (task.timeEstimate * 60 * 1000));
+            endDate = format(end, "yyyy-MM-dd'T'HH:mm");
+        }
+        
+        // Get priority-based color for border
+        const priorityConfig = this.plugin.priorityManager.getPriorityConfig(task.priority);
+        const borderColor = priorityConfig?.color || '#6B73FF';
+        
+        // Check if this instance is completed
+        const isInstanceCompleted = task.complete_instances?.includes(instanceDate) || false;
+        
+        // Visual styling for recurring instances
+        const backgroundColor = isInstanceCompleted ? 'rgba(0,0,0,0.3)' : 'transparent';
+        const textDecoration = isInstanceCompleted ? 'line-through' : 'none';
+        
+        return {
+            id: `recurring-${task.path}-${instanceDate}`,
+            title: `🔄 ${task.title}`,
+            start: eventStart,
+            end: endDate,
+            allDay: !hasTime,
+            backgroundColor: backgroundColor,
+            borderColor: borderColor,
+            textColor: borderColor,
+            extendedProps: {
+                taskInfo: task,
+                eventType: 'recurring',
+                isCompleted: isInstanceCompleted,
+                isRecurringInstance: true,
+                instanceDate: instanceDate,
+                recurringTemplateTime: templateTime
+            }
+        };
+    }
+
     // Event handlers
     handleDateSelect(selectInfo: any) {
         const { start, end, allDay } = selectInfo;
@@ -514,7 +627,7 @@ export class AdvancedCalendarView extends ItemView {
     }
 
     handleEventClick(clickInfo: any) {
-        const { taskInfo, eventType } = clickInfo.event.extendedProps;
+        const { taskInfo, eventType, isRecurringInstance } = clickInfo.event.extendedProps;
         const jsEvent = clickInfo.jsEvent;
         
         if (eventType === 'timeEntry') {
@@ -537,7 +650,7 @@ export class AdvancedCalendarView extends ItemView {
     }
 
     async handleEventDrop(dropInfo: any) {
-        const { taskInfo, eventType } = dropInfo.event.extendedProps;
+        const { taskInfo, eventType, isRecurringInstance, recurringTemplateTime } = dropInfo.event.extendedProps;
         
         if (eventType === 'timeEntry') {
             // Time entries cannot be moved
@@ -549,16 +662,30 @@ export class AdvancedCalendarView extends ItemView {
             const newStart = dropInfo.event.start;
             const allDay = dropInfo.event.allDay;
             
-            let newDateString: string;
-            if (allDay) {
-                newDateString = format(newStart, 'yyyy-MM-dd');
+            if (isRecurringInstance) {
+                // For recurring instances, only allow time changes, not date changes
+                const newTime = format(newStart, 'HH:mm');
+                const originalDate = getDatePart(taskInfo.scheduled!);
+                const updatedScheduled = `${originalDate}T${newTime}`;
+                
+                // Show notice about the behavior
+                new Notice(`Updated recurring task time to ${newTime}. This affects all future instances.`);
+                
+                // Update the template time in scheduled field
+                await this.plugin.taskService.updateProperty(taskInfo, 'scheduled', updatedScheduled);
             } else {
-                newDateString = format(newStart, "yyyy-MM-dd'T'HH:mm");
+                // Handle non-recurring events normally
+                let newDateString: string;
+                if (allDay) {
+                    newDateString = format(newStart, 'yyyy-MM-dd');
+                } else {
+                    newDateString = format(newStart, "yyyy-MM-dd'T'HH:mm");
+                }
+                
+                // Update the appropriate property
+                const propertyToUpdate = eventType === 'scheduled' ? 'scheduled' : 'due';
+                await this.plugin.taskService.updateProperty(taskInfo, propertyToUpdate, newDateString);
             }
-            
-            // Update the appropriate property
-            const propertyToUpdate = eventType === 'scheduled' ? 'scheduled' : 'due';
-            await this.plugin.taskService.updateProperty(taskInfo, propertyToUpdate, newDateString);
             
         } catch (error) {
             console.error('Error updating task date:', error);
@@ -683,10 +810,25 @@ export class AdvancedCalendarView extends ItemView {
             return;
         }
         
-        const { taskInfo, eventType, isCompleted } = arg.event.extendedProps;
+        const { taskInfo, eventType, isCompleted, isRecurringInstance, instanceDate } = arg.event.extendedProps;
         
         if (!taskInfo || !taskInfo.path) {
             return;
+        }
+        
+        // Apply visual styling for recurring instances
+        if (isRecurringInstance) {
+            // Add dashed border for recurring instances
+            arg.el.style.borderStyle = 'dashed';
+            arg.el.style.borderWidth = '2px';
+            
+            // Add recurring badge (already in title with 🔄)
+            arg.el.setAttribute('data-recurring', 'true');
+            
+            // Apply dimmed appearance for completed instances
+            if (isCompleted) {
+                arg.el.style.opacity = '0.6';
+            }
         }
         
         // Apply strikethrough styling for completed tasks
@@ -706,7 +848,11 @@ export class AdvancedCalendarView extends ItemView {
                 jsEvent.preventDefault();
                 jsEvent.stopPropagation();
                 
-                const targetDate = arg.event.start || new Date();
+                // For recurring instances, use the instance date
+                const targetDate = isRecurringInstance && instanceDate 
+                    ? parseDate(instanceDate) 
+                    : (arg.event.start || new Date());
+                    
                 showTaskContextMenu(jsEvent, taskInfo.path, this.plugin, targetDate);
             });
         }

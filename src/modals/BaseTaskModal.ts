@@ -488,6 +488,10 @@ export abstract class BaseTaskModal extends Modal {
             const timeValue = (e.target as HTMLInputElement).value;
             this.updateScheduledDateValue(dateInput.value, timeValue);
         });
+
+        // Add help text for scheduled date
+        this.createHelpText(container, 
+            'When you plan to work on this task. For recurring tasks, this sets the time template - the date part is ignored and instances will appear based on the recurrence pattern.');
     }
     
     private updateScheduledDateValue(dateValue: string, timeValue: string): void {
@@ -552,6 +556,13 @@ export abstract class BaseTaskModal extends Modal {
         }
     }
 
+    protected createHelpText(container: HTMLElement, text: string): void {
+        const helpText = container.createDiv({ 
+            cls: 'modal-form__help-text',
+            text: text
+        });
+    }
+
     protected createRecurrenceDropdown(container: HTMLElement): void {
         const selectId = `recurrence-select-${Math.random().toString(36).substr(2, 9)}`;
         const select = container.createEl('select', { 
@@ -585,6 +596,10 @@ export abstract class BaseTaskModal extends Modal {
             this.recurrence = (e.target as HTMLSelectElement).value as any;
             this.updateRecurrenceOptions(container.parentElement!);
         });
+
+        // Add help text for recurrence
+        this.createHelpText(container, 
+            'Create recurring instances of this task. Set a scheduled date to define the time template. Use the due date to limit when recurrence stops.');
     }
 
     protected updateRecurrenceOptions(container: HTMLElement): void {
