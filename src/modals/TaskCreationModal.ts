@@ -6,7 +6,7 @@ import { MINI_CALENDAR_VIEW_TYPE, TaskInfo } from '../types';
 import { ParsedTaskData } from '../utils/TasksPluginParser';
 import { getCurrentTimestamp, hasTimeComponent, getDatePart, getTimePart } from '../utils/dateUtils';
 import { generateTaskFilename, FilenameContext } from '../utils/filenameGenerator';
-import { generateTaskBodyFromTemplate } from '../utils/helpers';
+import { generateTaskBodyFromTemplate, calculateDefaultDate } from '../utils/helpers';
 
 export interface TaskConversionOptions {
 	parsedData?: ParsedTaskData;
@@ -45,12 +45,17 @@ export class TaskCreationModal extends BaseTaskModal {
 			// Apply task creation defaults
 			const defaults = this.plugin.settings.taskCreationDefaults;
 			
-			// Leave due date empty by default
-			this.dueDate = '';
+			// Apply default due date
+			this.dueDate = calculateDefaultDate(defaults.defaultDueDate);
 			
-			// Pre-populate scheduled date with selected date from calendar or today
-			const selectedDate = this.plugin.selectedDate || new Date();
-			this.scheduledDate = format(selectedDate, 'yyyy-MM-dd');
+			// Apply scheduled date: prioritize selected calendar date, then use configured default
+			if (this.plugin.selectedDate) {
+				// If calendar date is selected, always use it (preserve existing behavior)
+				this.scheduledDate = format(this.plugin.selectedDate, 'yyyy-MM-dd');
+			} else {
+				// No calendar date selected, use the configured default
+				this.scheduledDate = calculateDefaultDate(defaults.defaultScheduledDate);
+			}
 			
 			// Apply default contexts and tags
 			this.contexts = defaults.defaultContexts || '';

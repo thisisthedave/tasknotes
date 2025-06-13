@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, setIcon } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { FieldMapping, StatusConfig, PriorityConfig } from '../types';
 import { StatusManager } from '../services/StatusManager';
@@ -17,6 +17,8 @@ export interface TaskNotesSettings {
 	// Task filename settings
 	taskFilenameFormat: 'title' | 'zettel' | 'timestamp' | 'custom';
 	customFilenameTemplate: string; // Template for custom format
+	// Task creation defaults
+	taskCreationDefaults: TaskCreationDefaults;
 	// Pomodoro settings
 	pomodoroWorkDuration: number; // minutes
 	pomodoroShortBreakDuration: number; // minutes
@@ -34,6 +36,21 @@ export interface TaskNotesSettings {
 	fieldMapping: FieldMapping;
 	customStatuses: StatusConfig[];
 	customPriorities: PriorityConfig[];
+}
+
+export interface TaskCreationDefaults {
+	// Pre-fill options
+	defaultContexts: string;  // Comma-separated list
+	defaultTags: string;      // Comma-separated list
+	defaultTimeEstimate: number; // minutes, 0 = no default
+	defaultRecurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+	defaultFolder: string;    // Override default tasks folder for new tasks
+	// Date defaults
+	defaultDueDate: 'none' | 'today' | 'tomorrow' | 'next-week';
+	defaultScheduledDate: 'none' | 'today' | 'tomorrow' | 'next-week';
+	// Body template settings
+	bodyTemplate: string;     // Path to template file for task body, empty = no template
+	useBodyTemplate: boolean; // Whether to use body template by default
 }
 
 // Default field mapping maintains backward compatibility
@@ -108,6 +125,18 @@ export const DEFAULT_PRIORITIES: PriorityConfig[] = [
 	}
 ];
 
+export const DEFAULT_TASK_CREATION_DEFAULTS: TaskCreationDefaults = {
+	defaultContexts: '',
+	defaultTags: '',
+	defaultTimeEstimate: 0,
+	defaultRecurrence: 'none',
+	defaultFolder: '',
+	defaultDueDate: 'none',
+	defaultScheduledDate: 'today',
+	bodyTemplate: '',
+	useBodyTemplate: false
+};
+
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	dailyNotesFolder: 'TaskNotes/Daily',
 	tasksFolder: 'TaskNotes/Tasks',
@@ -121,6 +150,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	// Task filename defaults
 	taskFilenameFormat: 'zettel',  // Keep existing behavior as default
 	customFilenameTemplate: '{title}',  // Simple title template
+	// Task creation defaults
+	taskCreationDefaults: DEFAULT_TASK_CREATION_DEFAULTS,
 	// Pomodoro defaults
 	pomodoroWorkDuration: 25,
 	pomodoroShortBreakDuration: 5,
@@ -163,6 +194,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		
 		const tabs = [
 			{ id: 'general', name: 'Basic setup' },
+			{ id: 'task-defaults', name: 'Task defaults' },
 			{ id: 'field-mapping', name: 'Field mapping' },
 			{ id: 'statuses', name: 'Statuses' },
 			{ id: 'priorities', name: 'Priorities' },
@@ -241,6 +273,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		switch (this.activeTab) {
 			case 'general':
 				this.renderGeneralTab();
+				break;
+			case 'task-defaults':
+				this.renderTaskDefaultsTab();
 				break;
 			case 'field-mapping':
 				this.renderFieldMappingTab();
@@ -334,43 +369,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					});
 			});
 		
-		// Task defaults section
-		new Setting(container).setName('Task defaults').setHeading();
-		
-		new Setting(container)
-			.setName('Default task status')
-			.setDesc('Default status for new tasks')
-			.addDropdown(dropdown => {
-				dropdown.selectEl.setAttribute('aria-label', 'Default status for new tasks');
-				// Populate with custom statuses
-				this.plugin.settings.customStatuses.forEach(status => {
-					dropdown.addOption(status.value, status.label);
-				});
-				return dropdown
-					.setValue(this.plugin.settings.defaultTaskStatus)
-					.onChange(async (value: any) => {
-						this.plugin.settings.defaultTaskStatus = value;
-						await this.plugin.saveSettings();
-					});
-			});
-		
-		new Setting(container)
-			.setName('Default task priority')
-			.setDesc('Default priority for new tasks')
-			.addDropdown(dropdown => {
-				dropdown.selectEl.setAttribute('aria-label', 'Default priority for new tasks');
-				// Populate with custom priorities
-				this.plugin.settings.customPriorities.forEach(priority => {
-					dropdown.addOption(priority.value, priority.label);
-				});
-				return dropdown
-					.setValue(this.plugin.settings.defaultTaskPriority)
-					.onChange(async (value: any) => {
-						this.plugin.settings.defaultTaskPriority = value;
-						await this.plugin.saveSettings();
-					});
-			});
-		
 		// Task filename settings
 		new Setting(container).setName('Task filenames').setHeading();
 
@@ -409,12 +407,220 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		}
 	}
 	
+	private renderTaskDefaultsTab(): void {
+		const container = this.tabContents['task-defaults'];
+		
+		// Basic defaults section
+		new Setting(container).setName('Basic defaults').setHeading();
+		
+		new Setting(container)
+			.setName('Default task status')
+			.setDesc('Default status for new tasks')
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Default status for new tasks');
+				// Populate with custom statuses
+				this.plugin.settings.customStatuses.forEach(status => {
+					dropdown.addOption(status.value, status.label);
+				});
+				return dropdown
+					.setValue(this.plugin.settings.defaultTaskStatus)
+					.onChange(async (value: any) => {
+						this.plugin.settings.defaultTaskStatus = value;
+						await this.plugin.saveSettings();
+					});
+			});
+		
+		new Setting(container)
+			.setName('Default task priority')
+			.setDesc('Default priority for new tasks')
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Default priority for new tasks');
+				// Populate with custom priorities
+				this.plugin.settings.customPriorities.forEach(priority => {
+					dropdown.addOption(priority.value, priority.label);
+				});
+				return dropdown
+					.setValue(this.plugin.settings.defaultTaskPriority)
+					.onChange(async (value: any) => {
+						this.plugin.settings.defaultTaskPriority = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Default contexts')
+			.setDesc('Default contexts for new tasks (comma-separated)')
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Default contexts for new tasks');
+				return text
+					.setPlaceholder('@work, @personal')
+					.setValue(this.plugin.settings.taskCreationDefaults.defaultContexts)
+					.onChange(async (value) => {
+						this.plugin.settings.taskCreationDefaults.defaultContexts = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Default tags')
+			.setDesc('Default tags for new tasks (comma-separated)')
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Default tags for new tasks');
+				return text
+					.setPlaceholder('#project, #urgent')
+					.setValue(this.plugin.settings.taskCreationDefaults.defaultTags)
+					.onChange(async (value) => {
+						this.plugin.settings.taskCreationDefaults.defaultTags = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Default time estimate')
+			.setDesc('Default time estimate for new tasks in minutes (0 = no default)')
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Default time estimate in minutes');
+				return text
+					.setPlaceholder('0')
+					.setValue(this.plugin.settings.taskCreationDefaults.defaultTimeEstimate.toString())
+					.onChange(async (value) => {
+						const num = parseInt(value) || 0;
+						this.plugin.settings.taskCreationDefaults.defaultTimeEstimate = num;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Default recurrence')
+			.setDesc('Default recurrence pattern for new tasks')
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Default recurrence pattern');
+				return dropdown
+					.addOption('none', 'None')
+					.addOption('daily', 'Daily')
+					.addOption('weekly', 'Weekly')
+					.addOption('monthly', 'Monthly')
+					.addOption('yearly', 'Yearly')
+					.setValue(this.plugin.settings.taskCreationDefaults.defaultRecurrence)
+					.onChange(async (value: any) => {
+						this.plugin.settings.taskCreationDefaults.defaultRecurrence = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Default folder')
+			.setDesc('Override default tasks folder for new tasks (leave empty to use general tasks folder)')
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Default folder for new tasks');
+				return text
+					.setPlaceholder('TaskNotes/Projects')
+					.setValue(this.plugin.settings.taskCreationDefaults.defaultFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.taskCreationDefaults.defaultFolder = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Date defaults section
+		new Setting(container).setName('Date defaults').setHeading();
+
+		new Setting(container)
+			.setName('Default due date')
+			.setDesc('Default due date for new tasks')
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Default due date for new tasks');
+				return dropdown
+					.addOption('none', 'None')
+					.addOption('today', 'Today')
+					.addOption('tomorrow', 'Tomorrow')
+					.addOption('next-week', 'Next week')
+					.setValue(this.plugin.settings.taskCreationDefaults.defaultDueDate)
+					.onChange(async (value: any) => {
+						this.plugin.settings.taskCreationDefaults.defaultDueDate = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Default scheduled date')
+			.setDesc('Default scheduled date for new tasks')
+			.addDropdown(dropdown => {
+				dropdown.selectEl.setAttribute('aria-label', 'Default scheduled date for new tasks');
+				return dropdown
+					.addOption('none', 'None')
+					.addOption('today', 'Today')
+					.addOption('tomorrow', 'Tomorrow')
+					.addOption('next-week', 'Next week')
+					.setValue(this.plugin.settings.taskCreationDefaults.defaultScheduledDate)
+					.onChange(async (value: any) => {
+						this.plugin.settings.taskCreationDefaults.defaultScheduledDate = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Body template section
+		new Setting(container).setName('Body template').setHeading();
+		
+		new Setting(container)
+			.setName('Use body template')
+			.setDesc('Pre-fill task details with content from a template file')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Enable body template for new tasks');
+				return toggle
+					.setValue(this.plugin.settings.taskCreationDefaults.useBodyTemplate)
+					.onChange(async (value) => {
+						this.plugin.settings.taskCreationDefaults.useBodyTemplate = value;
+						await this.plugin.saveSettings();
+						this.renderActiveTab(); // Re-render to show/hide template path
+					});
+			});
+
+		if (this.plugin.settings.taskCreationDefaults.useBodyTemplate) {
+			new Setting(container)
+				.setName('Body template file')
+				.setDesc('Path to template file for task body content. Supports template variables like {{title}}, {{date}}, {{time}}, {{priority}}, {{status}}, etc.')
+				.addText(text => {
+					text.inputEl.setAttribute('aria-label', 'Path to body template file');
+					return text
+						.setPlaceholder('Templates/Task Template.md')
+						.setValue(this.plugin.settings.taskCreationDefaults.bodyTemplate)
+						.onChange(async (value) => {
+							this.plugin.settings.taskCreationDefaults.bodyTemplate = value;
+							await this.plugin.saveSettings();
+						});
+				});
+		}
+
+		// Help section
+		const helpContainer = container.createDiv('settings-help-section');
+		helpContainer.createEl('h4', { text: 'Template variables:' });
+		const helpList = helpContainer.createEl('ul');
+		helpList.createEl('li', { text: '{{title}} - Task title' });
+		helpList.createEl('li', { text: '{{date}} - Current date (YYYY-MM-DD)' });
+		helpList.createEl('li', { text: '{{time}} - Current time (HH:MM)' });
+		helpList.createEl('li', { text: '{{priority}} - Task priority' });
+		helpList.createEl('li', { text: '{{status}} - Task status' });
+		helpList.createEl('li', { text: '{{contexts}} - Task contexts' });
+		helpList.createEl('li', { text: '{{tags}} - Task tags' });
+		helpList.createEl('li', { text: '{{timeEstimate}} - Time estimate in minutes' });
+		helpList.createEl('li', { text: '{{dueDate}} - Task due date' });
+		helpList.createEl('li', { text: '{{scheduledDate}} - Task scheduled date' });
+		
+		helpContainer.createEl('p', { 
+			text: 'Variables are replaced when the task is created. Use the same format as daily note templates.',
+			cls: 'settings-help-note'
+		});
+	}
+	
 	private renderFieldMappingTab(): void {
 		const container = this.tabContents['field-mapping'];
 		
 		// Warning message
 		const warning = container.createDiv('settings-warning settings-view__warning');
-		const warningIcon = warning.createEl('strong', { cls: 'settings-view__warning-icon', text: '⚠️ Warning:' });
+		const warningIcon = warning.createEl('strong', { cls: 'settings-view__warning-icon' });
+		setIcon(warningIcon, 'alert-triangle');
+		warningIcon.createSpan({ text: ' Warning:' });
 		warning.createSpan({ text: ' TaskNotes will read AND write using these property names. Changing these after creating tasks may cause inconsistencies.' });
 		
 		new Setting(container)

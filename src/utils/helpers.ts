@@ -403,6 +403,99 @@ function convertMomentToDateFnsFormat(momentFormat: string): string {
 }
 
 /**
+ * Generate task body content from template, similar to daily note templates
+ */
+export function generateTaskBodyFromTemplate(templateContent: string, taskData: any): string {
+	return processTaskTemplateVariables(templateContent, taskData);
+}
+
+/**
+ * Process task template variables like {{title}}, {{priority}}, {{status}}, etc.
+ */
+function processTaskTemplateVariables(template: string, taskData: any): string {
+	let result = template;
+	const now = new Date();
+	
+	// {{title}} - Task title
+	result = result.replace(/\{\{title\}\}/g, taskData.title || '');
+	
+	// {{priority}} - Task priority
+	result = result.replace(/\{\{priority\}\}/g, taskData.priority || '');
+	
+	// {{status}} - Task status
+	result = result.replace(/\{\{status\}\}/g, taskData.status || '');
+	
+	// {{contexts}} - Task contexts (comma-separated)
+	const contexts = Array.isArray(taskData.contexts) ? taskData.contexts.join(', ') : (taskData.contexts || '');
+	result = result.replace(/\{\{contexts\}\}/g, contexts);
+	
+	// {{tags}} - Task tags (comma-separated)
+	const tags = Array.isArray(taskData.tags) ? taskData.tags.join(', ') : (taskData.tags || '');
+	result = result.replace(/\{\{tags\}\}/g, tags);
+	
+	// {{timeEstimate}} - Time estimate in minutes
+	result = result.replace(/\{\{timeEstimate\}\}/g, taskData.timeEstimate?.toString() || '');
+	
+	// {{dueDate}} - Due date
+	result = result.replace(/\{\{dueDate\}\}/g, taskData.dueDate || '');
+	
+	// {{scheduledDate}} - Scheduled date
+	result = result.replace(/\{\{scheduledDate\}\}/g, taskData.scheduledDate || '');
+	
+	// {{date}} and {{date:format}} - Current date
+	result = result.replace(/\{\{date(?::([^}]+))?\}\}/g, (match, formatStr) => {
+		if (formatStr) {
+			const dateFnsFormat = convertMomentToDateFnsFormat(formatStr);
+			return format(now, dateFnsFormat);
+		} else {
+			return format(now, 'yyyy-MM-dd');
+		}
+	});
+	
+	// {{time}} and {{time:format}} - Current time
+	result = result.replace(/\{\{time(?::([^}]+))?\}\}/g, (match, formatStr) => {
+		if (formatStr) {
+			const dateFnsFormat = convertMomentToDateFnsFormat(formatStr);
+			return format(now, dateFnsFormat);
+		} else {
+			return format(now, 'HH:mm');
+		}
+	});
+	
+	return result;
+}
+
+/**
+ * Calculate default date based on configuration option
+ */
+export function calculateDefaultDate(defaultOption: 'none' | 'today' | 'tomorrow' | 'next-week'): string {
+	if (defaultOption === 'none') {
+		return '';
+	}
+	
+	const today = new Date();
+	let targetDate: Date;
+	
+	switch (defaultOption) {
+		case 'today':
+			targetDate = today;
+			break;
+		case 'tomorrow':
+			targetDate = new Date(today);
+			targetDate.setDate(today.getDate() + 1);
+			break;
+		case 'next-week':
+			targetDate = new Date(today);
+			targetDate.setDate(today.getDate() + 7);
+			break;
+		default:
+			return '';
+	}
+	
+	return format(targetDate, 'yyyy-MM-dd');
+}
+
+/**
  * Checks if two dates are the same day
  */
 export function isSameDay(date1: Date, date2: Date): boolean {
