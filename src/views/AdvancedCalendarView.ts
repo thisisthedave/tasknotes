@@ -18,6 +18,7 @@ import { TaskCreationModal } from '../modals/TaskCreationModal';
 import { TaskEditModal } from '../modals/TaskEditModal';
 import { UnscheduledTasksSelectorModal, ScheduleTaskOptions } from '../modals/UnscheduledTasksSelectorModal';
 import { FilterBar } from '../ui/FilterBar';
+import { showTaskContextMenu } from '../ui/TaskCard';
 import { 
     hasTimeComponent, 
     getDatePart, 
@@ -323,6 +324,7 @@ export class AdvancedCalendarView extends ItemView {
             eventResize: this.handleEventResize.bind(this),
             drop: this.handleExternalDrop.bind(this),
             eventReceive: this.handleEventReceive.bind(this),
+            eventDidMount: this.handleEventDidMount.bind(this),
             
             // Event sources will be added dynamically
             events: this.getCalendarEvents.bind(this)
@@ -507,15 +509,15 @@ export class AdvancedCalendarView extends ItemView {
             return;
         }
         
-        // Handle different click types
+        // Handle different click types - removed right-click handling to avoid conflicts with eventDidMount
         if (jsEvent.ctrlKey || jsEvent.metaKey) {
             // Ctrl/Cmd + Click: Open task in new tab
             const file = this.app.vault.getAbstractFileByPath(taskInfo.path);
             if (file instanceof TFile) {
                 this.app.workspace.openLinkText(taskInfo.path, '', true);
             }
-        } else {
-            // Left click: Open edit modal
+        } else if (jsEvent.button === 0) {
+            // Left click only: Open edit modal
             const editModal = new TaskEditModal(this.app, this.plugin, taskInfo);
             editModal.open();
         }
@@ -660,6 +662,33 @@ export class AdvancedCalendarView extends ItemView {
         console.log('FullCalendar eventReceive triggered, removing placeholder event:', info);
         // Remove the automatically created event since we handle scheduling ourselves
         info.event.remove();
+    }
+
+    handleEventDidMount(arg: any) {
+        // Check if we have extended props
+        if (!arg.event.extendedProps) {
+            return;
+        }
+        
+        const { taskInfo, eventType } = arg.event.extendedProps;
+        
+        if (eventType === 'timeEntry') {
+            // Time entries don't need context menu
+            return;
+        }
+        
+        if (!taskInfo || !taskInfo.path) {
+            return;
+        }
+        
+        // Add context menu event listener
+        arg.el.addEventListener("contextmenu", (jsEvent: MouseEvent) => {
+            jsEvent.preventDefault();
+            jsEvent.stopPropagation();
+            
+            const targetDate = arg.event.start || new Date();
+            showTaskContextMenu(jsEvent, taskInfo.path, this.plugin, targetDate);
+        });
     }
 
     registerEvents(): void {
