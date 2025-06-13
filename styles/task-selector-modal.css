@@ -1,26 +1,6 @@
 /* ================================================
-   TASK SELECTOR MODAL - BEM STRUCTURE
+   TASK SELECTOR - TASK STYLING ONLY
    ================================================ */
-
-/* Main Suggestion Container */
-.task-selector-modal__suggestion {
-    padding: var(--tn-spacing-sm);
-    border-radius: var(--tn-border-radius);
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    background-color: var(--background-primary);
-}
-
-.task-selector-modal__suggestion:hover {
-    background-color: var(--background-modifier-hover);
-    border-color: var(--background-modifier-border);
-}
-
-.task-selector-modal__suggestion.is-selected {
-    background-color: var(--background-modifier-active-hover);
-    border-color: var(--interactive-accent);
-}
 
 /* ================================================
    TITLE SECTION
@@ -140,42 +120,8 @@
 }
 
 /* ================================================
-   RESPONSIVE AND ACCESSIBILITY
+   THEME ADJUSTMENTS
    ================================================ */
-
-/* Focus states for keyboard navigation */
-.task-selector-modal__suggestion:focus-within {
-    outline: 2px solid var(--interactive-accent);
-    outline-offset: 1px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 480px) {
-    .task-selector-modal__suggestion {
-        padding: var(--tn-spacing-xs);
-    }
-    
-    .task-selector-modal__meta {
-        gap: var(--tn-spacing-xs);
-    }
-    
-    .task-selector-modal__task-title {
-        font-size: var(--tn-font-size-xs);
-    }
-}
-
-/* ================================================
-   INTEGRATION WITH OBSIDIAN MODAL STYLES
-   ================================================ */
-
-/* Ensure proper spacing within Obsidian's modal container */
-.modal .task-selector-modal__suggestion:first-child {
-    margin-top: 0;
-}
-
-.modal .task-selector-modal__suggestion:last-child {
-    margin-bottom: 0;
-}
 
 /* Improve contrast in dark themes */
 .theme-dark .task-selector-modal__due-date {
