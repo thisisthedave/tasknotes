@@ -192,7 +192,12 @@
     display: flex;
 }
 
-/* Priority Modifiers */
+/* Priority Modifiers - Use CSS variables set by PriorityManager */
+.tasknotes-plugin .task-card {
+    border-left-color: var(--priority-color, transparent);
+}
+
+/* Fallback priority colors for common priorities */
 .tasknotes-plugin .task-card--priority-high {
     border-left-color: var(--priority-high-color, var(--tn-color-error));
 }

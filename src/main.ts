@@ -38,7 +38,6 @@ import {
 	ensureFolderExists, 
 	generateDailyNoteTemplate,
 	extractTaskInfo,
-	updateTaskProperty,
 	formatTime,
 	calculateTotalTimeSpent,
 	getActiveTimeEntry

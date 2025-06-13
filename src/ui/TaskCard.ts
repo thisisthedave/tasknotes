@@ -82,7 +82,6 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);
     if (priorityConfig) {
         card.style.setProperty('--priority-color', priorityConfig.color);
-        card.style.borderLeftColor = priorityConfig.color;
     }
     
     const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
@@ -573,7 +572,6 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     const priorityConfig = plugin.priorityManager.getPriorityConfig(task.priority);
     if (priorityConfig) {
         element.style.setProperty('--priority-color', priorityConfig.color);
-        element.style.borderLeftColor = priorityConfig.color;
     }
     
     const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
