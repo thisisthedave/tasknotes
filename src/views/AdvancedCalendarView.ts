@@ -225,8 +225,8 @@ export class AdvancedCalendarView extends ItemView {
             initialView: 'dayGridMonth',
             headerToolbar: {
                 left: 'prev,next today',
-                center: '',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                center: 'title',
+                right: 'dayGridYear,dayGridMonth,timeGridWeek,timeGridDay'
             },
             height: '100%',
             editable: true,
