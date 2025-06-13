@@ -596,6 +596,9 @@ export class MiniCalendarView extends ItemView {
                     this.plugin.setSelectedDate(dayDate);
                 }
             });
+            
+            // Add drag and drop handlers
+            this.addDropHandlers(dayEl, dayDate);
         }
         
         // Days from current month
@@ -647,6 +650,9 @@ export class MiniCalendarView extends ItemView {
                     this.plugin.setSelectedDate(dayDate);
                 }
             });
+            
+            // Add drag and drop handlers
+            this.addDropHandlers(dayEl, dayDate);
         }
         
         // Days from next month
@@ -691,6 +697,9 @@ export class MiniCalendarView extends ItemView {
                     this.plugin.setSelectedDate(dayDate);
                 }
             });
+            
+            // Add drag and drop handlers
+            this.addDropHandlers(dayEl, dayDate);
         }
     }
     
@@ -1233,6 +1242,68 @@ source: 'tasknotes-calendar',
     private getDailyNotePath(date: Date): string {
         const dateStr = format(date, 'yyyy-MM-dd');
         return normalizePath(`${this.plugin.settings.dailyNotesFolder}/${dateStr}.md`);
+    }
+    
+    /**
+     * Add drag and drop handlers to calendar day elements for task date assignment
+     */
+    private addDropHandlers(dayEl: HTMLElement, dayDate: Date): void {
+        dayEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer!.dropEffect = 'move';
+            dayEl.classList.add('mini-calendar-view__day--dragover');
+        });
+
+        dayEl.addEventListener('dragleave', (e) => {
+            // Only remove styling if we're actually leaving the day element
+            if (!dayEl.contains(e.relatedTarget as Node)) {
+                dayEl.classList.remove('mini-calendar-view__day--dragover');
+            }
+        });
+
+        dayEl.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Remove drop styling
+            dayEl.classList.remove('mini-calendar-view__day--dragover');
+            
+            try {
+                // Get task path from drag data
+                const taskPath = e.dataTransfer?.getData('text/plain') ||
+                               e.dataTransfer?.getData('application/x-task-path');
+                
+                if (!taskPath) {
+                    console.warn('No task path found in drop data');
+                    return;
+                }
+                
+                // Get the task info
+                const task = await this.plugin.cacheManager.getTaskInfo(taskPath);
+                if (!task) {
+                    console.warn('Task not found:', taskPath);
+                    return;
+                }
+                
+                // Format the date for task due date (all-day)
+                const dueDate = format(dayDate, 'yyyy-MM-dd');
+                
+                // Update the task's due date
+                await this.plugin.taskService.updateProperty(task, 'due', dueDate);
+                
+                console.log(`Task "${task.title}" due date set to ${dueDate}`);
+                
+                // Show success feedback
+                new Notice(`Task "${task.title}" due date set to ${format(dayDate, 'MMM d, yyyy')}`);
+                
+                // Refresh calendar to show the new task assignment
+                this.refresh();
+                
+            } catch (error) {
+                console.error('Error handling task drop on mini calendar:', error);
+                new Notice('Failed to update task due date');
+            }
+        });
     }
     
 }

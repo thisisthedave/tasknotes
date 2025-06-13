@@ -27,7 +27,8 @@
     transition: background-color var(--tn-transition-fast),
                 border-color var(--tn-transition-fast),
                 transform var(--tn-transition-fast),
-                box-shadow var(--tn-transition-fast);
+                box-shadow var(--tn-transition-fast),
+                opacity var(--tn-transition-fast);
     will-change: transform, box-shadow;
 }
 
@@ -373,6 +374,29 @@
 
 .tasknotes-plugin .task-card:hover .task-context-icon {
     opacity: 1;
+}
+
+/* =================================================================
+   TASKCARD DRAG AND DROP STATES
+   ================================================================= */
+
+/* General dragging state for task cards */
+.tasknotes-plugin .task-card--dragging {
+    opacity: 0.5;
+    transform: rotate(3deg) scale(0.95);
+    cursor: grabbing;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: var(--tn-shadow-elevated);
+}
+
+/* Drag cursor for draggable task cards */
+.tasknotes-plugin .task-card[draggable="true"]:hover {
+    cursor: grab;
+}
+
+.tasknotes-plugin .task-card[draggable="true"]:active {
+    cursor: grabbing;
 }
 
 

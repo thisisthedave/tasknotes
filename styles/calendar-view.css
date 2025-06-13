@@ -683,3 +683,19 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* ================================================
+   MINI CALENDAR DRAG AND DROP STATES
+   ================================================ */
+
+/* Drag over state for mini calendar days */
+.tasknotes-plugin .mini-calendar-view__day--dragover {
+    background-color: var(--tn-interactive-accent-hover) !important;
+    border-color: var(--tn-interactive-accent) !important;
+    color: var(--tn-text-on-accent) !important;
+    transform: scale(1.1);
+    box-shadow: var(--tn-shadow-light);
+    z-index: 10;
+    border: 2px solid var(--tn-interactive-accent);
+    border-radius: var(--tn-radius-sm);
+}

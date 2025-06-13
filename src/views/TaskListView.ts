@@ -477,6 +477,9 @@ export class TaskListView extends ItemView {
         // Ensure the key is set for reconciler
         taskCard.dataset.key = task.path;
         
+        // Add drag functionality
+        this.addDragHandlers(taskCard, task);
+        
         return taskCard;
     }
 
@@ -492,6 +495,14 @@ export class TaskListView extends ItemView {
             showRecurringControls: true,
             groupByDate: false
         });
+    }
+
+    /**
+     * Add drag handlers to task cards for dragging to calendar
+     */
+    private addDragHandlers(card: HTMLElement, task: TaskInfo): void {
+        // Use the centralized drag drop manager for FullCalendar compatibility
+        this.plugin.dragDropManager.makeTaskCardDraggable(card, task.path);
     }
     
     

@@ -132,6 +132,9 @@ export class TaskLinkWidget extends WidgetType {
         container.dataset.taskPath = this.taskInfo.path;
         container.dataset.originalText = this.originalText;
         
+        // Add drag functionality
+        this.addDragHandlers(container);
+        
         // Click handler - open task edit modal (same as TaskCard)
         container.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -180,6 +183,14 @@ export class TaskLinkWidget extends WidgetType {
         });
         
         return container;
+    }
+
+    /**
+     * Add drag handlers to task link widget for dragging to calendar
+     */
+    private addDragHandlers(container: HTMLElement): void {
+        // Use the centralized drag drop manager for FullCalendar compatibility
+        this.plugin.dragDropManager.makeTaskCardDraggable(container, this.taskInfo.path);
     }
 
     /**

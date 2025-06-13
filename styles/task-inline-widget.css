@@ -306,3 +306,25 @@ span.tasknotes-plugin.task-inline-preview.task-inline-preview--completed,
         height: 14px;
     }
 }
+
+/* =================================================================
+   TASK INLINE PREVIEW DRAG AND DROP STATES
+   ================================================================= */
+
+/* Dragging state for task inline preview widgets */
+.tasknotes-plugin .task-inline-preview--dragging {
+    opacity: 0.6;
+    transform: scale(0.95);
+    cursor: grabbing;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* Drag cursor for draggable task inline preview widgets */
+.tasknotes-plugin .task-inline-preview[draggable="true"] {
+    cursor: grab;
+}
+
+.tasknotes-plugin .task-inline-preview[draggable="true"]:active {
+    cursor: grabbing;
+}

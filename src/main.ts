@@ -57,6 +57,7 @@ import { FilterService } from './services/FilterService';
 import { ViewStateManager } from './services/ViewStateManager';
 import { TasksPluginParser } from './utils/TasksPluginParser';
 import { createTaskLinkOverlay, dispatchTaskUpdate } from './editor/TaskLinkOverlay';
+import { DragDropManager } from './utils/DragDropManager';
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -96,6 +97,9 @@ export default class TaskNotesPlugin extends Plugin {
 	// Editor services  
 	taskLinkDetectionService?: import('./services/TaskLinkDetectionService').TaskLinkDetectionService;
 	instantTaskConvertService?: import('./services/InstantTaskConvertService').InstantTaskConvertService;
+	
+	// Drag and drop manager
+	dragDropManager: DragDropManager;
 	
 	// Event listener cleanup
 	private taskUpdateListenerForEditor: (() => void) | null = null;
@@ -162,6 +166,9 @@ export default class TaskNotesPlugin extends Plugin {
 		this.pomodoroService = new PomodoroService(this);
 		await this.pomodoroService.initialize();
 		
+		// Initialize drag and drop manager
+		this.dragDropManager = new DragDropManager(this);
+		
 		// Inject dynamic styles for custom statuses and priorities
 		this.injectCustomStyles();
 
@@ -212,6 +219,9 @@ export default class TaskNotesPlugin extends Plugin {
 		const { createInstantConvertButtons } = await import('./editor/InstantConvertButtons');
 		this.registerEditorExtension(createInstantConvertButtons(this));
 		
+		const { createTaskDropExtension } = await import('./editor/TaskDropExtension');
+		this.registerEditorExtension(createTaskDropExtension(this));
+		
 		// Set up global event listener for task updates to refresh editor decorations
 		this.taskUpdateListenerForEditor = this.emitter.on(EVENT_TASK_UPDATED, (data) => {
 			// Trigger decoration refresh in all active markdown views using proper state effects
@@ -226,6 +236,8 @@ export default class TaskNotesPlugin extends Plugin {
 				}
 			});
 		});
+		
+		// Note: Task drop handling is now done via CodeMirror extension
 		
 		// Add ribbon icon
 		this.addRibbonIcon('calendar-days', 'Open calendar', async () => {
@@ -322,6 +334,11 @@ export default class TaskNotesPlugin extends Plugin {
 		// Clean up TaskLinkDetectionService
 		if (this.taskLinkDetectionService) {
 			this.taskLinkDetectionService.cleanup();
+		}
+		
+		// Clean up drag and drop manager
+		if (this.dragDropManager) {
+			this.dragDropManager.destroy();
 		}
 		
 		// Clean up ViewStateManager
@@ -812,6 +829,7 @@ private injectCustomStyles(): void {
 	openTaskCreationModal(prePopulatedValues?: Partial<TaskInfo>) {
 		new TaskCreationModal(this.app, this, prePopulatedValues).open();
 	}
+
 	
 	/**
 	 * Starts a time tracking session for a task

@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile } from 'obsidian';
+import { ItemView, WorkspaceLeaf, TFile, Notice } from 'obsidian';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -252,6 +252,7 @@ export class AdvancedCalendarView extends ItemView {
             eventDrop: this.handleEventDrop.bind(this),
             eventResize: this.handleEventResize.bind(this),
             drop: this.handleExternalDrop.bind(this),
+            eventReceive: this.handleEventReceive.bind(this),
             
             // Event sources will be added dynamically
             events: this.getCalendarEvents.bind(this)
@@ -505,9 +506,90 @@ export class AdvancedCalendarView extends ItemView {
     }
 
     async handleExternalDrop(dropInfo: any) {
-        // External drop is no longer used since we removed the sidebar
-        // Tasks are now scheduled through the modal
-        return;
+        try {
+            console.log('FullCalendar external drop triggered', dropInfo);
+            
+            // Get task path from drag data transfer
+            let taskPath: string | undefined;
+            
+            // Try to get from dataTransfer first (most reliable)
+            if (dropInfo.dataTransfer) {
+                taskPath = dropInfo.dataTransfer.getData('text/plain') || 
+                          dropInfo.dataTransfer.getData('application/x-task-path');
+                console.log('Task path from dataTransfer:', taskPath);
+            }
+            
+            // Fallback to element data attribute
+            if (!taskPath && dropInfo.draggedEl) {
+                taskPath = dropInfo.draggedEl.dataset.taskPath;
+                console.log('Task path from element dataset:', taskPath);
+            }
+            
+            if (!taskPath) {
+                console.warn('No task path found in drop data', dropInfo);
+                return;
+            }
+            
+            // Get the task info
+            const task = await this.plugin.cacheManager.getTaskInfo(taskPath);
+            if (!task) {
+                console.warn('Task not found:', taskPath);
+                return;
+            }
+            
+            // Get the drop date/time
+            const dropDate = dropInfo.date;
+            if (!dropDate) {
+                console.warn('No drop date provided');
+                return;
+            }
+            
+            // Format the date for task scheduling
+            let scheduledDate: string;
+            if (dropInfo.allDay) {
+                // All-day event - just the date
+                scheduledDate = format(dropDate, 'yyyy-MM-dd');
+            } else {
+                // Specific time - include time
+                scheduledDate = format(dropDate, "yyyy-MM-dd'T'HH:mm");
+            }
+            
+            // Update the task's scheduled date
+            await this.plugin.taskService.updateProperty(task, 'scheduled', scheduledDate);
+            
+            console.log(`Task "${task.title}" scheduled for ${scheduledDate}`);
+            
+            // Show success feedback
+            new Notice(`Task "${task.title}" scheduled for ${format(dropDate, dropInfo.allDay ? 'MMM d, yyyy' : 'MMM d, yyyy h:mm a')}`);
+            
+            // Remove any event that FullCalendar might have created from the drop
+            if (dropInfo.draggedEl) {
+                // Remove the dragged element to prevent it from being rendered as an event
+                dropInfo.draggedEl.remove();
+            }
+            
+            // Refresh calendar to show the new event with proper task data
+            this.refreshEvents();
+            
+        } catch (error) {
+            console.error('Error handling external drop:', error);
+            new Notice('Failed to schedule task');
+            
+            // Remove any event that might have been created on error
+            if (dropInfo.draggedEl) {
+                dropInfo.draggedEl.remove();
+            }
+        }
+    }
+
+    /**
+     * Handle when FullCalendar tries to create an event from external drop
+     * We prevent this since we handle the task scheduling ourselves
+     */
+    handleEventReceive(info: any) {
+        console.log('FullCalendar eventReceive triggered, removing placeholder event:', info);
+        // Remove the automatically created event since we handle scheduling ourselves
+        info.event.remove();
     }
 
     registerEvents(): void {
