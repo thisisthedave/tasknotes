@@ -154,7 +154,7 @@ export class PerformanceMonitor {
     logSummary(): void {
         if (!this.enabled) return;
         
-        console.group('📊 Performance Summary');
+        console.group('[Performance Summary]');
         
         const stats = this.getAllStats();
         const importantMetrics = [

@@ -341,10 +341,10 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
         availableStatuses.forEach(statusConfig => {
             menu.addItem((item) => {
                 const isSelected = task.status === statusConfig.value;
-                item.setTitle(`${isSelected ? '✓ ' : ''}${statusConfig.label}`);
+                item.setTitle(`${statusConfig.label}`);
                 item.setIcon('circle');
                 if (isSelected) {
-                    item.setIcon('check-circle');
+                    item.setIcon('check');
                 }
                 item.onClick(async () => {
                     try {
@@ -394,10 +394,10 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
         plugin.priorityManager.getPrioritiesByWeight().forEach(priorityConfig => {
             menu.addItem((item) => {
                 const isSelected = task.priority === priorityConfig.value;
-                item.setTitle(`${isSelected ? '✓ ' : ''}Priority: ${priorityConfig.label}`);
+                item.setTitle(`Priority: ${priorityConfig.label}`);
                 item.setIcon('flag');
                 if (isSelected) {
-                    item.setIcon('flag-triangle-right');
+                    item.setIcon('check');
                 }
                 item.onClick(async () => {
                     try {

@@ -504,7 +504,7 @@ export class AdvancedCalendarView extends ItemView {
             .filter(entry => entry.endTime) // Only completed time entries
             .map((entry, index) => ({
                 id: `timeentry-${task.path}-${index}`,
-                title: `⏱️ ${task.title}`,
+                title: task.title,
                 start: entry.startTime,
                 end: entry.endTime!,
                 allDay: false,
@@ -584,7 +584,7 @@ export class AdvancedCalendarView extends ItemView {
         
         return {
             id: `recurring-${task.path}-${instanceDate}`,
-            title: `🔄 ${task.title}`,
+            title: task.title,
             start: eventStart,
             end: endDate,
             allDay: !hasTime,

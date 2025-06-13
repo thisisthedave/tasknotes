@@ -1,4 +1,4 @@
-import { Notice, TFile, ItemView, WorkspaceLeaf } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf, setIcon } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
@@ -179,7 +179,8 @@ export class NotesView extends ItemView {
         if (notes.length === 0) {
             // Placeholder for empty notes list
             const emptyState = notesList.createDiv({ cls: 'notes-view__empty' });
-            emptyState.createDiv({ cls: 'notes-view__empty-icon', text: '📝' });
+            const emptyIcon = emptyState.createDiv({ cls: 'notes-view__empty-icon' });
+            setIcon(emptyIcon, 'file-text');
             emptyState.createEl('h3', {
                 text: 'No Notes Found',
                 cls: 'notes-view__empty-title'

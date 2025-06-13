@@ -1,4 +1,4 @@
-import { App, Notice, TFile, Setting, Editor, MarkdownView } from 'obsidian';
+import { App, Notice, TFile, Setting, Editor, MarkdownView, normalizePath } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { BaseTaskModal } from './BaseTaskModal';
@@ -6,6 +6,7 @@ import { MINI_CALENDAR_VIEW_TYPE, TaskInfo } from '../types';
 import { ParsedTaskData } from '../utils/TasksPluginParser';
 import { getCurrentTimestamp, hasTimeComponent, getDatePart, getTimePart } from '../utils/dateUtils';
 import { generateTaskFilename, FilenameContext } from '../utils/filenameGenerator';
+import { generateTaskBodyFromTemplate } from '../utils/helpers';
 
 export interface TaskConversionOptions {
 	parsedData?: ParsedTaskData;
@@ -41,12 +42,27 @@ export class TaskCreationModal extends BaseTaskModal {
 			this.priority = this.plugin.settings.defaultTaskPriority;
 			this.status = this.plugin.settings.defaultTaskStatus;
 			
+			// Apply task creation defaults
+			const defaults = this.plugin.settings.taskCreationDefaults;
+			
 			// Leave due date empty by default
 			this.dueDate = '';
 			
 			// Pre-populate scheduled date with selected date from calendar or today
 			const selectedDate = this.plugin.selectedDate || new Date();
 			this.scheduledDate = format(selectedDate, 'yyyy-MM-dd');
+			
+			// Apply default contexts and tags
+			this.contexts = defaults.defaultContexts || '';
+			this.tags = defaults.defaultTags || '';
+			
+			// Apply default time estimate
+			if (defaults.defaultTimeEstimate && defaults.defaultTimeEstimate > 0) {
+				this.timeEstimate = defaults.defaultTimeEstimate;
+			}
+			
+			// Apply default recurrence
+			this.recurrence = defaults.defaultRecurrence || 'none';
 		}
 		
 		// Apply pre-populated values if provided (overrides defaults)
@@ -207,9 +223,17 @@ export class TaskCreationModal extends BaseTaskModal {
 				}
 			});
 			
-			// Set initial value if pre-populated
+			// Set initial value if pre-populated or from template
 			if (this.details) {
 				textarea.value = this.details;
+			} else {
+				// Try to apply body template if enabled
+				this.applyBodyTemplate().then(templateContent => {
+					if (templateContent) {
+						this.details = templateContent;
+						textarea.value = templateContent;
+					}
+				});
 			}
 			
 			textarea.addEventListener('input', (e) => {
@@ -317,6 +341,52 @@ export class TaskCreationModal extends BaseTaskModal {
 
 	protected async handleSubmit(): Promise<void> {
 		await this.createTask();
+	}
+
+	private async applyBodyTemplate(): Promise<string | null> {
+		const defaults = this.plugin.settings.taskCreationDefaults;
+		
+		// Check if body template is enabled and configured
+		if (!defaults.useBodyTemplate || !defaults.bodyTemplate?.trim()) {
+			return null;
+		}
+		
+		try {
+			// Normalize the template path and ensure it has .md extension
+			let templatePath = normalizePath(defaults.bodyTemplate.trim());
+			if (!templatePath.endsWith('.md')) {
+				templatePath += '.md';
+			}
+			
+			// Try to load the template file
+			const templateFile = this.app.vault.getAbstractFileByPath(templatePath);
+			if (templateFile instanceof TFile) {
+				const templateContent = await this.app.vault.read(templateFile);
+				
+				// Prepare task data for template variables
+				const taskData = {
+					title: this.title || '',
+					priority: this.priority || '',
+					status: this.status || '',
+					contexts: this.contexts ? this.contexts.split(',').map(c => c.trim()) : [],
+					tags: this.tags ? this.tags.split(',').map(t => t.trim()) : [],
+					timeEstimate: this.timeEstimate || 0,
+					dueDate: this.dueDate || '',
+					scheduledDate: this.scheduledDate || ''
+				};
+				
+				return generateTaskBodyFromTemplate(templateContent, taskData);
+			} else {
+				// Template file not found, show notice
+				new Notice(`Task body template not found: ${templatePath}`);
+				return null;
+			}
+		} catch (error) {
+			// Error reading template, show notice
+			console.error('Error reading task body template:', error);
+			new Notice(`Error reading task body template: ${defaults.bodyTemplate}`);
+			return null;
+		}
 	}
 
 	private updateFilenamePreview() {

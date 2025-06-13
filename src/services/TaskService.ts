@@ -54,7 +54,10 @@ export class TaskService {
             };
 
             const baseFilename = generateTaskFilename(filenameContext, this.plugin.settings);
-            const folder = this.plugin.settings.tasksFolder || '';
+            
+            // Use default folder from task creation defaults if specified, otherwise use general tasks folder
+            const defaultFolder = this.plugin.settings.taskCreationDefaults.defaultFolder;
+            const folder = (defaultFolder && defaultFolder.trim()) ? defaultFolder.trim() : this.plugin.settings.tasksFolder || '';
             
             // Ensure folder exists
             if (folder) {

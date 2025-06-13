@@ -134,10 +134,14 @@ export class UnscheduledTasksSelectorModal extends FuzzySuggestModal<TaskInfo> {
             
             if (isPastDate(getDatePart(task.due))) {
                 dueEl.addClass('overdue');
-                dueEl.setText(`⚠️ Overdue: ${dueDateStr}`);
+                const warningIcon = dueEl.createSpan();
+                setIcon(warningIcon, 'alert-triangle');
+                dueEl.createSpan({ text: ` Overdue: ${dueDateStr}` });
             } else if (isToday(getDatePart(task.due))) {
                 dueEl.addClass('due-today');
-                dueEl.setText(`📅 Due today: ${dueDateStr}`);
+                const calendarIcon = dueEl.createSpan();
+                setIcon(calendarIcon, 'calendar');
+                dueEl.createSpan({ text: ` Due today: ${dueDateStr}` });
             } else {
                 dueEl.setText(`Due: ${dueDateStr}`);
             }
