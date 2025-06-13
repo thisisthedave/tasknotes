@@ -334,8 +334,8 @@ export class AdvancedCalendarView extends ItemView {
             scrollTime: '08:00:00', // Start scrolled to 8 AM
             
             // Time grid configurations
-            slotDuration: '01:00:00', // 1 hour slots
-            slotLabelInterval: '02:00:00', // Show labels every 2 hours
+            slotDuration: '00:30:00', // 1 hour slots
+            slotLabelInterval: '01:00:00', // Show labels every 2 hours
             
             // Event handlers
             select: this.handleDateSelect.bind(this),
