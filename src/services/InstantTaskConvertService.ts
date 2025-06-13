@@ -258,7 +258,8 @@ export class InstantTaskConvertService {
             
             // Use Obsidian's native link text generation - this handles all edge cases
             // including proper path resolution, user preferences, and avoids nested link issues
-            const obsidianLinkText = this.plugin.app.metadataCache.fileToLinktext(file, sourcePath);
+            // The third parameter (omitMdExtension) set to true removes the .md extension
+            const obsidianLinkText = this.plugin.app.metadataCache.fileToLinktext(file, sourcePath, true);
             
             // Create the final line with proper indentation
             const linkText = `${originalIndentation}- [[${obsidianLinkText}]]`;
