@@ -104,7 +104,6 @@ All data is stored as YAML frontmatter in Markdown files, making it:
 1. **Create your first task**: Use `Ctrl/Cmd + Shift + T` or the command palette
 2. **Open a view**: Try the Calendar View to visualize your tasks
 3. **Configure settings**: Customize TaskNotes to match your workflow
-4. **Read the docs**: Visit our [Getting Started guide](https://callumalpass.github.io/chronosync/getting-started/) for detailed tutorials
 
 ## Usage
 
@@ -326,10 +325,6 @@ Define custom priority levels with weight-based sorting:
 ## Credits
 
 This plugin uses [FullCalendar.io](https://fullcalendar.io/) for its calendar components.
-
-## Documentation
-
-For comprehensive documentation including detailed guides, tutorials, and API reference:
 
 ## License
 
