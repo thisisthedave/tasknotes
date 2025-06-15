@@ -285,6 +285,7 @@ export interface CalendarViewPreferences {
 	showDue: boolean;
 	showTimeEntries: boolean;
 	showRecurring: boolean;
+	headerCollapsed?: boolean;
 }
 
 // All view-specific preferences

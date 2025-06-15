@@ -66,6 +66,9 @@ export class AdvancedCalendarView extends ItemView {
     private showDue: boolean;
     private showTimeEntries: boolean;
     private showRecurring: boolean;
+    
+    // Mobile collapsible header state
+    private headerCollapsed: boolean = true;
 
     constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
@@ -121,6 +124,7 @@ export class AdvancedCalendarView extends ItemView {
             this.showDue = savedPreferences.showDue;
             this.showTimeEntries = savedPreferences.showTimeEntries;
             this.showRecurring = savedPreferences.showRecurring;
+            this.headerCollapsed = savedPreferences.headerCollapsed ?? true;
         }
         
         const contentEl = this.contentEl;
@@ -158,8 +162,23 @@ export class AdvancedCalendarView extends ItemView {
     async createHeader(container: HTMLElement) {
         const header = container.createDiv({ cls: 'advanced-calendar-view__header' });
         
+        // Create mobile collapse toggle (only visible on mobile)
+        const mobileToggle = header.createDiv({ cls: 'advanced-calendar-view__mobile-toggle' });
+        const toggleBtn = mobileToggle.createEl('button', {
+            text: this.headerCollapsed ? 'Show filters' : 'Hide filters',
+            cls: 'advanced-calendar-view__collapse-btn'
+        });
+        toggleBtn.addEventListener('click', () => {
+            this.headerCollapsed = !this.headerCollapsed;
+            toggleBtn.textContent = this.headerCollapsed ? 'Show filters' : 'Hide filters';
+            this.saveViewPreferences();
+            this.updateHeaderVisibility();
+        });
+        
         // Create main header row that can contain both FilterBar and controls
-        const mainRow = header.createDiv({ cls: 'advanced-calendar-view__main-row' });
+        const mainRow = header.createDiv({ 
+            cls: `advanced-calendar-view__main-row ${this.headerCollapsed ? 'collapsed' : 'expanded'}`
+        });
         
         // Create FilterBar container
         const filterBarContainer = mainRow.createDiv({ cls: 'filter-bar-container' });
@@ -259,6 +278,13 @@ export class AdvancedCalendarView extends ItemView {
         scheduleTasksBtn.addEventListener('click', () => {
             this.openScheduleTasksModal();
         });
+    }
+    
+    private updateHeaderVisibility() {
+        const mainRow = this.contentEl.querySelector('.advanced-calendar-view__main-row');
+        if (mainRow) {
+            mainRow.className = `advanced-calendar-view__main-row ${this.headerCollapsed ? 'collapsed' : 'expanded'}`;
+        }
     }
 
     createToggle(
@@ -389,7 +415,8 @@ export class AdvancedCalendarView extends ItemView {
             showScheduled: this.showScheduled,
             showDue: this.showDue,
             showTimeEntries: this.showTimeEntries,
-            showRecurring: this.showRecurring
+            showRecurring: this.showRecurring,
+            headerCollapsed: this.headerCollapsed
         };
         this.plugin.viewStateManager.setViewPreferences(ADVANCED_CALENDAR_VIEW_TYPE, preferences);
     }

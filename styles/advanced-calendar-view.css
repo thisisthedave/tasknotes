@@ -291,6 +291,27 @@
     border-color: #ff0000;
 }
 
+/* Mobile collapse toggle - hidden by default */
+.advanced-calendar-view__mobile-toggle {
+    display: none;
+    padding: 0.5rem 1rem;
+}
+
+.advanced-calendar-view__collapse-btn {
+    background: var(--interactive-normal);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.advanced-calendar-view__collapse-btn:hover {
+    background: var(--interactive-hover);
+}
+
 /* Responsive design */
 @media (max-width: 1200px) {
     .advanced-calendar-view__main-row {
@@ -309,6 +330,20 @@
 }
 
 @media (max-width: 768px) {
+    /* Show mobile toggle on small screens */
+    .advanced-calendar-view__mobile-toggle {
+        display: block;
+    }
+    
+    /* Hide main row by default on mobile when collapsed */
+    .advanced-calendar-view__main-row.collapsed {
+        display: none;
+    }
+    
+    .advanced-calendar-view__main-row.expanded {
+        display: flex;
+    }
+    
     .advanced-calendar-view__controls {
         flex-direction: column;
         align-items: stretch;
@@ -327,5 +362,10 @@
     
     .advanced-calendar-view__calendar-container {
         padding: 0.5rem;
+    }
+    
+    /* Reduce header padding on mobile */
+    .advanced-calendar-view__header {
+        padding: 0.25rem 0.5rem;
     }
 }
