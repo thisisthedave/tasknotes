@@ -301,9 +301,9 @@ function buildCSS() {
             combinedCSS += content;
             combinedCSS += '\n';
             
-            console.log(`✓ Included ${cssFile}`);
+            console.log(`[OK] Included ${cssFile}`);
         } catch (error) {
-            console.error(`✗ Error reading ${cssFile}:`, error.message);
+            console.error(`[ERROR] Error reading ${cssFile}:`, error.message);
             process.exit(1);
         }
     }
@@ -314,14 +314,14 @@ function buildCSS() {
     // Write the combined CSS to styles.css
     try {
         writeFileSync('styles.css', combinedCSS);
-        console.log('✓ Built styles.css successfully');
+        console.log('[OK] Built styles.css successfully');
         
         // Count lines for reference
         const lineCount = combinedCSS.split('\n').length;
-        console.log(`✓ Generated ${lineCount} lines of CSS`);
+        console.log(`[OK] Generated ${lineCount} lines of CSS`);
         
     } catch (error) {
-        console.error('✗ Error writing styles.css:', error.message);
+        console.error('[ERROR] Error writing styles.css:', error.message);
         process.exit(1);
     }
 }

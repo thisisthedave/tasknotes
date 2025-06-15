@@ -1632,7 +1632,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			const modalContent = modal.createDiv('modal');
 			
 			// Create title
-			const title = hasExistingData ? 'Migrate Pomodoro Data?' : 'Switch to Daily Notes Storage?';
+			const title = hasExistingData ? 'Migrate pomodoro data?' : 'Switch to daily notes storage?';
 			modalContent.createDiv('modal-title').textContent = title;
 			
 			// Create content area
@@ -1678,7 +1678,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			// Create buttons
 			const buttonContainer = modalContent.createDiv('modal-button-container');
 			const confirmButton = buttonContainer.createEl('button', { cls: 'mod-cta' });
-			confirmButton.textContent = hasExistingData ? 'Migrate Data' : 'Switch Storage';
+			confirmButton.textContent = hasExistingData ? 'Migrate data' : 'Switch storage';
 			confirmButton.setAttribute('data-action', 'confirm');
 			
 			const cancelButton = buttonContainer.createEl('button');
