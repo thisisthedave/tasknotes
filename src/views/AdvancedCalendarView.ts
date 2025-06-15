@@ -1,6 +1,12 @@
 import { ItemView, WorkspaceLeaf, TFile, Notice } from 'obsidian';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@fullcalendar/core';
+import { 
+    createDailyNote, 
+    getDailyNote, 
+    getAllDailyNotes,
+    appHasDailyNotesPluginLoaded
+} from 'obsidian-daily-notes-interface';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import multiMonthPlugin from '@fullcalendar/multimonth';
@@ -395,6 +401,10 @@ export class AdvancedCalendarView extends ItemView {
             // Current time indicator
             nowIndicator: calendarSettings.nowIndicator,
             
+            // Enable clickable date titles
+            navLinks: true,
+            navLinkDayClick: this.handleDateTitleClick.bind(this),
+            
             // Time view configuration
             slotMinTime: calendarSettings.slotMinTime,
             slotMaxTime: calendarSettings.slotMaxTime,
@@ -733,6 +743,47 @@ export class AdvancedCalendarView extends ItemView {
         
         // Clear selection
         this.calendar?.unselect();
+    }
+
+    /**
+     * Handle clicking on a date title to open/create daily note
+     */
+    async handleDateTitleClick(date: Date) {
+        try {
+            // Check if Daily Notes plugin is enabled
+            if (!appHasDailyNotesPluginLoaded()) {
+                new Notice('Daily Notes core plugin is not enabled. Please enable it in Settings > Core plugins.');
+                return;
+            }
+
+            // Convert date to moment for the API
+            const moment = (window as any).moment(date);
+            
+            // Get all daily notes to check if one exists for this date
+            const allDailyNotes = getAllDailyNotes();
+            let dailyNote = getDailyNote(moment, allDailyNotes);
+            
+            if (!dailyNote) {
+                // Daily note doesn't exist, create it
+                try {
+                    dailyNote = await createDailyNote(moment);
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    console.error('Failed to create daily note:', error);
+                    new Notice(`Failed to create daily note: ${errorMessage}`);
+                    return;
+                }
+            }
+            
+            // Open the daily note
+            if (dailyNote) {
+                await this.app.workspace.getLeaf(false).openFile(dailyNote);
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Failed to navigate to daily note:', error);
+            new Notice(`Failed to navigate to daily note: ${errorMessage}`);
+        }
     }
 
     handleEventClick(clickInfo: any) {

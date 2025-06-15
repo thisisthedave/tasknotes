@@ -919,17 +919,11 @@ export class MiniCalendarView extends ItemView {
             // Use the targeted rebuild method instead of rebuilding the entire index
             dailyNotesCache = await this.plugin.cacheManager.rebuildDailyNotesCache(currentYear, currentMonth);
             MiniCalendarView.dailyNotesInitialized = true;
-            console.log(`Daily notes cache rebuild for ${currentYear}-${currentMonth + 1}: found ${dailyNotesCache.size} notes`);
         } else {
             // Get calendar data from file indexer
             const calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
             dailyNotesCache = calendarData.dailyNotes;
-            console.log(`Daily notes from calendar data for ${currentYear}-${currentMonth + 1}: found ${dailyNotesCache.size} notes`);
         }
-        
-        // Debug: Log sample dates from cache
-        const sampleDates = Array.from(dailyNotesCache).slice(0, 5);
-        console.log('Sample daily note dates in cache:', sampleDates);
         
         
         // Find all calendar days

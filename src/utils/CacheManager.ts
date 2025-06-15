@@ -571,14 +571,8 @@ export class CacheManager {
             // Clear existing daily notes cache
             this.dailyNotes.clear();
             
-            // Debug: Log the first few entries to understand the format
-            const entries = Object.entries(allDailyNotes);
-            if (entries.length > 0) {
-                console.log('Sample daily note entries:', entries.slice(0, 3));
-            }
-            
             // Populate daily notes cache
-            for (const [dateUID, file] of entries) {
+            for (const [dateUID, file] of Object.entries(allDailyNotes)) {
                 // The dateUID format can be:
                 // - "YYYY-MM-DD" 
                 // - "day-YYYY-MM-DD"
@@ -596,8 +590,6 @@ export class CacheManager {
                 this.dailyNotes.add(dateStr);
             }
             
-            console.log(`Daily notes cache initialized with ${this.dailyNotes.size} notes`);
-            console.log('Parsed daily note dates:', Array.from(this.dailyNotes).slice(0, 5));
         } catch (error) {
             // Daily Notes interface not available, skip initialization
             console.warn('Daily Notes interface not available, skipping daily notes cache initialization:', error);
@@ -1397,7 +1389,6 @@ export class CacheManager {
                 }
             });
             
-            console.log(`Rebuilt daily notes cache for ${year}-${month + 1}: found ${dailyNotesForMonth.size} notes`);
         } catch (error) {
             console.warn('Daily Notes interface not available, skipping daily notes cache rebuild');
         }
