@@ -285,6 +285,24 @@ export class AdvancedCalendarView extends ItemView {
         if (mainRow) {
             mainRow.className = `advanced-calendar-view__main-row ${this.headerCollapsed ? 'collapsed' : 'expanded'}`;
         }
+        
+        // Update FullCalendar header toolbar visibility
+        if (this.calendar) {
+            this.calendar.setOption('headerToolbar', this.getHeaderToolbarConfig());
+        }
+    }
+    
+    private getHeaderToolbarConfig() {
+        // Hide FullCalendar header on mobile when collapsed
+        if (this.headerCollapsed && window.innerWidth <= 768) {
+            return false; // This hides the entire header toolbar
+        }
+        
+        return {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay'
+        };
     }
 
     createToggle(
@@ -362,11 +380,7 @@ export class AdvancedCalendarView extends ItemView {
         this.calendar = new Calendar(calendarEl, {
             plugins: [dayGridPlugin, timeGridPlugin, multiMonthPlugin, interactionPlugin],
             initialView: calendarSettings.defaultView,
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay'
-            },
+            headerToolbar: this.getHeaderToolbarConfig(),
             height: '100%',
             editable: true,
             droppable: true,
