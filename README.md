@@ -30,6 +30,8 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - **Advanced Calendar Views**: Full-featured month view with comprehensive task and note display
 - **Mini Calendar Views**: Compact calendar options for space-efficient layouts
 - **Unscheduled Tasks Modal**: Dedicated interface for managing tasks without dates
+- **ICS Subscription Support**: Subscribe to external ICS/iCal calendar feeds with configurable refresh intervals
+- **Clickable Date Navigation**: Click calendar dates to create or navigate to daily notes directly
 - Month view with agenda display showing tasks and notes
 - Visual indicators for daily notes and due tasks
 - Keyboard navigation and date selection synchronized across all views
@@ -54,17 +56,22 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - Enhanced visual timer with SVG progress circle and refined UI
 - Automatic break scheduling with customizable patterns
 - Persistent session history and detailed statistics tracking
+- **Flexible Storage Options**: Store Pomodoro data in plugin files or integrate with Daily Notes
 - Dedicated statistics view with completion metrics and trends
 - Integration with task time tracking
 
 ### Editor Integration
 - **Task Link Overlays**: Interactive task previews displayed on wikilinks in live preview mode
 - **Instant Task Conversion**: One-click conversion of checkbox tasks to dedicated TaskNotes with inline buttons
+- **Multi-line Task Conversion**: Support for converting multi-line selections with task details preserved
+- **Configurable Conversion Defaults**: Apply default task properties during instant conversion
+- **Enhanced Task Templates**: Template processing with parent note context ({{parentNote}} variable)
 - **Smart Task Detection**: Automatic detection and enhancement of task-related content in the editor
 - **Live Task Previews**: Hover and click interactions for task editing without leaving the current note
 
 ### Views and Layouts
 - **Calendar View**: Advanced and mini calendar modes with agenda display and integrated controls
+- **Mobile-Responsive Design**: Collapsible header filters for improved mobile calendar experience
 - **Unscheduled Tasks Modal**: Dedicated modal for managing tasks without specific dates
 - **Task List View**: Unified task management with advanced filtering and grouping
 - **Kanban Board**: Visual task management with drag-and-drop functionality and dynamic grouping
@@ -87,6 +94,8 @@ TaskNotes focuses on time-based organization and task management, storing all da
 - **Field Mapping**: Customize YAML property names to match your existing workflow
 - **Custom Statuses**: Create unlimited task statuses with custom labels, colors, and completion behavior
 - **Custom Priorities**: Define priority levels with weight-based sorting and custom colors
+- **Calendar View Settings**: Comprehensive calendar configuration options with persistent view preferences
+- **Inline Task Settings**: Configurable task link overlays and instant conversion behavior
 - **Tabbed Settings**: Organized settings interface for easy configuration
 - **Backward Compatibility**: Default settings match existing TaskNotes behavior
 
@@ -321,6 +330,14 @@ Define custom priority levels with weight-based sorting:
 - Sound notifications and volume control
 - Visual progress circle with enhanced timer display
 - Session history tracking and persistent statistics
+- **Storage Location**: Choose between plugin files or Daily Notes for Pomodoro data storage
+
+### ICS Calendar Subscriptions
+- Subscribe to external ICS/iCal calendar feeds
+- Configurable refresh intervals and custom colors
+- Automatic event caching and expiration handling
+- Integration with calendar views to display external events
+- Read-only event display with context menus for interaction
 
 ## Credits
 
