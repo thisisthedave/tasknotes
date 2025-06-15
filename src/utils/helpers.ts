@@ -164,125 +164,6 @@ export function parseTime(timeStr: string): TimeInfo | null {
 
 
 
-/**
- * Generates a daily note template
- */
-export function generateDailyNoteTemplate(date: Date, templateContent?: string): string {
-	// If a custom template is provided, process Obsidian template variables
-	if (templateContent) {
-		return processObsidianTemplateVariables(templateContent, date);
-	}
-	
-	// Default built-in template
-	const dateStr = format(date, 'yyyy-MM-dd');
-	const dayName = format(date, 'eeee, MMMM do, yyyy');
-	
-	const yaml = {
-		date: dateStr,
-		tags: ['daily']
-	};
-	
-	const content = `---\n${YAML.stringify(yaml)}---\n\n# ${dayName}\n\n## Notes\n\n`;
-	
-	return content;
-}
-
-/**
- * Process Obsidian template variables like {{title}}, {{date:format}}, etc.
- */
-function processObsidianTemplateVariables(template: string, date: Date): string {
-	let result = template;
-	
-	// {{title}} - Date in YYYY-MM-DD format (Obsidian's default for daily notes)
-	const title = format(date, 'yyyy-MM-dd');
-	result = result.replace(/\{\{title\}\}/g, title);
-	
-	// {{date}} and {{date:format}} - Custom date formatting
-	result = result.replace(/\{\{date(?::([^}]+))?\}\}/g, (match, formatStr) => {
-		if (formatStr) {
-			// Convert Obsidian/moment format to date-fns format
-			const dateFnsFormat = convertMomentToDateFnsFormat(formatStr);
-			return format(date, dateFnsFormat);
-		} else {
-			// Default date format
-			return format(date, 'yyyy-MM-dd');
-		}
-	});
-	
-	// {{time}} and {{time:format}} - Current time
-	const now = new Date();
-	result = result.replace(/\{\{time(?::([^}]+))?\}\}/g, (match, formatStr) => {
-		if (formatStr) {
-			const dateFnsFormat = convertMomentToDateFnsFormat(formatStr);
-			return format(now, dateFnsFormat);
-		} else {
-			// Default time format
-			return format(now, 'HH:mm');
-		}
-	});
-	
-	return result;
-}
-
-/**
- * Convert Moment.js/Obsidian format strings to date-fns format strings
- * This is a basic converter for common formats
- */
-function convertMomentToDateFnsFormat(momentFormat: string): string {
-	let result = momentFormat;
-	
-	// First, handle escaped literals [text] -> 'text'
-	result = result.replace(/\[([^\]]+)\]/g, "'$1'");
-	
-	// Split by quotes to process unquoted sections only
-	const parts = result.split(/'([^']*?)'/);
-	
-	for (let i = 0; i < parts.length; i += 2) { // Only process unquoted parts (even indices)
-		let part = parts[i];
-		
-		// Apply conversions in order of length (longest first to avoid partial matches)
-		const conversions = [
-			['gggg', 'RRRR'], // ISO week year (4 digits)
-			['dddd', 'EEEE'], // Full day name
-			['YYYY', 'yyyy'], // 4-digit year
-			['MMMM', 'MMMM'], // Full month name
-			['MMM', 'MMM'],   // Short month name
-			['ddd', 'EEE'],   // Short day name
-			['gg', 'RR'],     // ISO week year (2 digits)
-			['ww', 'II'],     // ISO week number (2 digits)
-			['dd', 'EEEEEE'], // Minimal day name
-			['DD', 'dd'],     // Day of month (2 digits)
-			['MM', 'MM'],     // Month (2 digits)
-			['HH', 'HH'],     // Hour (2 digits, 24h)
-			['hh', 'hh'],     // Hour (2 digits, 12h)
-			['mm', 'mm'],     // Minute (2 digits)
-			['ss', 'ss'],     // Second (2 digits)
-			['YY', 'yy'],     // 2-digit year
-			['M', 'M'],       // Month (1 digit)
-			['D', 'd'],       // Day of month (1 digit)
-			['H', 'H'],       // Hour (1 digit, 24h)
-			['h', 'h'],       // Hour (1 digit, 12h)
-			['m', 'm'],       // Minute (1 digit)
-			['s', 's'],       // Second (1 digit)
-			['w', 'I'],       // ISO week number (1 digit)
-			['A', 'a'],       // AM/PM (uppercase)
-			['a', 'a']        // AM/PM (lowercase)
-		];
-		
-		// Apply each conversion
-		conversions.forEach(([momentPattern, dateFnsPattern]) => {
-			const regex = new RegExp(momentPattern, 'g');
-			part = part.replace(regex, dateFnsPattern);
-		});
-		
-		parts[i] = part;
-	}
-	
-	// Rejoin the parts
-	result = parts.join("'");
-	
-	return result;
-}
 
 /**
  * Generate task body content from template, similar to daily note templates
@@ -327,25 +208,11 @@ function processTaskTemplateVariables(template: string, taskData: any): string {
 	// {{details}} - User-provided details/description
 	result = result.replace(/\{\{details\}\}/g, taskData.details || '');
 	
-	// {{date}} and {{date:format}} - Current date
-	result = result.replace(/\{\{date(?::([^}]+))?\}\}/g, (match, formatStr) => {
-		if (formatStr) {
-			const dateFnsFormat = convertMomentToDateFnsFormat(formatStr);
-			return format(now, dateFnsFormat);
-		} else {
-			return format(now, 'yyyy-MM-dd');
-		}
-	});
+	// {{date}} - Current date (basic format only)
+	result = result.replace(/\{\{date\}\}/g, format(now, 'yyyy-MM-dd'));
 	
-	// {{time}} and {{time:format}} - Current time
-	result = result.replace(/\{\{time(?::([^}]+))?\}\}/g, (match, formatStr) => {
-		if (formatStr) {
-			const dateFnsFormat = convertMomentToDateFnsFormat(formatStr);
-			return format(now, dateFnsFormat);
-		} else {
-			return format(now, 'HH:mm');
-		}
-	});
+	// {{time}} - Current time (basic format only)
+	result = result.replace(/\{\{time\}\}/g, format(now, 'HH:mm'));
 	
 	return result;
 }

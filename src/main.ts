@@ -2,6 +2,12 @@ import { Notice, Plugin, TFile, WorkspaceLeaf, normalizePath, Editor } from 'obs
 import { format } from 'date-fns';
 import * as YAML from 'yaml';
 import { 
+	createDailyNote, 
+	getDailyNote, 
+	getAllDailyNotes,
+	appHasDailyNotesPluginLoaded
+} from 'obsidian-daily-notes-interface';
+import { 
 	TaskNotesSettings, 
 	DEFAULT_SETTINGS, 
 	TaskNotesSettingTab 
@@ -36,7 +42,6 @@ import { TaskEditModal } from './modals/TaskEditModal';
 import { PomodoroService } from './services/PomodoroService';
 import { 
 	ensureFolderExists, 
-	generateDailyNoteTemplate,
 	extractTaskInfo,
 	formatTime,
 	calculateTotalTimeSpent,
@@ -127,8 +132,6 @@ export default class TaskNotesPlugin extends Plugin {
 			this.app.vault,
 			this.settings.taskTag,
 			this.settings.excludedFolders,
-			this.settings.dailyNotesFolder,
-			this.settings.dailyNoteTemplate,
 			this.fieldMapper
 		);
 		
@@ -421,8 +424,6 @@ export default class TaskNotesPlugin extends Plugin {
 		this.cacheManager.updateConfig(
 			this.settings.taskTag,
 			this.settings.excludedFolders,
-			this.settings.dailyNotesFolder,
-			this.settings.dailyNoteTemplate,
 			this.fieldMapper
 		);
 		
@@ -641,88 +642,61 @@ export default class TaskNotesPlugin extends Plugin {
 	}
 
 	async navigateToDailyNote(date: Date) {
-		const dailyNoteFileName = format(date, 'yyyy-MM-dd') + '.md';
-		const dailyNotePath = normalizePath(`${this.settings.dailyNotesFolder}/${dailyNoteFileName}`);
-		
-		// Check if the daily note exists, if not create it
-		const file = this.app.vault.getAbstractFileByPath(dailyNotePath);
-		let noteWasCreated = false;
-		
-		if (!file) {
-			try {
-				// Create the daily notes folder if it doesn't exist
-				await ensureFolderExists(this.app.vault, this.settings.dailyNotesFolder);
-				
-				// Create daily note with default content
-				const content = await this.generateDailyNoteTemplate(date);
-				await this.app.vault.create(dailyNotePath, content);
-				noteWasCreated = true;
-			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				console.error('Failed to create daily note:', {
-					error: errorMessage,
-					path: dailyNotePath,
-					date: format(date, 'yyyy-MM-dd')
-				});
-				new Notice(`Failed to create daily note: ${errorMessage}`);
-				return; // Don't try to open the file if creation failed
+		try {
+			// Check if Daily Notes plugin is enabled
+			if (!appHasDailyNotesPluginLoaded()) {
+				new Notice('Daily Notes core plugin is not enabled. Please enable it in Settings > Core plugins.');
+				return;
 			}
-		}
-		
-		// Open the daily note
-		const dailyNoteFile = this.app.vault.getAbstractFileByPath(dailyNotePath);
-		if (dailyNoteFile instanceof TFile) {
-			await this.app.workspace.getLeaf(false).openFile(dailyNoteFile);
+
+			// Convert date to moment for the API
+			const moment = (window as any).moment(date);
 			
-			// If we created a new daily note, force a rebuild of the calendar cache
-			// for this month to ensure it shows up immediately in the calendar view
-			if (noteWasCreated) {
-				// Get the year and month from the date
-				const year = date.getFullYear();
-				const month = date.getMonth();
-				
-				// Rebuild the daily notes cache for this month
+			// Get all daily notes to check if one exists for this date
+			const allDailyNotes = getAllDailyNotes();
+			let dailyNote = getDailyNote(moment, allDailyNotes);
+			let noteWasCreated = false;
+			
+			// If no daily note exists for this date, create one
+			if (!dailyNote) {
 				try {
-					await this.cacheManager.rebuildDailyNotesCache(year, month);
-					// Notify views that data has changed to trigger a UI refresh
-					this.notifyDataChanged(dailyNotePath, false, true);
-				} catch (e) {
-					console.error('Error rebuilding daily notes cache:', e);
+					dailyNote = await createDailyNote(moment);
+					noteWasCreated = true;
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					console.error('Failed to create daily note:', error);
+					new Notice(`Failed to create daily note: ${errorMessage}`);
+					return;
 				}
 			}
-		}
-	}
-
-
-async generateDailyNoteTemplate(date: Date): Promise<string> {
-	// Check if a custom template is specified
-	if (this.settings.dailyNoteTemplate && this.settings.dailyNoteTemplate.trim()) {
-		try {
-			// Normalize the template path and ensure it has .md extension
-			let templatePath = normalizePath(this.settings.dailyNoteTemplate.trim());
-			if (!templatePath.endsWith('.md')) {
-				templatePath += '.md';
-			}
 			
-			// Try to load the template file
-			const templateFile = this.app.vault.getAbstractFileByPath(templatePath);
-			if (templateFile instanceof TFile) {
-				const templateContent = await this.app.vault.read(templateFile);
-				return generateDailyNoteTemplate(date, templateContent);
-			} else {
-				// Template file not found, show notice and use default
-				new Notice(`Daily note template not found: ${templatePath}`);
+			// Open the daily note
+			if (dailyNote) {
+				await this.app.workspace.getLeaf(false).openFile(dailyNote);
+				
+				// If we created a new daily note, refresh the cache to ensure it shows up in views
+				if (noteWasCreated) {
+					// Get the year and month from the date for cache rebuilding
+					const year = date.getFullYear();
+					const month = date.getMonth();
+					
+					// Rebuild the daily notes cache for this month
+					try {
+						await this.cacheManager.rebuildDailyNotesCache(year, month);
+						// Notify views that data has changed to trigger a UI refresh
+						this.notifyDataChanged(dailyNote.path, false, true);
+					} catch (e) {
+						console.error('Error rebuilding daily notes cache:', e);
+					}
+				}
 			}
 		} catch (error) {
-			// Error reading template, show notice and use default
-			console.error('Error reading daily note template:', error);
-			new Notice(`Error reading daily note template: ${this.settings.dailyNoteTemplate}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.error('Failed to navigate to daily note:', error);
+			new Notice(`Failed to navigate to daily note: ${errorMessage}`);
 		}
 	}
-	
-	// Use default template
-	return generateDailyNoteTemplate(date);
-}
+
 
 /**
  * Inject dynamic CSS for custom statuses and priorities

@@ -1,6 +1,7 @@
 import { Notice, TFile, ItemView, WorkspaceLeaf, normalizePath } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
+import { getAllDailyNotes, getDailyNote } from 'obsidian-daily-notes-interface';
 import { 
     MINI_CALENDAR_VIEW_TYPE, 
     EVENT_DATA_CHANGED,
@@ -918,11 +919,17 @@ export class MiniCalendarView extends ItemView {
             // Use the targeted rebuild method instead of rebuilding the entire index
             dailyNotesCache = await this.plugin.cacheManager.rebuildDailyNotesCache(currentYear, currentMonth);
             MiniCalendarView.dailyNotesInitialized = true;
+            console.log(`Daily notes cache rebuild for ${currentYear}-${currentMonth + 1}: found ${dailyNotesCache.size} notes`);
         } else {
             // Get calendar data from file indexer
             const calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
             dailyNotesCache = calendarData.dailyNotes;
+            console.log(`Daily notes from calendar data for ${currentYear}-${currentMonth + 1}: found ${dailyNotesCache.size} notes`);
         }
+        
+        // Debug: Log sample dates from cache
+        const sampleDates = Array.from(dailyNotesCache).slice(0, 5);
+        console.log('Sample daily note dates in cache:', sampleDates);
         
         
         // Find all calendar days
@@ -1222,6 +1229,9 @@ export class MiniCalendarView extends ItemView {
     private showDayPreview(event: MouseEvent, date: Date, targetEl: HTMLElement) {
         // Get the daily note path for this date
         const dailyNotePath = this.getDailyNotePath(date);
+        if (!dailyNotePath) {
+            return; // No daily note exists for this date
+        }
         const dailyNoteFile = this.app.vault.getAbstractFileByPath(dailyNotePath);
         
         if (dailyNoteFile && dailyNoteFile instanceof TFile) {
@@ -1239,9 +1249,16 @@ source: 'tasknotes-calendar',
     }
     
     // Helper method to get daily note path for a date
-    private getDailyNotePath(date: Date): string {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        return normalizePath(`${this.plugin.settings.dailyNotesFolder}/${dateStr}.md`);
+    private getDailyNotePath(date: Date): string | null {
+        try {
+            const moment = (window as any).moment(date);
+            const allDailyNotes = getAllDailyNotes();
+            const dailyNote = getDailyNote(moment, allDailyNotes);
+            return dailyNote ? dailyNote.path : null;
+        } catch (error) {
+            // Daily Notes interface not available, return null
+            return null;
+        }
     }
     
     /**

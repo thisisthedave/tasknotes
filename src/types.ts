@@ -127,12 +127,6 @@ export interface IndexedFile {
 }
 
 // YAML Frontmatter types
-export interface DailyNoteFrontmatter {
-	date?: string;
-	tags?: string[];
-	important?: boolean;
-}
-
 export interface TaskFrontmatter {
 	title: string;
 	dateCreated: string;

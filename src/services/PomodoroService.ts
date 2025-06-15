@@ -2,6 +2,12 @@ import { Notice, TFile } from 'obsidian';
 import { format } from 'date-fns';
 import TaskNotesPlugin from '../main';
 import { 
+    createDailyNote, 
+    getDailyNote, 
+    getAllDailyNotes,
+    appHasDailyNotesPluginLoaded
+} from 'obsidian-daily-notes-interface';
+import { 
     PomodoroSession, 
     PomodoroState,
     PomodoroSessionHistory,
@@ -547,25 +553,29 @@ export class PomodoroService {
 
     private async updateDailyNotePomodoros() {
         try {
-            const dailyNotePath = `${this.plugin.settings.dailyNotesFolder}/${format(new Date(), 'yyyy-MM-dd')}.md`;
-            // Updating daily note pomodoros
-            let file = this.plugin.app.vault.getAbstractFileByPath(dailyNotePath);
+            // Check if Daily Notes plugin is enabled
+            if (!appHasDailyNotesPluginLoaded()) {
+                console.warn('Daily Notes core plugin is not enabled, skipping pomodoro update');
+                return;
+            }
+
+            // Convert date to moment for the API
+            const moment = (window as any).moment(new Date());
             
-            if (!(file instanceof TFile)) {
-                // Daily note does not exist, creating
-                // Ensure the daily notes folder exists
-                await ensureFolderExists(this.plugin.app.vault, this.plugin.settings.dailyNotesFolder);
-                
-                const content = `---\ndate: ${format(new Date(), 'yyyy-MM-dd')}\npomodoros: 1\n---\n\n# ${format(new Date(), 'EEEE, MMMM d, yyyy')}\n\n## Pomodoros Completed: 1\n`;
-                
+            // Get all daily notes to check if one exists for today
+            const allDailyNotes = getAllDailyNotes();
+            let file = getDailyNote(moment, allDailyNotes);
+            
+            if (!file) {
+                // Daily note does not exist, create it using the core plugin
                 try {
-                    file = await this.plugin.app.vault.create(dailyNotePath, content);
+                    file = await createDailyNote(moment);
                     // Created daily note with 1 pomodoro
                 } catch (createError: any) {
                     if (createError.message.includes('File already exists')) {
                         // File was created between our check and create attempt
-                        // Daily note was created by another process, updating existing file
-                        file = this.plugin.app.vault.getAbstractFileByPath(dailyNotePath);
+                        // Daily note was created by another process, try to get it again
+                        file = getDailyNote(moment, getAllDailyNotes());
                         if (file instanceof TFile) {
                             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                                 const pomodoroField = this.plugin.fieldMapper.toUserField('pomodoros');

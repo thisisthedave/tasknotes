@@ -5,15 +5,12 @@ import { StatusManager } from '../services/StatusManager';
 import { PriorityManager } from '../services/PriorityManager';
 
 export interface TaskNotesSettings {
-	dailyNotesFolder: string;
 	tasksFolder: string;  // Now just a default location for new tasks
 	taskTag: string;      // The tag that identifies tasks
 	excludedFolders: string;  // Comma-separated list of folders to exclude from Notes tab
 	defaultTaskPriority: string;  // Changed to string to support custom priorities
 	defaultTaskStatus: string;    // Changed to string to support custom statuses
 	taskOrgFiltersCollapsed: boolean;  // Save collapse state of task organization filters
-	// Daily note settings
-	dailyNoteTemplate: string; // Path to template file for daily notes
 	// Task filename settings
 	taskFilenameFormat: 'title' | 'zettel' | 'timestamp' | 'custom';
 	customFilenameTemplate: string; // Template for custom format
@@ -204,15 +201,12 @@ export const DEFAULT_CALENDAR_VIEW_SETTINGS: CalendarViewSettings = {
 };
 
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
-	dailyNotesFolder: 'TaskNotes/Daily',
 	tasksFolder: 'TaskNotes/Tasks',
 	taskTag: 'task',
 	excludedFolders: '',  // Default to no excluded folders
 	defaultTaskPriority: 'normal',
 	defaultTaskStatus: 'open',
 	taskOrgFiltersCollapsed: false,  // Default to expanded
-	// Daily note defaults
-	dailyNoteTemplate: '',  // Empty = use built-in template
 	// Task filename defaults
 	taskFilenameFormat: 'zettel',  // Keep existing behavior as default
 	customFilenameTemplate: '{title}',  // Simple title template
@@ -268,7 +262,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			{ id: 'field-mapping', name: 'Field mapping' },
 			{ id: 'statuses', name: 'Statuses' },
 			{ id: 'priorities', name: 'Priorities' },
-			{ id: 'daily-notes', name: 'Daily notes' },
 			{ id: 'pomodoro', name: 'Pomodoro' }
 		];
 		
@@ -358,9 +351,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				break;
 			case 'priorities':
 				this.renderPrioritiesTab();
-				break;
-			case 'daily-notes':
-				this.renderDailyNotesTab();
 				break;
 			case 'pomodoro':
 				this.renderPomodoroTab();
@@ -1434,37 +1424,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		});
 	}
 	
-	private renderDailyNotesTab(): void {
-		const container = this.tabContents['daily-notes'];
-		
-		new Setting(container)
-			.setName('Daily notes folder')
-			.setDesc('Folder where daily notes will be stored')
-			.addText(text => {
-				text.inputEl.setAttribute('aria-label', 'Daily notes folder path');
-				return text
-					.setPlaceholder('TaskNotes/Daily')
-					.setValue(this.plugin.settings.dailyNotesFolder)
-					.onChange(async (value) => {
-						this.plugin.settings.dailyNotesFolder = value;
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(container)
-			.setName('Daily note template')
-			.setDesc('Path to template file for daily notes (leave empty to use built-in template). Supports Obsidian template variables like {{title}}, {{date}}, {{date:format}}, {{time}}, etc.')
-			.addText(text => {
-				text.inputEl.setAttribute('aria-label', 'Daily note template file path');
-				return text
-					.setPlaceholder('Templates/Daily Note Template.md')
-					.setValue(this.plugin.settings.dailyNoteTemplate)
-					.onChange(async (value) => {
-						this.plugin.settings.dailyNoteTemplate = value;
-						await this.plugin.saveSettings();
-					});
-			});
-	}
 	
 	private renderPomodoroTab(): void {
 		const container = this.tabContents['pomodoro'];

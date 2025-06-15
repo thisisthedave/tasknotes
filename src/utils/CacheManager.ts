@@ -6,6 +6,10 @@ import { YAMLCache } from './YAMLCache';
 import * as YAML from 'yaml';
 import { format } from 'date-fns';
 import { 
+    getAllDailyNotes, 
+    getDailyNote 
+} from 'obsidian-daily-notes-interface';
+import { 
     parseDate, 
     getTodayString, 
     isBeforeDateSafe, 
@@ -47,8 +51,6 @@ export class CacheManager {
     // Configuration
     private taskTag: string;
     private excludedFolders: string[];
-    private dailyNotesPath: string;
-    private dailyNoteTemplatePath: string;
     private fieldMapper: FieldMapper | null = null;
     
     // Cache settings
@@ -95,8 +97,6 @@ export class CacheManager {
         vault: Vault, 
         taskTag: string, 
         excludedFolders: string = '', 
-        dailyNotesPath: string = '', 
-        dailyNoteTemplatePath: string = '', 
         fieldMapper?: FieldMapper
     ) {
         this.vault = vault;
@@ -104,8 +104,6 @@ export class CacheManager {
         this.excludedFolders = excludedFolders 
             ? excludedFolders.split(',').map(folder => folder.trim())
             : [];
-        this.dailyNotesPath = normalizePath(dailyNotesPath);
-        this.dailyNoteTemplatePath = dailyNoteTemplatePath;
         this.fieldMapper = fieldMapper || null;
         
         this.registerFileEvents();
@@ -534,6 +532,9 @@ export class CacheManager {
         // Clear existing caches
         this.clearAllCaches();
         
+        // Initialize daily notes cache from core plugin
+        this.initializeDailyNotesCache();
+        
         // Get all markdown files
         const files = this.vault.getMarkdownFiles();
         
@@ -557,6 +558,50 @@ export class CacheManager {
             noteCount: this.noteInfoCache.size,
             duration: end - start
         });
+    }
+    
+    /**
+     * Initialize daily notes cache from core plugin
+     */
+    private initializeDailyNotesCache(): void {
+        try {
+            // Get all daily notes from the core plugin
+            const allDailyNotes = getAllDailyNotes();
+            
+            // Clear existing daily notes cache
+            this.dailyNotes.clear();
+            
+            // Debug: Log the first few entries to understand the format
+            const entries = Object.entries(allDailyNotes);
+            if (entries.length > 0) {
+                console.log('Sample daily note entries:', entries.slice(0, 3));
+            }
+            
+            // Populate daily notes cache
+            for (const [dateUID, file] of entries) {
+                // The dateUID format can be:
+                // - "YYYY-MM-DD" 
+                // - "day-YYYY-MM-DD"
+                // - "day-YYYY-MM-DDTHH:mm:ss+TZ" (ISO datetime)
+                let dateStr = dateUID;
+                if (dateUID.startsWith('day-')) {
+                    dateStr = dateUID.replace('day-', '');
+                }
+                
+                // Extract just the date part if it's an ISO datetime
+                if (dateStr.includes('T')) {
+                    dateStr = dateStr.split('T')[0];
+                }
+                
+                this.dailyNotes.add(dateStr);
+            }
+            
+            console.log(`Daily notes cache initialized with ${this.dailyNotes.size} notes`);
+            console.log('Parsed daily note dates:', Array.from(this.dailyNotes).slice(0, 5));
+        } catch (error) {
+            // Daily Notes interface not available, skip initialization
+            console.warn('Daily Notes interface not available, skipping daily notes cache initialization:', error);
+        }
     }
     
     /**
@@ -740,20 +785,31 @@ export class CacheManager {
      * Update daily notes index
      */
     private updateDailyNotesIndex(path: string): void {
-        const normalizedPath = normalizePath(this.dailyNotesPath);
-        
-        // Check if this file is in the daily notes folder with correct format
-        const isInDailyNotesFolder = 
-            path.startsWith(normalizedPath + '/') || 
-            path === normalizedPath ||
-            (normalizedPath === '' && !path.includes('/'));
-        
-        const fileName = path.split('/').pop() || '';
-        const hasCorrectFormat = /^\d{4}-\d{2}-\d{2}\.md$/.test(fileName);
-        
-        if (isInDailyNotesFolder && hasCorrectFormat) {
-            const dateStr = fileName.replace('.md', '');
-            this.dailyNotes.add(dateStr);
+        try {
+            // Get all daily notes from the core plugin
+            const allDailyNotes = getAllDailyNotes();
+            
+            // Check if this file path is one of the daily notes
+            for (const [dateUID, file] of Object.entries(allDailyNotes)) {
+                if (file.path === path) {
+                    // Extract date from dateUID
+                    let dateStr = dateUID;
+                    if (dateUID.startsWith('day-')) {
+                        dateStr = dateUID.replace('day-', '');
+                    }
+                    
+                    // Extract just the date part if it's an ISO datetime
+                    if (dateStr.includes('T')) {
+                        dateStr = dateStr.split('T')[0];
+                    }
+                    
+                    this.dailyNotes.add(dateStr);
+                    break;
+                }
+            }
+        } catch (error) {
+            // Fallback: if daily notes interface fails, skip daily notes detection
+            console.warn('Daily Notes interface not available, skipping daily notes indexing for', path);
         }
     }
     
@@ -885,10 +941,32 @@ export class CacheManager {
         }
         
         // Remove from daily notes if applicable (this doesn't need old data)
-        const fileName = path.split('/').pop() || '';
-        if (/^\d{4}-\d{2}-\d{2}\.md$/.test(fileName)) {
-            const dateStr = fileName.replace('.md', '');
-            this.dailyNotes.delete(dateStr);
+        try {
+            const allDailyNotes = getAllDailyNotes();
+            for (const [dateUID, file] of Object.entries(allDailyNotes)) {
+                if (file.path === path) {
+                    // Extract date from dateUID
+                    let dateStr = dateUID;
+                    if (dateUID.startsWith('day-')) {
+                        dateStr = dateUID.replace('day-', '');
+                    }
+                    
+                    // Extract just the date part if it's an ISO datetime
+                    if (dateStr.includes('T')) {
+                        dateStr = dateStr.split('T')[0];
+                    }
+                    
+                    this.dailyNotes.delete(dateStr);
+                    break;
+                }
+            }
+        } catch (error) {
+            // Fallback: try to detect if it was a daily note by filename pattern
+            const fileName = path.split('/').pop() || '';
+            if (/^\d{4}-\d{2}-\d{2}\.md$/.test(fileName)) {
+                const dateStr = fileName.replace('.md', '');
+                this.dailyNotes.delete(dateStr);
+            }
         }
     }
     
@@ -1161,10 +1239,6 @@ export class CacheManager {
      * Check if a file path is excluded
      */
     private isExcluded(path: string): boolean {
-        if (this.dailyNoteTemplatePath && path === this.dailyNoteTemplatePath) {
-            return true;
-        }
-        
         return this.excludedFolders.some(folder => 
             folder && path.startsWith(folder)
         );
@@ -1176,8 +1250,6 @@ export class CacheManager {
     updateConfig(
         taskTag?: string,
         excludedFolders?: string,
-        dailyNotesPath?: string,
-        dailyNoteTemplatePath?: string,
         fieldMapper?: FieldMapper
     ): void {
         if (taskTag !== undefined) this.taskTag = taskTag;
@@ -1186,12 +1258,6 @@ export class CacheManager {
                 ? excludedFolders.split(',').map(folder => folder.trim())
                 : [];
         }
-        if (dailyNotesPath !== undefined) {
-            this.dailyNotesPath = normalizePath(dailyNotesPath);
-        }
-        if (dailyNoteTemplatePath !== undefined) {
-            this.dailyNoteTemplatePath = dailyNoteTemplatePath;
-        }
         if (fieldMapper !== undefined) {
             this.fieldMapper = fieldMapper;
         }
@@ -1199,16 +1265,18 @@ export class CacheManager {
     
     /**
      * Update daily note template path (for backward compatibility)
+     * Note: This method is now deprecated since we use core daily notes plugin
      */
     updateDailyNoteTemplatePath(newPath: string): void {
-        this.updateConfig(undefined, undefined, undefined, newPath, undefined);
+        // No-op since we no longer manage daily note templates
+        console.warn('updateDailyNoteTemplatePath is deprecated - daily notes now use core plugin templates');
     }
     
     /**
      * Update field mapper (for backward compatibility)
      */
     updateFieldMapper(fieldMapper: FieldMapper): void {
-        this.updateConfig(undefined, undefined, undefined, undefined, fieldMapper);
+        this.updateConfig(undefined, undefined, fieldMapper);
     }
     
     /**
@@ -1312,34 +1380,26 @@ export class CacheManager {
     async rebuildDailyNotesCache(year: number, month: number): Promise<Set<string>> {
         const dailyNotesForMonth = new Set<string>();
         
-        // Get all files and filter for daily notes in the specified month
-        const allFiles = this.vault.getMarkdownFiles();
-        const normalizedPath = normalizePath(this.dailyNotesPath);
-        
-        for (const file of allFiles) {
-            const path = file.path;
+        try {
+            // Refresh the entire daily notes cache first
+            this.initializeDailyNotesCache();
             
-            // Check if this file is in the daily notes folder
-            const isInDailyNotesFolder = 
-                path.startsWith(normalizedPath + '/') || 
-                path === normalizedPath ||
-                (normalizedPath === '' && !path.includes('/'));
-            
-            if (!isInDailyNotesFolder) continue;
-            
-            const fileName = path.split('/').pop() || '';
-            const dateMatch = fileName.match(/^(\d{4})-(\d{2})-(\d{2})\.md$/);
-            
-            if (dateMatch) {
-                const fileYear = parseInt(dateMatch[1]);
-                const fileMonth = parseInt(dateMatch[2]) - 1; // JavaScript months are 0-indexed
-                
-                if (fileYear === year && fileMonth === month) {
-                    const dateStr = `${fileYear}-${String(fileMonth + 1).padStart(2, '0')}-${dateMatch[3]}`;
-                    dailyNotesForMonth.add(dateStr);
-                    this.dailyNotes.add(dateStr);
+            // Filter for the specific month
+            this.dailyNotes.forEach(dateStr => {
+                const dateParts = dateStr.split('-');
+                if (dateParts.length === 3) {
+                    const fileYear = parseInt(dateParts[0]);
+                    const fileMonth = parseInt(dateParts[1]) - 1; // JavaScript months are 0-indexed
+                    
+                    if (fileYear === year && fileMonth === month) {
+                        dailyNotesForMonth.add(dateStr);
+                    }
                 }
-            }
+            });
+            
+            console.log(`Rebuilt daily notes cache for ${year}-${month + 1}: found ${dailyNotesForMonth.size} notes`);
+        } catch (error) {
+            console.warn('Daily Notes interface not available, skipping daily notes cache rebuild');
         }
         
         return dailyNotesForMonth;

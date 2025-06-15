@@ -3,6 +3,7 @@ import { TFile } from 'obsidian';
 import { NoteInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { formatDateForDisplay } from '../utils/dateUtils';
+import { getAllDailyNotes } from 'obsidian-daily-notes-interface';
 
 export interface NoteCardOptions {
     showCreatedDate: boolean;
@@ -27,7 +28,15 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
     const opts = { ...DEFAULT_NOTE_CARD_OPTIONS, ...options };
     
     const item = document.createElement('div');
-    const isDailyNote = note.path.startsWith(plugin.settings.dailyNotesFolder);
+    // Check if this is a daily note using the core plugin
+    let isDailyNote = false;
+    try {
+        const allDailyNotes = getAllDailyNotes();
+        isDailyNote = Object.values(allDailyNotes).some(file => file.path === note.path);
+    } catch (error) {
+        // Daily Notes interface not available, fallback to false
+        isDailyNote = false;
+    }
     
     // Build BEM class names
     const cardClasses = ['note-card'];
@@ -131,7 +140,15 @@ export function updateNoteCard(element: HTMLElement, note: NoteInfo, plugin: Tas
     const opts = { ...DEFAULT_NOTE_CARD_OPTIONS, ...options };
     
     // Update main element classes using BEM structure
-    const isDailyNote = note.path.startsWith(plugin.settings.dailyNotesFolder);
+    // Check if this is a daily note using the core plugin
+    let isDailyNote = false;
+    try {
+        const allDailyNotes = getAllDailyNotes();
+        isDailyNote = Object.values(allDailyNotes).some(file => file.path === note.path);
+    } catch (error) {
+        // Daily Notes interface not available, fallback to false
+        isDailyNote = false;
+    }
     
     // Build BEM class names for update
     const cardClasses = ['note-card'];
