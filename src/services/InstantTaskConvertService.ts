@@ -210,6 +210,10 @@ export class InstantTaskConvertService {
         // Sanitize and validate input data
         const title = this.sanitizeTitle(parsedData.title) || 'Untitled Task';
         
+        // Capture parent note information (current active file)
+        const currentFile = this.plugin.app.workspace.getActiveFile();
+        const parentNote = currentFile ? currentFile.basename : '';
+        
         // Parse due and scheduled dates from task (if present)
         const parsedDueDate = this.sanitizeDate(parsedData.dueDate);
         const parsedScheduledDate = this.sanitizeDate(parsedData.scheduledDate);
@@ -289,6 +293,7 @@ export class InstantTaskConvertService {
             timeEstimate: timeEstimate,
             recurrence: recurrence,
             details: details, // Use provided details from selection
+            parentNote: parentNote, // Include parent note for template variable
             dateCreated: getCurrentTimestamp(),
             dateModified: getCurrentTimestamp()
         };

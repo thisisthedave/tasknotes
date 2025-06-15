@@ -5,10 +5,12 @@ import TaskNotesPlugin from '../main';
 import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED, EVENT_TASK_DELETED } from '../types';
 import { getCurrentTimestamp, getCurrentDateString } from '../utils/dateUtils';
 import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
-import { ensureFolderExists, generateTaskBodyFromTemplate } from '../utils/helpers';
+import { ensureFolderExists } from '../utils/helpers';
+import { processTemplate, mergeTemplateFrontmatter, TemplateData } from '../utils/templateProcessor';
 
 export interface TaskCreationData extends Partial<TaskInfo> {
     details?: string; // Optional details/description for file content
+    parentNote?: string; // Optional parent note name/path for template variable
 }
 
 export class TaskService {
@@ -88,24 +90,34 @@ export class TaskService {
             // Tags are handled separately (not via field mapper)
             frontmatter.tags = tagsArray;
 
-            // Apply body template (which handles both template processing and details)
-            const bodyContent = await this.applyBodyTemplate(taskData);
+            // Apply template processing (both frontmatter and body)
+            const templateResult = await this.applyTemplate(taskData);
+            
+            // Merge template frontmatter with base frontmatter
+            // Template frontmatter takes precedence over base frontmatter
+            const finalFrontmatter = mergeTemplateFrontmatter(frontmatter, templateResult.frontmatter);
             
             // Prepare file content
-            const yamlHeader = YAML.stringify(frontmatter);
+            const yamlHeader = YAML.stringify(finalFrontmatter);
             let content = `---\n${yamlHeader}---\n\n`;
             
             // Add processed body content if any
-            if (bodyContent && bodyContent.trim()) {
-                content += `${bodyContent.trim()}\n\n`;
+            if (templateResult.body && templateResult.body.trim()) {
+                content += `${templateResult.body.trim()}\n\n`;
             }
 
             // Create the file
             const file = await this.plugin.app.vault.create(fullPath, content);
 
             // Create final TaskInfo object for cache and events
+            // Ensure required fields are present by using the complete task data as base
             const taskInfo: TaskInfo = {
-                ...frontmatter,
+                ...completeTaskData,
+                ...finalFrontmatter,
+                // Ensure required fields are always defined
+                title: finalFrontmatter.title || completeTaskData.title || title,
+                status: finalFrontmatter.status || completeTaskData.status || status,
+                priority: finalFrontmatter.priority || completeTaskData.priority || priority,
                 path: file.path,
                 tags: tagsArray,
                 archived: false
@@ -134,15 +146,18 @@ export class TaskService {
     }
 
     /**
-     * Apply body template to task content if enabled in settings
+     * Apply template to task (both frontmatter and body) if enabled in settings
      */
-    private async applyBodyTemplate(taskData: TaskCreationData): Promise<string> {
+    private async applyTemplate(taskData: TaskCreationData): Promise<{ frontmatter: Record<string, any>; body: string }> {
         const defaults = this.plugin.settings.taskCreationDefaults;
         
         // Check if body template is enabled and configured
         if (!defaults.useBodyTemplate || !defaults.bodyTemplate?.trim()) {
-            // No template configured, return details as-is or empty string
-            return taskData.details?.trim() || '';
+            // No template configured, return empty frontmatter and details as body
+            return {
+                frontmatter: {},
+                body: taskData.details?.trim() || ''
+            };
         }
         
         try {
@@ -158,7 +173,7 @@ export class TaskService {
                 const templateContent = await this.plugin.app.vault.read(templateFile);
                 
                 // Prepare task data for template variables (with all final values)
-                const templateTaskData = {
+                const templateTaskData: TemplateData = {
                     title: taskData.title || '',
                     priority: taskData.priority || '',
                     status: taskData.status || '',
@@ -167,21 +182,29 @@ export class TaskService {
                     timeEstimate: taskData.timeEstimate || 0,
                     dueDate: taskData.due || '',
                     scheduledDate: taskData.scheduled || '',
-                    details: taskData.details || '' // Include user's details for {{details}} variable
+                    details: taskData.details || '',
+                    parentNote: taskData.parentNote || ''
                 };
                 
-                return generateTaskBodyFromTemplate(templateContent, templateTaskData);
+                // Process the complete template (frontmatter + body)
+                return processTemplate(templateContent, templateTaskData);
             } else {
                 // Template file not found, log error and return details as-is
                 console.warn(`Task body template not found: ${templatePath}`);
                 new Notice(`Task body template not found: ${templatePath}`);
-                return taskData.details?.trim() || '';
+                return {
+                    frontmatter: {},
+                    body: taskData.details?.trim() || ''
+                };
             }
         } catch (error) {
             // Error reading template, log error and return details as-is
             console.error('Error reading task body template:', error);
             new Notice(`Error reading task body template: ${defaults.bodyTemplate}`);
-            return taskData.details?.trim() || '';
+            return {
+                frontmatter: {},
+                body: taskData.details?.trim() || ''
+            };
         }
     }
 

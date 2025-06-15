@@ -208,6 +208,9 @@ function processTaskTemplateVariables(template: string, taskData: any): string {
 	// {{details}} - User-provided details/description
 	result = result.replace(/\{\{details\}\}/g, taskData.details || '');
 	
+	// {{parentNote}} - Parent note name/path where task was created
+	result = result.replace(/\{\{parentNote\}\}/g, taskData.parentNote || '');
+	
 	// {{date}} - Current date (basic format only)
 	result = result.replace(/\{\{date\}\}/g, format(now, 'yyyy-MM-dd'));
 	

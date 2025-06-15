@@ -19,7 +19,8 @@ import {
     TaskInfo,
     TimeEntry,
     FilterQuery,
-    CalendarViewPreferences
+    CalendarViewPreferences,
+    ICSEvent
 } from '../types';
 import { TaskCreationModal } from '../modals/TaskCreationModal';
 import { TaskEditModal } from '../modals/TaskEditModal';
@@ -49,12 +50,14 @@ interface CalendarEvent {
     borderColor?: string;
     textColor?: string;
     extendedProps: {
-        taskInfo: TaskInfo;
-        eventType: 'scheduled' | 'due' | 'timeEntry' | 'recurring';
+        taskInfo?: TaskInfo;
+        icsEvent?: ICSEvent;
+        eventType: 'scheduled' | 'due' | 'timeEntry' | 'recurring' | 'ics';
         isCompleted?: boolean;
         isRecurringInstance?: boolean;
         instanceDate?: string; // YYYY-MM-DD for this specific occurrence
         recurringTemplateTime?: string; // Original scheduled time
+        subscriptionName?: string; // For ICS events
     };
 }
 
@@ -72,6 +75,7 @@ export class AdvancedCalendarView extends ItemView {
     private showDue: boolean;
     private showTimeEntries: boolean;
     private showRecurring: boolean;
+    private showICSEvents: boolean;
     
     // Mobile collapsible header state
     private headerCollapsed: boolean = true;
@@ -85,6 +89,7 @@ export class AdvancedCalendarView extends ItemView {
         this.showDue = this.plugin.settings.calendarViewSettings.defaultShowDue;
         this.showTimeEntries = this.plugin.settings.calendarViewSettings.defaultShowTimeEntries;
         this.showRecurring = this.plugin.settings.calendarViewSettings.defaultShowRecurring;
+        this.showICSEvents = this.plugin.settings.calendarViewSettings.defaultShowICSEvents;
         
         // Initialize with default filter query
         this.currentQuery = {
@@ -130,6 +135,7 @@ export class AdvancedCalendarView extends ItemView {
             this.showDue = savedPreferences.showDue;
             this.showTimeEntries = savedPreferences.showTimeEntries;
             this.showRecurring = savedPreferences.showRecurring;
+            this.showICSEvents = savedPreferences.showICSEvents ?? this.plugin.settings.calendarViewSettings.defaultShowICSEvents;
             this.headerCollapsed = savedPreferences.headerCollapsed ?? true;
         }
         
@@ -271,6 +277,18 @@ export class AdvancedCalendarView extends ItemView {
             this.showRecurring,
             (enabled) => {
                 this.showRecurring = enabled;
+                this.saveViewPreferences();
+                this.refreshEvents();
+            }
+        );
+        
+        // ICS Events toggle
+        const icsToggle = this.createToggle(
+            toggles,
+            'Calendar subscriptions',
+            this.showICSEvents,
+            (enabled) => {
+                this.showICSEvents = enabled;
                 this.saveViewPreferences();
                 this.refreshEvents();
             }
@@ -440,6 +458,7 @@ export class AdvancedCalendarView extends ItemView {
             showDue: this.showDue,
             showTimeEntries: this.showTimeEntries,
             showRecurring: this.showRecurring,
+            showICSEvents: this.showICSEvents,
             headerCollapsed: this.headerCollapsed
         };
         this.plugin.viewStateManager.setViewPreferences(ADVANCED_CALENDAR_VIEW_TYPE, preferences);
@@ -513,6 +532,17 @@ export class AdvancedCalendarView extends ItemView {
                 if (this.showTimeEntries && task.timeEntries) {
                     const timeEvents = this.createTimeEntryEvents(task);
                     events.push(...timeEvents);
+                }
+            }
+
+            // Add ICS events
+            if (this.showICSEvents && this.plugin.icsSubscriptionService) {
+                const icsEvents = this.plugin.icsSubscriptionService.getAllEvents();
+                for (const icsEvent of icsEvents) {
+                    const calendarEvent = this.createICSEvent(icsEvent);
+                    if (calendarEvent) {
+                        events.push(calendarEvent);
+                    }
                 }
             }
         } catch (error) {
@@ -636,6 +666,40 @@ export class AdvancedCalendarView extends ItemView {
                     isCompleted: isCompleted
                 }
             }));
+    }
+
+    createICSEvent(icsEvent: ICSEvent): CalendarEvent | null {
+        try {
+            // Get subscription info for styling
+            const subscription = this.plugin.icsSubscriptionService.getSubscriptions()
+                .find(sub => sub.id === icsEvent.subscriptionId);
+            
+            if (!subscription || !subscription.enabled) {
+                return null;
+            }
+
+            const backgroundColor = this.hexToRgba(subscription.color, 0.2);
+            const borderColor = subscription.color;
+
+            return {
+                id: icsEvent.id,
+                title: icsEvent.title,
+                start: icsEvent.start,
+                end: icsEvent.end,
+                allDay: icsEvent.allDay,
+                backgroundColor: backgroundColor,
+                borderColor: borderColor,
+                textColor: borderColor,
+                extendedProps: {
+                    icsEvent: icsEvent,
+                    eventType: 'ics',
+                    subscriptionName: subscription.name
+                }
+            };
+        } catch (error) {
+            console.error('Error creating ICS event:', error);
+            return null;
+        }
     }
 
     generateRecurringInstances(task: TaskInfo, startDate: Date, endDate: Date): CalendarEvent[] {
@@ -787,11 +851,17 @@ export class AdvancedCalendarView extends ItemView {
     }
 
     handleEventClick(clickInfo: any) {
-        const { taskInfo, eventType, isRecurringInstance } = clickInfo.event.extendedProps;
+        const { taskInfo, icsEvent, eventType, isRecurringInstance, subscriptionName } = clickInfo.event.extendedProps;
         const jsEvent = clickInfo.jsEvent;
         
         if (eventType === 'timeEntry') {
             // Time entries are read-only, just show info
+            return;
+        }
+        
+        if (eventType === 'ics') {
+            // ICS events are read-only, show info modal
+            this.showICSEventInfo(icsEvent, subscriptionName);
             return;
         }
         
@@ -812,8 +882,8 @@ export class AdvancedCalendarView extends ItemView {
     async handleEventDrop(dropInfo: any) {
         const { taskInfo, eventType, isRecurringInstance, recurringTemplateTime } = dropInfo.event.extendedProps;
         
-        if (eventType === 'timeEntry') {
-            // Time entries cannot be moved
+        if (eventType === 'timeEntry' || eventType === 'ics') {
+            // Time entries and ICS events cannot be moved
             dropInfo.revert();
             return;
         }
@@ -857,7 +927,7 @@ export class AdvancedCalendarView extends ItemView {
         const { taskInfo, eventType } = resizeInfo.event.extendedProps;
         
         if (eventType !== 'scheduled') {
-            // Only scheduled events can be resized
+            // Only scheduled events can be resized (not timeEntry, ics, due, or recurring)
             resizeInfo.revert();
             return;
         }
@@ -970,8 +1040,29 @@ export class AdvancedCalendarView extends ItemView {
             return;
         }
         
-        const { taskInfo, eventType, isCompleted, isRecurringInstance, instanceDate } = arg.event.extendedProps;
+        const { taskInfo, icsEvent, eventType, isCompleted, isRecurringInstance, instanceDate, subscriptionName } = arg.event.extendedProps;
         
+        // Handle ICS events differently
+        if (eventType === 'ics') {
+            // Add visual styling for ICS events
+            arg.el.style.borderStyle = 'solid';
+            arg.el.style.borderWidth = '2px';
+            arg.el.setAttribute('data-ics-event', 'true');
+            arg.el.setAttribute('data-subscription', subscriptionName || 'Unknown');
+            
+            // Add tooltip with subscription name
+            arg.el.title = `${icsEvent?.title || 'Event'} (from ${subscriptionName || 'Calendar subscription'})`;
+            
+            // Add context menu for ICS events
+            arg.el.addEventListener("contextmenu", (jsEvent: MouseEvent) => {
+                jsEvent.preventDefault();
+                jsEvent.stopPropagation();
+                this.showICSEventContextMenu(jsEvent, icsEvent, subscriptionName);
+            });
+            return;
+        }
+        
+        // Handle task events
         if (!taskInfo || !taskInfo.path) {
             return;
         }
@@ -1040,6 +1131,14 @@ export class AdvancedCalendarView extends ItemView {
             this.refreshEvents();
         });
         this.listeners.push(filterDataListener);
+        
+        // Listen for ICS subscription changes
+        if (this.plugin.icsSubscriptionService) {
+            const icsDataListener = this.plugin.icsSubscriptionService.on('data-changed', () => {
+                this.refreshEvents();
+            });
+            this.listeners.push(icsDataListener);
+        }
     }
 
     async refreshEvents() {
@@ -1066,5 +1165,175 @@ export class AdvancedCalendarView extends ItemView {
         
         // Clean up
         this.contentEl.empty();
+    }
+
+    private showICSEventInfo(icsEvent: ICSEvent, subscriptionName?: string): void {
+        const modal = document.createElement('div');
+        modal.className = 'modal-container';
+        
+        const modalBg = modal.createDiv('modal-bg');
+        const modalContent = modal.createDiv('modal');
+        
+        modalContent.createDiv('modal-title').textContent = 'Calendar Event Details';
+        
+        const content = modalContent.createDiv('modal-content');
+        
+        // Event title
+        const titleSection = content.createDiv();
+        titleSection.createEl('strong', { text: 'Title: ' });
+        titleSection.createSpan({ text: icsEvent.title || 'Untitled Event' });
+        
+        // Subscription source
+        if (subscriptionName) {
+            const sourceSection = content.createDiv();
+            sourceSection.createEl('strong', { text: 'Source: ' });
+            sourceSection.createSpan({ text: subscriptionName });
+        }
+        
+        // Date/time
+        const dateSection = content.createDiv();
+        dateSection.createEl('strong', { text: 'Date: ' });
+        const startDate = new Date(icsEvent.start);
+        let dateText = startDate.toLocaleDateString();
+        if (!icsEvent.allDay) {
+            dateText += ` at ${startDate.toLocaleTimeString()}`;
+            if (icsEvent.end) {
+                const endDate = new Date(icsEvent.end);
+                dateText += ` - ${endDate.toLocaleTimeString()}`;
+            }
+        } else if (icsEvent.end) {
+            const endDate = new Date(icsEvent.end);
+            const endDateStr = endDate.toLocaleDateString();
+            if (endDateStr !== dateText) {
+                dateText += ` - ${endDateStr}`;
+            }
+        }
+        dateSection.createSpan({ text: dateText });
+        
+        // Description
+        if (icsEvent.description) {
+            const descSection = content.createDiv();
+            descSection.createEl('strong', { text: 'Description: ' });
+            const descEl = descSection.createDiv({ cls: 'ics-event-description' });
+            descEl.textContent = icsEvent.description;
+        }
+        
+        // Location
+        if (icsEvent.location) {
+            const locationSection = content.createDiv();
+            locationSection.createEl('strong', { text: 'Location: ' });
+            locationSection.createSpan({ text: icsEvent.location });
+        }
+        
+        // URL
+        if (icsEvent.url) {
+            const urlSection = content.createDiv();
+            urlSection.createEl('strong', { text: 'URL: ' });
+            const linkEl = urlSection.createEl('a', {
+                href: icsEvent.url,
+                text: icsEvent.url,
+                cls: 'external-link'
+            });
+            linkEl.setAttribute('target', '_blank');
+        }
+        
+        // Close button
+        const buttonContainer = modalContent.createDiv('modal-button-container');
+        const closeButton = buttonContainer.createEl('button', { text: 'Close' });
+        
+        document.body.appendChild(modal);
+        
+        const handleClose = () => {
+            modal.remove();
+        };
+        
+        closeButton.addEventListener('click', handleClose);
+        modalBg.addEventListener('click', handleClose);
+        
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                handleClose();
+            }
+        });
+        
+        setTimeout(() => closeButton.focus(), 50);
+    }
+
+    private showICSEventContextMenu(jsEvent: MouseEvent, icsEvent: ICSEvent, subscriptionName?: string): void {
+        // Simple context menu with limited options
+        const menu = document.createElement('div');
+        menu.className = 'ics-event-context-menu';
+        menu.style.position = 'fixed';
+        menu.style.left = jsEvent.clientX + 'px';
+        menu.style.top = jsEvent.clientY + 'px';
+        menu.style.zIndex = '10000';
+        menu.style.backgroundColor = 'var(--background-primary)';
+        menu.style.border = '1px solid var(--background-modifier-border)';
+        menu.style.borderRadius = '4px';
+        menu.style.padding = '4px 0';
+        menu.style.minWidth = '120px';
+        menu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+        
+        // Show details option
+        const showDetailsItem = menu.createDiv();
+        showDetailsItem.className = 'ics-context-menu-item';
+        showDetailsItem.style.padding = '6px 12px';
+        showDetailsItem.style.cursor = 'pointer';
+        showDetailsItem.textContent = 'Show details';
+        showDetailsItem.addEventListener('click', () => {
+            this.showICSEventInfo(icsEvent, subscriptionName);
+            menu.remove();
+        });
+        
+        // Copy title option
+        const copyTitleItem = menu.createDiv();
+        copyTitleItem.className = 'ics-context-menu-item';
+        copyTitleItem.style.padding = '6px 12px';
+        copyTitleItem.style.cursor = 'pointer';
+        copyTitleItem.textContent = 'Copy title';
+        copyTitleItem.addEventListener('click', () => {
+            navigator.clipboard.writeText(icsEvent.title);
+            new Notice('Event title copied to clipboard');
+            menu.remove();
+        });
+        
+        // Copy URL option (if available)
+        if (icsEvent.url) {
+            const copyUrlItem = menu.createDiv();
+            copyUrlItem.className = 'ics-context-menu-item';
+            copyUrlItem.style.padding = '6px 12px';
+            copyUrlItem.style.cursor = 'pointer';
+            copyUrlItem.textContent = 'Copy URL';
+            copyUrlItem.addEventListener('click', () => {
+                navigator.clipboard.writeText(icsEvent.url!);
+                new Notice('Event URL copied to clipboard');
+                menu.remove();
+            });
+        }
+        
+        document.body.appendChild(menu);
+        
+        // Handle menu item hover effects
+        const menuItems = menu.querySelectorAll('.ics-context-menu-item');
+        menuItems.forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                (item as HTMLElement).style.backgroundColor = 'var(--background-modifier-hover)';
+            });
+            item.addEventListener('mouseleave', () => {
+                (item as HTMLElement).style.backgroundColor = 'transparent';
+            });
+        });
+        
+        // Close menu when clicking outside
+        const closeMenu = (e: MouseEvent) => {
+            if (!menu.contains(e.target as Node)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 0);
     }
 }

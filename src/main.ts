@@ -62,6 +62,7 @@ import { ViewStateManager } from './services/ViewStateManager';
 import { TasksPluginParser } from './utils/TasksPluginParser';
 import { createTaskLinkOverlay, dispatchTaskUpdate } from './editor/TaskLinkOverlay';
 import { DragDropManager } from './utils/DragDropManager';
+import { ICSSubscriptionService } from './services/ICSSubscriptionService';
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -104,6 +105,9 @@ export default class TaskNotesPlugin extends Plugin {
 	
 	// Drag and drop manager
 	dragDropManager: DragDropManager;
+	
+	// ICS subscription service
+	icsSubscriptionService: ICSSubscriptionService;
 	
 	// Event listener cleanup
 	private taskUpdateListenerForEditor: (() => void) | null = null;
@@ -170,6 +174,10 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		// Initialize drag and drop manager
 		this.dragDropManager = new DragDropManager(this);
+		
+		// Initialize ICS subscription service
+		this.icsSubscriptionService = new ICSSubscriptionService(this);
+		await this.icsSubscriptionService.initialize();
 		
 		// Inject dynamic styles for custom statuses and priorities
 		this.injectCustomStyles();
@@ -326,6 +334,11 @@ export default class TaskNotesPlugin extends Plugin {
 		// Clean up FilterService
 		if (this.filterService) {
 			this.filterService.cleanup();
+		}
+		
+		// Clean up ICS subscription service
+		if (this.icsSubscriptionService) {
+			this.icsSubscriptionService.destroy();
 		}
 		
 		// Clean up TaskLinkDetectionService

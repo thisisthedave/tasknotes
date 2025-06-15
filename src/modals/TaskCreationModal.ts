@@ -6,7 +6,7 @@ import { MINI_CALENDAR_VIEW_TYPE, TaskInfo } from '../types';
 import { ParsedTaskData } from '../utils/TasksPluginParser';
 import { getCurrentTimestamp, hasTimeComponent, getDatePart, getTimePart } from '../utils/dateUtils';
 import { generateTaskFilename, FilenameContext } from '../utils/filenameGenerator';
-import { generateTaskBodyFromTemplate, calculateDefaultDate } from '../utils/helpers';
+import { calculateDefaultDate } from '../utils/helpers';
 
 export interface TaskConversionOptions {
 	parsedData?: ParsedTaskData;
@@ -481,6 +481,9 @@ export class TaskCreationModal extends BaseTaskModal {
 		// Add task tag
 		tagsArray.unshift(this.plugin.settings.taskTag);
 
+		// For manual task creation, don't associate with any parent note
+		const parentNote = '';
+
 		// Create TaskCreationData object with all the data
 		const taskData: import('../services/TaskService').TaskCreationData = {
 			title: this.title,
@@ -492,6 +495,7 @@ export class TaskCreationModal extends BaseTaskModal {
 			tags: tagsArray,
 			timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
 			details: this.details && this.details.trim() ? this.details.trim() : undefined,
+			parentNote: parentNote, // Include parent note for template variable
 			dateCreated: getCurrentTimestamp(),
 			dateModified: getCurrentTimestamp()
 		};

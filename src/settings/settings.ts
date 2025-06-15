@@ -72,6 +72,7 @@ export interface CalendarViewSettings {
 	defaultShowDue: boolean;
 	defaultShowTimeEntries: boolean;
 	defaultShowRecurring: boolean;
+	defaultShowICSEvents: boolean;
 	// Calendar behavior
 	nowIndicator: boolean;
 	selectMirror: boolean;
@@ -195,6 +196,7 @@ export const DEFAULT_CALENDAR_VIEW_SETTINGS: CalendarViewSettings = {
 	defaultShowDue: true,
 	defaultShowTimeEntries: false,
 	defaultShowRecurring: true,
+	defaultShowICSEvents: true,
 	// Calendar behavior
 	nowIndicator: true,
 	selectMirror: true,
@@ -705,9 +707,10 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		helpList.createEl('li', { text: '{{timeEstimate}} - Time estimate in minutes' });
 		helpList.createEl('li', { text: '{{dueDate}} - Task due date' });
 		helpList.createEl('li', { text: '{{scheduledDate}} - Task scheduled date' });
+		helpList.createEl('li', { text: '{{parentNote}} - Parent note name (only for instant convert)' });
 		
 		helpContainer.createEl('p', { 
-			text: 'Template is applied when the task is created with all final values from the form. Use {{details}} to include user content from the Details field. Variables use the same format as daily note templates.',
+			text: 'Template is applied when the task is created with all final values from the form. Use {{details}} to include user content from the Details field.\n{{parentNote}} will resolve to the name of the note where a checkbox task was converted to a tasknote (empty for manually created tasks). Variables use the same format as daily note templates.',
 			cls: 'settings-help-note'
 		});
 	}
@@ -929,6 +932,19 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					});
 			});
 
+		new Setting(container)
+			.setName('Show ICS events')
+			.setDesc('Display events from ICS subscriptions by default')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Show ICS events by default');
+				return toggle
+					.setValue(this.plugin.settings.calendarViewSettings.defaultShowICSEvents)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.defaultShowICSEvents = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
 		// Calendar behavior section
 		new Setting(container).setName('Calendar behavior').setHeading();
 
@@ -957,6 +973,172 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
+		// ICS Calendar Subscriptions section
+		new Setting(container).setName('Calendar subscriptions').setHeading();
+		
+		// Description section
+		container.createEl('p', { 
+			text: 'Subscribe to external calendar feeds (ICS/iCal format) to display events alongside your tasks.',
+			cls: 'settings-help-note'
+		});
+		
+		// Subscription list
+		const subscriptionList = container.createDiv('settings-list settings-view__list');
+		this.renderSubscriptionList(subscriptionList);
+		
+		// Add subscription form
+		new Setting(container)
+			.setName('Add calendar subscription')
+			.setDesc('Subscribe to an external calendar feed');
+		
+		const addForm = container.createDiv('ics-add-subscription-form');
+		
+		// Name input
+		const nameRow = addForm.createDiv('ics-form-row');
+		nameRow.createEl('label', { text: 'Name:', cls: 'ics-form-label' });
+		const nameInput = nameRow.createEl('input', {
+			type: 'text',
+			placeholder: 'My Calendar',
+			cls: 'ics-form-input'
+		});
+		
+		// URL input
+		const urlRow = addForm.createDiv('ics-form-row');
+		urlRow.createEl('label', { text: 'ICS URL:', cls: 'ics-form-label' });
+		const urlInput = urlRow.createEl('input', {
+			type: 'url',
+			placeholder: 'https://example.com/calendar.ics',
+			cls: 'ics-form-input'
+		});
+		
+		// Color and settings row
+		const settingsRow = addForm.createDiv('ics-form-row ics-form-row-multi');
+		
+		// Color input
+		const colorGroup = settingsRow.createDiv('ics-form-group');
+		colorGroup.createEl('label', { text: 'Color:', cls: 'ics-form-label' });
+		const colorInput = colorGroup.createEl('input', {
+			type: 'color',
+			value: '#3788d8',
+			cls: 'ics-form-color'
+		});
+		
+		// Refresh interval input
+		const intervalGroup = settingsRow.createDiv('ics-form-group');
+		intervalGroup.createEl('label', { text: 'Refresh (min):', cls: 'ics-form-label' });
+		const intervalInput = intervalGroup.createEl('input', {
+			type: 'number',
+			value: '60',
+			cls: 'ics-form-number'
+		});
+		intervalInput.setAttribute('min', '15');
+		intervalInput.setAttribute('max', '1440');
+		intervalInput.setAttribute('step', '15');
+		
+		// Enabled checkbox
+		const enabledGroup = settingsRow.createDiv('ics-form-group');
+		const enabledLabel = enabledGroup.createEl('label', { cls: 'ics-form-checkbox-label' });
+		const enabledCheckbox = enabledLabel.createEl('input', {
+			type: 'checkbox',
+			cls: 'ics-form-checkbox'
+		});
+		enabledCheckbox.checked = true;
+		enabledLabel.createSpan({ text: ' Enabled' });
+		
+		// Add button
+		const buttonRow = addForm.createDiv('ics-form-row');
+		const addButton = buttonRow.createEl('button', {
+			text: 'Add Subscription',
+			cls: 'ics-form-button mod-cta'
+		});
+		
+		addButton.addEventListener('click', async () => {
+			const name = nameInput.value.trim();
+			const url = urlInput.value.trim();
+			const color = colorInput.value;
+			const refreshInterval = parseInt(intervalInput.value);
+			const enabled = enabledCheckbox.checked;
+			
+			if (!name || !url) {
+				new Notice('Name and URL are required');
+				return;
+			}
+			
+			if (refreshInterval < 15 || refreshInterval > 1440) {
+				new Notice('Refresh interval must be between 15 and 1440 minutes');
+				return;
+			}
+			
+			try {
+				addButton.textContent = 'Adding...';
+				addButton.disabled = true;
+				
+				await this.plugin.icsSubscriptionService!.addSubscription({
+					name, url, color, refreshInterval, enabled
+				});
+				
+				new Notice(`Added subscription "${name}"`);
+				
+				// Clear the form
+				nameInput.value = '';
+				urlInput.value = '';
+				colorInput.value = '#3788d8';
+				intervalInput.value = '60';
+				enabledCheckbox.checked = true;
+				
+				// Refresh the subscription list
+				this.renderActiveTab();
+			} catch (error) {
+				console.error('Error adding subscription:', error);
+				new Notice('Failed to add subscription');
+			} finally {
+				addButton.textContent = 'Add Subscription';
+				addButton.disabled = false;
+			}
+		});
+		
+		// Refresh all button
+		new Setting(container)
+			.setName('Refresh all subscriptions')
+			.setDesc('Manually refresh all enabled calendar subscriptions')
+			.addButton(button => button
+				.setButtonText('Refresh all')
+				.onClick(async () => {
+					if (this.plugin.icsSubscriptionService) {
+						button.setButtonText('Refreshing...');
+						button.setDisabled(true);
+						try {
+							await this.plugin.icsSubscriptionService.refreshAllSubscriptions();
+							new Notice('All calendar subscriptions refreshed successfully');
+						} catch (error) {
+							console.error('Error refreshing subscriptions:', error);
+							new Notice('Failed to refresh some calendar subscriptions');
+						} finally {
+							button.setButtonText('Refresh all');
+							button.setDisabled(false);
+						}
+					}
+				}));
+		
+		// Help section
+		const helpContainer = container.createDiv('settings-help-section');
+		helpContainer.createEl('h4', { text: 'How to get calendar subscription URLs:' });
+		const helpList = helpContainer.createEl('ul');
+		helpList.createEl('li', { text: 'Google Calendar: Settings → Calendar settings → Integrate calendar → Secret address in iCal format' });
+		helpList.createEl('li', { text: 'Outlook/Office 365: Calendar settings → Share calendar → Publish a calendar → ICS format' });
+		helpList.createEl('li', { text: 'Apple iCloud: Calendar.app → File → Export → Export as .ics file' });
+		helpList.createEl('li', { text: 'Other services: Look for "Calendar subscription", "ICS feed", "iCal URL", or "Webcal" options' });
+		
+		helpContainer.createEl('p', { 
+			text: 'Important: For Google Calendar, you must use the "Secret address" (private URL) from your calendar settings, not the public URL. The calendar must be set to "Make available to public" for the secret URL to work.',
+			cls: 'settings-help-note'
+		});
+		
+		helpContainer.createEl('p', { 
+			text: 'Note: Only read-only access is supported. You cannot edit external calendar events from within TaskNotes.',
+			cls: 'settings-help-note'
+		});
 	}
 	
 	private renderFieldMappingTab(): void {
@@ -1718,5 +1900,288 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				}
 			}, 50);
 		});
+	}
+
+
+	private renderSubscriptionList(container: HTMLElement): void {
+		container.empty();
+		
+		if (!this.plugin.icsSubscriptionService) {
+			container.createEl('p', { text: 'ICS Subscription service not available', cls: 'settings-help-note' });
+			return;
+		}
+		
+		const subscriptions = this.plugin.icsSubscriptionService.getSubscriptions();
+		
+		if (subscriptions.length === 0) {
+			container.createEl('p', { text: 'No calendar subscriptions configured', cls: 'settings-help-note' });
+			return;
+		}
+		
+		subscriptions.forEach(subscription => {
+			const subRow = container.createDiv('settings-item-row ics-subscription-row');
+			
+			// Status indicator
+			const statusIndicator = subRow.createDiv('settings-status-indicator');
+			if (subscription.enabled) {
+				statusIndicator.addClass('enabled');
+				statusIndicator.title = subscription.lastError ? `Error: ${subscription.lastError}` : 'Active';
+				if (subscription.lastError) {
+					statusIndicator.addClass('error');
+				}
+			} else {
+				statusIndicator.addClass('disabled');
+				statusIndicator.title = 'Disabled';
+			}
+			
+			// Subscription info
+			const infoContainer = subRow.createDiv('ics-subscription-info');
+			const nameEl = infoContainer.createEl('div', { cls: 'ics-subscription-name', text: subscription.name });
+			const urlEl = infoContainer.createEl('div', { cls: 'ics-subscription-url', text: subscription.url });
+			const metaEl = infoContainer.createEl('div', { cls: 'ics-subscription-meta' });
+			
+			// Meta information
+			const refreshText = `Refresh: ${subscription.refreshInterval}min`;
+			const lastFetched = subscription.lastFetched ? ` • Last: ${new Date(subscription.lastFetched).toLocaleString()}` : '';
+			metaEl.textContent = refreshText + lastFetched;
+			
+			if (subscription.lastError) {
+				const errorEl = infoContainer.createEl('div', { cls: 'ics-subscription-error', text: `Error: ${subscription.lastError}` });
+			}
+			
+			// Actions
+			const actionsContainer = subRow.createDiv('ics-subscription-actions');
+			
+			// Enable/disable toggle
+			const enableButton = actionsContainer.createEl('button', {
+				text: subscription.enabled ? 'Disable' : 'Enable',
+				cls: `ics-subscription-toggle ${subscription.enabled ? 'enabled' : 'disabled'}`
+			});
+			enableButton.addEventListener('click', async () => {
+				try {
+					await this.plugin.icsSubscriptionService!.updateSubscription(subscription.id, {
+						enabled: !subscription.enabled
+					});
+					this.renderActiveTab();
+				} catch (error) {
+					console.error('Error toggling subscription:', error);
+					new Notice('Failed to update subscription');
+				}
+			});
+			
+			// Refresh button
+			const refreshButton = actionsContainer.createEl('button', {
+				text: 'Refresh',
+				cls: 'ics-subscription-refresh'
+			});
+			refreshButton.addEventListener('click', async () => {
+				if (!subscription.enabled) {
+					new Notice('Enable the subscription first');
+					return;
+				}
+				
+				refreshButton.textContent = 'Refreshing...';
+				refreshButton.disabled = true;
+				try {
+					await this.plugin.icsSubscriptionService!.refreshSubscription(subscription.id);
+					new Notice(`Refreshed "${subscription.name}"`);
+					this.renderActiveTab();
+				} catch (error) {
+					console.error('Error refreshing subscription:', error);
+					new Notice('Failed to refresh subscription');
+				} finally {
+					refreshButton.textContent = 'Refresh';
+					refreshButton.disabled = false;
+				}
+			});
+			
+			// Edit button
+			const editButton = actionsContainer.createEl('button', {
+				text: 'Edit',
+				cls: 'ics-subscription-edit'
+			});
+			editButton.addEventListener('click', () => {
+				this.showInlineEditForm(subscription, subRow);
+			});
+			
+			// Delete button
+			const deleteButton = actionsContainer.createEl('button', {
+				text: 'Delete',
+				cls: 'ics-subscription-delete'
+			});
+			deleteButton.addEventListener('click', () => {
+				this.showDeleteSubscriptionConfirmation(subscription);
+			});
+		});
+	}
+
+	private showInlineEditForm(subscription: any, rowElement: HTMLElement): void {
+		// Save the original content
+		const originalContent = rowElement.innerHTML;
+		
+		// Clear the row and create edit form
+		rowElement.empty();
+		rowElement.addClass('ics-subscription-editing');
+		
+		const editForm = rowElement.createDiv('ics-edit-form');
+		
+		// Name input
+		const nameRow = editForm.createDiv('ics-edit-row');
+		nameRow.createEl('label', { text: 'Name:', cls: 'ics-edit-label' });
+		const nameInput = nameRow.createEl('input', {
+			type: 'text',
+			value: subscription.name,
+			cls: 'ics-edit-input'
+		});
+		
+		// URL input
+		const urlRow = editForm.createDiv('ics-edit-row');
+		urlRow.createEl('label', { text: 'URL:', cls: 'ics-edit-label' });
+		const urlInput = urlRow.createEl('input', {
+			type: 'url',
+			value: subscription.url,
+			cls: 'ics-edit-input'
+		});
+		
+		// Settings row
+		const settingsRow = editForm.createDiv('ics-edit-row ics-edit-settings');
+		
+		// Color
+		const colorGroup = settingsRow.createDiv('ics-edit-group');
+		colorGroup.createEl('label', { text: 'Color:', cls: 'ics-edit-label' });
+		const colorInput = colorGroup.createEl('input', {
+			type: 'color',
+			value: subscription.color,
+			cls: 'ics-edit-color'
+		});
+		
+		// Refresh interval
+		const intervalGroup = settingsRow.createDiv('ics-edit-group');
+		intervalGroup.createEl('label', { text: 'Refresh (min):', cls: 'ics-edit-label' });
+		const intervalInput = intervalGroup.createEl('input', {
+			type: 'number',
+			value: subscription.refreshInterval.toString(),
+			cls: 'ics-edit-number'
+		});
+		intervalInput.setAttribute('min', '15');
+		intervalInput.setAttribute('max', '1440');
+		intervalInput.setAttribute('step', '15');
+		
+		// Enabled checkbox
+		const enabledGroup = settingsRow.createDiv('ics-edit-group');
+		const enabledLabel = enabledGroup.createEl('label', { cls: 'ics-edit-checkbox-label' });
+		const enabledCheckbox = enabledLabel.createEl('input', {
+			type: 'checkbox',
+			cls: 'ics-edit-checkbox'
+		});
+		enabledCheckbox.checked = subscription.enabled;
+		enabledLabel.createSpan({ text: ' Enabled' });
+		
+		// Buttons row
+		const buttonsRow = editForm.createDiv('ics-edit-row ics-edit-buttons');
+		const saveButton = buttonsRow.createEl('button', {
+			text: 'Save',
+			cls: 'ics-edit-button mod-cta'
+		});
+		const cancelButton = buttonsRow.createEl('button', {
+			text: 'Cancel',
+			cls: 'ics-edit-button'
+		});
+		
+		// Save handler
+		saveButton.addEventListener('click', async () => {
+			const name = nameInput.value.trim();
+			const url = urlInput.value.trim();
+			const color = colorInput.value;
+			const refreshInterval = parseInt(intervalInput.value);
+			const enabled = enabledCheckbox.checked;
+			
+			if (!name || !url) {
+				new Notice('Name and URL are required');
+				return;
+			}
+			
+			if (refreshInterval < 15 || refreshInterval > 1440) {
+				new Notice('Refresh interval must be between 15 and 1440 minutes');
+				return;
+			}
+			
+			try {
+				saveButton.textContent = 'Saving...';
+				saveButton.disabled = true;
+				
+				await this.plugin.icsSubscriptionService!.updateSubscription(subscription.id, {
+					name, url, color, refreshInterval, enabled
+				});
+				
+				new Notice(`Updated subscription "${name}"`);
+				this.renderActiveTab();
+			} catch (error) {
+				console.error('Error updating subscription:', error);
+				new Notice('Failed to update subscription');
+			}
+		});
+		
+		// Cancel handler
+		cancelButton.addEventListener('click', () => {
+			rowElement.innerHTML = originalContent;
+			rowElement.removeClass('ics-subscription-editing');
+			// Re-attach event listeners by re-rendering
+			this.renderActiveTab();
+		});
+		
+		// Focus the name input
+		setTimeout(() => nameInput.focus(), 50);
+	}
+
+
+	private showDeleteSubscriptionConfirmation(subscription: any): void {
+		const modal = document.createElement('div');
+		modal.className = 'modal-container mod-confirmation';
+		
+		const modalBg = modal.createDiv('modal-bg');
+		const modalContent = modal.createDiv('modal');
+		
+		modalContent.createDiv('modal-title').textContent = 'Delete Subscription';
+		
+		const content = modalContent.createDiv('modal-content');
+		content.createEl('p', { text: `Are you sure you want to delete the subscription "${subscription.name}"?` });
+		content.createEl('p', { text: 'This action cannot be undone.' });
+		
+		const buttonContainer = modalContent.createDiv('modal-button-container');
+		const deleteButton = buttonContainer.createEl('button', { cls: 'mod-cta', text: 'Delete' });
+		const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
+		
+		document.body.appendChild(modal);
+		
+		const handleDelete = async () => {
+			try {
+				await this.plugin.icsSubscriptionService!.removeSubscription(subscription.id);
+				new Notice(`Deleted subscription "${subscription.name}"`);
+				modal.remove();
+				this.renderActiveTab();
+			} catch (error) {
+				console.error('Error deleting subscription:', error);
+				new Notice('Failed to delete subscription');
+			}
+		};
+		
+		const handleCancel = () => {
+			modal.remove();
+		};
+		
+		deleteButton.addEventListener('click', handleDelete);
+		cancelButton.addEventListener('click', handleCancel);
+		modalBg.addEventListener('click', handleCancel);
+		
+		// Handle escape key
+		modal.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') {
+				handleCancel();
+			}
+		});
+		
+		// Focus delete button
+		setTimeout(() => deleteButton.focus(), 50);
 	}
 }

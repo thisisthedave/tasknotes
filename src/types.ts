@@ -279,11 +279,44 @@ export interface CalendarViewPreferences {
 	showDue: boolean;
 	showTimeEntries: boolean;
 	showRecurring: boolean;
+	showICSEvents: boolean;
 	headerCollapsed?: boolean;
 }
 
 // All view-specific preferences
 export interface ViewPreferences {
 	[viewType: string]: any; // Can be CalendarViewPreferences or other view-specific types
+}
+
+// ICS Subscription types
+export interface ICSSubscription {
+	id: string;
+	name: string;
+	url: string;
+	color: string;
+	enabled: boolean;
+	refreshInterval: number; // minutes
+	lastFetched?: string; // ISO timestamp
+	lastError?: string;
+}
+
+export interface ICSEvent {
+	id: string;
+	subscriptionId: string;
+	title: string;
+	description?: string;
+	start: string; // ISO timestamp
+	end?: string; // ISO timestamp
+	allDay: boolean;
+	location?: string;
+	url?: string;
+	rrule?: string; // Recurrence rule
+}
+
+export interface ICSCache {
+	subscriptionId: string;
+	events: ICSEvent[];
+	lastUpdated: string; // ISO timestamp
+	expires: string; // ISO timestamp
 }
 
