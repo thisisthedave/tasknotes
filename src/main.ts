@@ -953,11 +953,16 @@ private injectCustomStyles(): void {
 
 	/**
 	 * Convert any checkbox task on current line to TaskNotes task
+	 * Supports multi-line selection where additional lines become task details
 	 */
 	convertTaskToTaskNote(editor: Editor): void {
 		try {
 			const cursor = editor.getCursor();
-			const currentLine = editor.getLine(cursor.line);
+			
+			// Extract selection information (same logic as instant convert)
+			const selectionInfo = this.extractSelectionInfoForCommand(editor, cursor.line);
+			const currentLine = selectionInfo.taskLine;
+			const details = selectionInfo.details;
 			
 			// Parse the current line for Tasks plugin format
 			const taskLineInfo = TasksPluginParser.parseTaskLine(currentLine);
@@ -977,11 +982,13 @@ private injectCustomStyles(): void {
 				return;
 			}
 			
-			// Prepare conversion options
+			// Prepare conversion options with details
 			const conversionOptions: TaskConversionOptions = {
 				parsedData: taskLineInfo.parsedData,
 				editor: editor,
-				lineNumber: cursor.line
+				lineNumber: cursor.line,
+				selectionInfo: selectionInfo,
+				prefilledDetails: details
 			};
 			
 			// Open TaskCreationModal with pre-populated data
@@ -990,6 +997,50 @@ private injectCustomStyles(): void {
 		} catch (error) {
 			console.error('Error converting task:', error);
 			new Notice('Failed to convert task. Please try again.');
+		}
+	}
+
+	/**
+	 * Extract selection information for command usage
+	 */
+	private extractSelectionInfoForCommand(editor: Editor, lineNumber: number): { taskLine: string; details: string; startLine: number; endLine: number; originalContent: string[] } {
+		const selection = editor.getSelection();
+		
+		// If there's a selection, use it; otherwise just use the current line
+		if (selection && selection.trim()) {
+			const selectionRange = editor.listSelections()[0];
+			const startLine = Math.min(selectionRange.anchor.line, selectionRange.head.line);
+			const endLine = Math.max(selectionRange.anchor.line, selectionRange.head.line);
+			
+			// Extract all lines in the selection
+			const selectedLines: string[] = [];
+			for (let i = startLine; i <= endLine; i++) {
+				selectedLines.push(editor.getLine(i));
+			}
+			
+			// First line should be the task, rest become details
+			const taskLine = selectedLines[0];
+			const detailLines = selectedLines.slice(1);
+			// Join without trimming to preserve indentation, but remove trailing whitespace only
+			const details = detailLines.join('\n').trimEnd();
+			
+			return {
+				taskLine,
+				details,
+				startLine,
+				endLine,
+				originalContent: selectedLines
+			};
+		} else {
+			// No selection, just use the current line
+			const taskLine = editor.getLine(lineNumber);
+			return {
+				taskLine,
+				details: '',
+				startLine: lineNumber,
+				endLine: lineNumber,
+				originalContent: [taskLine]
+			};
 		}
 	}
 

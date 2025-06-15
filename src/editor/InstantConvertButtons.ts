@@ -27,8 +27,8 @@ class ConvertButtonWidget extends WidgetType {
         const iconSpan = button.createEl('span', { cls: 'instant-convert-button__icon' });
         setIcon(iconSpan, 'file-plus');
         
-        // Handle click
-        button.addEventListener('click', async (e) => {
+        // Handle mousedown to capture selection before it gets cleared by click
+        button.addEventListener('mousedown', async (e) => {
             e.preventDefault();
             e.stopPropagation();
             

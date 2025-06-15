@@ -12,6 +12,8 @@ export interface TaskConversionOptions {
 	parsedData?: ParsedTaskData;
 	editor?: Editor;
 	lineNumber?: number;
+	selectionInfo?: { taskLine: string; details: string; startLine: number; endLine: number; originalContent: string[] };
+	prefilledDetails?: string;
 }
 
 export class TaskCreationModal extends BaseTaskModal {
@@ -98,7 +100,8 @@ export class TaskCreationModal extends BaseTaskModal {
 		this.status = data.status || this.plugin.settings.defaultTaskStatus;
 		this.dueDate = data.dueDate || ''; // Always reset due date
 		this.scheduledDate = ''; // Always reset scheduled date for converted tasks
-		this.details = ''; // Reset details too
+		// Use prefilled details from multi-line selection if available
+		this.details = this.conversionOptions.prefilledDetails || '';
 		
 		// Time components will be set by the input fields automatically
 		
@@ -389,7 +392,8 @@ export class TaskCreationModal extends BaseTaskModal {
 	}
 
 	/**
-	 * Replace the original Tasks Plugin line with a link to the new TaskNote
+	 * Replace the original Tasks Plugin line(s) with a link to the new TaskNote
+	 * Supports multi-line replacement when selection info is available
 	 */
 	private async replaceOriginalTaskLine(file: TFile): Promise<void> {
 		if (!this.conversionOptions.editor || this.conversionOptions.lineNumber === undefined) {
@@ -399,14 +403,31 @@ export class TaskCreationModal extends BaseTaskModal {
 		const editor = this.conversionOptions.editor;
 		const lineNumber = this.conversionOptions.lineNumber;
 		
-		// Create link text with hyphen prefix
-		const linkText = `- [[${file.path}|${this.title}]]`;
-		
-		// Replace the entire line with the link
-		const lineStart = { line: lineNumber, ch: 0 };
-		const lineEnd = { line: lineNumber, ch: editor.getLine(lineNumber).length };
-		
-		editor.replaceRange(linkText, lineStart, lineEnd);
+		// Check if we have multi-line selection info
+		if (this.conversionOptions.selectionInfo) {
+			const { startLine, endLine, originalContent } = this.conversionOptions.selectionInfo;
+			
+			// Get original indentation from the first line
+			const originalIndentation = originalContent[0].match(/^(\s*)/)?.[1] || '';
+			
+			// Create link text with proper indentation
+			const linkText = `${originalIndentation}- [[${file.path}|${this.title}]]`;
+			
+			// Replace the entire selection with the link
+			const rangeStart = { line: startLine, ch: 0 };
+			const rangeEnd = { line: endLine, ch: editor.getLine(endLine).length };
+			
+			editor.replaceRange(linkText, rangeStart, rangeEnd);
+		} else {
+			// Single line replacement (original behavior)
+			const linkText = `- [[${file.path}|${this.title}]]`;
+			
+			// Replace the entire line with the link
+			const lineStart = { line: lineNumber, ch: 0 };
+			const lineEnd = { line: lineNumber, ch: editor.getLine(lineNumber).length };
+			
+			editor.replaceRange(linkText, lineStart, lineEnd);
+		}
 	}
 
 	/**
