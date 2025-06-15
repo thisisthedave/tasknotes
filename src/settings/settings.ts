@@ -34,6 +34,7 @@ export interface TaskNotesSettings {
 	// Editor settings
 	enableTaskLinkOverlay: boolean;
 	enableInstantTaskConvert: boolean;
+	useDefaultsOnInstantConvert: boolean;
 	// Customization settings
 	fieldMapping: FieldMapping;
 	customStatuses: StatusConfig[];
@@ -101,6 +102,14 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 // Default status configuration matches current hardcoded behavior
 export const DEFAULT_STATUSES: StatusConfig[] = [
 	{
+		id: 'none',
+		value: 'none',
+		label: 'None',
+		color: '#cccccc',
+		isCompleted: false,
+		order: 0
+	},
+	{
 		id: 'open',
 		value: 'open',
 		label: 'Open',
@@ -128,6 +137,13 @@ export const DEFAULT_STATUSES: StatusConfig[] = [
 
 // Default priority configuration matches current hardcoded behavior
 export const DEFAULT_PRIORITIES: PriorityConfig[] = [
+	{
+		id: 'none',
+		value: 'none',
+		label: 'None',
+		color: '#cccccc',
+		weight: 0
+	},
 	{
 		id: 'low',
 		value: 'low',
@@ -217,6 +233,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	// Editor defaults
 	enableTaskLinkOverlay: true,
 	enableInstantTaskConvert: true,
+	useDefaultsOnInstantConvert: false,
 	// Customization defaults
 	fieldMapping: DEFAULT_FIELD_MAPPING,
 	customStatuses: DEFAULT_STATUSES,
@@ -384,6 +401,19 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.enableInstantTaskConvert)
 					.onChange(async (value) => {
 						this.plugin.settings.enableInstantTaskConvert = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Use task defaults on instant convert')
+			.setDesc('Apply your configured task creation defaults when converting checkbox tasks to TaskNotes (contexts, tags, dates, folder, etc.)')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Apply task creation defaults during instant conversion');
+				return toggle
+					.setValue(this.plugin.settings.useDefaultsOnInstantConvert)
+					.onChange(async (value) => {
+						this.plugin.settings.useDefaultsOnInstantConvert = value;
 						await this.plugin.saveSettings();
 					});
 			});

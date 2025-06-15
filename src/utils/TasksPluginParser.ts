@@ -3,8 +3,8 @@ import { parseDate, isPastDate, isToday } from './dateUtils';
 
 export interface ParsedTaskData {
 	title: string;
-	status: string;
-	priority: string;
+	status?: string;
+	priority?: string;
 	dueDate?: string;
 	scheduledDate?: string;
 	startDate?: string;
@@ -160,7 +160,7 @@ export class TasksPluginParser {
 			}
 
 			// Determine status based on completion and done date
-			let status = 'open';
+			let status: string | undefined = undefined;
 			if (isCompleted || doneDate) {
 				status = 'done';
 			} else if (startDate) {
@@ -168,11 +168,15 @@ export class TasksPluginParser {
 					// Use safe date comparison to check if start date is in the future
 					if (!isPastDate(startDate) && !isToday(startDate)) {
 						status = 'scheduled';
+					} else {
+						// Start date exists but is today or past, so it's 'open'
+						status = 'open';
 					}
 				} catch {
 					// Invalid start date, ignore for status determination
 				}
 			}
+			// If no status-determining metadata found, leave status as undefined
 
 			return {
 				title: title.trim(),
@@ -243,7 +247,7 @@ export class TasksPluginParser {
 	/**
 	 * Extract priority from content
 	 */
-	private static extractPriority(content: string): string {
+	private static extractPriority(content: string): string | undefined {
 		// Create fresh regex patterns to avoid global state issues
 		if (new RegExp(this.EMOJI_PATTERNS.HIGH_PRIORITY.source).test(content)) {
 			return 'high';
@@ -254,7 +258,8 @@ export class TasksPluginParser {
 		if (new RegExp(this.EMOJI_PATTERNS.LOW_PRIORITY.source).test(content)) {
 			return 'low';
 		}
-		return 'normal';
+		// Return undefined instead of 'normal' when no priority emoji is found
+		return undefined;
 	}
 
 	/**

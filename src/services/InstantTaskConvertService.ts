@@ -2,6 +2,7 @@ import { Editor, TFile, Notice, EditorPosition } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { TasksPluginParser, ParsedTaskData } from '../utils/TasksPluginParser';
 import { getCurrentTimestamp } from '../utils/dateUtils';
+import { calculateDefaultDate } from '../utils/helpers';
 
 export class InstantTaskConvertService {
     private plugin: TaskNotesPlugin;
@@ -150,14 +151,74 @@ export class InstantTaskConvertService {
     private async createTaskFile(parsedData: ParsedTaskData): Promise<TFile> {
         // Sanitize and validate input data
         const title = this.sanitizeTitle(parsedData.title) || 'Untitled Task';
-        const priority = this.sanitizePriority(parsedData.priority) || this.plugin.settings.defaultTaskPriority;
-        const status = this.sanitizeStatus(parsedData.status) || this.plugin.settings.defaultTaskStatus;
-        const dueDate = this.sanitizeDate(parsedData.dueDate) || undefined;
-        const scheduledDate = this.sanitizeDate(parsedData.scheduledDate) || undefined;
         
-        // Prepare contexts and tags arrays
-        const contextsArray: string[] = [];
-        const tagsArray = [this.plugin.settings.taskTag];
+        // Parse due and scheduled dates from task (if present)
+        const parsedDueDate = this.sanitizeDate(parsedData.dueDate);
+        const parsedScheduledDate = this.sanitizeDate(parsedData.scheduledDate);
+        
+        // Apply task creation defaults if setting is enabled
+        let priority: string | undefined;
+        let status: string | undefined;
+        let dueDate: string | undefined;
+        let scheduledDate: string | undefined;
+        let contextsArray: string[] = [];
+        let tagsArray = [this.plugin.settings.taskTag];
+        let timeEstimate: number | undefined;
+        let recurrence: import('../types').RecurrenceInfo | undefined;
+        
+        if (this.plugin.settings.useDefaultsOnInstantConvert) {
+            const defaults = this.plugin.settings.taskCreationDefaults;
+            
+            // Apply priority and status from parsed data or defaults
+            priority = (parsedData.priority ? this.sanitizePriority(parsedData.priority) : '') || this.plugin.settings.defaultTaskPriority;
+            status = (parsedData.status ? this.sanitizeStatus(parsedData.status) : '') || this.plugin.settings.defaultTaskStatus;
+            
+            // Apply due date: parsed date takes priority, then defaults
+            if (parsedDueDate) {
+                dueDate = parsedDueDate;
+            } else if (defaults.defaultDueDate !== 'none') {
+                dueDate = calculateDefaultDate(defaults.defaultDueDate);
+            }
+            
+            // Apply scheduled date: parsed date takes priority, then defaults
+            if (parsedScheduledDate) {
+                scheduledDate = parsedScheduledDate;
+            } else if (defaults.defaultScheduledDate !== 'none') {
+                scheduledDate = calculateDefaultDate(defaults.defaultScheduledDate);
+            }
+            
+            // Apply default contexts
+            if (defaults.defaultContexts) {
+                contextsArray = defaults.defaultContexts.split(',').map(s => s.trim()).filter(s => s);
+            }
+            
+            // Apply default tags (add to existing task tag)
+            if (defaults.defaultTags) {
+                const defaultTagsArray = defaults.defaultTags.split(',').map(s => s.trim()).filter(s => s);
+                tagsArray = [...tagsArray, ...defaultTagsArray];
+            }
+            
+            // Apply time estimate
+            if (defaults.defaultTimeEstimate && defaults.defaultTimeEstimate > 0) {
+                timeEstimate = defaults.defaultTimeEstimate;
+            }
+            
+            // Apply recurrence
+            if (defaults.defaultRecurrence && defaults.defaultRecurrence !== 'none') {
+                recurrence = {
+                    frequency: defaults.defaultRecurrence
+                };
+            }
+        } else {
+            // Minimal behavior: only use parsed data, use "none" for unset values
+            priority = (parsedData.priority ? this.sanitizePriority(parsedData.priority) : '') || 'none';
+            status = (parsedData.status ? this.sanitizeStatus(parsedData.status) : '') || 'none';
+            dueDate = parsedDueDate || undefined;
+            scheduledDate = parsedScheduledDate || undefined;
+            // Keep minimal tags (just the task tag)
+            tagsArray = [this.plugin.settings.taskTag];
+        }
+
 
         // Create TaskCreationData object with all the data
         const taskData: import('./TaskService').TaskCreationData = {
@@ -168,6 +229,8 @@ export class InstantTaskConvertService {
             scheduled: scheduledDate,
             contexts: contextsArray.length > 0 ? contextsArray : undefined,
             tags: tagsArray,
+            timeEstimate: timeEstimate,
+            recurrence: recurrence,
             details: '', // Let body template system handle content generation
             dateCreated: getCurrentTimestamp(),
             dateModified: getCurrentTimestamp()
@@ -191,16 +254,16 @@ export class InstantTaskConvertService {
      * Sanitize priority input
      */
     private sanitizePriority(priority: string): string {
-        const validPriorities = ['low', 'normal', 'medium', 'high'];
-        return validPriorities.includes(priority) ? priority : 'normal';
+        const validPriorities = ['none', 'low', 'normal', 'medium', 'high'];
+        return validPriorities.includes(priority) ? priority : '';
     }
 
     /**
      * Sanitize status input
      */
     private sanitizeStatus(status: string): string {
-        const validStatuses = ['open', 'in-progress', 'done', 'scheduled'];
-        return validStatuses.includes(status) ? status : 'open';
+        const validStatuses = ['none', 'open', 'in-progress', 'done', 'scheduled'];
+        return validStatuses.includes(status) ? status : '';
     }
 
     /**
