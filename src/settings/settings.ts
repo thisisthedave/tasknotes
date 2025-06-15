@@ -28,6 +28,7 @@ export interface TaskNotesSettings {
 	pomodoroNotifications: boolean;
 	pomodoroSoundEnabled: boolean;
 	pomodoroSoundVolume: number; // 0-100
+	pomodoroStorageLocation: 'plugin' | 'daily-notes'; // where to store pomodoro history data
 	// Editor settings
 	enableTaskLinkOverlay: boolean;
 	enableInstantTaskConvert: boolean;
@@ -224,6 +225,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	pomodoroNotifications: true,
 	pomodoroSoundEnabled: true,
 	pomodoroSoundVolume: 50,
+	pomodoroStorageLocation: 'plugin',
 	// Editor defaults
 	enableTaskLinkOverlay: true,
 	enableInstantTaskConvert: true,
@@ -1568,5 +1570,153 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 						new Notice('Failed to update sound volume setting.');
 					}
 				}));
+
+		new Setting(container)
+			.setName('Data storage location')
+			.setDesc('Choose where to store pomodoro session data. Daily notes provides better data longevity as the data stays with your notes, but requires the Daily Notes core plugin to be enabled.')
+			.addDropdown(dropdown => dropdown
+				.addOption('plugin', 'Plugin data file (default)')
+				.addOption('daily-notes', 'Daily notes frontmatter')
+				.setValue(this.plugin.settings.pomodoroStorageLocation)
+				.onChange(async (value: 'plugin' | 'daily-notes') => {
+					try {
+						// Check if Daily Notes plugin is enabled when switching to daily-notes
+						if (value === 'daily-notes') {
+							const { appHasDailyNotesPluginLoaded } = await import('obsidian-daily-notes-interface');
+							if (!appHasDailyNotesPluginLoaded()) {
+								new Notice('Daily Notes core plugin must be enabled to use this storage option. Please enable it in Settings > Core plugins and try again.');
+								dropdown.setValue('plugin'); // Reset to plugin storage
+								return;
+							}
+							
+							// Check if there's existing data to migrate
+							const data = await this.plugin.loadData();
+							const hasExistingData = data?.pomodoroHistory && Array.isArray(data.pomodoroHistory) && data.pomodoroHistory.length > 0;
+							
+							// Show confirmation dialog
+							const confirmed = await this.showStorageLocationConfirmation(hasExistingData);
+							if (!confirmed) {
+								dropdown.setValue('plugin'); // Reset to plugin storage if user cancels
+								return;
+							}
+						}
+						
+						this.plugin.settings.pomodoroStorageLocation = value;
+						await this.plugin.saveSettings();
+						
+						// Trigger migration if switching to daily-notes and there's data to migrate
+						if (value === 'daily-notes') {
+							await this.plugin.pomodoroService.migrateTodailyNotes();
+						}
+						
+					} catch (error) {
+						console.error('Error updating pomodoro storage location:', error);
+						new Notice('Failed to update storage location setting.');
+						dropdown.setValue('plugin'); // Reset to plugin storage on error
+					}
+				}));
+	}
+
+	/**
+	 * Show confirmation dialog for switching to daily notes storage
+	 */
+	private async showStorageLocationConfirmation(hasExistingData: boolean): Promise<boolean> {
+		return new Promise((resolve) => {
+			const modal = document.createElement('div');
+			modal.className = 'modal-container mod-confirmation';
+			
+			// Create modal background
+			const modalBg = modal.createDiv('modal-bg');
+			
+			// Create modal content container
+			const modalContent = modal.createDiv('modal');
+			
+			// Create title
+			const title = hasExistingData ? 'Migrate Pomodoro Data?' : 'Switch to Daily Notes Storage?';
+			modalContent.createDiv('modal-title').textContent = title;
+			
+			// Create content area
+			const content = modalContent.createDiv('modal-content');
+			
+			// Main message
+			const message = hasExistingData 
+				? 'This will migrate your existing pomodoro session data to daily notes frontmatter. The data will be grouped by date and stored in each daily note.'
+				: 'Pomodoro session data will be stored in daily notes frontmatter instead of the plugin data file.';
+			const messageP = content.createEl('p');
+			const strongMessage = messageP.createEl('strong');
+			strongMessage.textContent = message;
+			
+			content.createEl('br');
+			
+			// "What this means" section
+			content.createEl('p').textContent = 'What this means:';
+			const warningsList = content.createEl('ul');
+			
+			const warnings = [
+				'Daily Notes core plugin must remain enabled',
+				'Data will be stored in your daily notes frontmatter',
+				hasExistingData ? 'Existing plugin data will be migrated and then cleared' : 'Future sessions will be saved to daily notes',
+				'This provides better data longevity with your notes'
+			];
+			
+			warnings.forEach(warning => {
+				const listItem = warningsList.createEl('li');
+				listItem.textContent = `• ${warning}`;
+			});
+			
+			content.createEl('br');
+			
+			// Final warning/note
+			const finalNote = content.createEl('p');
+			if (hasExistingData) {
+				const strongWarning = finalNote.createEl('strong');
+				strongWarning.textContent = '⚠️ Make sure you have backups if needed. This change cannot be automatically undone.';
+			} else {
+				finalNote.textContent = 'You can switch back to plugin storage at any time in the future.';
+			}
+			
+			// Create buttons
+			const buttonContainer = modalContent.createDiv('modal-button-container');
+			const confirmButton = buttonContainer.createEl('button', { cls: 'mod-cta' });
+			confirmButton.textContent = hasExistingData ? 'Migrate Data' : 'Switch Storage';
+			confirmButton.setAttribute('data-action', 'confirm');
+			
+			const cancelButton = buttonContainer.createEl('button');
+			cancelButton.textContent = 'Cancel';
+			cancelButton.setAttribute('data-action', 'cancel');
+
+			document.body.appendChild(modal);
+
+			const handleClick = (e: Event) => {
+				const target = e.target as HTMLElement;
+				if (target.dataset.action === 'confirm') {
+					modal.remove();
+					resolve(true);
+				} else if (target.dataset.action === 'cancel' || target.classList.contains('modal-bg')) {
+					modal.remove();
+					resolve(false);
+				}
+			};
+
+			modal.addEventListener('click', handleClick);
+
+			// Handle escape key
+			const handleKeydown = (e: KeyboardEvent) => {
+				if (e.key === 'Escape') {
+					modal.remove();
+					document.removeEventListener('keydown', handleKeydown);
+					resolve(false);
+				}
+			};
+			document.addEventListener('keydown', handleKeydown);
+
+			// Focus the confirm button
+			setTimeout(() => {
+				const confirmButton = modal.querySelector('[data-action="confirm"]') as HTMLElement;
+				if (confirmButton) {
+					confirmButton.focus();
+				}
+			}, 50);
+		});
 	}
 }

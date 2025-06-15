@@ -23,7 +23,7 @@ import {
 } from '../types';
 import { ensureFolderExists } from '../utils/helpers';
 import { getCurrentTimestamp } from '../utils/dateUtils';
-import { needsMigration, migrateAllPomodoroData, logMigrationInfo, getSessionDuration } from '../utils/PomodoroMigration';
+import { getSessionDuration } from '../utils/pomodoroUtils';
 
 export class PomodoroService {
     private plugin: TaskNotesPlugin;
@@ -62,21 +62,7 @@ export class PomodoroService {
 
     async loadState() {
         try {
-            let data = await this.plugin.loadData();
-            
-            // Check if data needs migration before processing
-            if (data && needsMigration(data)) {
-                console.log('[PomodoroService] Migrating pomodoro data to new format...');
-                const originalData = { ...data };
-                data = migrateAllPomodoroData(data);
-                
-                // Save migrated data immediately
-                await this.plugin.saveData(data);
-                
-                // Log migration info for debugging
-                logMigrationInfo(originalData, data);
-                console.log('[PomodoroService] Pomodoro data migration completed successfully');
-            }
+            const data = await this.plugin.loadData();
             
             if (data?.pomodoroState) {
                 this.state = data.pomodoroState;
@@ -494,7 +480,7 @@ export class PomodoroService {
 
         // Update daily note with pomodoro count for work sessions
         if (session.type === 'work') {
-            await this.updateDailyNotePomodoros();
+            await this.updateDailyNotePomodoroCount();
         }
 
         // Determine next session based on session history
@@ -551,7 +537,7 @@ export class PomodoroService {
     }
 
 
-    private async updateDailyNotePomodoros() {
+    private async updateDailyNotePomodoroCount() {
         try {
             // Check if Daily Notes plugin is enabled
             if (!appHasDailyNotesPluginLoaded()) {
@@ -708,21 +694,29 @@ export class PomodoroService {
     // Session History Management
     async getSessionHistory(): Promise<PomodoroSessionHistory[]> {
         try {
-            let data = await this.plugin.loadData();
+            let history: PomodoroSessionHistory[] = [];
             
-            // Check if data needs migration before returning history
-            if (data && needsMigration(data)) {
-                const originalData = { ...data };
-                data = migrateAllPomodoroData(data);
+            // Load from plugin data (legacy or current storage)
+            const data = await this.plugin.loadData();
+            const pluginHistory = data?.pomodoroHistory || [];
+            
+            if (this.plugin.settings.pomodoroStorageLocation === 'daily-notes') {
+                // Load from daily notes when that's the primary storage
+                const dailyNotesHistory = await this.loadHistoryFromDailyNotes();
+                history = dailyNotesHistory;
                 
-                // Save migrated data
-                await this.plugin.saveData(data);
-                
-                logMigrationInfo(originalData, data);
-                console.log('[PomodoroService] Session history migrated during retrieval');
+                // Merge with plugin data if there's any (for migration purposes)
+                if (pluginHistory.length > 0) {
+                    const mergedHistory = this.mergeHistories(pluginHistory, dailyNotesHistory);
+                    history = mergedHistory;
+                }
+            } else {
+                // Default plugin storage
+                history = pluginHistory;
             }
             
-            return data?.pomodoroHistory || [];
+            // Sort by start time to maintain chronological order
+            return history.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
         } catch (error) {
             console.error('Failed to load session history:', error);
             return [];
@@ -731,9 +725,14 @@ export class PomodoroService {
 
     async saveSessionHistory(history: PomodoroSessionHistory[]): Promise<void> {
         try {
-            const data = await this.plugin.loadData() || {};
-            data.pomodoroHistory = history;
-            await this.plugin.saveData(data);
+            if (this.plugin.settings.pomodoroStorageLocation === 'daily-notes') {
+                await this.saveHistoryToDailyNotes(history);
+            } else {
+                // Default plugin storage
+                const data = await this.plugin.loadData() || {};
+                data.pomodoroHistory = history;
+                await this.plugin.saveData(data);
+            }
         } catch (error) {
             console.error('Failed to save session history:', error);
         }
@@ -854,5 +853,162 @@ export class PomodoroService {
         this.saveState().catch(error => {
             console.error('Failed to save final state:', error);
         });
+    }
+
+    /**
+     * Save pomodoro history to daily notes frontmatter
+     */
+    private async saveHistoryToDailyNotes(history: PomodoroSessionHistory[]): Promise<void> {
+        try {
+            // Check if Daily Notes plugin is enabled
+            if (!appHasDailyNotesPluginLoaded()) {
+                throw new Error('Daily Notes core plugin is not enabled');
+            }
+
+            // Group sessions by date
+            const sessionsByDate = this.groupSessionsByDate(history);
+            
+            // Update each daily note with its sessions
+            for (const [dateStr, sessions] of sessionsByDate) {
+                await this.updateDailyNotePomodoros(dateStr, sessions);
+            }
+        } catch (error) {
+            console.error('Failed to save history to daily notes:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Load pomodoro history from daily notes frontmatter
+     */
+    private async loadHistoryFromDailyNotes(): Promise<PomodoroSessionHistory[]> {
+        try {
+            // Check if Daily Notes plugin is enabled
+            if (!appHasDailyNotesPluginLoaded()) {
+                return [];
+            }
+
+            const allHistory: PomodoroSessionHistory[] = [];
+            const allDailyNotes = getAllDailyNotes();
+            const pomodoroField = this.plugin.fieldMapper.toUserField('pomodoros');
+
+            // Read from each daily note
+            for (const [dateUID, file] of Object.entries(allDailyNotes)) {
+                try {
+                    const cache = this.plugin.app.metadataCache.getFileCache(file);
+                    const frontmatter = cache?.frontmatter;
+                    
+                    if (frontmatter && frontmatter[pomodoroField]) {
+                        const sessions = frontmatter[pomodoroField];
+                        if (Array.isArray(sessions)) {
+                            allHistory.push(...sessions);
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Failed to read pomodoro data from daily note ${file.path}:`, error);
+                }
+            }
+
+            return allHistory;
+        } catch (error) {
+            console.error('Failed to load history from daily notes:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Group sessions by date string (YYYY-MM-DD)
+     */
+    private groupSessionsByDate(history: PomodoroSessionHistory[]): Map<string, PomodoroSessionHistory[]> {
+        const grouped = new Map<string, PomodoroSessionHistory[]>();
+
+        for (const session of history) {
+            const date = new Date(session.startTime);
+            const dateStr = format(date, 'yyyy-MM-dd');
+            
+            if (!grouped.has(dateStr)) {
+                grouped.set(dateStr, []);
+            }
+            grouped.get(dateStr)!.push(session);
+        }
+
+        return grouped;
+    }
+
+    /**
+     * Update a specific daily note with pomodoro sessions
+     */
+    private async updateDailyNotePomodoros(dateStr: string, sessions: PomodoroSessionHistory[]): Promise<void> {
+        try {
+            const date = new Date(dateStr + 'T12:00:00'); // Noon to avoid timezone issues
+            const moment = (window as any).moment(date);
+            
+            // Get or create daily note
+            const allDailyNotes = getAllDailyNotes();
+            let dailyNote = getDailyNote(moment, allDailyNotes);
+            
+            if (!dailyNote) {
+                dailyNote = await createDailyNote(moment);
+            }
+
+            // Update frontmatter
+            const pomodoroField = this.plugin.fieldMapper.toUserField('pomodoros');
+            
+            await this.plugin.app.fileManager.processFrontMatter(dailyNote, (frontmatter) => {
+                frontmatter[pomodoroField] = sessions;
+            });
+        } catch (error) {
+            console.error(`Failed to update daily note for ${dateStr}:`, error);
+        }
+    }
+
+    /**
+     * Merge histories from plugin and daily notes, removing duplicates
+     */
+    private mergeHistories(pluginHistory: PomodoroSessionHistory[], dailyNotesHistory: PomodoroSessionHistory[]): PomodoroSessionHistory[] {
+        const merged = [...dailyNotesHistory];
+        const existingIds = new Set(dailyNotesHistory.map(s => s.id));
+
+        // Add plugin sessions that aren't already in daily notes
+        for (const session of pluginHistory) {
+            if (!existingIds.has(session.id)) {
+                merged.push(session);
+            }
+        }
+
+        return merged;
+    }
+
+    /**
+     * Migrate existing plugin data to daily notes
+     */
+    async migrateTodailyNotes(): Promise<void> {
+        try {
+            // Check if Daily Notes plugin is enabled
+            if (!appHasDailyNotesPluginLoaded()) {
+                throw new Error('Daily Notes core plugin must be enabled for migration');
+            }
+
+            // Load existing plugin data
+            const data = await this.plugin.loadData();
+            const pluginHistory = data?.pomodoroHistory || [];
+
+            if (pluginHistory.length === 0) {
+                return; // Nothing to migrate
+            }
+
+            // Save to daily notes
+            await this.saveHistoryToDailyNotes(pluginHistory);
+
+            // Clear plugin data after successful migration
+            data.pomodoroHistory = [];
+            await this.plugin.saveData(data);
+
+            new Notice(`Successfully migrated ${pluginHistory.length} pomodoro sessions to daily notes.`);
+        } catch (error) {
+            console.error('Failed to migrate pomodoro data to daily notes:', error);
+            new Notice('Failed to migrate pomodoro data. Please try again or check the console for details.');
+            throw error;
+        }
     }
 }

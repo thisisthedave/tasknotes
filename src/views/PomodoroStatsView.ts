@@ -7,7 +7,7 @@ import {
     PomodoroSessionHistory
 } from '../types';
 import { parseTimestamp } from '../utils/dateUtils';
-import { getSessionDuration } from '../utils/PomodoroMigration';
+import { getSessionDuration } from '../utils/pomodoroUtils';
 
 export class PomodoroStatsView extends ItemView {
     plugin: TaskNotesPlugin;
