@@ -138,6 +138,20 @@
     display: none; /* Hide priority badges in favor of dots */
 }
 
+.tasknotes-plugin .task-card__checkbox{
+    align-self: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.task-card:hover .task-card__checkbox,
+.task-card:focus-within .task-card__checkbox,
+.task-card:focus .task-card__checkbox {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Simplified info display - no progressive disclosure for Todoist style */
 
 /* Drag handle indicator */

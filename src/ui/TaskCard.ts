@@ -109,6 +109,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     
     
     card.className = cardClasses.join(' ');
+    card.tabIndex = 0; // Make it focusable
     card.dataset.taskPath = task.path;
     card.dataset.key = task.path; // For DOMReconciler compatibility
     card.dataset.status = effectiveStatus;

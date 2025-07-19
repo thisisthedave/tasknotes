@@ -31,6 +31,7 @@ export class TaskListView extends ItemView {
     
     // Task item tracking for dynamic updates
     private taskElements: Map<string, HTMLElement> = new Map();
+    private focusTaskElementKey: string | null = null; // Track focused task for keyboard navigation
     
     // Event listeners
     private listeners: EventRef[] = [];
@@ -152,7 +153,10 @@ export class TaskListView extends ItemView {
             if (savedQuery) {
                 this.currentQuery = savedQuery;
             }
-            
+
+            // Add keyboard navigation.
+            this.addKeyboardHandlers();
+
             await this.refresh();
         } catch (error) {
             console.error('TaskListView: Error during onOpen:', error);
@@ -488,7 +492,7 @@ export class TaskListView extends ItemView {
     private createTaskCardForReconciler(task: TaskInfo): HTMLElement {
         const taskCard = createTaskCard(task, this.plugin, {
             showDueDate: true,
-            showCheckbox: false, // TaskListView doesn't use checkboxes 
+            showCheckbox: true, // TaskListView doesn't use checkboxes 
             showArchiveButton: true,
             showTimeTracking: true,
             showRecurringControls: true,
@@ -497,7 +501,7 @@ export class TaskListView extends ItemView {
         
         // Ensure the key is set for reconciler
         taskCard.dataset.key = task.path;
-        
+                
         // Add drag functionality
         this.addDragHandlers(taskCard, task);
         
@@ -515,6 +519,86 @@ export class TaskListView extends ItemView {
             showTimeTracking: true,
             showRecurringControls: true,
             groupByDate: false
+        });
+    }
+
+    private isTextInputFocused(): boolean {
+        const el = document.activeElement;
+        return el instanceof HTMLInputElement ||
+                el instanceof HTMLTextAreaElement ||
+                (el instanceof HTMLElement && el.classList.contains('cm-content'));
+    }
+
+    private canHandleInput(): boolean {
+        const active = this.app.workspace.getActiveViewOfType(TaskListView);
+        if (!active) return false;
+
+        const modalVisible = document.querySelector('.modal-container:not(.modals-hidden)');
+        if (modalVisible) return false;
+
+        if (this.isTextInputFocused()) return false;
+
+        return true;
+    }
+
+    private getNextEntry<K, V>(map: Map<K, V>, currentKey: K): [K, V] | undefined {
+        let found = currentKey === null || currentKey === undefined;
+        for (const [k, v] of map) {
+            if (found) return [k, v];
+            if (k === currentKey) found = true;
+        }
+        return undefined;
+    }
+
+    private getPreviousEntry<K, V>(map: Map<K, V>, currentKey: K): [K, V] | undefined {
+        let previous: [K, V] | undefined = undefined;
+        for (const [k, v] of map) {
+            if (k === currentKey) return previous;
+            previous = [k, v];
+        }
+        return undefined;
+    }
+
+    private focusTaskElement(taskPath: string, taskElement: HTMLElement): void {
+        // Blur the previous focused element if it exists
+        if (this.focusTaskElementKey) {
+            const prevFocusElement = this.taskElements.get(this.focusTaskElementKey!!);
+            if (prevFocusElement) {
+                prevFocusElement.blur();
+            }
+        }
+
+        this.focusTaskElementKey = taskPath;
+        taskElement.focus();
+    }
+
+    private addKeyboardHandlers(): void {
+        this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
+             console.log("Key in plugin view:", event.key, " can handle input:", this.canHandleInput());
+             if (this.canHandleInput()) {
+                let handled = false;
+                if (event.key === 'j') {
+                    // Navigate down
+                    handled = true;
+                    const nextEntry = this.getNextEntry(this.taskElements, this.focusTaskElementKey);
+                    if (nextEntry) {
+                        const [nextTaskElementKey, nextTaskElement] = nextEntry;
+                        this.focusTaskElement(nextTaskElementKey!, nextTaskElement);
+                    }
+                } else if (event.key === 'k') {
+                    // Navigate up
+                    const prevEntry = this.getPreviousEntry(this.taskElements, this.focusTaskElementKey);
+                    if (prevEntry) {
+                        const [prevTaskElementKey, prevTaskElement] = prevEntry;
+                        this.focusTaskElement(prevTaskElementKey!, prevTaskElement);
+                    }
+                }
+
+                if (handled) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+             }
         });
     }
 
