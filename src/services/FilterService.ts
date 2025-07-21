@@ -608,6 +608,9 @@ export class FilterService extends EventEmitter {
 
             // Primary sort criteria
             switch (sortKey) {
+                case 'sortOrder':
+                    comparison = this.compareSortOrder(a.sortOrder, b.sortOrder);
+                    break;
                 case 'due':
                     comparison = this.compareDates(a.due, b.due);
                     break;
@@ -622,6 +625,7 @@ export class FilterService extends EventEmitter {
                     break;
                 case 'dateCreated':
                     comparison = this.compareDates(a.dateCreated, b.dateCreated);
+                    break;
             }
 
             // If primary criteria are equal, apply fallback sorting
@@ -631,6 +635,17 @@ export class FilterService extends EventEmitter {
 
             return direction === 'desc' ? -comparison : comparison;
         });
+    }
+    
+    /**
+     * Compare sortOrder field for manual ordering
+     */
+    private compareSortOrder(a?: number, b?: number): number {
+        // Treat undefined as last
+        if (a === undefined && b === undefined) return 0;
+        if (a === undefined) return 1;
+        if (b === undefined) return -1;
+        return a - b;
     }
 
     /**

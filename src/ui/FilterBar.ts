@@ -912,7 +912,8 @@ export class FilterBar extends EventEmitter {
                 'scheduled': 'Scheduled Date',
                 'priority': 'Priority',
                 'title': 'Title',
-                'dateCreated': 'Created Date'
+                'dateCreated': 'Created Date',
+                'sortOrder': 'Manual',
             })
             .setValue(this.currentQuery.sortKey || 'due')
             .onChange((value: TaskSortKey) => {

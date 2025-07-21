@@ -102,6 +102,10 @@ export class FieldMapper {
             mapped.timeEntries = frontmatter.timeEntries;
         }
 
+        if (frontmatter[this.mapping.sortOrder] !== undefined) {
+            mapped.sortOrder = frontmatter[this.mapping.sortOrder];
+        }
+
         return mapped;
     }
 

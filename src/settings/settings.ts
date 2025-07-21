@@ -118,7 +118,8 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	archiveTag: 'archived',
 	timeEntries: 'timeEntries',
 	completeInstances: 'complete_instances',
-	pomodoros: 'pomodoros'
+	pomodoros: 'pomodoros',
+	sortOrder: 'sort_order'
 };
 
 // Default status configuration matches current hardcoded behavior
@@ -1475,11 +1476,12 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			['contexts', 'Contexts'],
 			['projects', 'Projects'],
 			['timeEstimate', 'Time estimate'],
-				['completedDate', 'Completed date'],
+			['completedDate', 'Completed date'],
 			['dateCreated', 'Created date'],
 			['dateModified', 'Modified date'],
 			['recurrence', 'Recurrence'],
-			['archiveTag', 'Archive tag']
+			['archiveTag', 'Archive tag'],
+			['sortOrder', 'Sort order']
 		];
 		
 		fieldMappings.forEach(([field, label]) => {

@@ -29,7 +29,7 @@ export type ColorizeMode = 'tasks' | 'notes' | 'daily';
 export type CalendarDisplayMode = 'month' | 'agenda';
 
 // Task sorting and grouping types
-export type TaskSortKey = 'due' | 'scheduled' | 'priority' | 'title' | 'dateCreated';
+export type TaskSortKey = 'sortOrder' | 'due' | 'scheduled' | 'priority' | 'title' | 'dateCreated';
 export type TaskGroupKey = 'none' | 'priority' | 'context' | 'project' | 'due' | 'scheduled' | 'status';
 export type SortDirection = 'asc' | 'desc';
 
@@ -225,6 +225,7 @@ export interface TaskInfo {
 	timeEntries?: TimeEntry[]; // Individual time tracking sessions
 	dateCreated?: string; // Creation date (ISO timestamp)
 	dateModified?: string; // Last modification date (ISO timestamp)
+ 	sortOrder?: number; // Manual ordering index (optional)
 }
 
 export interface TaskCreationData extends Partial<TaskInfo> {
@@ -380,6 +381,7 @@ export interface FieldMapping {
 	timeEntries: string;
 	completeInstances: string;
 	pomodoros: string;  // For daily note pomodoro tracking
+	sortOrder: string; // For manual ordering of tasks
 }
 
 export interface StatusConfig {
