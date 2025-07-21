@@ -62,6 +62,7 @@ import { MigrationService } from './services/MigrationService';
 import { showMigrationPrompt } from './modals/MigrationModal';
 import { StatusBarService } from './services/StatusBarService';
 import { ProjectSubtasksService } from './services/ProjectSubtasksService';
+import { InputObserver } from './utils/InputObserver';
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -122,6 +123,9 @@ export default class TaskNotesPlugin extends Plugin {
 	// Status bar service
 	statusBarService: StatusBarService;
 	
+	// Track input focus state for keyboard shortcuts
+	inputObserver: InputObserver;
+	
 	// Event listener cleanup  
 	private taskUpdateListenerForEditor: import('obsidian').EventRef | null = null;
 	
@@ -176,6 +180,7 @@ export default class TaskNotesPlugin extends Plugin {
 		this.dragDropManager = new DragDropManager(this);
 		this.migrationService = new MigrationService(this.app);
 		this.statusBarService = new StatusBarService(this);
+		this.inputObserver = new InputObserver(this.app);
 		
 		// Note: View registration and heavy operations moved to onLayoutReady
 		
@@ -630,6 +635,11 @@ export default class TaskNotesPlugin extends Plugin {
 		// Clean up status bar service
 		if (this.statusBarService) {
 			this.statusBarService.destroy();
+		}
+
+		// Clean up input observer
+		if (this.inputObserver) {
+			this.inputObserver.disconnect();
 		}
 		
 		// Clean up native cache manager
