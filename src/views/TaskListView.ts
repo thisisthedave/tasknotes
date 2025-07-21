@@ -10,7 +10,7 @@ import {
 } from '../types';
 // No helper functions needed from helpers
 import { perfMonitor } from '../utils/PerformanceMonitor';
-import { createTaskCard, updateTaskCard } from '../ui/TaskCard';
+import { createTaskCard, updateTaskCard, toggleTaskCardSelection, setTaskCardSelected, isTaskCardSelected, showDateContextMenu } from '../ui/TaskCard';
 import { FilterBar } from '../ui/FilterBar';
 
 export class TaskListView extends ItemView {
@@ -327,6 +327,33 @@ export class TaskListView extends ItemView {
         this.isTasksLoading = false;
         this.updateLoadingState();
     }
+
+    /**
+     * Get all TaskInfo objects for selected task elements
+     */
+    async getSelectedTasks(): Promise<TaskInfo[]> {
+        const selected: TaskInfo[] = [];
+        for (const [key, element] of this.taskElements.entries()) {
+            if (isTaskCardSelected(element)) {
+                const info = await this.plugin.cacheManager.getTaskInfo(key);
+                if (info) selected.push(info);
+            }
+        }
+        return selected;
+    }
+
+    async editDueDates() {
+        // D: open date context menu for selected tasks, or focused if none selected
+        let selectedTasks = await this.getSelectedTasks();
+        if (selectedTasks.length > 0) {
+            showDateContextMenu(this.plugin, selectedTasks, 'due', this.filterBar?.container ?? this.contentEl);
+        } else if (this.focusTaskElementKey) {
+            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
+            if (taskInfo) {
+                showDateContextMenu(this.plugin, [taskInfo], 'due', this.filterBar?.container ?? this.contentEl);
+            }
+        }
+    }
     
     /**
      * Refresh tasks using FilterService
@@ -501,6 +528,9 @@ export class TaskListView extends ItemView {
         
         // Ensure the key is set for reconciler
         taskCard.dataset.key = task.path;
+        
+        // Add focus handling
+        this.addFocusHandler(taskCard, task);
                 
         // Add drag functionality
         this.addDragHandlers(taskCard, task);
@@ -542,7 +572,7 @@ export class TaskListView extends ItemView {
     }
 
     private getNextEntry<K, V>(map: Map<K, V>, currentKey: K): [K, V] | undefined {
-        let found = currentKey === null || currentKey === undefined;
+        let found = currentKey === null || currentKey === undefined || !map.has(currentKey);
         for (const [k, v] of map) {
             if (found) return [k, v];
             if (k === currentKey) found = true;
@@ -573,11 +603,11 @@ export class TaskListView extends ItemView {
     }
 
     private addKeyboardHandlers(): void {
-        this.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
-             console.log("Key in plugin view:", event.key, " can handle input:", this.canHandleInput());
-             if (this.canHandleInput()) {
+        this.registerDomEvent(document, 'keydown', async (event: KeyboardEvent) => {
+            console.log("Key in plugin view:", event.key, " can handle input:", this.canHandleInput());
+            if (this.canHandleInput()) {
                 let handled = false;
-                if (event.key === 'j') {
+                if (event.key === 'j' || event.key === 'ArrowDown') {
                     // Navigate down
                     handled = true;
                     const nextEntry = this.getNextEntry(this.taskElements, this.focusTaskElementKey);
@@ -585,20 +615,59 @@ export class TaskListView extends ItemView {
                         const [nextTaskElementKey, nextTaskElement] = nextEntry;
                         this.focusTaskElement(nextTaskElementKey!, nextTaskElement);
                     }
-                } else if (event.key === 'k') {
+                } else if (event.key === 'k' || event.key === 'ArrowUp') {
                     // Navigate up
                     const prevEntry = this.getPreviousEntry(this.taskElements, this.focusTaskElementKey);
                     if (prevEntry) {
                         const [prevTaskElementKey, prevTaskElement] = prevEntry;
                         this.focusTaskElement(prevTaskElementKey!, prevTaskElement);
                     }
+                } else if (event.key === 'c') {
+                    this.plugin.openTaskCreationModal();
+                    handled = true;
+                } else if (event.key === '/') {
+                    this.filterBar?.focus();
+                    handled = true;
+                } else if (event.key === 'x') {
+                    if (this.focusTaskElementKey) {
+                        const focusTaskElement = this.taskElements.get(this.focusTaskElementKey!);
+                        if (focusTaskElement) {
+                            toggleTaskCardSelection(focusTaskElement);
+                        }
+                    }
+                    handled = true;
+                } else if (event.key === 'a' && (event.ctrlKey || event.metaKey)) {
+                    // Ctrl+A: select all task cards
+                    this.taskElements.forEach((taskCard) => {
+                        setTaskCardSelected(taskCard, true);
+                    });
+                    handled = true;
+                } else if (event.key === 'Escape') {
+                    // Escape: clear focus and selection
+                    this.focusTaskElementKey = null;
+                    this.taskElements.forEach((taskCard) => {
+                        setTaskCardSelected(taskCard, false);
+                    });
+                    handled = true;
+                } else if (event.key === 'Enter') {
+                    // Enter: open focused task
+                    if (this.focusTaskElementKey) {
+                        const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
+                        if (taskInfo) {
+                            await this.plugin.openTaskEditModal(taskInfo);
+                        }
+                    }
+                    handled = true;
+                } else if (event.key == 'D') {
+                    this.editDueDates();
+                    handled = true;
                 }
 
                 if (handled) {
                     event.preventDefault();
                     event.stopPropagation();
                 }
-             }
+            }
         });
     }
 
@@ -610,6 +679,17 @@ export class TaskListView extends ItemView {
         this.plugin.dragDropManager.makeTaskCardDraggable(card, task.path);
     }
     
+    /**
+     * Keep track of focused task element for keyboard navigation
+     */
+    private addFocusHandler(card: HTMLElement, task: TaskInfo): void {
+        card.addEventListener("mouseenter", this.onMouseEnterCard.bind(this));
+    }
+
+    private onMouseEnterCard(event: Event): void {
+        const hoveredCard = event.currentTarget as HTMLElement; // the element you attached to
+        this.focusTaskElement(hoveredCard.dataset.key || '', hoveredCard);
+    }
     
     /**
      * Create SVG icon element safely without innerHTML

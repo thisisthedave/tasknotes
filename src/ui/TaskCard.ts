@@ -44,29 +44,50 @@ function attachDateClickHandler(
 ): void {
     span.addEventListener('click', (e) => {
         e.stopPropagation(); // Don't trigger card click
-        const currentValue = dateType === 'due' ? task.due : task.scheduled;
-        const menu = new DateContextMenu({
-            currentValue: getDatePart(currentValue || ''),
-            currentTime: getTimePart(currentValue || ''),
-            onSelect: async (dateValue, timeValue) => {
-                try {
-                    let finalValue: string | undefined;
-                    if (!dateValue) {
-                        finalValue = undefined;
-                    } else if (timeValue) {
-                        finalValue = `${dateValue}T${timeValue}`;
-                    } else {
-                        finalValue = dateValue;
-                    }
-                    await plugin.updateTaskProperty(task, dateType, finalValue);
-                } catch (error) {
-                    console.error(`Error updating ${dateType} date:`, error);
-                    new Notice(`Failed to update ${dateType} date`);
-                }
-            }
-        });
+        const menu = createDateContextMenu(plugin, [task], dateType);
         menu.show(e as MouseEvent);
     });
+}
+
+/**
+ * Create a DateContextMenu for a given task and date type
+ */
+function createDateContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+    dateType: 'due' | 'scheduled'
+): DateContextMenu {
+    const currentValue = tasks.length == 1 ? (dateType === 'due' ? tasks[0].due : tasks[0].scheduled) : undefined;
+    return new DateContextMenu({
+        currentValue: getDatePart(currentValue || ''),
+        currentTime: getTimePart(currentValue || ''),
+        onSelect: async (dateValue, timeValue) => {
+            try {
+                let finalValue: string | undefined;
+                if (!dateValue) {
+                    finalValue = undefined;
+                } else if (timeValue) {
+                    finalValue = `${dateValue}T${timeValue}`;
+                } else {
+                    finalValue = dateValue;
+                }
+                await Promise.all(tasks.map(task => plugin.updateTaskProperty(task, dateType, finalValue)));
+            } catch (error) {
+                console.error(`Error updating ${dateType} date:`, error);
+                new Notice(`Failed to update ${dateType} date`);
+            }
+        }
+    });
+}
+
+export function showDateContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+    dateType: 'due' | 'scheduled',
+    showAtElement: HTMLElement
+): void {
+    const menu = createDateContextMenu(plugin, tasks, dateType);
+    menu.showAtElement(showAtElement);
 }
 
 /**
@@ -131,24 +152,24 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
             type: 'checkbox',
             cls: 'task-card__checkbox'
         });
-        checkbox.checked = plugin.statusManager.isCompletedStatus(effectiveStatus);
+        // checkbox.checked = plugin.statusManager.isCompletedStatus(effectiveStatus);
         
         checkbox.addEventListener('click', async (e) => {
             e.stopPropagation();
-            try {
-                if (task.recurrence) {
-                    await plugin.toggleRecurringTaskComplete(task, targetDate);
-                } else {
-                    await plugin.toggleTaskStatus(task);
-                }
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error('Error in task checkbox handler:', {
-                    error: errorMessage,
-                    taskPath: task.path
-                });
-                new Notice(`Failed to toggle task status: ${errorMessage}`);
-            }
+            // try {
+            //     if (task.recurrence) {
+            //         await plugin.toggleRecurringTaskComplete(task, targetDate);
+            //     } else {
+            //         await plugin.toggleTaskStatus(task);
+            //     }
+            // } catch (error) {
+            //     const errorMessage = error instanceof Error ? error.message : String(error);
+            //     console.error('Error in task checkbox handler:', {
+            //         error: errorMessage,
+            //         taskPath: task.path
+            //     });
+            //     new Notice(`Failed to toggle task status: ${errorMessage}`);
+            // }
         });
     }
     
@@ -1080,6 +1101,34 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     
     // Animation is now handled separately - don't add it here during reconciler updates
 }
+
+export function setTaskCardSelected(taskCard: HTMLElement, selected: boolean): void {
+    // Assuming `containerDiv` is your <div>
+    const checkbox = taskCard.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+    if (checkbox && checkbox.checked !== selected) {
+        checkbox.checked = selected; // toggle
+        checkbox.dispatchEvent(new Event('change', { bubbles: true })); // notify listeners
+    }
+}
+
+
+export function toggleTaskCardSelection(taskCard: HTMLElement): void {
+    // Assuming `containerDiv` is your <div>
+    const checkbox = taskCard.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+    if (checkbox) {
+        checkbox.checked = !checkbox.checked; // toggle
+        checkbox.dispatchEvent(new Event('change', { bubbles: true })); // notify listeners
+    }
+}
+
+export function isTaskCardSelected(taskCard: HTMLElement): boolean {
+    // Assuming `containerDiv` is your <div>
+    const checkbox = taskCard.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    return checkbox ? checkbox.checked : false;
+}
+
 
 /**
  * Confirmation modal for task deletion

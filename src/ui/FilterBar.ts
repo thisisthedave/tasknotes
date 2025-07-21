@@ -49,8 +49,8 @@ class SaveViewModal extends Modal {
  * Provides hierarchical filtering with groups, conditions, and saved views
  */
 export class FilterBar extends EventEmitter {
+    container: HTMLElement;
     private app: App;
-    private container: HTMLElement;
     private currentQuery: FilterQuery;
     private savedViews: readonly SavedView[] = [];
     private filterOptions: FilterOptions;
@@ -151,6 +151,13 @@ export class FilterBar extends EventEmitter {
         // Ensure the updated query has proper structure
         this.ensureValidFilterQuery();
         this.updateUI();
+    }
+
+    focus(): void {
+        // Focus the search input if it exists
+        if (this.searchInput) {
+            this.searchInput.inputEl.focus();
+        }
     }
 
     /**
