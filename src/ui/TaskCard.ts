@@ -13,6 +13,7 @@ import {
 import { DateContextMenu } from '../components/DateContextMenu';
 import { PriorityContextMenu } from '../components/PriorityContextMenu';
 import { RecurrenceContextMenu } from '../components/RecurrenceContextMenu';
+import { StatusContextMenu } from '../components/StatusContextMenu';
 
 export interface TaskCardOptions {
     showDueDate: boolean;
@@ -87,6 +88,34 @@ export function showDateContextMenu(
     showAtElement: HTMLElement
 ): void {
     const menu = createDateContextMenu(plugin, tasks, dateType);
+    menu.showAtElement(showAtElement);
+}
+
+function createPriorityContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+): PriorityContextMenu {
+    const currentValue = tasks.length == 1 ? tasks[0].priority : undefined;
+    const menu = new PriorityContextMenu({
+        onSelect: async (newPriority) => {
+            try {
+                await Promise.all(tasks.map(task => plugin.updateTaskProperty(task, 'priority', newPriority)));
+            } catch (error) {
+                console.error('Error updating priority:', error);
+                new Notice('Failed to update priority');
+            }
+        },
+        plugin: plugin
+    });
+    return menu;
+}
+
+export function showPriorityContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+    showAtElement: HTMLElement
+): void {
+    const menu = createPriorityContextMenu(plugin, tasks);
     menu.showAtElement(showAtElement);
 }
 
@@ -250,18 +279,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         // Add click context menu for priority
         priorityDot.addEventListener('click', (e) => {
             e.stopPropagation(); // Don't trigger card click
-            const menu = new PriorityContextMenu({
-                currentValue: task.priority,
-                onSelect: async (newPriority) => {
-                    try {
-                        await plugin.updateTaskProperty(task, 'priority', newPriority);
-                    } catch (error) {
-                        console.error('Error updating priority:', error);
-                        new Notice('Failed to update priority');
-                    }
-                },
-                plugin: plugin
-            });
+            const menu = createPriorityContextMenu(plugin, [task]);
             menu.show(e as MouseEvent);
         });
     }

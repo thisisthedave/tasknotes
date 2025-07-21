@@ -10,7 +10,15 @@ import {
 } from '../types';
 // No helper functions needed from helpers
 import { perfMonitor } from '../utils/PerformanceMonitor';
-import { createTaskCard, updateTaskCard, toggleTaskCardSelection, setTaskCardSelected, isTaskCardSelected, showDateContextMenu } from '../ui/TaskCard';
+import { 
+    createTaskCard,
+    updateTaskCard,
+    toggleTaskCardSelection,
+    setTaskCardSelected,
+    isTaskCardSelected,
+    showDateContextMenu,
+    showPriorityContextMenu 
+} from '../ui/TaskCard';
 import { FilterBar } from '../ui/FilterBar';
 
 export class TaskListView extends ItemView {
@@ -354,7 +362,20 @@ export class TaskListView extends ItemView {
             }
         }
     }
-    
+
+    async editPriorities() {
+        // P: open priority context menu for selected tasks, or focused if none selected
+        let selectedTasks = await this.getSelectedTasks();
+        if (selectedTasks.length > 0) {
+            showPriorityContextMenu(this.plugin, selectedTasks, this.filterBar?.container ?? this.contentEl);
+        } else if (this.focusTaskElementKey) {
+            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
+            if (taskInfo) {
+                showPriorityContextMenu(this.plugin, [taskInfo], this.filterBar?.container ?? this.contentEl);
+            }
+        }
+    }
+
     /**
      * Refresh tasks using FilterService
      */
@@ -661,6 +682,8 @@ export class TaskListView extends ItemView {
                 } else if (event.key == 'D') {
                     this.editDueDates();
                     handled = true;
+                } else if (event.key == 'p') {
+                    this.editPriorities();
                 }
 
                 if (handled) {
