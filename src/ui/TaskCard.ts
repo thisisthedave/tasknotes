@@ -95,8 +95,8 @@ function createPriorityContextMenu(
     plugin: TaskNotesPlugin,
     tasks: TaskInfo[],
 ): PriorityContextMenu {
-    const currentValue = tasks.length == 1 ? tasks[0].priority : undefined;
     const menu = new PriorityContextMenu({
+        currentValue: tasks.length == 1 ? tasks[0].priority : undefined,
         onSelect: async (newPriority) => {
             try {
                 await Promise.all(tasks.map(task => plugin.updateTaskProperty(task, 'priority', newPriority)));
@@ -115,8 +115,70 @@ export function showPriorityContextMenu(
     tasks: TaskInfo[],
     showAtElement: HTMLElement
 ): void {
-    const menu = createPriorityContextMenu(plugin, tasks);
-    menu.showAtElement(showAtElement);
+    if (tasks && tasks.length > 0) {
+        const menu = createPriorityContextMenu(plugin, tasks);
+        menu.showAtElement(showAtElement);
+    }
+}
+
+function createRecurrenceContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+): RecurrenceContextMenu {
+    const menu = new RecurrenceContextMenu({
+        currentValue: typeof tasks[0].recurrence === 'string' ? tasks[0].recurrence : undefined,
+        onSelect: async (newRecurrence: string) => {
+            try {
+                await Promise.all(tasks.map(task => plugin.updateTaskProperty(task, 'recurrence', newRecurrence)));
+            } catch (error) {
+                console.error('Error updating recurrence:', error);
+                new Notice('Failed to update recurrence');
+            }
+        },
+        app: plugin.app
+    });
+    return menu;
+}
+
+export function showRecurrenceContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+    showAtElement: HTMLElement
+): void {
+    if (tasks && tasks.length > 0) {
+        const menu = createRecurrenceContextMenu(plugin, tasks);
+        menu.showAtElement(showAtElement);
+    }
+}
+
+function createStatusContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+): StatusContextMenu {
+    const menu = new StatusContextMenu({
+        currentValue: tasks[0].status,
+        onSelect: async (newStatus: string) => {
+            try {
+                await Promise.all(tasks.map(task => plugin.updateTaskProperty(task, 'status', newStatus)));
+            } catch (error) {
+                console.error('Error updating status:', error);
+                new Notice('Failed to update status');
+            }
+        },
+        plugin: plugin
+    });
+    return menu;
+}
+
+export function showStatusContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+    showAtElement: HTMLElement
+): void {
+    if (tasks && tasks.length > 0) {
+        const menu = createStatusContextMenu(plugin, tasks);
+        menu.showAtElement(showAtElement);
+    }
 }
 
 /**
@@ -300,18 +362,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         // Add click context menu for recurrence
         recurringIndicator.addEventListener('click', (e) => {
             e.stopPropagation(); // Don't trigger card click
-            const menu = new RecurrenceContextMenu({
-                currentValue: typeof task.recurrence === 'string' ? task.recurrence : undefined,
-                onSelect: async (newRecurrence: string | null) => {
-                    try {
-                        await plugin.updateTaskProperty(task, 'recurrence', newRecurrence || undefined);
-                    } catch (error) {
-                        console.error('Error updating recurrence:', error);
-                        new Notice('Failed to update recurrence');
-                    }
-                },
-                app: plugin.app
-            });
+            const menu = createRecurrenceContextMenu(plugin, [task]);
             menu.show(e as MouseEvent);
         });
     }
@@ -1152,31 +1203,54 @@ export function isTaskCardSelected(taskCard: HTMLElement): boolean {
  * Confirmation modal for task deletion
  */
 class DeleteTaskConfirmationModal extends Modal {
-    private task: TaskInfo;
+    private tasks: TaskInfo[] | null = null;
+    private customTitle: string | null = null;
     private plugin: TaskNotesPlugin;
     private onConfirm: () => Promise<void>;
 
-    constructor(app: App, task: TaskInfo, plugin: TaskNotesPlugin, onConfirm: () => Promise<void>) {
+    constructor(
+        app: App,
+        target: TaskInfo | TaskInfo[] | string,
+        plugin: TaskNotesPlugin,
+        onConfirm: () => Promise<void>
+    ) {
         super(app);
-        this.task = task;
         this.plugin = plugin;
         this.onConfirm = onConfirm;
+
+        if (typeof target === "string") {
+            this.customTitle = target;
+        } else if (Array.isArray(target)) {
+            this.tasks = target;
+        } else {
+            this.tasks = [target];
+        }
     }
 
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
 
-        contentEl.createEl('h2', { text: 'Delete Task' });
-        
-        const description = contentEl.createEl('p');
-        description.appendText('Are you sure you want to delete the task "');
-        description.createEl('strong', { text: this.task.title });
-        description.appendText('"?');
-        
-        contentEl.createEl('p', { 
-            cls: 'mod-warning',
-            text: 'This action cannot be undone. The task file will be permanently deleted.' 
+        contentEl.createEl("h2", { text: "Delete Task" });
+
+        const description = contentEl.createEl("p");
+
+        if (this.customTitle) {
+            // Custom message string
+            description.appendText(`Are you sure you want to delete "${this.customTitle}"?`);
+        } else if (this.tasks) {
+            if (this.tasks.length === 1) {
+                description.appendText('Are you sure you want to delete the task "');
+                description.createEl("strong", { text: this.tasks[0].title });
+                description.appendText('"?');
+            } else {
+                description.appendText(`Are you sure you want to delete these ${this.tasks.length} tasks?`);
+            }
+        }
+
+        contentEl.createEl("p", {
+            cls: "mod-warning",
+            text: "This action cannot be undone. The task file(s) will be permanently deleted.",
         });
 
         const buttonContainer = contentEl.createEl('div', { cls: 'modal-button-container' });
@@ -1201,7 +1275,11 @@ class DeleteTaskConfirmationModal extends Modal {
             try {
                 await this.onConfirm();
                 this.close();
-                new Notice('Task deleted successfully');
+                new Notice(
+                    this.tasks && this.tasks.length > 1
+                        ? 'Tasks deleted successfully'
+                        : 'Task deleted successfully'
+                );
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 new Notice(`Failed to delete task: ${errorMessage}`);
@@ -1209,7 +1287,6 @@ class DeleteTaskConfirmationModal extends Modal {
             }
         });
 
-        // Focus the cancel button by default
         cancelButton.focus();
     }
 
@@ -1219,18 +1296,30 @@ class DeleteTaskConfirmationModal extends Modal {
     }
 }
 
+
 /**
  * Show delete confirmation modal and handle task deletion
  */
-export async function showDeleteConfirmationModal(task: TaskInfo, plugin: TaskNotesPlugin): Promise<void> {
+export async function showDeleteConfirmationModal(
+    tasks: TaskInfo | TaskInfo[],
+    plugin: TaskNotesPlugin
+): Promise<void> {
+    const taskArray = Array.isArray(tasks) ? tasks : [tasks];
+    if (taskArray.length === 0) {
+        return; // Nothing to delete
+    }
+
     return new Promise((resolve, reject) => {
         const modal = new DeleteTaskConfirmationModal(
             plugin.app,
-            task,
+            taskArray,
             plugin,
             async () => {
                 try {
-                    await plugin.taskService.deleteTask(task);
+                    // Delete tasks sequentially (to preserve order and handle errors)
+                    for (const task of taskArray) {
+                        await plugin.taskService.deleteTask(task);
+                    }
                     resolve();
                 } catch (error) {
                     reject(error);
