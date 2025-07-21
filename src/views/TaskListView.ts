@@ -17,7 +17,10 @@ import {
     setTaskCardSelected,
     isTaskCardSelected,
     showDateContextMenu,
-    showPriorityContextMenu 
+    showPriorityContextMenu,
+    showRecurrenceContextMenu,
+    showStatusContextMenu,
+    showDeleteConfirmationModal
 } from '../ui/TaskCard';
 import { FilterBar } from '../ui/FilterBar';
 
@@ -363,6 +366,19 @@ export class TaskListView extends ItemView {
         }
     }
 
+    async editScheduleDates() {
+        // D: open date context menu for selected tasks, or focused if none selected
+        let selectedTasks = await this.getSelectedTasks();
+        if (selectedTasks.length > 0) {
+            showDateContextMenu(this.plugin, selectedTasks, 'scheduled', this.filterBar?.container ?? this.contentEl);
+        } else if (this.focusTaskElementKey) {
+            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
+            if (taskInfo) {
+                showDateContextMenu(this.plugin, [taskInfo], 'scheduled', this.filterBar?.container ?? this.contentEl);
+            }
+        }
+    }
+
     async editPriorities() {
         // P: open priority context menu for selected tasks, or focused if none selected
         let selectedTasks = await this.getSelectedTasks();
@@ -372,6 +388,45 @@ export class TaskListView extends ItemView {
             const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
             if (taskInfo) {
                 showPriorityContextMenu(this.plugin, [taskInfo], this.filterBar?.container ?? this.contentEl);
+            }
+        }
+    }
+
+    async editRecurrence() {
+        // R: open recurrence context menu for selected tasks, or focused if none selected
+        let selectedTasks = await this.getSelectedTasks();
+        if (selectedTasks.length > 0) {
+            showRecurrenceContextMenu(this.plugin, selectedTasks, this.filterBar?.container ?? this.contentEl);
+        } else if (this.focusTaskElementKey) {
+            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
+            if (taskInfo) {
+                showRecurrenceContextMenu(this.plugin, [taskInfo], this.filterBar?.container ?? this.contentEl);
+            }
+        }
+    }
+
+    async editStatuses() {
+        // R: open status context menu for selected tasks, or focused if none selected
+        let selectedTasks = await this.getSelectedTasks();
+        if (selectedTasks.length > 0) {
+            showStatusContextMenu(this.plugin, selectedTasks, this.filterBar?.container ?? this.contentEl);
+        } else if (this.focusTaskElementKey) {
+            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
+            if (taskInfo) {
+                showStatusContextMenu(this.plugin, [taskInfo], this.filterBar?.container ?? this.contentEl);
+            }
+        }
+    }
+
+    async deleteTasks() {
+        // R: open status context menu for selected tasks, or focused if none selected
+        let selectedTasks = await this.getSelectedTasks();
+        if (selectedTasks.length > 0) {
+            showDeleteConfirmationModal(selectedTasks, this.plugin);
+        } else if (this.focusTaskElementKey) {
+            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
+            if (taskInfo) {
+                showDeleteConfirmationModal([taskInfo], this.plugin);
             }
         }
     }
@@ -580,18 +635,6 @@ export class TaskListView extends ItemView {
                 (el instanceof HTMLElement && el.classList.contains('cm-content'));
     }
 
-    private canHandleInput(): boolean {
-        const active = this.app.workspace.getActiveViewOfType(TaskListView);
-        if (!active) return false;
-
-        const modalVisible = document.querySelector('.modal-container:not(.modals-hidden)');
-        if (modalVisible) return false;
-
-        if (this.isTextInputFocused()) return false;
-
-        return true;
-    }
-
     private getNextEntry<K, V>(map: Map<K, V>, currentKey: K): [K, V] | undefined {
         let found = currentKey === null || currentKey === undefined || !map.has(currentKey);
         for (const [k, v] of map) {
@@ -625,8 +668,9 @@ export class TaskListView extends ItemView {
 
     private addKeyboardHandlers(): void {
         this.registerDomEvent(document, 'keydown', async (event: KeyboardEvent) => {
-            console.log("Key in plugin view:", event.key, " can handle input:", this.canHandleInput());
-            if (this.canHandleInput()) {
+            const shouldHandleInput = this.plugin.inputObserver.shouldHandleKeyboardInput(TaskListView);
+            console.log("Key in plugin view:", event.key, " should handle input:", shouldHandleInput);
+            if (shouldHandleInput) {
                 let handled = false;
                 if (event.key === 'j' || event.key === 'ArrowDown') {
                     // Navigate down
@@ -663,7 +707,7 @@ export class TaskListView extends ItemView {
                         setTaskCardSelected(taskCard, true);
                     });
                     handled = true;
-                } else if (event.key === 'Escape') {
+                } else if (event.key === 'Escape' || event.key === 'Backspace') {
                     // Escape: clear focus and selection
                     this.focusTaskElementKey = null;
                     this.taskElements.forEach((taskCard) => {
@@ -682,8 +726,21 @@ export class TaskListView extends ItemView {
                 } else if (event.key == 'D') {
                     this.editDueDates();
                     handled = true;
+                } else if (event.key == 'S') {
+                    this.editScheduleDates();
+                    handled = true;
                 } else if (event.key == 'p') {
                     this.editPriorities();
+                    handled = true;
+                } else if (event.key == 'r') {
+                    this.editRecurrence();
+                    handled = true;
+                } else if (event.key == 's') {
+                    this.editStatuses();
+                    handled = true;
+                } else if (event.key == 'Delete') {
+                    this.deleteTasks();
+                    handled = true;
                 }
 
                 if (handled) {
@@ -770,15 +827,6 @@ export class TaskListView extends ItemView {
             this.loadingIndicator.addClass('is-hidden');
         }
     }
-    
-            
-    
-    
-    
-    
-    
-    
-    
     
     openTask(path: string) {
         const file = this.app.vault.getAbstractFileByPath(path);
