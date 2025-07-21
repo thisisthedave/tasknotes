@@ -39,6 +39,10 @@
     outline-offset: -1px;
 }
 
+.tasknotes-plugin .task-card:has(input[type="checkbox"]:checked) {
+    background-color: var(--tn-interactive-accent);
+}
+
 .tasknotes-plugin .task-card:focus:not(:focus-visible) {
     outline: none;
 }
@@ -147,7 +151,8 @@
 
 .task-card:hover .task-card__checkbox,
 .task-card:focus-within .task-card__checkbox,
-.task-card:focus .task-card__checkbox {
+.task-card:focus .task-card__checkbox,
+.task-card .task-card__checkbox:checked {
   opacity: 1;
   pointer-events: auto;
 }
