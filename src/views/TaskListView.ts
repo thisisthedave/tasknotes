@@ -20,9 +20,11 @@ import {
     showPriorityContextMenu,
     showRecurrenceContextMenu,
     showStatusContextMenu,
-    showDeleteConfirmationModal
+    showDeleteConfirmationModal,
+    copyTaskTitleToClipboard
 } from '../ui/TaskCard';
 import { FilterBar } from '../ui/FilterBar';
+import { DragDropHandler } from 'src/ui/DragDropHandler';
 
 export class TaskListView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -30,6 +32,7 @@ export class TaskListView extends ItemView {
     // UI elements
     private taskListContainer: HTMLElement | null = null;
     private loadingIndicator: HTMLElement | null = null;
+    private dragDropHandler: DragDropHandler;
     
     // Removed redundant local caching - CacheManager is the single source of truth
     
@@ -62,7 +65,19 @@ export class TaskListView extends ItemView {
             sortDirection: 'asc',
             groupKey: 'none'
         };
-        
+
+        // Initialize drag and drop handler
+        this.dragDropHandler = new DragDropHandler(async (fromIndex, toIndex) => {
+            if (this.taskListContainer) {
+                const tasks = await Promise.all(
+                    Array.from(this.taskListContainer.children)
+                        .filter(child => !(child as HTMLElement).hasClass('filter-bar__view-item-container--placeholder'))
+                        .map(child => this.plugin.cacheManager.getTaskInfo((child as HTMLElement).dataset.key!))
+                );
+                plugin.reorderTasks(tasks as TaskInfo[], fromIndex, toIndex);
+            }
+        });
+
         // Register event listeners
         this.registerEvents();
     }
@@ -365,7 +380,7 @@ export class TaskListView extends ItemView {
             await handler(selectedTasks);
             return;
         }
-
+        
         if (this.focusTaskElementKey) {
             const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
             if (taskInfo) {
@@ -407,6 +422,21 @@ export class TaskListView extends ItemView {
     async deleteTasks() {
         await this.withSelectedOrFocusedTasks((tasks) => {
             showDeleteConfirmationModal(tasks, this.plugin);
+        });
+    }
+
+    async toggleArchive() {
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            const firstValue = tasks[0]?.archived; // only toggle archive if the tasks already have the same archived state
+            if (tasks.every(t => t.archived === firstValue)) {
+                Promise.all(tasks.map(task => this.plugin.toggleTaskArchive(task)));
+            }
+        });
+    }
+
+    async copyTaskTitles() {
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            copyTaskTitleToClipboard(tasks);
         });
     }
 
@@ -481,6 +511,9 @@ export class TaskListView extends ItemView {
             // Grouped: render groups normally (groups change less frequently than individual tasks)
             this.renderGroupedTasksWithReconciler(container, groupedTasks);
         }
+
+        // Add global handlers to ensure drop events work reliably
+        this.dragDropHandler.setupGlobalHandlers(container);
     }
 
     /**
@@ -497,11 +530,16 @@ export class TaskListView extends ItemView {
         
         // Update task elements tracking
         this.taskElements.clear();
-        Array.from(container.children).forEach(child => {
-            const taskPath = (child as HTMLElement).dataset.key;
+        Array.from(container.children).forEach((child, index) => {
+            const childElement = child as HTMLElement;
+            const taskPath = childElement.dataset.key;
             if (taskPath) {
-                this.taskElements.set(taskPath, child as HTMLElement);
+                this.taskElements.set(taskPath, childElement);
             }
+            childElement.addClass('filter-bar__view-item-container'); // TODO remove
+
+            // Add drag and drop event handlers
+            this.dragDropHandler.setupDragAndDrop(childElement, index);
         });
     }
     
@@ -556,11 +594,16 @@ export class TaskListView extends ItemView {
             );
             
             // Update task elements tracking for this group
-            Array.from(taskCardsContainer.children).forEach(child => {
-                const taskPath = (child as HTMLElement).dataset.key;
+            Array.from(taskCardsContainer.children).forEach((child, index) => {
+                const childElement = child as HTMLElement;
+                const taskPath = childElement.dataset.key;
                 if (taskPath) {
-                    this.taskElements.set(taskPath, child as HTMLElement);
+                    this.taskElements.set(taskPath, childElement);
                 }
+                childElement.addClass('filter-bar__view-item-container'); // TODO remove
+
+                // Add drag and drop event handlers
+                this.dragDropHandler.setupDragAndDrop(childElement, index);
             });
         });
         
@@ -574,11 +617,12 @@ export class TaskListView extends ItemView {
     private createTaskCardForReconciler(task: TaskInfo): HTMLElement {
         const taskCard = createTaskCard(task, this.plugin, {
             showDueDate: true,
-            showCheckbox: true, // TaskListView doesn't use checkboxes 
+            showCheckbox: true,
             showArchiveButton: true,
             showTimeTracking: true,
             showRecurringControls: true,
-            groupByDate: false
+            groupByDate: false,
+            draggable: this.currentQuery.sortKey === 'sortOrder' // Only enable drag if sorting by sortOrder
         });
         
         // Ensure the key is set for reconciler
@@ -586,9 +630,6 @@ export class TaskListView extends ItemView {
         
         // Add focus handling
         this.addFocusHandler(taskCard, task);
-                
-        // Add drag functionality
-        this.addDragHandlers(taskCard, task);
         
         return taskCard;
     }
@@ -599,19 +640,13 @@ export class TaskListView extends ItemView {
     private updateTaskCardForReconciler(element: HTMLElement, task: TaskInfo): void {
         updateTaskCard(element, task, this.plugin, {
             showDueDate: true,
-            showCheckbox: false, // TaskListView doesn't use checkboxes
+            showCheckbox: true,
             showArchiveButton: true,
             showTimeTracking: true,
             showRecurringControls: true,
-            groupByDate: false
+            groupByDate: false,
+            draggable: this.currentQuery.sortKey === 'sortOrder' // Only enable drag if sorting by sortOrder
         });
-    }
-
-    private isTextInputFocused(): boolean {
-        const el = document.activeElement;
-        return el instanceof HTMLInputElement ||
-                el instanceof HTMLTextAreaElement ||
-                (el instanceof HTMLElement && el.classList.contains('cm-content'));
     }
 
     private getNextEntry<K, V>(map: Map<K, V>, currentKey: K): [K, V] | undefined {
@@ -648,7 +683,7 @@ export class TaskListView extends ItemView {
     private addKeyboardHandlers(): void {
         this.registerDomEvent(document, 'keydown', async (event: KeyboardEvent) => {
             const shouldHandleInput = this.plugin.inputObserver.shouldHandleKeyboardInput(TaskListView);
-            console.log("Key in plugin view:", event.key, " should handle input:", shouldHandleInput);
+            // console.log("Key in plugin view:", event.key, " should handle input:", shouldHandleInput);
             if (shouldHandleInput) {
                 let handled = false;
                 if (event.key === 'j' || event.key === 'ArrowDown') {
@@ -666,6 +701,9 @@ export class TaskListView extends ItemView {
                         const [prevTaskElementKey, prevTaskElement] = prevEntry;
                         this.focusTaskElement(prevTaskElementKey!, prevTaskElement);
                     }
+                } else if (event.key == 'c' && (event.ctrlKey || event.metaKey)) {
+                    this.copyTaskTitles();
+                    handled = true;
                 } else if (event.key === 'c') {
                     this.plugin.openTaskCreationModal();
                     handled = true;
@@ -717,8 +755,11 @@ export class TaskListView extends ItemView {
                 } else if (event.key == 's') {
                     this.editStatuses();
                     handled = true;
-                } else if (event.key == 'Delete') {
+                } else if (event.key == 'Delete' && (event.ctrlKey || event.metaKey)) {
                     this.deleteTasks();
+                    handled = true;
+                } else if (event.key == 'y') {
+                    this.toggleArchive();
                     handled = true;
                 }
 
@@ -728,14 +769,6 @@ export class TaskListView extends ItemView {
                 }
             }
         });
-    }
-
-    /**
-     * Add drag handlers to task cards for dragging to calendar
-     */
-    private addDragHandlers(card: HTMLElement, task: TaskInfo): void {
-        // Use the centralized drag drop manager for FullCalendar compatibility
-        this.plugin.dragDropManager.makeTaskCardDraggable(card, task.path);
     }
     
     /**

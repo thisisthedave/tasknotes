@@ -1161,6 +1161,17 @@ private injectCustomStyles(): void {
 			throw error;
 		}
 	}
+
+	async reorderTasks(tasks: TaskInfo[], fromIndex: number, toIndex: number): Promise<TaskInfo[]> {
+		try {
+			const updatedTasks = await this.taskService.reorderTasks(tasks, fromIndex, toIndex);
+			return updatedTasks;
+		} catch (error) {
+			console.error('Failed to reorder tasks:', error);
+			new Notice('Failed to update task order');
+			throw error;
+		}
+	}
 	
 	openTaskCreationModal(prePopulatedValues?: Partial<TaskInfo>) {
 		new TaskCreationModal(this.app, this, { prePopulatedValues }).open();

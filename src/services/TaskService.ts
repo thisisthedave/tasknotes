@@ -779,4 +779,99 @@ export class TaskService {
         // Step 5: Return authoritative data
         return updatedTask;
     }
+
+    async reorderTasks(tasks: TaskInfo[], fromIndex: number, toIndex: number): Promise<TaskInfo[]> {
+        try {
+            if (fromIndex < 0 || fromIndex >= tasks.length || toIndex < 0 || toIndex >= tasks.length) {
+                throw new Error("Invalid task indices for reordering");
+            }
+
+            const INITIAL_SPACING = 1000;
+            const newOrders: number[] = tasks.map(t => t.sortOrder ?? NaN);
+            // console.log("Prev order:\n" + tasks.map(t => `${t.sortOrder}: ${t.title}`).join("\n"));
+
+            // --- Step 1: Lazily assign sortOrders without mutating tasks ---
+            let lastSortOrder = 0;
+            for (let i = 0; i < tasks.length; i++) {
+                if (!Number.isFinite(newOrders[i])) {
+                    const nextIndex = tasks.findIndex((t, idx) => idx > i && Number.isFinite(newOrders[idx]));
+                    if (nextIndex !== -1) {
+                        const nextVal = newOrders[nextIndex]!;
+                        const span = nextVal - lastSortOrder;
+                        const gapCount = (nextIndex - i) + 1;
+                        for (let j = i; j < nextIndex; j++) {
+                            newOrders[j] = lastSortOrder + (span * (j - (i - 1))) / gapCount;
+                        }
+                        lastSortOrder = nextVal;
+                        i = nextIndex - 1; // skip ahead to the last initialized one
+                    } else {
+                        newOrders[i] = lastSortOrder + INITIAL_SPACING;
+                        lastSortOrder = newOrders[i];
+                    }
+                } else {
+                    lastSortOrder = newOrders[i];
+                }
+            }
+
+            // --- Step 2: Move the task in the array (and reorder the newOrders array to match) ---
+            const [movedTask] = tasks.splice(fromIndex, 1);
+            const [movedOrder] = newOrders.splice(fromIndex, 1);
+            tasks.splice(toIndex, 0, movedTask);
+            newOrders.splice(toIndex, 0, movedOrder);
+
+            // --- Step 3: Compute new sortOrder for the moved task ---
+            const prevOrder = newOrders[toIndex - 1];
+            const nextOrder = newOrders[toIndex + 1];
+            if (prevOrder !== undefined && nextOrder !== undefined) {
+                newOrders[toIndex] = (prevOrder + nextOrder) / 2;
+            } else if (prevOrder === undefined && nextOrder !== undefined) {
+                newOrders[toIndex] = nextOrder - INITIAL_SPACING;
+            } else if (prevOrder !== undefined && nextOrder === undefined) {
+                newOrders[toIndex] = prevOrder + INITIAL_SPACING;
+            } else {
+                newOrders[toIndex] = 0; // only task in list
+            }
+
+            // --- Step 4: Renormalize if any gaps are too small ---
+            const MIN_GAP = 1e-4;
+            let needsRenormalization = false;
+            for (let i = 1; i < newOrders.length; i++) {
+                if ((newOrders[i] - newOrders[i - 1]) < MIN_GAP) {
+                    needsRenormalization = true;
+                    break;
+                }
+            }
+
+            if (needsRenormalization) {
+                for (let i = 0; i < newOrders.length; i++) {
+                    newOrders[i] = i * INITIAL_SPACING;
+                }
+            }
+
+            // --- Step 5: Persist only changed sortOrders ---
+            const updates = tasks.map((task, idx) => {
+                if (task.sortOrder !== newOrders[idx]) {
+                    return this.updateProperty(task, "sortOrder", newOrders[idx]);
+                }
+                return Promise.resolve(task);
+            });
+
+            const updatedTasks = await Promise.all(updates);
+            // console.log("New order:\n" + updatedTasks.map(t => `${t.sortOrder}: ${t.title}`).join("\n"));
+
+            return updatedTasks;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error("Error reordering tasks:", {
+                error: errorMessage,
+                stack: error instanceof Error ? error.stack : undefined,
+                tasks,
+                fromIndex,
+                toIndex
+            });
+            throw new Error(`Failed to reorder tasks: ${errorMessage}`);
+        }
+    }
+
+
 }

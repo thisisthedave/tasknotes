@@ -23,6 +23,7 @@ export interface TaskCardOptions {
     showRecurringControls: boolean;
     groupByDate: boolean;
     targetDate?: Date;
+    draggable: boolean;
 }
 
 export const DEFAULT_TASK_CARD_OPTIONS: TaskCardOptions = {
@@ -31,7 +32,8 @@ export const DEFAULT_TASK_CARD_OPTIONS: TaskCardOptions = {
     showArchiveButton: false,
     showTimeTracking: false,
     showRecurringControls: true,
-    groupByDate: false
+    groupByDate: false,
+    draggable: false
 };
 
 /**
@@ -181,6 +183,22 @@ export function showStatusContextMenu(
     }
 }
 
+export async function copyTaskTitleToClipboard(tasks: TaskInfo[]) {
+    // Use the fresh task data that showTaskContextMenu just fetched
+    try {
+        if (tasks.length > 0) {
+            const markdownList = tasks
+                .map(task => `[[${task.title}]]\n`)
+                .join('');
+            await navigator.clipboard.writeText(markdownList);
+        }
+        new Notice('Task title copied to clipboard');
+    } catch (error) {
+        new Notice('Failed to copy to clipboard');
+    }
+}
+
+
 /**
  * Create a minimalist, unified task card element
  */
@@ -235,6 +253,19 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     const statusConfig = plugin.statusManager.getStatusConfig(effectiveStatus);
     if (statusConfig) {
         card.style.setProperty('--current-status-color', statusConfig.color);
+    }
+
+    // Completion checkbox (if enabled)
+    if (opts.draggable) {
+        // Make the container draggable
+        card.draggable = true;
+        // card.setAttribute('data-view-index', index.toString());
+        
+        // Add drag handle
+        const dragHandle = card.createDiv({
+            cls: 'filter-bar__view-drag-handle',
+            title: 'Drag to reorder'
+        });
     }
     
     // Completion checkbox (if enabled)
@@ -807,13 +838,7 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
             item.setTitle('Copy task title');
             item.setIcon('copy');
             item.onClick(async () => {
-                // Use the fresh task data that showTaskContextMenu just fetched
-                try {
-                    await navigator.clipboard.writeText(task.title);
-                    new Notice('Task title copied to clipboard');
-                } catch (error) {
-                    new Notice('Failed to copy to clipboard');
-                }
+                copyTaskTitleToClipboard([task]);
             });
         });
         
