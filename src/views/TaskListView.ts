@@ -353,82 +353,61 @@ export class TaskListView extends ItemView {
         return selected;
     }
 
-    async editDueDates() {
-        // D: open date context menu for selected tasks, or focused if none selected
-        let selectedTasks = await this.getSelectedTasks();
+    /**
+     * Helper to gather selected tasks, or fall back to the focused task.
+     * Calls the provided handler with the resulting array if any are found.
+     */
+    private async withSelectedOrFocusedTasks(
+        handler: (tasks: TaskInfo[]) => void | Promise<void>
+    ): Promise<void> {
+        const selectedTasks = await this.getSelectedTasks();
         if (selectedTasks.length > 0) {
-            showDateContextMenu(this.plugin, selectedTasks, 'due', this.filterBar?.container ?? this.contentEl);
-        } else if (this.focusTaskElementKey) {
+            await handler(selectedTasks);
+            return;
+        }
+
+        if (this.focusTaskElementKey) {
             const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
             if (taskInfo) {
-                showDateContextMenu(this.plugin, [taskInfo], 'due', this.filterBar?.container ?? this.contentEl);
+                await handler([taskInfo]);
             }
         }
+    }
+
+    async editDueDates() {
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            showDateContextMenu(this.plugin, tasks, "due", this.filterBar?.container ?? this.contentEl);
+        });
     }
 
     async editScheduleDates() {
-        // D: open date context menu for selected tasks, or focused if none selected
-        let selectedTasks = await this.getSelectedTasks();
-        if (selectedTasks.length > 0) {
-            showDateContextMenu(this.plugin, selectedTasks, 'scheduled', this.filterBar?.container ?? this.contentEl);
-        } else if (this.focusTaskElementKey) {
-            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
-            if (taskInfo) {
-                showDateContextMenu(this.plugin, [taskInfo], 'scheduled', this.filterBar?.container ?? this.contentEl);
-            }
-        }
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            showDateContextMenu(this.plugin, tasks, "scheduled", this.filterBar?.container ?? this.contentEl);
+        });
     }
 
     async editPriorities() {
-        // P: open priority context menu for selected tasks, or focused if none selected
-        let selectedTasks = await this.getSelectedTasks();
-        if (selectedTasks.length > 0) {
-            showPriorityContextMenu(this.plugin, selectedTasks, this.filterBar?.container ?? this.contentEl);
-        } else if (this.focusTaskElementKey) {
-            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
-            if (taskInfo) {
-                showPriorityContextMenu(this.plugin, [taskInfo], this.filterBar?.container ?? this.contentEl);
-            }
-        }
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            showPriorityContextMenu(this.plugin, tasks, this.filterBar?.container ?? this.contentEl);
+        });
     }
 
     async editRecurrence() {
-        // R: open recurrence context menu for selected tasks, or focused if none selected
-        let selectedTasks = await this.getSelectedTasks();
-        if (selectedTasks.length > 0) {
-            showRecurrenceContextMenu(this.plugin, selectedTasks, this.filterBar?.container ?? this.contentEl);
-        } else if (this.focusTaskElementKey) {
-            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
-            if (taskInfo) {
-                showRecurrenceContextMenu(this.plugin, [taskInfo], this.filterBar?.container ?? this.contentEl);
-            }
-        }
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            showRecurrenceContextMenu(this.plugin, tasks, this.filterBar?.container ?? this.contentEl);
+        });
     }
 
     async editStatuses() {
-        // R: open status context menu for selected tasks, or focused if none selected
-        let selectedTasks = await this.getSelectedTasks();
-        if (selectedTasks.length > 0) {
-            showStatusContextMenu(this.plugin, selectedTasks, this.filterBar?.container ?? this.contentEl);
-        } else if (this.focusTaskElementKey) {
-            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
-            if (taskInfo) {
-                showStatusContextMenu(this.plugin, [taskInfo], this.filterBar?.container ?? this.contentEl);
-            }
-        }
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            showStatusContextMenu(this.plugin, tasks, this.filterBar?.container ?? this.contentEl);
+        });
     }
 
     async deleteTasks() {
-        // R: open status context menu for selected tasks, or focused if none selected
-        let selectedTasks = await this.getSelectedTasks();
-        if (selectedTasks.length > 0) {
-            showDeleteConfirmationModal(selectedTasks, this.plugin);
-        } else if (this.focusTaskElementKey) {
-            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
-            if (taskInfo) {
-                showDeleteConfirmationModal([taskInfo], this.plugin);
-            }
-        }
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            showDeleteConfirmationModal(tasks, this.plugin);
+        });
     }
 
     /**
