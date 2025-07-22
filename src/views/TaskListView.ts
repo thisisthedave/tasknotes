@@ -21,7 +21,8 @@ import {
     showRecurrenceContextMenu,
     showStatusContextMenu,
     showDeleteConfirmationModal,
-    copyTaskTitleToClipboard
+    copyTaskTitleToClipboard,
+    showProjectModal
 } from '../ui/TaskCard';
 import { FilterBar } from '../ui/FilterBar';
 import { DragDropHandler } from 'src/ui/DragDropHandler';
@@ -401,6 +402,12 @@ export class TaskListView extends ItemView {
         });
     }
 
+    async editProjects() {
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            showProjectModal(this.plugin, tasks);
+        });
+    }
+
     async editPriorities() {
         await this.withSelectedOrFocusedTasks((tasks) => {
             showPriorityContextMenu(this.plugin, tasks, this.filterBar?.container ?? this.contentEl);
@@ -747,6 +754,9 @@ export class TaskListView extends ItemView {
                     handled = true;
                 } else if (event.key == 'S') {
                     this.editScheduleDates();
+                    handled = true;
+                } else if (event.key == 'P') {
+                    this.editProjects();
                     handled = true;
                 } else if (event.key == 'p') {
                     this.editPriorities();

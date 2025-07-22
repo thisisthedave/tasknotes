@@ -14,6 +14,7 @@ import { DateContextMenu } from '../components/DateContextMenu';
 import { PriorityContextMenu } from '../components/PriorityContextMenu';
 import { RecurrenceContextMenu } from '../components/RecurrenceContextMenu';
 import { StatusContextMenu } from '../components/StatusContextMenu';
+import { ProjectSelectModal } from 'src/modals/ProjectSelectModal';
 
 export interface TaskCardOptions {
     showDueDate: boolean;
@@ -110,6 +111,37 @@ function createPriorityContextMenu(
         plugin: plugin
     });
     return menu;
+}
+
+export function showProjectModal(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[]
+): void {
+    if (tasks && tasks.length > 0) {
+        const modal = new ProjectSelectModal(plugin.app, plugin, async (file) => {
+            try {
+                // fileToLinktext expects TFile, so cast safely since we know these are markdown files
+                const updates = tasks.map(task => {
+                    const linkText = plugin.app.metadataCache.fileToLinktext(file as TFile, task.path || '', true);
+                    const projectLink = `[[${linkText}]]`;
+                    
+                    if (task.projects && task.projects.includes(projectLink)) {
+                        return Promise.resolve(); // Already includes this project, skip
+                    }
+
+                    // add the project link to the task's projects
+                    return plugin.updateTaskProperty(task, 'projects', [...(task.projects || []), projectLink]);
+                });
+
+                // Wait for all updates to complete
+                await Promise.all(updates);
+            } catch (error) {
+                console.error('Error updating recurrence:', error);
+                new Notice('Failed to update recurrence');
+            }
+        });
+        modal.open();
+    }
 }
 
 export function showPriorityContextMenu(
@@ -844,6 +876,16 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
         
         menu.addSeparator();
         
+                
+        // Add Project
+        menu.addItem((item) => {
+            item.setTitle('Add project...');
+            item.setIcon('folder-plus');
+            item.onClick(() => {
+                showProjectModal(plugin, [task]);
+            });
+        });
+
         // Create subtask
         menu.addItem((item) => {
             item.setTitle('Create subtask');
