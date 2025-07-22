@@ -353,6 +353,11 @@ export class FilterBar extends EventEmitter {
         this.updateFilterBoxState();
     }
 
+    closeMainFilterBox(): void {
+        this.sectionStates.filterBox = false;
+        this.updateFilterBoxState();
+    }
+
     /**
      * Update the filter box and button state
      */
@@ -1113,6 +1118,15 @@ export class FilterBar extends EventEmitter {
             this.viewSelectorButton.buttonEl.classList.remove('filter-bar__templates-button--active');
         }
     }
+
+    closeViewSelectorDropdown(): void {
+        if (!this.viewSelectorDropdown) return;
+        const isHidden = this.viewSelectorDropdown.classList.contains('filter-bar__view-selector-dropdown--hidden');
+        if (!isHidden) {
+            this.toggleViewSelectorDropdown();
+        }
+    }
+
 
     /**
      * Toggle a collapsible section

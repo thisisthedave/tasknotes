@@ -730,6 +730,8 @@ export class TaskListView extends ItemView {
                     this.taskElements.forEach((taskCard) => {
                         setTaskCardSelected(taskCard, false);
                     });
+                    this.filterBar?.closeMainFilterBox();
+                    this.filterBar?.closeViewSelectorDropdown();
                     handled = true;
                 } else if (event.key === 'Enter') {
                     // Enter: open focused task
