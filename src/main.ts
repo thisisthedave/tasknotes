@@ -22,7 +22,6 @@ import {
 	POMODORO_STATS_VIEW_TYPE,
 	KANBAN_VIEW_TYPE,
 	TaskInfo,
-	FilterQuery,
 	EVENT_DATE_SELECTED,
 	EVENT_DATA_CHANGED,
 	EVENT_TASK_UPDATED
@@ -58,11 +57,19 @@ import { createReadingModeTaskLinkProcessor } from './editor/ReadingModeTaskLink
 import { createProjectNoteDecorations, dispatchProjectSubtasksUpdate } from './editor/ProjectNoteDecorations';
 import { DragDropManager } from './utils/DragDropManager';
 import { ICSSubscriptionService } from './services/ICSSubscriptionService';
+import { ICSNoteService } from './services/ICSNoteService';
 import { MigrationService } from './services/MigrationService';
 import { showMigrationPrompt } from './modals/MigrationModal';
 import { StatusBarService } from './services/StatusBarService';
 import { ProjectSubtasksService } from './services/ProjectSubtasksService';
 import { InputObserver } from './utils/InputObserver';
+
+// Type definitions for better type safety
+interface TaskUpdateEventData {
+	path?: string;
+	originalTask?: TaskInfo;
+	updatedTask?: TaskInfo;
+}
 
 export default class TaskNotesPlugin extends Plugin {
 	settings: TaskNotesSettings;
@@ -74,6 +81,11 @@ export default class TaskNotesPlugin extends Plugin {
 		disableNoteIndexing: boolean;
 		storeTitleInFilename: boolean;
 		fieldMapping: any;
+	} | null = null;
+	
+	// Track time tracking settings to avoid unnecessary listener updates
+	private previousTimeTrackingSettings: {
+		autoStopTimeTrackingOnComplete: boolean;
 	} | null = null;
 	
 	// Ready promise to signal when initialization is complete
@@ -116,6 +128,9 @@ export default class TaskNotesPlugin extends Plugin {
 	
 	// ICS subscription service
 	icsSubscriptionService: ICSSubscriptionService;
+	
+	// ICS note service for creating notes/tasks from ICS events
+	icsNoteService: ICSNoteService;
 	
 	// Migration service
 	migrationService: MigrationService;
@@ -329,6 +344,9 @@ export default class TaskNotesPlugin extends Plugin {
 				this.icsSubscriptionService = new ICSSubscriptionService(this);
 				await this.icsSubscriptionService.initialize();
 				
+				// Initialize ICS note service
+				this.icsNoteService = new ICSNoteService(this);
+				
 				// Initialize editor services (async imports)
 				const { TaskLinkDetectionService } = await import('./services/TaskLinkDetectionService');
 				this.taskLinkDetectionService = new TaskLinkDetectionService(this);
@@ -399,6 +417,9 @@ export default class TaskNotesPlugin extends Plugin {
 				// Set up status bar event listeners for real-time updates
 				this.setupStatusBarEventListeners();
 				
+				// Set up time tracking event listeners
+				this.setupTimeTrackingEventListeners();
+				
 				// Migration check was moved to early startup - just show prompts here if needed
 				await this.showMigrationPromptsIfNeeded();
 				
@@ -435,6 +456,7 @@ export default class TaskNotesPlugin extends Plugin {
 				this.statusBarService.requestUpdate();
 			}, 100);
 		}));
+
 		
 		// Listen for general data changes
 		this.registerEvent(this.emitter.on(EVENT_DATA_CHANGED, () => {
@@ -467,6 +489,77 @@ export default class TaskNotesPlugin extends Plugin {
 				}, 100);
 			}));
 		}
+	}
+	
+	/**
+	 * Set up time tracking event listeners based on settings
+	 */
+	private setupTimeTrackingEventListeners(): void {
+		// Only set up listener if auto-stop is enabled
+		if (this.settings.autoStopTimeTrackingOnComplete) {
+			const eventRef = this.emitter.on(EVENT_TASK_UPDATED, async (data: TaskUpdateEventData) => {
+				await this.handleAutoStopTimeTracking(data);
+			});
+			this.registerEvent(eventRef);
+		}
+		
+		// Update tracking of time tracking settings
+		this.updatePreviousTimeTrackingSettings();
+	}
+	
+	
+	/**
+	 * Handle auto-stop time tracking logic
+	 */
+	private async handleAutoStopTimeTracking(data: TaskUpdateEventData): Promise<void> {
+		const { originalTask, updatedTask } = data;
+		if (!originalTask || !updatedTask) {
+			return;
+		}
+
+		// Check if status changed from non-completed to completed
+		const wasCompleted = this.statusManager.isCompletedStatus(originalTask.status);
+		const isNowCompleted = this.statusManager.isCompletedStatus(updatedTask.status);
+
+		if (!wasCompleted && isNowCompleted) {
+			// Task was just marked as completed - check if it has active time tracking
+			const activeSession = this.getActiveTimeSession(updatedTask);
+			if (activeSession) {
+				try {
+					await this.stopTimeTracking(updatedTask);
+					
+					// Show notification if enabled
+					if (this.settings.autoStopTimeTrackingNotification) {
+						new Notice(`Auto-stopped time tracking for: ${updatedTask.title}`);
+					}
+					
+					console.log(`Auto-stopped time tracking for completed task: ${updatedTask.title}`);
+				} catch (error) {
+					console.error('Error auto-stopping time tracking:', error);
+					// Don't show error notice to user as this is an automatic action
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Check if time tracking settings have changed since last save
+	 */
+	private haveTimeTrackingSettingsChanged(): boolean {
+		if (!this.previousTimeTrackingSettings) {
+			return true; // First time, assume changed
+		}
+
+		return this.settings.autoStopTimeTrackingOnComplete !== this.previousTimeTrackingSettings.autoStopTimeTrackingOnComplete;
+	}
+	
+	/**
+	 * Update tracking of time tracking settings
+	 */
+	private updatePreviousTimeTrackingSettings(): void {
+		this.previousTimeTrackingSettings = {
+			autoStopTimeTrackingOnComplete: this.settings.autoStopTimeTrackingOnComplete
+		};
 	}
 	
 	/**
@@ -601,6 +694,7 @@ export default class TaskNotesPlugin extends Plugin {
 		if (cacheStats && cacheStats.count > 0) {
 			perfMonitor.logSummary();
 		}
+		
 		
 		// Clean up Pomodoro service
 		if (this.pomodoroService) {
@@ -745,6 +839,9 @@ export default class TaskNotesPlugin extends Plugin {
 		// Check if cache-related settings have changed
 		const cacheSettingsChanged = this.haveCacheSettingsChanged();
 		
+		// Check if time tracking settings have changed
+		const timeTrackingSettingsChanged = this.haveTimeTrackingSettingsChanged();
+		
 		// Update customization services with new settings
 		if (this.fieldMapper) {
 			this.fieldMapper.updateMapping(this.settings.fieldMapping);
@@ -773,6 +870,12 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		// Update custom styles
 		this.injectCustomStyles();
+		
+		// Note: Event listeners are automatically cleaned up and re-registered by this.register()
+		// when settings change, so we just need to set them up again
+		if (timeTrackingSettingsChanged) {
+			this.setupTimeTrackingEventListeners();
+		}
 		
 		// Update status bar service visibility
 		if (this.statusBarService) {
@@ -1190,8 +1293,8 @@ private injectCustomStyles(): void {
 
 			// Get the current active view that has a FilterBar
 			const activeView = this.app.workspace.getActiveViewOfType(TaskListView) ||
-							   this.app.workspace.getActiveViewOfType(KanbanView) ||
-							   this.app.workspace.getActiveViewOfType(AgendaView);
+				this.app.workspace.getActiveViewOfType(KanbanView) ||
+				this.app.workspace.getActiveViewOfType(AgendaView);
 
 			if (!activeView || !('filterBar' in activeView)) {
 				new Notice('No compatible view active to apply filter');

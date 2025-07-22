@@ -1,4 +1,4 @@
-import { App, Notice, setIcon } from 'obsidian';
+import { App, Notice, setIcon, AbstractInputSuggest } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { TaskModal } from './TaskModal';
 import { TaskInfo, TaskCreationData } from '../types';
@@ -13,12 +13,225 @@ export interface TaskCreationOptions {
     onTaskCreated?: (task: TaskInfo) => void;
 }
 
+/**
+ * Auto-suggestion provider for NLP textarea with @, #, and + triggers
+ * @ = contexts, # = tags, + = wikilinks to vault files
+ */
+interface ProjectSuggestion {
+    basename: string;
+    displayName: string;
+}
+
+class NLPSuggest extends AbstractInputSuggest<string | ProjectSuggestion> {
+    private plugin: TaskNotesPlugin;
+    private textarea: HTMLTextAreaElement;
+    private currentTrigger: '@' | '#' | '+' | null = null;
+    
+    constructor(app: App, textareaEl: HTMLTextAreaElement, plugin: TaskNotesPlugin) {
+        super(app, textareaEl as unknown as HTMLInputElement);
+        this.plugin = plugin;
+        this.textarea = textareaEl;
+    }
+    
+    protected async getSuggestions(query: string): Promise<(string | ProjectSuggestion)[]> {
+        // Get cursor position and text around it
+        const cursorPos = this.textarea.selectionStart;
+        const textBeforeCursor = this.textarea.value.slice(0, cursorPos);
+        
+        // Find the last @, #, or + before cursor
+        const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+        const lastHashIndex = textBeforeCursor.lastIndexOf('#');
+        const lastPlusIndex = textBeforeCursor.lastIndexOf('+');
+        
+        let triggerIndex = -1;
+        let trigger: '@' | '#' | '+' | null = null;
+        
+        // Find the most recent trigger
+        if (lastAtIndex >= lastHashIndex && lastAtIndex >= lastPlusIndex && lastAtIndex !== -1) {
+            triggerIndex = lastAtIndex;
+            trigger = '@';
+        } else if (lastHashIndex >= lastPlusIndex && lastHashIndex !== -1) {
+            triggerIndex = lastHashIndex;
+            trigger = '#';
+        } else if (lastPlusIndex !== -1) {
+            triggerIndex = lastPlusIndex;
+            trigger = '+';
+        }
+        
+        // No trigger found or trigger is not at word boundary
+        if (triggerIndex === -1 || (triggerIndex > 0 && /\w/.test(textBeforeCursor[triggerIndex - 1]))) {
+            this.currentTrigger = null;
+            return [];
+        }
+        
+        // Extract the query after the trigger
+        const queryAfterTrigger = textBeforeCursor.slice(triggerIndex + 1);
+        
+        // Check if there's a space in the query (which would end the suggestion context)
+        if (queryAfterTrigger.includes(' ') || queryAfterTrigger.includes('\n')) {
+            this.currentTrigger = null;
+            return [];
+        }
+        
+        this.currentTrigger = trigger;
+        
+        // Get suggestions based on trigger type
+        if (trigger === '@') {
+            const contexts = this.plugin.cacheManager.getAllContexts();
+            return contexts
+                .filter(context => context && typeof context === 'string')
+                .filter(context => 
+                    context.toLowerCase().includes(queryAfterTrigger.toLowerCase())
+                )
+                .slice(0, 10);
+        } else if (trigger === '#') {
+            const tags = this.plugin.cacheManager.getAllTags();
+            return tags
+                .filter(tag => tag && typeof tag === 'string')
+                .filter(tag => 
+                    tag.toLowerCase().includes(queryAfterTrigger.toLowerCase())
+                )
+                .slice(0, 10);
+        } else if (trigger === '+') {
+            // Get all markdown files in the vault for wikilink suggestions
+            const markdownFiles = this.plugin.app.vault.getMarkdownFiles();
+            const query = queryAfterTrigger.toLowerCase();
+            
+            const matchingFiles = markdownFiles
+                .map(file => {
+                    const metadata = this.plugin.app.metadataCache.getFileCache(file);
+                    
+                    // Use field mapper to determine title - same logic as the system uses
+                    let title = '';
+                    if (metadata?.frontmatter) {
+                        const mappedData = this.plugin.fieldMapper.mapFromFrontmatter(
+                            metadata.frontmatter, 
+                            file.path, 
+                            this.plugin.settings.storeTitleInFilename
+                        );
+                        title = mappedData.title || '';
+                    }
+                    
+                    return {
+                        file,
+                        basename: file.basename,
+                        title: title,
+                        aliases: metadata?.frontmatter?.aliases || []
+                    };
+                })
+                .filter(item => {
+                    // Search in filename (basename)
+                    if (item.basename.toLowerCase().includes(query)) return true;
+                    
+                    // Search in title
+                    if (item.title && item.title.toLowerCase().includes(query)) return true;
+                    
+                    // Search in aliases
+                    if (Array.isArray(item.aliases)) {
+                        return item.aliases.some(alias => 
+                            typeof alias === 'string' && alias.toLowerCase().includes(query)
+                        );
+                    }
+                    
+                    return false;
+                })
+                .map(item => {
+                    // Create display name with title and aliases in brackets
+                    let displayName = item.basename;
+                    const extras: string[] = [];
+                    
+                    if (item.title && item.title !== item.basename) {
+                        extras.push(`title: ${item.title}`);
+                    }
+                    
+                    if (Array.isArray(item.aliases) && item.aliases.length > 0) {
+                        const validAliases = item.aliases.filter(alias => typeof alias === 'string');
+                        if (validAliases.length > 0) {
+                            extras.push(`aliases: ${validAliases.join(', ')}`);
+                        }
+                    }
+                    
+                    if (extras.length > 0) {
+                        displayName += ` [${extras.join(' | ')}]`;
+                    }
+                    
+                    return {
+                        basename: item.basename,
+                        displayName: displayName
+                    } as ProjectSuggestion;
+                })
+                .slice(0, 20); // Increased from 10 to 20
+                
+            return matchingFiles;
+        }
+        
+        return [];
+    }
+    
+    public renderSuggestion(suggestion: string | ProjectSuggestion, el: HTMLElement): void {
+        const icon = el.createSpan('nlp-suggest-icon');
+        icon.textContent = this.currentTrigger || '';
+        
+        const text = el.createSpan('nlp-suggest-text');
+        
+        if (typeof suggestion === 'string') {
+            // For contexts and tags
+            text.textContent = suggestion;
+        } else {
+            // For projects with enhanced display
+            text.textContent = suggestion.displayName;
+        }
+    }
+    
+    public selectSuggestion(suggestion: string | ProjectSuggestion): void {
+        if (!this.currentTrigger) return;
+        
+        const cursorPos = this.textarea.selectionStart;
+        const textBeforeCursor = this.textarea.value.slice(0, cursorPos);
+        const textAfterCursor = this.textarea.value.slice(cursorPos);
+        
+        // Find the last trigger position
+        const lastTriggerIndex = this.currentTrigger === '@' 
+            ? textBeforeCursor.lastIndexOf('@')
+            : this.currentTrigger === '#'
+            ? textBeforeCursor.lastIndexOf('#')
+            : textBeforeCursor.lastIndexOf('+');
+            
+        if (lastTriggerIndex === -1) return;
+        
+        // Get the actual suggestion text to insert
+        const suggestionText = typeof suggestion === 'string' ? suggestion : suggestion.basename;
+        
+        // Replace the trigger and partial text with the full suggestion
+        const beforeTrigger = textBeforeCursor.slice(0, lastTriggerIndex);
+        let replacement = this.currentTrigger + suggestionText;
+        
+        // For project (+) trigger, wrap in wikilink syntax but keep the + sign
+        if (this.currentTrigger === '+') {
+            replacement = '+[[' + suggestionText + ']]';
+        }
+        
+        const newText = beforeTrigger + replacement + ' ' + textAfterCursor;
+        
+        this.textarea.value = newText;
+        
+        // Set cursor position after the inserted suggestion
+        const newCursorPos = beforeTrigger.length + replacement.length + 1;
+        this.textarea.setSelectionRange(newCursorPos, newCursorPos);
+        
+        // Trigger input event to update preview
+        this.textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        this.textarea.focus();
+    }
+}
+
 export class TaskCreationModal extends TaskModal {
     private options: TaskCreationOptions;
     private nlParser: NaturalLanguageParser;
     private nlInput: HTMLTextAreaElement;
     private nlPreviewContainer: HTMLElement;
     private nlButtonContainer: HTMLElement;
+    private nlpSuggest: NLPSuggest;
 
     constructor(app: App, plugin: TaskNotesPlugin, options: TaskCreationOptions = {}) {
         super(app, plugin);
@@ -102,6 +315,9 @@ export class TaskCreationModal extends TaskModal {
                 this.parseAndFillForm(input);
             }
         });
+
+        // Initialize auto-suggestion
+        this.nlpSuggest = new NLPSuggest(this.app, this.nlInput, this.plugin);
 
         // Focus the input
         setTimeout(() => {
@@ -224,6 +440,7 @@ export class TaskCreationModal extends TaskModal {
         }
         
         if (parsed.contexts && parsed.contexts.length > 0) this.contexts = parsed.contexts.join(', ');
+        // Projects will be handled in the form input update section below
         if (parsed.tags && parsed.tags.length > 0) this.tags = parsed.tags.join(', ');
         if (parsed.details) this.details = parsed.details;
         if (parsed.recurrence) this.recurrenceRule = parsed.recurrence;
@@ -233,6 +450,12 @@ export class TaskCreationModal extends TaskModal {
         if (this.detailsInput) this.detailsInput.value = this.details;
         if (this.contextsInput) this.contextsInput.value = this.contexts;
         if (this.tagsInput) this.tagsInput.value = this.tags;
+        
+        // Handle projects differently - they use file selection, not text input
+        if (parsed.projects && parsed.projects.length > 0) {
+            this.initializeProjectsFromStrings(parsed.projects);
+            this.renderProjectsList();
+        }
         
         // Update icon states
         this.updateIconStates();

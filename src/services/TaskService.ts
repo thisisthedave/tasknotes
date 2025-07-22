@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 // YAML not needed in this service
 import TaskNotesPlugin from '../main';
 import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED, EVENT_TASK_DELETED, TaskCreationData } from '../types';
-import { getCurrentTimestamp, getCurrentDateString, formatUTCDateForCalendar } from '../utils/dateUtils';
+import { getCurrentTimestamp, getCurrentDateString } from '../utils/dateUtils';
 import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
 import { ensureFolderExists } from '../utils/helpers';
 import { processTemplate, mergeTemplateFrontmatter, TemplateData } from '../utils/templateProcessor';
@@ -94,7 +94,8 @@ export class TaskService {
                 timeEstimate: taskData.timeEstimate && taskData.timeEstimate > 0 ? taskData.timeEstimate : undefined,
                 dateCreated: dateCreated,
                 dateModified: dateModified,
-                recurrence: taskData.recurrence || undefined
+                recurrence: taskData.recurrence || undefined,
+                icsEventId: taskData.icsEventId || undefined
             };
 
             // Use field mapper to convert to frontmatter with proper field mapping
@@ -780,6 +781,57 @@ export class TaskService {
         return updatedTask;
     }
 
+    /**
+     * Delete a specific time entry from a task
+     */
+    async deleteTimeEntry(task: TaskInfo, timeEntryIndex: number): Promise<TaskInfo> {
+        const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
+        if (!(file instanceof TFile)) {
+            throw new Error(`Cannot find task file: ${task.path}`);
+        }
+
+        if (!task.timeEntries || !Array.isArray(task.timeEntries)) {
+            throw new Error('Task has no time entries');
+        }
+
+        if (timeEntryIndex < 0 || timeEntryIndex >= task.timeEntries.length) {
+            throw new Error('Invalid time entry index');
+        }
+
+        // Step 1: Construct new state in memory
+        const updatedTask = { ...task };
+        updatedTask.dateModified = getCurrentTimestamp();
+        
+        // Remove the time entry at the specified index
+        updatedTask.timeEntries = task.timeEntries.filter((_, index) => index !== timeEntryIndex);
+
+        // Step 2: Persist to file
+        await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            const timeEntriesField = this.plugin.fieldMapper.toUserField('timeEntries');
+            const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
+            
+            if (frontmatter[timeEntriesField] && Array.isArray(frontmatter[timeEntriesField])) {
+                // Remove the time entry at the specified index
+                frontmatter[timeEntriesField] = frontmatter[timeEntriesField].filter((_: any, index: number) => index !== timeEntryIndex);
+            }
+            
+            frontmatter[dateModifiedField] = updatedTask.dateModified;
+        });
+
+        // Step 3: Proactively update cache
+        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        
+        // Step 4: Notify system of change
+        this.plugin.emitter.trigger(EVENT_TASK_UPDATED, {
+            path: task.path,
+            originalTask: task,
+            updatedTask: updatedTask
+        });
+        
+        // Step 5: Return authoritative data
+        return updatedTask;
+    }
+    
     async reorderTasks(tasks: TaskInfo[], fromIndex: number, toIndex: number): Promise<TaskInfo[]> {
         try {
             if (fromIndex < 0 || fromIndex >= tasks.length || toIndex < 0 || toIndex >= tasks.length) {

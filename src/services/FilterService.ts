@@ -990,7 +990,8 @@ export class FilterService extends EventEmitter {
             statuses: this.statusManager.getAllStatuses(),
             priorities: this.priorityManager.getAllPriorities(),
             contexts: this.cacheManager.getAllContexts(),
-            projects: this.cacheManager.getAllProjects()
+            projects: this.cacheManager.getAllProjects(),
+            tags: this.cacheManager.getAllTags()
         };
         
         const computeTime = performance.now() - startTime;

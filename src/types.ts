@@ -188,6 +188,7 @@ export interface FilterOptions {
 	priorities: readonly PriorityConfig[];
 	contexts: readonly string[];
 	projects: readonly string[];
+	tags: readonly string[];
 }
 
 // Time and date related types
@@ -225,13 +226,14 @@ export interface TaskInfo {
 	timeEntries?: TimeEntry[]; // Individual time tracking sessions
 	dateCreated?: string; // Creation date (ISO timestamp)
 	dateModified?: string; // Last modification date (ISO timestamp)
+	icsEventId?: string[]; // Links to ICS calendar event IDs
  	sortOrder?: number; // Manual ordering index (optional)
 }
 
 export interface TaskCreationData extends Partial<TaskInfo> {
     details?: string; // Optional details/description for file content
     parentNote?: string; // Optional parent note name/path for template variable
-    creationContext?: 'inline-conversion' | 'manual-creation' | 'api' | 'import'; // Context for folder determination
+    creationContext?: 'inline-conversion' | 'manual-creation' | 'api' | 'import' | 'ics-event'; // Context for folder determination
 }
 
 export interface TimeEntry {
@@ -381,6 +383,8 @@ export interface FieldMapping {
 	timeEntries: string;
 	completeInstances: string;
 	pomodoros: string;  // For daily note pomodoro tracking
+	icsEventId: string;  // For linking to ICS calendar events (stored as array in frontmatter)
+	icsEventTag: string;  // Tag used for ICS event-related content
 	sortOrder: string; // For manual ordering of tasks
 }
 

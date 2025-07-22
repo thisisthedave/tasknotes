@@ -50,8 +50,13 @@ export interface TaskNotesSettings {
 	recurrenceMigrated?: boolean;
 	// Status bar settings
 	showTrackedTasksInStatusBar: boolean;
+	// Time tracking settings
+	autoStopTimeTrackingOnComplete: boolean;
+	autoStopTimeTrackingNotification: boolean;
 	// Project subtasks widget settings
 	showProjectSubtasks: boolean;
+	// ICS integration settings
+	icsIntegration: ICSIntegrationSettings;
 	// Saved filter views
 	savedViews: SavedView[];
 }
@@ -68,6 +73,13 @@ export interface TaskCreationDefaults {
 	// Body template settings
 	bodyTemplate: string;     // Path to template file for task body, empty = no template
 	useBodyTemplate: boolean; // Whether to use body template by default
+}
+
+export interface ICSIntegrationSettings {
+	// Default templates for creating content from ICS events
+	defaultNoteTemplate: string;     // Path to template file for notes created from ICS events
+	// Default folders
+	defaultNoteFolder: string;       // Folder for notes created from ICS events
 }
 
 export interface CalendarViewSettings {
@@ -119,6 +131,8 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	timeEntries: 'timeEntries',
 	completeInstances: 'complete_instances',
 	pomodoros: 'pomodoros',
+	icsEventId: 'icsEventId',
+	icsEventTag: 'ics_event',
 	sortOrder: 'sort_order'
 };
 
@@ -276,8 +290,16 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	recurrenceMigrated: false,
 	// Status bar defaults
 	showTrackedTasksInStatusBar: false,
+	// Time tracking defaults
+	autoStopTimeTrackingOnComplete: true,
+	autoStopTimeTrackingNotification: false,
 	// Project subtasks widget defaults
 	showProjectSubtasks: true,
+	// ICS integration defaults
+	icsIntegration: {
+		defaultNoteTemplate: '',
+		defaultNoteFolder: ''
+	},
 	// Saved filter views defaults
 	savedViews: []
 };
@@ -1378,6 +1400,43 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			text: 'Note: Only read-only access is supported. You cannot edit calendar events from within TaskNotes.',
 			cls: 'settings-help-note'
 		});
+
+		// ICS Integration Settings
+		new Setting(container).setName('Content creation from events').setHeading();
+		
+		new Setting(container)
+			.setName('Default note template')
+			.setDesc('Template file for notes created from ICS events (leave empty for default format)')
+			.addText(text => text
+				.setValue(this.plugin.settings.icsIntegration?.defaultNoteTemplate || '')
+				.setPlaceholder('templates/ics-note-template.md')
+				.onChange(async (value) => {
+					if (!this.plugin.settings.icsIntegration) {
+						this.plugin.settings.icsIntegration = {
+							defaultNoteTemplate: '',
+							defaultNoteFolder: ''
+						};
+					}
+					this.plugin.settings.icsIntegration.defaultNoteTemplate = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(container)
+			.setName('Default note folder')
+			.setDesc('Folder for notes created from ICS events (leave empty for vault root)')
+			.addText(text => text
+				.setValue(this.plugin.settings.icsIntegration?.defaultNoteFolder || '')
+				.setPlaceholder('Notes/Calendar Events')
+				.onChange(async (value) => {
+					if (!this.plugin.settings.icsIntegration) {
+						this.plugin.settings.icsIntegration = {
+							defaultNoteTemplate: '',
+							defaultNoteFolder: ''
+						};
+					}
+					this.plugin.settings.icsIntegration.defaultNoteFolder = value;
+					await this.plugin.saveSettings();
+				}));
 	}
 	
 	private renderMiscTab(): void {
@@ -1481,6 +1540,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			['dateModified', 'Modified date'],
 			['recurrence', 'Recurrence'],
 			['archiveTag', 'Archive tag'],
+			['icsEventId', 'ICS Event ID'],
+			['icsEventTag', 'ICS Event Tag'],
 			['sortOrder', 'Sort order']
 		];
 		
@@ -2066,6 +2127,26 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 						new Notice('Failed to update storage location setting.');
 						dropdown.setValue('plugin'); // Reset to plugin storage on error
 					}
+				}));
+
+		new Setting(container)
+			.setName('Auto-stop time tracking on completion')
+			.setDesc('Automatically stop time tracking when a task is marked as completed')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoStopTimeTrackingOnComplete)
+				.onChange(async (value) => {
+					this.plugin.settings.autoStopTimeTrackingOnComplete = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(container)
+			.setName('Show auto-stop notifications')
+			.setDesc('Show a notice when time tracking is automatically stopped')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoStopTimeTrackingNotification)
+				.onChange(async (value) => {
+					this.plugin.settings.autoStopTimeTrackingNotification = value;
+					await this.plugin.saveSettings();
 				}));
 	}
 

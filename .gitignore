@@ -37,3 +37,7 @@ obsidian-developer-docs/
 *.wmv
 CLAUDE.md
 coverage
+
+# Documentation planning files
+documentation-images-needed.md
+plans
