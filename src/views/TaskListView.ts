@@ -45,8 +45,8 @@ export class TaskListView extends ItemView {
     private currentQuery: FilterQuery;
     
     // Task item tracking for dynamic updates
-    private taskElements: Map<string, HTMLElement> = new Map();
-    private focusTaskElementKey: string | null = null; // Track focused task for keyboard navigation
+    private taskElements: HTMLElement[] = [];
+    private focusTaskElementIndex: number = -1; // Track focused task for keyboard navigation
     
     // Event listeners
     private listeners: EventRef[] = [];
@@ -121,28 +121,30 @@ export class TaskListView extends ItemView {
             }
             
             // Check if this task is currently visible in our view
-            const taskElement = this.taskElements.get(path);
-            if (taskElement) {
+            const taskElements = this.taskElements.filter(element => element.dataset.key === path);
+            if (taskElements.length > 0) {
                 // Task is visible - update it in place using TaskCard's update function
-                try {
-                    updateTaskCard(taskElement, updatedTask, this.plugin, {
-                        showDueDate: true,
-                        showCheckbox: false,
-                        showArchiveButton: true,
-                        showTimeTracking: true,
-                        showRecurringControls: true,
-                        groupByDate: false
-                    });
-                    
-                    // Add update animation for real user updates
-                    taskElement.classList.add('task-updated');
-                    setTimeout(() => {
-                        taskElement.classList.remove('task-updated');
-                    }, 1000);
-                } catch (error) {
-                    console.error('Error updating task card:', error);
-                    // Fallback to refresh if update fails
-                    this.refreshTasks();
+                for (const taskElement of taskElements) {
+                    try {
+                        updateTaskCard(taskElement, updatedTask, this.plugin, {
+                            showDueDate: true,
+                            showCheckbox: false,
+                            showArchiveButton: true,
+                            showTimeTracking: true,
+                            showRecurringControls: true,
+                            groupByDate: false
+                        });
+                        
+                        // Add update animation for real user updates
+                        taskElement.classList.add('task-updated');
+                        setTimeout(() => {
+                            taskElement.classList.remove('task-updated');
+                        }, 1000);
+                    } catch (error) {
+                        console.error('Error updating task card:', error);
+                        // Fallback to refresh if update fails
+                        this.refreshTasks();
+                    }
                 }
             } else {
                 // Task not currently visible - it might now match our filters, so refresh
@@ -232,14 +234,9 @@ export class TaskListView extends ItemView {
     
     async refresh(forceFullRefresh = false) {
         return perfMonitor.measure('task-list-refresh', async () => {
-            // If forcing a full refresh, clear the task elements tracking
-            if (forceFullRefresh) {
-                this.taskElements.clear();
-            }
-            
             // Clear and prepare the content element for full refresh
             this.contentEl.empty();
-            this.taskElements.clear();
+            this.taskElements = [];
             await this.render();
         });
     }
@@ -359,12 +356,13 @@ export class TaskListView extends ItemView {
      * Get all TaskInfo objects for selected task elements
      */
     async getSelectedTasks(): Promise<TaskInfo[]> {
+        const selectedTaskPaths: string[] = this.taskElements
+            .filter(element => isTaskCardSelected(element) && element.dataset.key)
+            .map(element => element.dataset.key!);
         const selected: TaskInfo[] = [];
-        for (const [key, element] of this.taskElements.entries()) {
-            if (isTaskCardSelected(element)) {
-                const info = await this.plugin.cacheManager.getTaskInfo(key);
-                if (info) selected.push(info);
-            }
+        for (const taskPath of new Set(selectedTaskPaths)) {
+            const info = await this.plugin.cacheManager.getTaskInfo(taskPath);
+            if (info) selected.push(info);
         }
         return selected;
     }
@@ -382,8 +380,9 @@ export class TaskListView extends ItemView {
             return;
         }
         
-        if (this.focusTaskElementKey) {
-            const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
+        const focusedElement = this.getFocusedTaskElement();
+        if (focusedElement && focusedElement.dataset.key) {
+            const taskInfo = await this.plugin.cacheManager.getTaskInfo(focusedElement.dataset.key!);
             if (taskInfo) {
                 await handler([taskInfo]);
             }
@@ -504,7 +503,7 @@ export class TaskListView extends ItemView {
         if (totalTasks === 0) {
             // Clear everything and show placeholder
             container.empty();
-            this.taskElements.clear();
+            this.taskElements = [];
             container.createEl('p', { text: 'No tasks found for the selected filters.' });
             return;
         }
@@ -517,6 +516,11 @@ export class TaskListView extends ItemView {
         } else {
             // Grouped: render groups normally (groups change less frequently than individual tasks)
             this.renderGroupedTasksWithReconciler(container, groupedTasks);
+        }
+
+        for (let i = 0; i < this.taskElements.length; i++) {
+            // Add drag and drop event handlers
+            this.dragDropHandler.setupDragAndDrop(this.taskElements[i], i);
         }
 
         // Add global handlers to ensure drop events work reliably
@@ -536,17 +540,14 @@ export class TaskListView extends ItemView {
         );
         
         // Update task elements tracking
-        this.taskElements.clear();
-        Array.from(container.children).forEach((child, index) => {
+        this.taskElements = [];
+        Array.from(container.children).forEach(child => {
             const childElement = child as HTMLElement;
             const taskPath = childElement.dataset.key;
             if (taskPath) {
-                this.taskElements.set(taskPath, childElement);
+                this.taskElements.push(childElement);
             }
             childElement.addClass('filter-bar__view-item-container'); // TODO remove
-
-            // Add drag and drop event handlers
-            this.dragDropHandler.setupDragAndDrop(childElement, index);
         });
     }
     
@@ -570,7 +571,7 @@ export class TaskListView extends ItemView {
         
         // Clear container
         container.empty();
-        this.taskElements.clear();
+        this.taskElements = [];
         
         // Render each group
         groupedTasks.forEach((tasks, groupName) => {
@@ -601,16 +602,13 @@ export class TaskListView extends ItemView {
             );
             
             // Update task elements tracking for this group
-            Array.from(taskCardsContainer.children).forEach((child, index) => {
+            Array.from(taskCardsContainer.children).forEach(child => {
                 const childElement = child as HTMLElement;
                 const taskPath = childElement.dataset.key;
                 if (taskPath) {
-                    this.taskElements.set(taskPath, childElement);
+                    this.taskElements.push(childElement);
                 }
                 childElement.addClass('filter-bar__view-item-container'); // TODO remove
-
-                // Add drag and drop event handlers
-                this.dragDropHandler.setupDragAndDrop(childElement, index);
             });
         });
         
@@ -656,35 +654,27 @@ export class TaskListView extends ItemView {
         });
     }
 
-    private getNextEntry<K, V>(map: Map<K, V>, currentKey: K): [K, V] | undefined {
-        let found = currentKey === null || currentKey === undefined || !map.has(currentKey);
-        for (const [k, v] of map) {
-            if (found) return [k, v];
-            if (k === currentKey) found = true;
+    private getFocusedTaskElement(): HTMLElement | null {
+        if (0 <= this.focusTaskElementIndex && this.focusTaskElementIndex < this.taskElements.length) {
+            return this.taskElements[this.focusTaskElementIndex];
         }
-        return undefined;
+        return null;
     }
 
-    private getPreviousEntry<K, V>(map: Map<K, V>, currentKey: K): [K, V] | undefined {
-        let previous: [K, V] | undefined = undefined;
-        for (const [k, v] of map) {
-            if (k === currentKey) return previous;
-            previous = [k, v];
-        }
-        return undefined;
-    }
-
-    private focusTaskElement(taskPath: string, taskElement: HTMLElement): void {
+    private focusTaskElement(elementIndex: number): void {
         // Blur the previous focused element if it exists
-        if (this.focusTaskElementKey) {
-            const prevFocusElement = this.taskElements.get(this.focusTaskElementKey!!);
-            if (prevFocusElement) {
-                prevFocusElement.blur();
-            }
+        const prevFocusElement = this.getFocusedTaskElement();
+        if (prevFocusElement) {
+            prevFocusElement.blur();
         }
 
-        this.focusTaskElementKey = taskPath;
-        taskElement.focus();
+        this.focusTaskElementIndex = elementIndex;
+        const focusedElement = this.getFocusedTaskElement();
+        if (focusedElement) {
+            focusedElement.focus();
+        } else {
+            this.focusTaskElementIndex = -1; // Reset if no valid element
+        }
     }
 
     private addKeyboardHandlers(): void {
@@ -696,17 +686,13 @@ export class TaskListView extends ItemView {
                 if (event.key === 'j' || event.key === 'ArrowDown') {
                     // Navigate down
                     handled = true;
-                    const nextEntry = this.getNextEntry(this.taskElements, this.focusTaskElementKey);
-                    if (nextEntry) {
-                        const [nextTaskElementKey, nextTaskElement] = nextEntry;
-                        this.focusTaskElement(nextTaskElementKey!, nextTaskElement);
+                    if (this.focusTaskElementIndex < this.taskElements.length - 1) {
+                        this.focusTaskElement(this.focusTaskElementIndex + 1);
                     }
                 } else if (event.key === 'k' || event.key === 'ArrowUp') {
                     // Navigate up
-                    const prevEntry = this.getPreviousEntry(this.taskElements, this.focusTaskElementKey);
-                    if (prevEntry) {
-                        const [prevTaskElementKey, prevTaskElement] = prevEntry;
-                        this.focusTaskElement(prevTaskElementKey!, prevTaskElement);
+                    if (this.focusTaskElementIndex > 0) {
+                        this.focusTaskElement(this.focusTaskElementIndex - 1);
                     }
                 } else if (event.key == 'c' && (event.ctrlKey || event.metaKey)) {
                     this.copyTaskTitles();
@@ -718,11 +704,10 @@ export class TaskListView extends ItemView {
                     this.filterBar?.focus();
                     handled = true;
                 } else if (event.key === 'x') {
-                    if (this.focusTaskElementKey) {
-                        const focusTaskElement = this.taskElements.get(this.focusTaskElementKey!);
-                        if (focusTaskElement) {
-                            toggleTaskCardSelection(focusTaskElement);
-                        }
+                    const focusedElement = this.getFocusedTaskElement();
+                    if (focusedElement) {
+                        const matchingCards = this.taskElements.filter(card => card.dataset.key === focusedElement.dataset.key);
+                        toggleTaskCardSelection(matchingCards);
                     }
                     handled = true;
                 } else if (event.key === 'a' && (event.ctrlKey || event.metaKey)) {
@@ -733,7 +718,7 @@ export class TaskListView extends ItemView {
                     handled = true;
                 } else if (event.key === 'Escape' || event.key === 'Backspace') {
                     // Escape: clear focus and selection
-                    this.focusTaskElementKey = null;
+                    this.focusTaskElementIndex = -1; // Reset focus index
                     this.taskElements.forEach((taskCard) => {
                         setTaskCardSelected(taskCard, false);
                     });
@@ -742,8 +727,9 @@ export class TaskListView extends ItemView {
                     handled = true;
                 } else if (event.key === 'Enter') {
                     // Enter: open focused task
-                    if (this.focusTaskElementKey) {
-                        const taskInfo = await this.plugin.cacheManager.getTaskInfo(this.focusTaskElementKey);
+                    const focusedElement = this.getFocusedTaskElement();
+                    if (focusedElement && focusedElement.dataset.key) {
+                        const taskInfo = await this.plugin.cacheManager.getTaskInfo(focusedElement.dataset.key!);
                         if (taskInfo) {
                             await this.plugin.openTaskEditModal(taskInfo);
                         }

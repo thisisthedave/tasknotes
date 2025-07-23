@@ -1249,13 +1249,15 @@ export function setTaskCardSelected(taskCard: HTMLElement, selected: boolean): v
 }
 
 
-export function toggleTaskCardSelection(taskCard: HTMLElement): void {
-    // Assuming `containerDiv` is your <div>
-    const checkbox = taskCard.querySelector('input[type="checkbox"]') as HTMLInputElement;
-
-    if (checkbox) {
-        checkbox.checked = !checkbox.checked; // toggle
-        checkbox.dispatchEvent(new Event('change', { bubbles: true })); // notify listeners
+export function toggleTaskCardSelection(taskCards: HTMLElement[]): void {
+    for (const taskCard of taskCards) {
+        // Assuming `containerDiv` is your <div>
+        const checkbox = taskCard.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    
+        if (checkbox) {
+            checkbox.checked = !checkbox.checked; // toggle
+            checkbox.dispatchEvent(new Event('change', { bubbles: true })); // notify listeners
+        }
     }
 }
 
