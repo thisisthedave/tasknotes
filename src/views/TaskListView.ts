@@ -68,14 +68,27 @@ export class TaskListView extends ItemView {
         };
 
         // Initialize drag and drop handler
-        this.dragDropHandler = new DragDropHandler(async (fromIndex, toIndex) => {
-            if (this.taskListContainer) {
-                const tasks = await Promise.all(
-                    Array.from(this.taskListContainer.children)
-                        .filter(child => !(child as HTMLElement).hasClass('filter-bar__view-item-container--placeholder'))
-                        .map(child => this.plugin.cacheManager.getTaskInfo((child as HTMLElement).dataset.key!))
-                );
-                plugin.reorderTasks(tasks as TaskInfo[], fromIndex, toIndex);
+        this.dragDropHandler = new DragDropHandler(async (fromIndex, toIndex, draggedElement, placeholder) => {
+            if (fromIndex != toIndex) {
+                // Clamp to array bounds
+                const start = Math.max(0, fromIndex > toIndex ? toIndex - 1 : fromIndex - 1);
+                const end = Math.min(this.taskElements.length, fromIndex > toIndex ? fromIndex + 2 : toIndex + 2); // +2 because end is exclusive for slice
+
+                const affectedTaskElements = this.taskElements.slice(start, end); // returns a copy
+                if (affectedTaskElements.length > 0) {
+                    const tasks = await Promise.all(
+                        affectedTaskElements.map(child => this.plugin.cacheManager.getTaskInfo((child as HTMLElement).dataset.key!))
+                    );
+                    console.log(`Reordering tasks from ${fromIndex} to ${toIndex}. Loaded ${tasks.length} tasks with offset ${start}`);
+                    plugin.reorderTasks(tasks as TaskInfo[], fromIndex - start, toIndex - start); // offset indices by the array slice
+                }
+            }
+
+            // Update the value of the grouping field if the task was moved, e.g. from "In Progress" to "Done"
+            if (this.currentQuery.groupKey) {
+                let fromGroup = this.findTaskElementGroup(draggedElement);
+                let toGroup = this.findTaskElementGroup(placeholder);
+                this.moveBetweenGroups(draggedElement.dataset.key!, fromGroup, toGroup);
             }
         });
 
@@ -425,6 +438,25 @@ export class TaskListView extends ItemView {
         });
     }
 
+    async moveBetweenGroups(taskPath: string, fromGroup: string | null, toGroup: string | null) {
+        const movedTask = await this.plugin.cacheManager.getTaskInfo(taskPath);
+        if (movedTask && fromGroup !== toGroup) {
+            const [propertyKey, isArrayProperty] =
+                this.currentQuery.groupKey == 'project' ? ['projects' as keyof TaskInfo, true] :
+                this.currentQuery.groupKey == 'context' ? ['contexts' as keyof TaskInfo, true] :
+                [this.currentQuery.groupKey as keyof TaskInfo, false]
+            let newValue: string | string[] | null = toGroup;
+            if (isArrayProperty) {
+                const oldValue = (movedTask[propertyKey]! as string[])
+                newValue = 
+                    (toGroup !== null && fromGroup !== null && !oldValue.includes(toGroup)) ? oldValue.map(oldProject => oldProject == fromGroup ? toGroup : oldProject) : // swap projects
+                    (toGroup !== null && !oldValue.includes(toGroup)) ? [...oldValue, toGroup] : // add new project
+                    oldValue.filter(oldProject => oldProject != fromGroup) // remove old project
+            }
+            await this.plugin.updateTaskProperty(movedTask, propertyKey, newValue as TaskInfo[keyof TaskInfo]);
+        }
+    }
+
     async deleteTasks() {
         await this.withSelectedOrFocusedTasks((tasks) => {
             showDeleteConfirmationModal(tasks, this.plugin);
@@ -524,7 +556,7 @@ export class TaskListView extends ItemView {
         }
 
         // Add global handlers to ensure drop events work reliably
-        this.dragDropHandler.setupGlobalHandlers(container);
+        this.dragDropHandler.setupGlobalHandlers(container, this.findAllTaskElements.bind(this));
     }
 
     /**
@@ -627,7 +659,7 @@ export class TaskListView extends ItemView {
             showTimeTracking: true,
             showRecurringControls: true,
             groupByDate: false,
-            draggable: this.currentQuery.sortKey === 'sortOrder' // Only enable drag if sorting by sortOrder
+            draggable: this.isViewDraggable()
         });
         
         // Ensure the key is set for reconciler
@@ -650,8 +682,21 @@ export class TaskListView extends ItemView {
             showTimeTracking: true,
             showRecurringControls: true,
             groupByDate: false,
-            draggable: this.currentQuery.sortKey === 'sortOrder' // Only enable drag if sorting by sortOrder
+            draggable: this.isViewDraggable()
         });
+    }
+
+    private findAllTaskElements(): HTMLElement[] {
+        if (this.taskListContainer) {
+            return Array.from(this.taskListContainer.querySelectorAll<HTMLElement>('.task-card'));
+        }
+        return [];
+    }
+
+    private findTaskElementGroup(taskElement: HTMLElement): string | null {
+        const groupEl = taskElement.closest<HTMLElement>('.task-group');
+        const groupKey = groupEl?.dataset.group; // returns string or undefined
+        return groupKey && !this.plugin.filterService.isNullGroupKey(groupKey) ? groupKey : null;
     }
 
     private getFocusedTaskElement(): HTMLElement | null {
@@ -778,7 +823,8 @@ export class TaskListView extends ItemView {
 
     private onMouseEnterCard(event: Event): void {
         const hoveredCard = event.currentTarget as HTMLElement; // the element you attached to
-        this.focusTaskElement(hoveredCard.dataset.key || '', hoveredCard);
+        const index = this.taskElements.indexOf(hoveredCard);
+        this.focusTaskElement(index);
     }
     
     /**
@@ -823,8 +869,18 @@ export class TaskListView extends ItemView {
                 return groupName;
         }
     }
-    
-    
+
+    private isViewDraggable(): boolean {
+        if (this.currentQuery.sortKey !== 'sortOrder') {
+            return false;
+        } 
+        
+        if (this.currentQuery.groupKey && ['due', 'scheduled'].includes(this.currentQuery.groupKey)) {
+            return false; // Don't allow drag if grouping by due/scheduled date
+        }
+        return true;
+    }
+
     /**
      * Helper method to update the loading indicator visibility
      */

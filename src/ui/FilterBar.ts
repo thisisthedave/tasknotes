@@ -97,7 +97,8 @@ export class FilterBar extends EventEmitter {
         this.filterOptions = filterOptions;
 
         // Initialize drag and drop handler
-        this.dragDropHandler = new DragDropHandler((fromIndex, toIndex) => {
+        this.dragDropHandler = new DragDropHandler((fromIndex, toIndex, draggedElement, placeholder) => {
+            if (fromIndex === toIndex) return; // No change if indices are the same
             this.emit('reorderViews', fromIndex, toIndex);
         });
 

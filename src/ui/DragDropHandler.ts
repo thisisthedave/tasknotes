@@ -10,9 +10,17 @@ export interface DragState {
 
 export class DragDropHandler {
     private dragState: DragState | null = null;
-    private onReorder: (fromIndex: number, toIndex: number) => void;
+    private onResolveChildren: () => HTMLElement[] = () => {
+        if (!this.dragState?.placeholder?.parentNode) {
+            return [];
+        }
+        
+        const children = Array.from(this.dragState.placeholder.parentNode.children) as HTMLElement[];
+        return children;
+    }
+    private onReorder: (fromIndex: number, toIndex: number, draggedElement: HTMLElement, placeholder: HTMLElement) => void;
 
-    constructor(onReorder: (fromIndex: number, toIndex: number) => void) {
+    constructor(onReorder: (fromIndex: number, toIndex: number, draggedElement: HTMLElement, placeholder: HTMLElement) => void) {
         this.onReorder = onReorder;
     }
 
@@ -31,7 +39,14 @@ export class DragDropHandler {
     /**
      * Setup global drop handlers for reliability
      */
-    setupGlobalHandlers(section: HTMLElement): void {
+    setupGlobalHandlers(
+        section: HTMLElement,
+        getElements: null | (() => HTMLElement[]) = null
+    ): void {
+        if (getElements) {
+            this.onResolveChildren = getElements;
+        }
+
         section.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -49,9 +64,7 @@ export class DragDropHandler {
             const fromIndex = this.dragState.draggedIndex;
             const toIndex = this.calculateDropPosition();
             
-            if (fromIndex !== toIndex) {
-                this.onReorder(fromIndex, toIndex);
-            }
+            this.onReorder(fromIndex, toIndex, this.dragState.draggedElement, this.dragState.placeholder!);
         });
     }
 
@@ -128,20 +141,17 @@ export class DragDropHandler {
         const fromIndex = this.dragState.draggedIndex;
         const toIndex = this.calculateDropPosition() ?? index;
         
-        if (fromIndex !== toIndex) {
-            this.onReorder(fromIndex, toIndex);
-        }
+        this.onReorder(fromIndex, toIndex, this.dragState.draggedElement, this.dragState.placeholder!);
     }
 
     private calculateDropPosition(): number {
-        if (!this.dragState?.placeholder?.parentNode) {
+        if (!this.dragState?.placeholder) {
             return -1;
         }
-        
-        const parent = this.dragState.placeholder.parentNode;
+
         let position = 0;
-        
-        for (const child of parent.children) {
+        const children = this.onResolveChildren();
+        for (const child of children) {
             if (child === this.dragState.placeholder) {
                 break;
             }

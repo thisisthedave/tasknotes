@@ -724,6 +724,13 @@ export class FilterService extends EventEmitter {
     }
 
     /**
+     * Get the names of all groups returned by groupTasks() that correspond to an empty or null group value
+     */
+    isNullGroupKey(groupKey: string | null | undefined): boolean {
+        return groupKey ? ['No Project', 'No due date', 'No scheduled date', 'no-status', 'unknown', 'none'].includes(groupKey) : false;
+    }
+
+    /**
      * Group sorted tasks by specified criteria
      */
     private groupTasks(tasks: TaskInfo[], groupKey: TaskGroupKey, targetDate?: Date): Map<string, TaskInfo[]> {
