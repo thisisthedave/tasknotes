@@ -770,6 +770,10 @@ export class TaskListView extends ItemView {
                     this.filterBar?.closeMainFilterBox();
                     this.filterBar?.closeViewSelectorDropdown();
                     handled = true;
+                } else if (event.key === 'Enter' && event.shiftKey) {
+                    // Ctrl+Enter: open focused task in new pane
+                    this.openTasks();
+                    handled = true;
                 } else if (event.key === 'Enter') {
                     // Enter: open focused task
                     const focusedElement = this.getFocusedTaskElement();
@@ -894,10 +898,21 @@ export class TaskListView extends ItemView {
         }
     }
     
+    private openTasks() {
+        this.withSelectedOrFocusedTasks(async (tasks) => {
+            if (tasks.length > 0) {
+                // Open each task in a new pane
+                for (const task of tasks) {
+                    this.openTask(task.path);
+                }
+            }
+        });
+    }
+
     openTask(path: string) {
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file instanceof TFile) {
-            this.app.workspace.getLeaf(false).openFile(file);
+            this.app.workspace.getLeaf('tab').openFile(file);
         }
     }
     
