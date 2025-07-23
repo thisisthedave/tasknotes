@@ -99,8 +99,11 @@ export class TaskEditModal extends TaskModal {
         
         this.containerEl.addClass('tasknotes-plugin', 'minimalist-task-modal');
         this.titleEl.textContent = this.getModalTitle();
-        
-        this.initializeFormData().then(() => {
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', this.onKeyDown);
+
+            this.initializeFormData().then(() => {
             this.createModalContent();
             // Render projects list after modal content is created
             this.renderProjectsList();
@@ -109,6 +112,19 @@ export class TaskEditModal extends TaskModal {
             this.focusTitleInput();
         });
     }
+
+    onClose(): void {
+        document.removeEventListener('keydown', this.onKeyDown);
+        super.onClose();
+    }
+
+    private onKeyDown = async (evt: KeyboardEvent) => {
+        if (evt.key === "Enter" && (evt.ctrlKey || evt.metaKey)) {
+            evt.preventDefault();
+            await this.handleSave();
+            this.close();
+        }
+    };
 
     private async refreshTaskData(): Promise<void> {
         try {
