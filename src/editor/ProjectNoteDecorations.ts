@@ -321,6 +321,7 @@ class ProjectNoteDecorationsPlugin implements PluginValue {
                                newTask.status !== oldTask.status ||
                                newTask.priority !== oldTask.priority ||
                                newTask.due !== oldTask.due ||
+                               newTask.points !== oldTask.points ||
                                newTask.path !== oldTask.path;
                     });
                 

@@ -25,7 +25,7 @@ export namespace PointsAction {
     }
 }
 
-const DEFAULT_POINT_SUGGESTIONS = [
+export const DEFAULT_POINT_SUGGESTIONS: PointsAction[] = [
   {
     points: -1,
     title: 'No estimate',

@@ -15,7 +15,7 @@ import { PriorityContextMenu } from '../components/PriorityContextMenu';
 import { RecurrenceContextMenu } from '../components/RecurrenceContextMenu';
 import { StatusContextMenu } from '../components/StatusContextMenu';
 import { ProjectSelectModal } from 'src/modals/ProjectSelectModal';
-import { StoryPointsModal } from 'src/modals/StoryPointsModal';
+import { DEFAULT_POINT_SUGGESTIONS, StoryPointsModal } from 'src/modals/StoryPointsModal';
 
 export interface TaskCardOptions {
     showDueDate: boolean;
@@ -832,6 +832,32 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
             });
         });
         
+        menu.addSeparator();
+        
+        // Set Scheduled Date
+        DEFAULT_POINT_SUGGESTIONS.forEach((pointsAction) => {
+            menu.addItem((item) => {
+                const isSelected = task.points === pointsAction.points;
+                item.setTitle(pointsAction.title);
+                item.setIcon(pointsAction.icon);
+                if (isSelected) {
+                    item.setIcon('check');
+                }
+                item.onClick(async () => {
+                    try {
+                        // Use the fresh task data that showTaskContextMenu just fetched
+                        await plugin.updateTaskProperty(task, 'points', pointsAction.points);
+                    } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        console.error('Error updating story points estimate:', {
+                            error: errorMessage,
+                            taskPath: task.path
+                        });
+                        new Notice(`Failed to update story points estimate: ${errorMessage}`);
+                    }
+                });
+            });
+        });
         menu.addSeparator();
         
         // Time Tracking - determine current state from fresh task data
