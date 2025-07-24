@@ -210,6 +210,7 @@ export const DEFAULT_TASK_CREATION_DEFAULTS: TaskCreationDefaults = {
 	defaultContexts: '',
 	defaultTags: '',
 	defaultTimeEstimate: 0,
+	defaultPoints: 0,
 	defaultRecurrence: 'none',
 	defaultDueDate: 'none',
 	defaultScheduledDate: 'today',
