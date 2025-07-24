@@ -66,6 +66,7 @@ export interface TaskCreationDefaults {
 	defaultContexts: string;  // Comma-separated list
 	defaultTags: string;      // Comma-separated list
 	defaultTimeEstimate: number; // minutes, 0 = no default
+	defaultPoints: number; // story points, 0 = no default
 	defaultRecurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 	// Date defaults
 	defaultDueDate: 'none' | 'today' | 'tomorrow' | 'next-week';
@@ -123,6 +124,7 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	contexts: 'contexts',
 	projects: 'projects',
 	timeEstimate: 'timeEstimate',
+	points: 'points',
 	completedDate: 'completedDate',
 	dateCreated: 'dateCreated',
 	dateModified: 'dateModified',
@@ -1535,6 +1537,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			['contexts', 'Contexts'],
 			['projects', 'Projects'],
 			['timeEstimate', 'Time estimate'],
+			['points', 'Points estimate'],
 			['completedDate', 'Completed date'],
 			['dateCreated', 'Created date'],
 			['dateModified', 'Modified date'],

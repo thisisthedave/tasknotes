@@ -21,6 +21,7 @@ export abstract class TaskModal extends Modal {
     protected projects = '';
     protected tags = '';
     protected timeEstimate = 0;
+    protected points = 0;
     protected recurrenceRule = '';
     
     // Project link storage
@@ -260,6 +261,17 @@ export abstract class TaskModal extends Modal {
                     .setValue(this.timeEstimate.toString())
                     .onChange(value => {
                         this.timeEstimate = parseInt(value) || 0;
+                    });
+            });
+
+        // Story points estimate
+        new Setting(container)
+            .setName('Story points estimate')
+            .addText(text => {
+                text.setPlaceholder('2')
+                    .setValue(this.points.toString())
+                    .onChange(value => {
+                        this.points = parseInt(value) || 0;
                     });
             });
     }

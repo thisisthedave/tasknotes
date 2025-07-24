@@ -1025,6 +1025,7 @@ export class FilterBar extends EventEmitter {
                 'due': 'Due Date',
                 'scheduled': 'Scheduled Date',
                 'priority': 'Priority',
+                'points': 'Points',
                 'title': 'Title',
                 'dateCreated': 'Created Date',
                 'sortOrder': 'Manual',

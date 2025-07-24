@@ -600,7 +600,14 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
 
         metadataElements.push(scheduledSpan);
     }
-    
+
+    // Story points (if has story points)
+    if (task.points && task.points > 0) {
+        const pointsSpan = metadataLine.createEl('span');
+        pointsSpan.textContent = `${task.points} pts`;
+        metadataElements.push(pointsSpan);
+    }
+
     // Contexts (if has contexts)
     if (task.contexts && task.contexts.length > 0) {
         const contextsSpan = metadataLine.createEl('span');
@@ -1186,6 +1193,13 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
             attachDateClickHandler(scheduledSpan, task, plugin, 'scheduled');
             
             metadataElements.push(scheduledSpan);
+        }
+
+        // Story points (if has story points)
+        if (task.points && task.points > 0) {
+            const pointsSpan = metadataLine.createEl('span');
+            pointsSpan.textContent = `${task.points} pts`;
+            metadataElements.push(pointsSpan);
         }
         
         // Contexts (if has contexts)

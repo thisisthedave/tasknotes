@@ -496,6 +496,11 @@ export class TaskCreationModal extends TaskModal {
             this.timeEstimate = defaults.defaultTimeEstimate;
         }
         
+        // Apply story points estimate
+        if (defaults.defaultPoints && defaults.defaultPoints > 0) {
+            this.points = defaults.defaultPoints;
+        }
+        
         // Apply pre-populated values if provided (overrides defaults)
         if (this.options.prePopulatedValues) {
             this.applyPrePopulatedValues(this.options.prePopulatedValues);
@@ -523,6 +528,7 @@ export class TaskCreationModal extends TaskModal {
             this.tags = values.tags.filter(tag => tag !== this.plugin.settings.taskTag).join(', ');
         }
         if (values.timeEstimate !== undefined) this.timeEstimate = values.timeEstimate;
+        if (values.points !== undefined) this.points = values.points;
         if (values.recurrence !== undefined && typeof values.recurrence === 'string') {
             this.recurrenceRule = values.recurrence;
         }
@@ -596,6 +602,7 @@ export class TaskCreationModal extends TaskModal {
             projects: projectList.length > 0 ? projectList : undefined,
             tags: tagList.length > 0 ? tagList : undefined,
             timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
+            points: this.points > 0 ? this.points : undefined,
             recurrence: this.recurrenceRule || undefined,
             creationContext: 'manual-creation', // Mark as manual creation for folder logic
             dateCreated: now,

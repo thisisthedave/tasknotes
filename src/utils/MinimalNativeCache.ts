@@ -953,6 +953,7 @@ export class MinimalNativeCache extends Events {
                 complete_instances: mappedTask.complete_instances,
                 completedDate: mappedTask.completedDate,
                 timeEstimate: mappedTask.timeEstimate,
+                points: mappedTask.points,
                 timeEntries: mappedTask.timeEntries,
                 dateCreated: mappedTask.dateCreated,
                 dateModified: mappedTask.dateModified,

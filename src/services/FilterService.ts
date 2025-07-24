@@ -617,6 +617,9 @@ export class FilterService extends EventEmitter {
                 case 'scheduled':
                     comparison = this.compareDates(a.scheduled, b.scheduled);
                     break;
+                case 'points':
+                    comparison = this.comparePoints(a.points, b.points);
+                    break;
                 case 'priority':
                     comparison = this.comparePriorities(a.priority, b.priority);
                     break;
@@ -671,6 +674,18 @@ export class FilterService extends EventEmitter {
             // Fallback to string comparison
             return dateA.localeCompare(dateB);
         }
+    }
+
+    /**
+     * Compare story points
+     */
+    private comparePoints(pointsA: number | undefined, pointsB: number | undefined): number {
+        // Handle undefined values
+        if (pointsA === undefined && pointsB === undefined) return 0;
+        if (pointsA === undefined) return 1; // No points sorts last
+        if (pointsB === undefined) return -1;
+
+        return pointsA - pointsB;
     }
 
     /**

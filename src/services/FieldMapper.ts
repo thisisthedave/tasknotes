@@ -66,6 +66,10 @@ export class FieldMapper {
             mapped.timeEstimate = frontmatter[this.mapping.timeEstimate];
         }
         
+        if (frontmatter[this.mapping.points] !== undefined) {
+            mapped.points = frontmatter[this.mapping.points];
+        }
+        
         if (frontmatter[this.mapping.completedDate] !== undefined) {
             mapped.completedDate = frontmatter[this.mapping.completedDate];
         }
@@ -158,6 +162,9 @@ export class FieldMapper {
             frontmatter[this.mapping.timeEstimate] = taskData.timeEstimate;
         }
         
+        if (taskData.points !== undefined) {
+            frontmatter[this.mapping.points] = taskData.points;
+        }
         
         if (taskData.completedDate !== undefined) {
             frontmatter[this.mapping.completedDate] = taskData.completedDate;

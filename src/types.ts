@@ -29,7 +29,7 @@ export type ColorizeMode = 'tasks' | 'notes' | 'daily';
 export type CalendarDisplayMode = 'month' | 'agenda';
 
 // Task sorting and grouping types
-export type TaskSortKey = 'sortOrder' | 'due' | 'scheduled' | 'priority' | 'title' | 'dateCreated';
+export type TaskSortKey = 'sortOrder' | 'due' | 'scheduled' | 'points' | 'priority' | 'title' | 'dateCreated';
 export type TaskGroupKey = 'none' | 'priority' | 'context' | 'project' | 'due' | 'scheduled' | 'status';
 export type SortDirection = 'asc' | 'desc';
 
@@ -223,6 +223,7 @@ export interface TaskInfo {
 	complete_instances?: string[]; // Array of dates (YYYY-MM-DD) when recurring task was completed
 	completedDate?: string; // Date (YYYY-MM-DD) when task was marked as done
 	timeEstimate?: number; // Estimated time in minutes
+	points?: number; // Story points estimate
 	timeEntries?: TimeEntry[]; // Individual time tracking sessions
 	dateCreated?: string; // Creation date (ISO timestamp)
 	dateModified?: string; // Last modification date (ISO timestamp)
@@ -375,6 +376,7 @@ export interface FieldMapping {
 	contexts: string;
 	projects: string;
 	timeEstimate: string;
+	points: string;
 	completedDate: string;
 	dateCreated: string;
 	dateModified: string;

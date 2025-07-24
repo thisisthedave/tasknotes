@@ -58,7 +58,8 @@ export class TaskEditModal extends TaskModal {
             ? this.task.tags.filter(tag => tag !== this.plugin.settings.taskTag).join(', ') 
             : '';
         this.timeEstimate = this.task.timeEstimate || 0;
-        
+        this.points = this.task.points || 0;
+
         // Handle recurrence - support both new rrule strings and old RecurrenceInfo objects
         if (this.task.recurrence) {
             if (typeof this.task.recurrence === 'string') {
@@ -458,6 +459,14 @@ export class TaskEditModal extends TaskModal {
         
         if (newTimeEstimate !== oldTimeEstimate) {
             changes.timeEstimate = newTimeEstimate;
+        }
+
+        // Compare story points
+        const newPoints = this.points > 0 ? this.points : undefined;
+        const oldPoints = this.task.points;
+
+        if (newPoints !== oldPoints) {
+            changes.points = newPoints;
         }
 
         // Compare recurrence
