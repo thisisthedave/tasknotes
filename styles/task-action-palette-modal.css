@@ -43,6 +43,7 @@
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
+    margin-right: 1em;
 }
 
 .suggestion-item.is-selected .task-action-palette__icon {

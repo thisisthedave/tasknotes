@@ -22,7 +22,8 @@ import {
     showStatusContextMenu,
     showDeleteConfirmationModal,
     copyTaskTitleToClipboard,
-    showProjectModal
+    showProjectModal,
+    showPointsModal
 } from '../ui/TaskCard';
 import { FilterBar } from '../ui/FilterBar';
 import { DragDropHandler } from 'src/ui/DragDropHandler';
@@ -414,6 +415,13 @@ export class TaskListView extends ItemView {
         });
     }
 
+    async editPoints() {
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            showPointsModal(this.plugin, tasks);
+        });
+    }
+
+
     async editProjects() {
         await this.withSelectedOrFocusedTasks((tasks) => {
             showProjectModal(this.plugin, tasks);
@@ -789,6 +797,9 @@ export class TaskListView extends ItemView {
                     handled = true;
                 } else if (event.key == 'S') {
                     this.editScheduleDates();
+                    handled = true;
+                } else if (event.key == 'E') {
+                    this.editPoints();
                     handled = true;
                 } else if (event.key == 'P') {
                     this.editProjects();

@@ -15,6 +15,7 @@ import { PriorityContextMenu } from '../components/PriorityContextMenu';
 import { RecurrenceContextMenu } from '../components/RecurrenceContextMenu';
 import { StatusContextMenu } from '../components/StatusContextMenu';
 import { ProjectSelectModal } from 'src/modals/ProjectSelectModal';
+import { StoryPointsModal } from 'src/modals/StoryPointsModal';
 
 export interface TaskCardOptions {
     showDueDate: boolean;
@@ -111,6 +112,16 @@ function createPriorityContextMenu(
         plugin: plugin
     });
     return menu;
+}
+
+export function showPointsModal(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[]
+): void {
+    if (tasks && tasks.length > 0) {
+        const modal = new StoryPointsModal(plugin.app, tasks, plugin);
+        modal.open();
+    }
 }
 
 export function showProjectModal(
@@ -499,6 +510,13 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     const metadataLine = contentContainer.createEl('div', { cls: 'task-card__metadata' });
     const metadataElements: HTMLElement[] = [];
     
+    // Story points (if has story points)
+    if (task.points && task.points > 0) {
+        const pointsSpan = metadataLine.createEl('span');
+        pointsSpan.textContent = `${task.points} pts`;
+        metadataElements.push(pointsSpan);
+    }
+
     // Recurrence info (if recurring)
     if (task.recurrence) {
         const frequencyDisplay = getRecurrenceDisplayText(task.recurrence);
@@ -599,13 +617,6 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         attachDateClickHandler(scheduledSpan, task, plugin, 'scheduled');
 
         metadataElements.push(scheduledSpan);
-    }
-
-    // Story points (if has story points)
-    if (task.points && task.points > 0) {
-        const pointsSpan = metadataLine.createEl('span');
-        pointsSpan.textContent = `${task.points} pts`;
-        metadataElements.push(pointsSpan);
     }
 
     // Contexts (if has contexts)
@@ -1093,6 +1104,13 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         metadataLine.innerHTML = '';
         const metadataElements: HTMLElement[] = [];
         
+        // Story points (if has story points)
+        if (task.points && task.points > 0) {
+            const pointsSpan = metadataLine.createEl('span');
+            pointsSpan.textContent = `${task.points} pts`;
+            metadataElements.push(pointsSpan);
+        }
+        
         // Recurrence info (if recurring)
         if (task.recurrence) {
             const frequencyDisplay = getRecurrenceDisplayText(task.recurrence);
@@ -1195,13 +1213,6 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
             metadataElements.push(scheduledSpan);
         }
 
-        // Story points (if has story points)
-        if (task.points && task.points > 0) {
-            const pointsSpan = metadataLine.createEl('span');
-            pointsSpan.textContent = `${task.points} pts`;
-            metadataElements.push(pointsSpan);
-        }
-        
         // Contexts (if has contexts)
         if (task.contexts && task.contexts.length > 0) {
             const contextsSpan = metadataLine.createEl('span');
