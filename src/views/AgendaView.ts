@@ -1,5 +1,6 @@
 import { TFile, ItemView, WorkspaceLeaf, EventRef, Setting } from 'obsidian';
 import { format, addDays, startOfWeek, endOfWeek, isToday, isSameDay } from 'date-fns';
+import { formatUTCDateForCalendar } from '../utils/dateUtils';
 import TaskNotesPlugin from '../main';
 import { 
     AGENDA_VIEW_TYPE,
@@ -268,14 +269,19 @@ export class AgendaView extends ItemView {
         this.filterBar.updateSavedViews(savedViews);
         
         // Listen for saved view events
-        this.filterBar.on('saveView', ({ name, query }) => {
-            this.plugin.viewStateManager.saveView(name, query);
+        this.filterBar.on('saveView', ({ name, query, viewOptions }) => {
+            this.plugin.viewStateManager.saveView(name, query, viewOptions);
             // Don't update here - the ViewStateManager event will handle it
         });
         
         this.filterBar.on('deleteView', (viewId: string) => {
             this.plugin.viewStateManager.deleteView(viewId);
             // Don't update here - the ViewStateManager event will handle it
+        });
+
+        // Listen for view options load events
+        this.filterBar.on('loadViewOptions', (viewOptions: {[key: string]: boolean}) => {
+            this.applyViewOptions(viewOptions);
         });
 
         // Listen for global saved views changes
@@ -333,6 +339,25 @@ export class AgendaView extends ItemView {
         ];
 
         this.filterBar.setViewOptions(options);
+    }
+
+    /**
+     * Apply view options from a loaded saved view
+     */
+    private applyViewOptions(viewOptions: {[key: string]: boolean}): void {
+        // Apply the loaded view options to the internal state
+        if (viewOptions.hasOwnProperty('showOverdueOnToday')) {
+            this.showOverdueOnToday = viewOptions.showOverdueOnToday;
+        }
+        if (viewOptions.hasOwnProperty('showNotes')) {
+            this.showNotes = viewOptions.showNotes;
+        }
+
+        // Update the view options in the FilterBar to reflect the loaded state
+        this.setupViewOptions();
+        
+        // Refresh the view to apply the changes
+        this.refresh();
     }
     
     /**
@@ -454,7 +479,7 @@ export class AgendaView extends ItemView {
         
         let hasAnyItems = false;
         agendaData.forEach(dayData => {
-            const dateStr = format(dayData.date, 'yyyy-MM-dd');
+            const dateStr = formatUTCDateForCalendar(dayData.date);
             
             // Tasks are already filtered by FilterService, no need to re-filter
             const hasItems = dayData.tasks.length > 0 || dayData.notes.length > 0;
@@ -737,8 +762,8 @@ export class AgendaView extends ItemView {
             
             let currentDate = weekStart;
             while (currentDate <= weekEnd) {
-                // Normalize to start of day to ensure consistent date handling
-                const normalizedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+                // Normalize to start of day using UTC to ensure consistent date handling
+                const normalizedDate = new Date(Date.UTC(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()));
                 dates.push(normalizedDate);
                 currentDate = addDays(currentDate, 1);
             }
@@ -746,8 +771,8 @@ export class AgendaView extends ItemView {
             // Fixed number of days starting from startDate
             for (let i = 0; i < this.daysToShow; i++) {
                 const targetDate = addDays(this.startDate, i);
-                // Normalize to start of day to ensure consistent date handling
-                const normalizedDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+                // Normalize to start of day using UTC to ensure consistent date handling
+                const normalizedDate = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
                 dates.push(normalizedDate);
             }
         }

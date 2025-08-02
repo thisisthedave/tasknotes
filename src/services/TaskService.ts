@@ -1,9 +1,7 @@
 import { TFile, Notice, normalizePath, stringifyYaml } from 'obsidian';
-import { format } from 'date-fns';
-// YAML not needed in this service
 import TaskNotesPlugin from '../main';
 import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED, EVENT_TASK_DELETED, TaskCreationData } from '../types';
-import { getCurrentTimestamp, getCurrentDateString } from '../utils/dateUtils';
+import { getCurrentTimestamp, getCurrentDateString, formatUTCDateForCalendar } from '../utils/dateUtils';
 import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
 import { ensureFolderExists } from '../utils/helpers';
 import { processTemplate, mergeTemplateFrontmatter, TemplateData } from '../utils/templateProcessor';
@@ -60,13 +58,19 @@ export class TaskService {
             if (taskData.creationContext === 'inline-conversion') {
                 // For inline conversion, use the inline task folder setting with variable support
                 const inlineFolder = this.plugin.settings.inlineTaskConvertFolder || '';
-                if (inlineFolder.includes('{{currentNotePath}}')) {
-                    // Get current file's folder path
-                    const currentFile = this.plugin.app.workspace.getActiveFile();
-                    const currentFolderPath = currentFile?.parent?.path || '';
-                    folder = inlineFolder.replace(/\{\{currentNotePath\}\}/g, currentFolderPath);
+                if (inlineFolder.trim()) {
+                    // Inline folder is configured, use it
+                    if (inlineFolder.includes('{{currentNotePath}}')) {
+                        // Get current file's folder path
+                        const currentFile = this.plugin.app.workspace.getActiveFile();
+                        const currentFolderPath = currentFile?.parent?.path || '';
+                        folder = inlineFolder.replace(/\{\{currentNotePath\}\}/g, currentFolderPath);
+                    } else {
+                        folder = inlineFolder;
+                    }
                 } else {
-                    folder = inlineFolder;
+                    // Fallback to default tasks folder when inline folder is empty (#128)
+                    folder = this.plugin.settings.tasksFolder || '';
                 }
             } else {
                 // For manual creation and other contexts, use the general tasks folder
@@ -721,7 +725,7 @@ export class TaskService {
 
         // Use the provided date or fall back to the currently selected date
         const targetDate = date || this.plugin.selectedDate;
-        const dateStr = format(targetDate, 'yyyy-MM-dd');
+        const dateStr = formatUTCDateForCalendar(targetDate);
         
         // Check current completion status for this date using fresh data
         const completeInstances = Array.isArray(freshTask.complete_instances) ? freshTask.complete_instances : [];

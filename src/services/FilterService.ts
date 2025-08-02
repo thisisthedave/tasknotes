@@ -42,7 +42,8 @@ export class FilterService extends EventEmitter {
     constructor(
         cacheManager: MinimalNativeCache,
         statusManager: StatusManager,
-        priorityManager: PriorityManager
+        priorityManager: PriorityManager,
+        private plugin?: any // Plugin reference for accessing settings
     ) {
         super();
         this.cacheManager = cacheManager;
@@ -96,7 +97,6 @@ export class FilterService extends EventEmitter {
         
         if (!optimizationAnalysis.canOptimize) {
             // Optimization not safe - return all task paths to ensure correctness
-            console.debug('FilterService: Optimization not safe for this query, using all tasks');
             return this.cacheManager.getAllTaskPaths();
         }
         
@@ -110,17 +110,14 @@ export class FilterService extends EventEmitter {
                 candidatePaths = this.intersectPathSets(candidatePaths, conditionPaths);
             }
             
-            console.debug(`FilterService: Optimized using intersection of ${optimizationAnalysis.conditions.length} conditions (${candidatePaths.size} candidates)`);
             return candidatePaths;
         } else if (optimizationAnalysis.strategy === 'single') {
             // Single indexable condition that's safe to use
             const candidatePaths = this.getPathsForIndexableCondition(optimizationAnalysis.conditions[0]);
-            console.debug(`FilterService: Optimized using single condition (${candidatePaths.size} candidates)`);
             return candidatePaths;
         }
         
         // Fallback to all tasks
-        console.debug('FilterService: No valid optimization strategy, using all tasks');
         return this.cacheManager.getAllTaskPaths();
     }
 
@@ -222,7 +219,6 @@ export class FilterService extends EventEmitter {
                     child.type === 'condition' && indexableConditions.includes(child)
                 );
                 if (hasIndexableChild) {
-                    console.debug('FilterService: Found indexable condition in OR group - optimization unsafe');
                     return true;
                 }
             }
@@ -290,16 +286,11 @@ export class FilterService extends EventEmitter {
         const cached = this.indexQueryCache.get(cacheKey);
         if (cached) {
             // Cache hit - return copy to avoid mutation of cached data
-            console.debug(`FilterService: Cache HIT for key "${cacheKey}" (${cached.size} results)`);
             return new Set(cached);
         }
 
         // Cache miss - compute the result
-        console.debug(`FilterService: Cache MISS for key "${cacheKey}", computing...`);
-        const startTime = performance.now();
         const result = computer();
-        const computeTime = performance.now() - startTime;
-        console.debug(`FilterService: Computed "${cacheKey}" in ${computeTime.toFixed(2)}ms (${result.size} results)`);
         
         // Cache the result
         this.indexQueryCache.set(cacheKey, new Set(result));
@@ -312,7 +303,6 @@ export class FilterService extends EventEmitter {
 
         // Auto-expire cache entry after timeout
         const timer = setTimeout(() => {
-            console.debug(`FilterService: Cache entry "${cacheKey}" expired`);
             this.indexQueryCache.delete(cacheKey);
             this.cacheTimers.delete(cacheKey);
         }, this.cacheTimeout);
@@ -327,10 +317,6 @@ export class FilterService extends EventEmitter {
      * Called when underlying data changes to ensure cache consistency
      */
     private clearIndexQueryCache(): void {
-        const cacheSize = this.indexQueryCache.size;
-        if (cacheSize > 0) {
-            console.debug(`FilterService: Clearing query cache (${cacheSize} entries)`);
-        }
         
         // Clear all timers
         for (const timer of this.cacheTimers.values()) {
@@ -821,25 +807,28 @@ export class FilterService extends EventEmitter {
         const referenceDate = targetDate || new Date();
         referenceDate.setHours(0, 0, 0, 0);
 
+        const isCompleted = this.statusManager.isCompletedStatus(task.status);
+        const hideCompletedFromOverdue = this.plugin?.settings?.hideCompletedFromOverdue ?? true;
+
         // For recurring tasks, check if due on the target date
         if (task.recurrence) {
             if (isDueByRRule(task, referenceDate)) {
                 // If due on target date, determine which group based on target date vs today
                 const referenceDateStr = format(referenceDate, 'yyyy-MM-dd');
-                return this.getDateGroupFromDateString(referenceDateStr);
+                return this.getDateGroupFromDateStringWithTask(referenceDateStr, isCompleted, hideCompletedFromOverdue);
             } else {
                 // Recurring task not due on target date
                 // If it has an original due date, use that, otherwise no due date
                 if (task.due) {
-                    return this.getDueDateGroupFromDate(task.due);
+                    return this.getDateGroupFromDateStringWithTask(task.due, isCompleted, hideCompletedFromOverdue);
                 }
                 return 'No due date';
             }
         }
         
-        // Non-recurring task - use original logic
+        // Non-recurring task - use completion-aware logic
         if (!task.due) return 'No due date';
-        return this.getDueDateGroupFromDate(task.due);
+        return this.getDateGroupFromDateStringWithTask(task.due, isCompleted, hideCompletedFromOverdue);
     }
     
     /**
@@ -849,7 +838,9 @@ export class FilterService extends EventEmitter {
     private getDateGroupFromDateString(dateString: string): string {
         const todayStr = getTodayString();
         
-        // Use time-aware overdue detection
+        // Use time-aware overdue detection with completion-aware logic
+        // For categorization purposes, we need the task to determine completion status
+        // This call is for categorization only, specific task overdue checks happen elsewhere
         if (isOverdueTimeAware(dateString)) return 'Overdue';
         
         // Extract date part for day-level comparisons
@@ -881,9 +872,87 @@ export class FilterService extends EventEmitter {
         return this.getDateGroupFromDateString(dueDate);
     }
 
+    /**
+     * Helper method to get due date group for a specific task (completion-aware)
+     */
+    private getDueDateGroupForTask(task: TaskInfo): string {
+        if (!task.due) return 'No due date';
+        
+        const isCompleted = this.statusManager.isCompletedStatus(task.status);
+        const hideCompletedFromOverdue = this.plugin?.settings?.hideCompletedFromOverdue ?? true;
+        
+        return this.getDateGroupFromDateStringWithTask(task.due, isCompleted, hideCompletedFromOverdue);
+    }
+
+    /**
+     * Get date group from date string with task completion awareness
+     */
+    private getDateGroupFromDateStringWithTask(dateString: string, isCompleted: boolean, hideCompletedFromOverdue: boolean): string {
+        const todayStr = getTodayString();
+        
+        // Use completion-aware overdue detection
+        if (isOverdueTimeAware(dateString, isCompleted, hideCompletedFromOverdue)) return 'Overdue';
+        
+        // Extract date part for day-level comparisons
+        const datePart = getDatePart(dateString);
+        if (isSameDateSafe(datePart, todayStr)) return 'Today';
+        
+        try {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
+            if (isSameDateSafe(datePart, tomorrowStr)) return 'Tomorrow';
+            
+            const thisWeek = new Date();
+            thisWeek.setDate(thisWeek.getDate() + 7);
+            const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
+            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return 'This week';
+            
+            return 'Later';
+        } catch (error) {
+            console.error(`Error categorizing date ${dateString}:`, error);
+            return 'Invalid Date';
+        }
+    }
+
     private getScheduledDateGroup(task: TaskInfo, targetDate?: Date): string {
         if (!task.scheduled) return 'No scheduled date';
-        return this.getScheduledDateGroupFromDate(task.scheduled);
+        
+        const isCompleted = this.statusManager.isCompletedStatus(task.status);
+        const hideCompletedFromOverdue = this.plugin?.settings?.hideCompletedFromOverdue ?? true;
+        
+        return this.getScheduledDateGroupForTask(task.scheduled, isCompleted, hideCompletedFromOverdue);
+    }
+
+    /**
+     * Get scheduled date group with task completion awareness
+     */
+    private getScheduledDateGroupForTask(scheduledDate: string, isCompleted: boolean, hideCompletedFromOverdue: boolean): string {
+        const todayStr = getTodayString();
+        
+        // Use completion-aware overdue detection for past scheduled
+        if (isOverdueTimeAware(scheduledDate, isCompleted, hideCompletedFromOverdue)) return 'Past scheduled';
+        
+        // Extract date part for day-level comparisons
+        const datePart = getDatePart(scheduledDate);
+        if (isSameDateSafe(datePart, todayStr)) return 'Today';
+        
+        try {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
+            if (isSameDateSafe(datePart, tomorrowStr)) return 'Tomorrow';
+            
+            const thisWeek = new Date();
+            thisWeek.setDate(thisWeek.getDate() + 7);
+            const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
+            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return 'This week';
+            
+            return 'Later';
+        } catch (error) {
+            console.error(`Error categorizing scheduled date ${scheduledDate}:`, error);
+            return 'Invalid Date';
+        }
     }
     
     /**
@@ -999,14 +1068,10 @@ export class FilterService extends EventEmitter {
         // Return cached options if valid and not expired by fallback TTL
         if (this.filterOptionsCache && (now - this.filterOptionsCacheTimestamp) < this.filterOptionsCacheTTL) {
             this.filterOptionsCacheHits++;
-            console.debug(`FilterService: getFilterOptions() cache HIT (${this.filterOptionsCacheHits} hits, ${this.filterOptionsComputeCount} computes)`);
             return this.filterOptionsCache;
         }
         
         // Cache miss - compute fresh options
-        const reason = this.filterOptionsCache ? 'fallback TTL expired' : 'no cache';
-        console.debug(`FilterService: getFilterOptions() cache MISS (${reason}) - computing fresh options...`);
-        const startTime = performance.now();
         
         const freshOptions = {
             statuses: this.statusManager.getAllStatuses(),
@@ -1016,14 +1081,11 @@ export class FilterService extends EventEmitter {
             tags: this.cacheManager.getAllTags()
         };
         
-        const computeTime = performance.now() - startTime;
         this.filterOptionsComputeCount++;
         
         // Update cache and timestamp
         this.filterOptionsCache = freshOptions;
         this.filterOptionsCacheTimestamp = now;
-        
-        console.debug(`FilterService: Computed filter options in ${computeTime.toFixed(2)}ms (${this.filterOptionsComputeCount} total computes)`);
         
         return freshOptions;
     }
@@ -1048,10 +1110,7 @@ export class FilterService extends EventEmitter {
         const minCacheAge = 30000; // 30 seconds
         
         if (cacheAge > minCacheAge) {
-            console.debug(`FilterService: File change detected, cache age ${(cacheAge/1000).toFixed(1)}s > ${minCacheAge/1000}s, invalidating`);
             this.invalidateFilterOptionsCache();
-        } else {
-            console.debug(`FilterService: File change detected, but cache is fresh (${(cacheAge/1000).toFixed(1)}s), keeping cache`);
         }
     }
     
@@ -1060,7 +1119,6 @@ export class FilterService extends EventEmitter {
      */
     private invalidateFilterOptionsCache(): void {
         if (this.filterOptionsCache) {
-            console.debug('FilterService: Invalidating filter options cache');
             this.filterOptionsCache = null;
         }
     }
@@ -1305,7 +1363,13 @@ export class FilterService extends EventEmitter {
         const tasksForDate = filteredTasks.filter(task => {
             // Handle recurring tasks
             if (task.recurrence) {
-                return isDueByRRule(task, normalizedDate);
+                // Create UTC date for same calendar day to match recurring task calculations
+                const utcDateForRecurrence = new Date(Date.UTC(
+                    normalizedDate.getFullYear(),
+                    normalizedDate.getMonth(), 
+                    normalizedDate.getDate()
+                ));
+                return isDueByRRule(task, utcDateForRecurrence);
             }
             
             // Handle regular tasks with due dates for this specific date
@@ -1328,16 +1392,19 @@ export class FilterService extends EventEmitter {
             
             // If showing overdue tasks and this is today, include overdue tasks on today
             if (includeOverdue && isViewingToday) {
+                const isCompleted = this.statusManager.isCompletedStatus(task.status);
+                const hideCompletedFromOverdue = this.plugin?.settings?.hideCompletedFromOverdue ?? true;
+                
                 // Check if due date is overdue (show on today)
                 if (task.due && getDatePart(task.due) !== dateStr) {
-                    if (isOverdueTimeAware(task.due)) {
+                    if (isOverdueTimeAware(task.due, isCompleted, hideCompletedFromOverdue)) {
                         return true;
                     }
                 }
                 
                 // Check if scheduled date is overdue (show on today)
                 if (task.scheduled && getDatePart(task.scheduled) !== dateStr) {
-                    if (isOverdueTimeAware(task.scheduled)) {
+                    if (isOverdueTimeAware(task.scheduled, isCompleted, hideCompletedFromOverdue)) {
                         return true;
                     }
                 }

@@ -1,6 +1,6 @@
 # Filtering and Views
 
-TaskNotes provides comprehensive filtering capabilities through the FilterBar, available in the Task List, Agenda, Kanban, and Advanced Calendar views. The FilterBar uses a hierarchical query builder to create complex filter conditions and supports saved views for quick access to common filter configurations.
+TaskNotes provides filtering capabilities through the FilterBar, available in the Task List, Agenda, Kanban, and Advanced Calendar views. The FilterBar uses a hierarchical query builder to create complex filter conditions and supports saved views for quick access to common filter configurations.
 
 ## FilterBar Overview
 
@@ -18,6 +18,31 @@ The search input provides instant filtering by task title:
 - Uses case-insensitive substring matching
 - Updates with 800ms debouncing for performance
 - Search terms appear as filter conditions in the query builder
+
+### Search and Existing Filters
+
+The search functionality intelligently preserves your existing filters:
+
+**When you apply search to existing filters:**
+1. All existing filters are automatically grouped together
+2. The search condition is added as a separate filter
+3. Search and existing filters are connected with "AND" logic
+
+**When you clear search:**
+- The search condition is removed
+- Original filter structure is restored exactly as it was
+
+**Example:**
+If you have filters: `Priority = High OR Status = In Progress`
+
+With search "urgent":
+```
+Search: title contains "urgent"
+AND
+Group: (Priority = High OR Status = In Progress)
+```
+
+This ensures search never interferes with your carefully crafted filter logic while providing powerful search capabilities on top of existing filters.
 
 ## Query Builder
 
@@ -54,9 +79,11 @@ The filter builder allows incomplete conditions during construction:
 ## Available Properties
 
 ### Text Properties
+
 - `title` - Task title/name
 
 ### Selection Properties
+
 - `status` - Task status (uses your configured statuses)
 - `priority` - Priority level (uses your configured priorities)
 - `tags` - Task tags
@@ -64,6 +91,7 @@ The filter builder allows incomplete conditions during construction:
 - `projects` - Task projects (supports `[[wiki-link]]` format)
 
 ### Date Properties
+
 - `due` - Due date
 - `scheduled` - Scheduled date
 - `completedDate` - Date when task was completed
@@ -71,6 +99,7 @@ The filter builder allows incomplete conditions during construction:
 - `file.mtime` - File modification date
 
 **Natural Language Date Support**: Date properties support both ISO date formats (`2024-12-25`, `2024-12-25T14:30:00`) and natural language patterns for dynamic filtering:
+
 - **Basic dates**: `today`, `tomorrow`, `yesterday`
 - **Week patterns**: `next week`, `last week`
 - **Relative patterns**: `in 3 days`, `2 days ago`, `in 1 week`, `2 weeks ago`
@@ -78,34 +107,41 @@ The filter builder allows incomplete conditions during construction:
 Natural language dates are resolved dynamically when filters are evaluated, making saved views with dates like "today" stay current over time.
 
 ### Boolean Properties
+
 - `archived` - Whether task is archived
 - `status.isCompleted` - Whether the task's status indicates completion
 
 ### Numeric Properties
+
 - `timeEstimate` - Time estimate in minutes
 
 ### Special Properties
+
 - `recurrence` - Recurrence pattern (checks if pattern exists)
 
 ## Filter Operators
 
 ### Text Operators
+
 - `contains` - Text contains substring (case-insensitive)
 - `does-not-contain` - Text does not contain substring
 
 ### Comparison Operators
+
 - `is` - Exact equality
 - `is-not` - Exact inequality
 - `is-greater-than` - Numeric greater than
 - `is-less-than` - Numeric less than
 
 ### Date Operators
+
 - `is-before` - Date is before specified date
 - `is-after` - Date is after specified date
 - `is-on-or-before` - Date is on or before specified date
 - `is-on-or-after` - Date is on or after specified date
 
 ### Existence Operators
+
 - `is-empty` - Property is null, undefined, or empty
 - `is-not-empty` - Property has a value
 - `is-checked` - Boolean property is true
@@ -135,20 +171,38 @@ Examples of valid date inputs:
 
 ## Saved Views
 
-Saved views store complete filter configurations for quick access.
+Saved views store complete filter configurations and view-specific options for quick access. This includes not only filters, sorting, and grouping, but also view-specific display preferences.
+
+### What Gets Saved
+
+When you save a view, the following state is preserved:
+
+- **Filter Configuration**: All filter conditions, groups, and logic
+- **Sorting**: Selected sort criteria and direction
+- **Grouping**: Chosen grouping method
+- **View Options**: View-specific display preferences such as:
+  - **Agenda View**: "Show overdue on today" and "Show notes" toggles
+  - **Advanced Calendar**: Display options for scheduled tasks, due dates, timeblocks, recurring tasks, ICS events, and time entries
 
 ### Saving Views
+
 1. Configure your desired filters, sorting, and grouping
-2. Click the "Save View" button
-3. Enter a name for the view
-4. The view is saved and appears in the dropdown
+2. Set any view-specific options (toggles, display preferences)
+3. Click the "Save View" button
+4. Enter a name for the view
+5. The complete view state is saved and appears in the dropdown
 
 ### Loading Views
+
 1. Click the saved views dropdown
 2. Select a view name
-3. The complete configuration (filters, sorting, grouping) is applied
+3. The complete configuration is applied, including:
+   - Filter conditions and structure
+   - Sorting and grouping settings
+   - View-specific display options
 
 ### Managing Views
+
 - **Load**: Apply a saved view configuration
 - **Delete**: Remove a saved view (requires confirmation)
 - **Reorder**: Drag and drop saved views to reorder them
@@ -202,34 +256,41 @@ Understanding how filters are evaluated:
 ## Example Filter Scenarios
 
 ### Simple Text Search
+
 - Property: `title`
 - Operator: `contains`
 - Value: `meeting`
 
 ### Dynamic Date Filters
+
 Using natural language dates for filters that stay current:
 - Property: `due`
 - Operator: `is-on-or-after`
 - Value: `today`
 
 ### Complex Date Range
+
 Group with AND conjunction:
 - Condition 1: `due` `is-on-or-after` `2024-01-01`
 - Condition 2: `due` `is-on-or-before` `2024-01-31`
 
 ### This Week's Tasks
+
 Using natural language for relative time periods:
 - Property: `due`
 - Operator: `is-on-or-after`
 - Value: `next week`
 
 ### High Priority Incomplete Tasks
+
 Group with AND conjunction:
 - Condition 1: `priority` `is` `high`
 - Condition 2: `status.isCompleted` `is-not-checked`
 
 ### Multiple Projects or Contexts
+
 Group with OR conjunction:
+
 - Condition 1: `projects` `contains` `[[Work Project]]`
 - Condition 2: `contexts` `is` `work`
 

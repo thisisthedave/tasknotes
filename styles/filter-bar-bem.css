@@ -120,9 +120,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: var(--tn-button-height-md);
+    height: var(--tn-button-height-md);
     transition: all 0.2s ease;
+    box-shadow: none;
 }
 
 .tasknotes-plugin .filter-bar__filter-toggle:hover {
@@ -146,7 +147,8 @@
     font-size: var(--font-ui-small);
     font-weight: 500;
     transition: all 0.2s ease;
-    height: 32px; /* Consistent height */
+    height: var(--tn-button-height-md); /* Consistent height */
+    box-shadow: none;
 }
 
 .tasknotes-plugin .filter-bar__templates-button:hover {
@@ -162,6 +164,13 @@
     box-shadow: none;
 }
 
+.tasknotes-plugin .filter-bar__templates-button--saved-view-active {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    box-shadow: 0 0 0 1px var(--color-accent);
+}
+
 /* Search Input */
 .tasknotes-plugin .filter-bar__search-input {
     flex: 1;
@@ -173,7 +182,7 @@
     font-size: var(--font-ui-small);
     transition: all 0.2s ease;
     min-width: 200px;
-    height: 32px; /* Consistent height */
+    height: var(--tn-button-height-md); /* Consistent height */
 }
 
 .tasknotes-plugin .filter-bar__search-input:focus {
@@ -370,6 +379,21 @@
     transition: background-color 0.2s ease;
 }
 
+.tasknotes-plugin .filter-bar__view-item--active {
+    color: var(--text-on-accent);
+}
+
+.tasknotes-plugin .filter-bar__view-item-container--active {
+    background: var(--interactive-accent);
+    border-radius: var(--radius-s);
+    border: none;
+}
+
+.tasknotes-plugin .filter-bar__view-item-container--active:hover {
+    background: var(--interactive-accent-hover);
+    transform: translateX(2px);
+}
+
 .tasknotes-plugin .filter-bar__view-delete {
     background: none;
     border: none;
@@ -474,24 +498,10 @@
     padding-right: var(--tn-spacing-sm);
 }
 
+/* Use consistent button system */
 .tasknotes-plugin .filter-bar__save-button {
-    background: none;
-    border: none !important;
-    box-shadow: none;
-    outline: none;
-    color: var(--text-muted);
-    cursor: pointer;
+    /* Remove individual styles - use tn-btn tn-btn--icon tn-btn--ghost classes */
     padding: 4px;
-    border-radius: var(--radius-s);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.tasknotes-plugin .filter-bar__save-button:hover {
-    background: var(--interactive-hover);
-    color: var(--text-normal);
 }
 
 .tasknotes-plugin .filter-bar__save-button svg {
@@ -505,6 +515,14 @@
     color: var(--text-muted); /* Muted for subtlety */
     text-transform: none; /* Normal case */
     letter-spacing: 0; /* Natural spacing */
+}
+
+.tasknotes-plugin .filter-bar__active-view-name {
+    font-weight: 400;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-accent);
+    margin-left: var(--tn-spacing-xs);
+    font-style: italic;
 }
 
 .tasknotes-plugin .filter-bar__section-content {
@@ -811,10 +829,11 @@
     height: 28px;
     width: 30px;
     border-radius: var(--radius-s);
-    color: var(--text-muted);
+    color: var(--text-accent);
     cursor: pointer;
-    font-size: var(--font-ui-small);
-    transition: background-color 0.2s ease;
+    font-size: 16px;
+    font-weight: 700;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -822,7 +841,8 @@
 
 .tasknotes-plugin .filter-bar__sort-direction:hover {
     background-color: var(--background-modifier-hover);
-    color: var(--text-normal);
+    color: var(--text-accent-hover);
+    transform: scale(1.1);
 }
 
 /* =================================================================

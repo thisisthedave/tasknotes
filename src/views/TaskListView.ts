@@ -1,4 +1,4 @@
-import { TFile, ItemView, WorkspaceLeaf, EventRef } from 'obsidian';
+import { TFile, ItemView, WorkspaceLeaf, EventRef, Notice } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     TASK_LIST_VIEW_TYPE, 
@@ -310,9 +310,9 @@ export class TaskListView extends ItemView {
         this.filterBar.updateSavedViews(savedViews);
         
         // Listen for saved view events
-        this.filterBar.on('saveView', ({ name, query }) => {
-            console.log('TaskListView: Received saveView event:', name, query); // Debug
-            const savedView = this.plugin.viewStateManager.saveView(name, query);
+        this.filterBar.on('saveView', ({ name, query, viewOptions }) => {
+            console.log('TaskListView: Received saveView event:', name, query, viewOptions); // Debug
+            const savedView = this.plugin.viewStateManager.saveView(name, query, viewOptions);
             console.log('TaskListView: Saved view result:', savedView); // Debug
             // Don't update here - the ViewStateManager event will handle it
         });
@@ -623,10 +623,16 @@ export class TaskListView extends ItemView {
             
             // Add group header (skip only if grouping is 'none' and group name is 'all')
             if (!(this.currentQuery.groupKey === 'none' && groupName === 'all')) {
-                groupSection.createEl('h3', {
-                    text: this.formatGroupName(groupName),
+                const headerElement = groupSection.createEl('h3', {
                     cls: 'task-group-header task-list-view__group-header'
                 });
+                
+                // For project groups, make the header clickable if it's a wikilink project
+                if (this.currentQuery.groupKey === 'project' && this.isWikilinkProject(groupName)) {
+                    this.createClickableProjectHeader(headerElement, groupName);
+                } else {
+                    headerElement.textContent = this.formatGroupName(groupName);
+                }
             }
             
             // Create task cards container
@@ -942,6 +948,73 @@ export class TaskListView extends ItemView {
                 unsubscribe();
                 resolve();
             });
+        });
+    }
+
+    /**
+     * Check if a project string is in wikilink format [[Note Name]]
+     */
+    private isWikilinkProject(project: string): boolean {
+        return project.startsWith('[[') && project.endsWith(']]');
+    }
+
+    /**
+     * Create a clickable project header for wikilink projects
+     */
+    private createClickableProjectHeader(headerElement: HTMLElement, projectName: string): void {
+        if (this.isWikilinkProject(projectName)) {
+            // Extract the note name from [[Note Name]]
+            const noteName = projectName.slice(2, -2);
+            
+            // Create a clickable link
+            const linkEl = headerElement.createEl('a', {
+                cls: 'internal-link task-list-view__project-link',
+                text: noteName
+            });
+            
+            // Add click handler to open the note
+            this.registerDomEvent(linkEl, 'click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Resolve the link to get the actual file
+                const file = this.plugin.app.metadataCache.getFirstLinkpathDest(noteName, '');
+                if (file instanceof TFile) {
+                    // Open the file in the current leaf
+                    await this.plugin.app.workspace.getLeaf(false).openFile(file);
+                } else {
+                    // File not found, show notice
+                    new Notice(`Note "${noteName}" not found`);
+                }
+            });
+            
+            // Add hover preview functionality - resolve the file first
+            const file = this.plugin.app.metadataCache.getFirstLinkpathDest(noteName, '');
+            if (file instanceof TFile) {
+                this.addHoverPreview(linkEl, file.path);
+            }
+        } else {
+            // Fallback to plain text
+            headerElement.textContent = this.formatGroupName(projectName);
+        }
+    }
+
+    /**
+     * Add hover preview functionality to an element
+     */
+    private addHoverPreview(element: HTMLElement, filePath: string) {
+        element.addEventListener('mouseover', (event) => {
+            const file = this.app.vault.getAbstractFileByPath(filePath);
+            if (file) {
+                this.app.workspace.trigger('hover-link', {
+                    event,
+                    source: 'tasknotes-tasklistview',
+                    hoverParent: this,
+                    targetEl: element,
+                    linktext: filePath,
+                    sourcePath: filePath
+                });
+            }
         });
     }
 }

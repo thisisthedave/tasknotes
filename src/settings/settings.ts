@@ -1,10 +1,11 @@
-import { App, PluginSettingTab, Setting, Notice, setIcon } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, setIcon, TAbstractFile, TFile, setTooltip } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { FieldMapping, StatusConfig, PriorityConfig, SavedView } from '../types';
 import { StatusManager } from '../services/StatusManager';
 import { PriorityManager } from '../services/PriorityManager';
 import { showConfirmationModal } from '../modals/ConfirmationModal';
 import { showStorageLocationConfirmationModal } from '../modals/StorageLocationConfirmationModal';
+import { ProjectSelectModal } from '../modals/ProjectSelectModal';
 
 export interface TaskNotesSettings {
 	tasksFolder: string;  // Now just a default location for new tasks
@@ -55,6 +56,8 @@ export interface TaskNotesSettings {
 	autoStopTimeTrackingNotification: boolean;
 	// Project subtasks widget settings
 	showProjectSubtasks: boolean;
+	// Overdue behavior settings
+	hideCompletedFromOverdue: boolean;
 	// ICS integration settings
 	icsIntegration: ICSIntegrationSettings;
 	// Saved filter views
@@ -65,6 +68,7 @@ export interface TaskCreationDefaults {
 	// Pre-fill options
 	defaultContexts: string;  // Comma-separated list
 	defaultTags: string;      // Comma-separated list
+	defaultProjects: string;  // Comma-separated list of project links
 	defaultTimeEstimate: number; // minutes, 0 = no default
 	defaultPoints: number; // story points, 0 = no default
 	defaultRecurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -85,7 +89,9 @@ export interface ICSIntegrationSettings {
 
 export interface CalendarViewSettings {
 	// Default view
-	defaultView: 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay' | 'multiMonthYear';
+	defaultView: 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay' | 'multiMonthYear' | 'timeGridCustom';
+	// Custom multi-day view settings
+	customDayCount: number; // Number of days to show in custom view (2-10)
 	// Time settings
 	slotDuration: '00:15:00' | '00:30:00' | '01:00:00'; // 15, 30, or 60 minutes
 	slotMinTime: string; // Start time (HH:MM:SS format)
@@ -209,6 +215,7 @@ export const DEFAULT_PRIORITIES: PriorityConfig[] = [
 export const DEFAULT_TASK_CREATION_DEFAULTS: TaskCreationDefaults = {
 	defaultContexts: '',
 	defaultTags: '',
+	defaultProjects: '',
 	defaultTimeEstimate: 0,
 	defaultPoints: 0,
 	defaultRecurrence: 'none',
@@ -221,6 +228,8 @@ export const DEFAULT_TASK_CREATION_DEFAULTS: TaskCreationDefaults = {
 export const DEFAULT_CALENDAR_VIEW_SETTINGS: CalendarViewSettings = {
 	// Default view
 	defaultView: 'dayGridMonth',
+	// Custom multi-day view settings
+	customDayCount: 3, // Default to 3 days as requested in issue #282
 	// Time settings
 	slotDuration: '00:30:00', // 30-minute slots
 	slotMinTime: '00:00:00', // Start at midnight
@@ -298,6 +307,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	autoStopTimeTrackingNotification: false,
 	// Project subtasks widget defaults
 	showProjectSubtasks: true,
+	// Overdue behavior defaults
+	hideCompletedFromOverdue: true,
 	// ICS integration defaults
 	icsIntegration: {
 		defaultNoteTemplate: '',
@@ -312,6 +323,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 	plugin: TaskNotesPlugin;
 	private activeTab = 'task-defaults';
 	private tabContents: Record<string, HTMLElement> = {};
+	private selectedDefaultProjectFiles: TAbstractFile[] = [];
   
 	constructor(app: App, plugin: TaskNotesPlugin) {
 		super(app, plugin);
@@ -711,6 +723,34 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					});
 			});
 
+		// Default projects setting
+		const projectSetting = new Setting(container)
+			.setName('Default projects')
+			.setDesc('Default projects for new tasks');
+
+		// Initialize default project files from settings
+		this.initializeDefaultProjectsFromSettings();
+
+		// Create projects display area
+		const projectsContainer = projectSetting.settingEl.createDiv('default-projects-container');
+		const projectsList = projectsContainer.createDiv('default-projects-list');
+		
+		// Add project button
+		const addProjectBtn = projectsContainer.createEl('button', {
+			cls: 'default-project-add-btn',
+			text: '+ Add project'
+		});
+		addProjectBtn.addEventListener('click', () => {
+			new ProjectSelectModal(this.app, this.plugin, (file) => {
+				this.addDefaultProject(file);
+				this.renderDefaultProjectsList(projectsList);
+				this.updateDefaultProjectsInSettings();
+			}).open();
+		});
+
+		// Initial render
+		this.renderDefaultProjectsList(projectsList);
+
 		new Setting(container)
 			.setName('Default time estimate')
 			.setDesc('Default time estimate for new tasks in minutes (0 = no default)')
@@ -852,10 +892,26 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					.addOption('dayGridMonth', 'Month')
 					.addOption('timeGridWeek', 'Week')
 					.addOption('timeGridDay', 'Day')
+					.addOption('timeGridCustom', 'Custom Days')
 					.addOption('multiMonthYear', 'Year')
 					.setValue(this.plugin.settings.calendarViewSettings.defaultView)
 					.onChange(async (value: any) => {
 						this.plugin.settings.calendarViewSettings.defaultView = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Custom view day count')
+			.setDesc('Number of days to show in the custom view (2-10 days)')
+			.addSlider(slider => {
+				slider.sliderEl.setAttribute('aria-label', 'Number of days in custom view');
+				return slider
+					.setLimits(2, 10, 1)
+					.setValue(this.plugin.settings.calendarViewSettings.customDayCount)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.customDayCount = value;
 						await this.plugin.saveSettings();
 					});
 			});
@@ -1486,6 +1542,21 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 						this.plugin.notifyDataChanged();
 					});
 			});
+		// Hide completed tasks from overdue
+		new Setting(container)
+			.setName('Hide completed tasks from overdue')
+			.setDesc('When enabled, completed tasks will not appear as overdue in the agenda view, even if their due/scheduled date has passed')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Hide completed tasks from overdue status');
+				return toggle
+					.setValue(this.plugin.settings.hideCompletedFromOverdue)
+					.onChange(async (value) => {
+						this.plugin.settings.hideCompletedFromOverdue = value;
+						await this.plugin.saveSettings();
+						// Refresh views to apply the change
+						this.plugin.notifyDataChanged();
+					});
+			});
 
 		// Notes indexing toggle
 		new Setting(container)
@@ -1519,7 +1590,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			.setName('Field mapping')
 			.setHeading();
 		container.createEl('p', { 
-			text: 'Configure which frontmatter properties TaskNotes should use for each field.'
+			text: 'Configure which frontmatter properties TaskNotes should use for each field.',
+			cls: 'settings-help-note'
 		});
 		
 		// Create mapping table
@@ -1600,7 +1672,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		
 		// Description section
 		container.createEl('p', { 
-			text: 'Customize the status options available for your tasks. These statuses control the task lifecycle and determine when tasks are considered complete.'
+			text: 'Customize the status options available for your tasks. These statuses control the task lifecycle and determine when tasks are considered complete.',
+			cls: 'settings-help-note'
 		});
 		
 		// Help section
@@ -1619,6 +1692,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		
 		// Column headers
 		const headersRow = container.createDiv('settings-headers-row settings-view__list-headers');
+		headersRow.createDiv('settings-header-spacer settings-view__header-spacer'); // For drag handle space
 		headersRow.createDiv('settings-header-spacer settings-view__header-spacer'); // For color indicator space
 		headersRow.createEl('span', { text: 'Value', cls: 'settings-column-header settings-view__column-header' });
 		headersRow.createEl('span', { text: 'Display Label', cls: 'settings-column-header settings-view__column-header' });
@@ -1658,6 +1732,13 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		
 		sortedStatuses.forEach((status, index) => {
 			const statusRow = container.createDiv('settings-item-row settings-view__item-row');
+			statusRow.setAttribute('draggable', 'true');
+			statusRow.setAttribute('data-status-id', status.id);
+			
+			// Drag handle
+			const dragHandle = statusRow.createDiv('settings-drag-handle');
+			dragHandle.textContent = '☰';
+			setTooltip(dragHandle, 'Drag to reorder', { placement: 'top' });
 			
 			// Color indicator
 			const colorIndicator = statusRow.createDiv('settings-color-indicator settings-view__color-indicator');
@@ -1764,7 +1845,91 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					}
 				}
 			});
+			
+			// Drag and drop event handlers
+			statusRow.addEventListener('dragstart', (e) => {
+				e.dataTransfer!.setData('text/plain', status.id);
+				statusRow.classList.add('dragging');
+			});
+			
+			statusRow.addEventListener('dragend', () => {
+				statusRow.classList.remove('dragging');
+			});
+			
+			statusRow.addEventListener('dragover', (e) => {
+				e.preventDefault();
+				const draggingRow = container.querySelector('.dragging') as HTMLElement;
+				if (draggingRow && draggingRow !== statusRow) {
+					const rect = statusRow.getBoundingClientRect();
+					const midpoint = rect.top + rect.height / 2;
+					if (e.clientY < midpoint) {
+						statusRow.classList.add('drag-over-top');
+						statusRow.classList.remove('drag-over-bottom');
+					} else {
+						statusRow.classList.add('drag-over-bottom');
+						statusRow.classList.remove('drag-over-top');
+					}
+				}
+			});
+			
+			statusRow.addEventListener('dragleave', () => {
+				statusRow.classList.remove('drag-over-top', 'drag-over-bottom');
+			});
+			
+			statusRow.addEventListener('drop', async (e) => {
+				e.preventDefault();
+				statusRow.classList.remove('drag-over-top', 'drag-over-bottom');
+				
+				const draggedStatusId = e.dataTransfer!.getData('text/plain');
+				const targetStatusId = status.id;
+				
+				if (draggedStatusId !== targetStatusId) {
+					await this.reorderStatus(draggedStatusId, targetStatusId, e.clientY < statusRow.getBoundingClientRect().top + statusRow.getBoundingClientRect().height / 2);
+				}
+			});
 		});
+	}
+	
+	private async reorderStatus(draggedStatusId: string, targetStatusId: string, insertBefore: boolean): Promise<void> {
+		const statuses = [...this.plugin.settings.customStatuses];
+		
+		// Find the dragged and target statuses
+		const draggedIndex = statuses.findIndex(s => s.id === draggedStatusId);
+		const targetIndex = statuses.findIndex(s => s.id === targetStatusId);
+		
+		if (draggedIndex === -1 || targetIndex === -1) {
+			return;
+		}
+		
+		// Remove the dragged status from its current position
+		const [draggedStatus] = statuses.splice(draggedIndex, 1);
+		
+		// Determine the new position
+		let newIndex = targetIndex;
+		if (draggedIndex < targetIndex) {
+			// If we removed an item before the target, adjust the target index
+			newIndex--;
+		}
+		
+		if (!insertBefore) {
+			// Insert after the target
+			newIndex++;
+		}
+		
+		// Insert the dragged status at the new position
+		statuses.splice(newIndex, 0, draggedStatus);
+		
+		// Update the order values
+		statuses.forEach((status, index) => {
+			status.order = index;
+		});
+		
+		// Save the updated statuses
+		this.plugin.settings.customStatuses = statuses;
+		await this.plugin.saveSettings();
+		
+		// Re-render the list to reflect the new order
+		this.renderActiveTab();
 	}
 	
 	private renderPrioritiesTab(): void {
@@ -1776,7 +1941,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		
 		// Description section
 		container.createEl('p', { 
-			text: 'Customize the priority levels available for your tasks. Priority weights determine sorting order and visual hierarchy in your task views.'
+			text: 'Customize the priority levels available for your tasks. Priority weights determine sorting order and visual hierarchy in your task views.',
+			cls: 'settings-help-note'
 		});
 		
 		// Help section
@@ -2178,13 +2344,13 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			const statusIndicator = subRow.createDiv('settings-status-indicator');
 			if (subscription.enabled) {
 				statusIndicator.addClass('enabled');
-				statusIndicator.title = subscription.lastError ? `Error: ${subscription.lastError}` : 'Active';
+				setTooltip(statusIndicator, subscription.lastError ? `Error: ${subscription.lastError}` : 'Active', { placement: 'top' });
 				if (subscription.lastError) {
 					statusIndicator.addClass('error');
 				}
 			} else {
 				statusIndicator.addClass('disabled');
-				statusIndicator.title = 'Disabled';
+				setTooltip(statusIndicator, 'Disabled', { placement: 'top' });
 			}
 			
 			// Subscription info
@@ -2416,5 +2582,108 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		window.setTimeout(() => nameInput.focus(), 50);
 	}
 
+	private initializeDefaultProjectsFromSettings(): void {
+		// Convert project strings to files
+		const defaultProjects = this.plugin.settings.taskCreationDefaults.defaultProjects;
+		if (!defaultProjects) {
+			this.selectedDefaultProjectFiles = [];
+			return;
+		}
+
+		const projectStrings = defaultProjects.split(',').map(p => p.trim()).filter(p => p.length > 0);
+		this.selectedDefaultProjectFiles = [];
+		
+		for (const projectString of projectStrings) {
+			// Check if it's a wiki link format
+			const linkMatch = projectString.match(/^\[\[([^\]]+)\]\]$/);
+			if (linkMatch) {
+				const linkPath = linkMatch[1];
+				const file = this.app.metadataCache.getFirstLinkpathDest(linkPath, '');
+				if (file) {
+					this.selectedDefaultProjectFiles.push(file);
+				}
+			} else {
+				// For backwards compatibility, try to find a file with this name
+				const files = this.app.vault.getMarkdownFiles();
+				const matchingFile = files.find(f => 
+					f.basename === projectString || 
+					f.name === projectString + '.md'
+				);
+				if (matchingFile) {
+					this.selectedDefaultProjectFiles.push(matchingFile);
+				}
+			}
+		}
+	}
+
+	private addDefaultProject(file: TAbstractFile): void {
+		// Check if project is already selected
+		const exists = this.selectedDefaultProjectFiles.some(
+			existing => existing.path === file.path
+		);
+		if (!exists) {
+			this.selectedDefaultProjectFiles.push(file);
+		}
+	}
+
+	private removeDefaultProject(file: TAbstractFile): void {
+		this.selectedDefaultProjectFiles = this.selectedDefaultProjectFiles.filter(
+			existing => existing.path !== file.path
+		);
+	}
+
+	private renderDefaultProjectsList(container: HTMLElement): void {
+		container.empty();
+
+		if (this.selectedDefaultProjectFiles.length === 0) {
+			const emptyText = container.createDiv({ cls: 'default-projects-empty' });
+			emptyText.textContent = 'No default projects selected';
+			return;
+		}
+
+		this.selectedDefaultProjectFiles.forEach(file => {
+			const projectItem = container.createDiv({ cls: 'default-project-item' });
+			
+			// Info container
+			const infoEl = projectItem.createDiv({ cls: 'default-project-info' });
+			
+			// File name
+			const nameEl = infoEl.createSpan({ cls: 'default-project-name' });
+			nameEl.textContent = file.name;
+			
+			// File path (if different from name)
+			if (file.path !== file.name) {
+				const pathEl = infoEl.createDiv({ cls: 'default-project-path' });
+				pathEl.textContent = file.path;
+			}
+			
+			// Remove button
+			const removeBtn = projectItem.createEl('button', { 
+				cls: 'default-project-remove',
+				text: '×'
+			});
+			setTooltip(removeBtn, 'Remove project', { placement: 'top' });
+			removeBtn.addEventListener('click', () => {
+				this.removeDefaultProject(file);
+				this.renderDefaultProjectsList(container);
+				this.updateDefaultProjectsInSettings();
+			});
+		});
+	}
+
+	private updateDefaultProjectsInSettings(): void {
+		// Convert selected files to markdown links
+		const currentFile = this.app.workspace.getActiveFile();
+		const sourcePath = currentFile?.path || '';
+		
+		const projectStrings = this.selectedDefaultProjectFiles.map(file => {
+			// fileToLinktext expects TFile, so cast safely since we know these are markdown files
+			const linkText = this.app.metadataCache.fileToLinktext(file as TFile, sourcePath, true);
+			return `[[${linkText}]]`;
+		});
+
+		this.plugin.settings.taskCreationDefaults.defaultProjects = projectStrings.join(', ');
+		this.plugin.saveSettings();
+	}
 
 }

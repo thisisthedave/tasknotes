@@ -328,18 +328,17 @@
     flex-shrink: 0;
 }
 
+/* Use consistent button system */
 .ics-subscription-actions button {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.8em;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 3px;
-    background: var(--background-primary);
+    background: transparent;
     color: var(--text-normal);
-    cursor: pointer;
+    border: none;
+    box-shadow: none;
+    font-size: 0.8em;
 }
 
 .ics-subscription-actions button:hover {
-    background: var(--background-modifier-hover);
+    background: var(--tn-interactive-hover);
 }
 
 .ics-subscription-toggle.enabled {
@@ -445,32 +444,33 @@
     margin: 0;
 }
 
+/* Use consistent button system */
 .ics-form-button,
 .ics-edit-button {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 3px;
-    background: var(--background-primary);
+    background: transparent;
     color: var(--text-normal);
-    cursor: pointer;
+    border: none;
+    box-shadow: none;
     margin-right: 0.5rem;
 }
 
 .ics-form-button:hover,
 .ics-edit-button:hover {
-    background: var(--background-modifier-hover);
+    background: var(--tn-interactive-hover);
 }
 
 .ics-form-button.mod-cta,
 .ics-edit-button.mod-cta {
     background: var(--interactive-accent);
     color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
+    border: none;
+    box-shadow: none;
 }
 
 .ics-form-button.mod-cta:hover,
 .ics-edit-button.mod-cta:hover {
     background: var(--interactive-accent-hover);
+    box-shadow: none;
 }
 
 .ics-edit-buttons {
@@ -534,6 +534,8 @@
 .advanced-calendar-view__calendar-container {
     flex: 1;
     overflow: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--tn-radius-md);
     min-height: 0;
 }
 
@@ -551,6 +553,7 @@
 /* Light dividers for clean look */
 .advanced-calendar-view .fc-col-header-cell {
     border-bottom: 1px solid var(--background-modifier-border);
+    border-top: 1px solid var(--background-modifier-border);
 }
 
 .advanced-calendar-view .fc-daygrid-day {
@@ -570,8 +573,17 @@
 .advanced-calendar-view .fc-header-toolbar {
     margin-bottom: 0.5rem;
     padding: 0;
-    border: none;
+    border-bottom: 1px solid var(--background-modifier-border);
     background: transparent;
+}
+
+/* Calendar title styling - smaller and minimalist */
+.advanced-calendar-view .fc-toolbar-title {
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin: 0;
+    padding: 0.3rem 0.6rem;
 }
 
 .advanced-calendar-view .fc-toolbar-chunk {
@@ -580,10 +592,20 @@
     gap: 0.25rem;
 }
 
-/* Minimal button styling */
-.advanced-calendar-view .fc-button-primary {
+/* Remove all borders from FullCalendar buttons */
+.advanced-calendar-view .fc-button,
+.advanced-calendar-view .fc-button-primary,
+.advanced-calendar-view .fc-button-secondary,
+.advanced-calendar-view .fc-prev-button,
+.advanced-calendar-view .fc-next-button,
+.advanced-calendar-view .fc-today-button,
+.advanced-calendar-view .fc-dayGridMonth-button,
+.advanced-calendar-view .fc-timeGridWeek-button,
+.advanced-calendar-view .fc-timeGridDay-button,
+.advanced-calendar-view .fc-listWeek-button {
+    border: none !important;
+    box-shadow: none !important;
     background: transparent;
-    border: none;
     color: var(--text-muted);
     font-size: 0.8rem;
     font-weight: 400;
@@ -592,9 +614,16 @@
     transition: all 0.2s ease;
 }
 
-.advanced-calendar-view .fc-button-primary:hover:not(:disabled) {
-    background: var(--background-modifier-hover);
+/* Hover states for all FC buttons */
+.advanced-calendar-view .fc-button:hover:not(:disabled),
+.advanced-calendar-view .fc-button-primary:hover:not(:disabled),
+.advanced-calendar-view .fc-button-secondary:hover:not(:disabled),
+.advanced-calendar-view .fc-prev-button:hover:not(:disabled),
+.advanced-calendar-view .fc-next-button:hover:not(:disabled) {
+    background: var(--tn-interactive-hover);
     color: var(--text-normal);
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .advanced-calendar-view .fc-button-primary:disabled {
@@ -603,21 +632,26 @@
     opacity: 0.5;
 }
 
-.advanced-calendar-view .fc-button-active {
+/* Active state for FC buttons (currently selected view) */
+.advanced-calendar-view .fc-button-active,
+.advanced-calendar-view .fc-button.fc-button-active {
     background: var(--interactive-accent) !important;
-    border-color: var(--interactive-accent) !important;
+    border: none !important;
+    box-shadow: none !important;
     color: var(--text-on-accent) !important;
 }
 
+/* Use consistent button system for today button */
 .advanced-calendar-view .fc-today-button {
     background: var(--interactive-accent);
-    border-color: var(--interactive-accent);
+    border: none;
+    box-shadow: none;
     color: var(--text-on-accent);
 }
 
 .advanced-calendar-view .fc-today-button:hover:not(:disabled) {
     background: var(--interactive-accent-hover);
-    border-color: var(--interactive-accent-hover);
+    box-shadow: none;
 }
 
 /* Clean today styling */
@@ -650,7 +684,7 @@
     color: var(--text-muted);
     font-weight: 400;
     font-size: 0.75rem;
-    text-transform: lowercase;
+    /* text-transform: lowercase; */
     letter-spacing: 0;
     padding: 0.5rem 0.5rem;
 }
@@ -683,6 +717,7 @@
 .advanced-calendar-view .fc-event-title {
     font-weight: 500;
     line-height: 1.3;
+	text-decoration: inherit;
 }
 
 /* Time grid specific styles */
@@ -700,28 +735,6 @@
     width: 4rem;
 }
 
-/* Scrollbar styling */
-.advanced-calendar-view .fc-scroller {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-bg);
-}
-
-.advanced-calendar-view .fc-scroller::-webkit-scrollbar {
-    width: 8px;
-}
-
-.advanced-calendar-view .fc-scroller::-webkit-scrollbar-track {
-    background: var(--scrollbar-bg);
-}
-
-.advanced-calendar-view .fc-scroller::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb-bg);
-    border-radius: 4px;
-}
-
-.advanced-calendar-view .fc-scroller::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-bg-hover);
-}
 
 /* More events link */
 .advanced-calendar-view .fc-more-link {
@@ -843,9 +856,11 @@
 }
 
 /* ICS Refresh Button in FullCalendar Toolbar */
+/* Use consistent button system for refresh ICS button */
 .advanced-calendar-view .fc-refreshICS-button {
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    border: none;
+    box-shadow: none;
     color: var(--text-normal);
     transition: all 0.2s ease;
     font-weight: normal;
@@ -863,8 +878,8 @@
 }
 
 .advanced-calendar-view .fc-refreshICS-button:hover {
-    background: var(--background-modifier-hover);
-    border-color: var(--background-modifier-border-hover);
+    background: var(--tn-interactive-hover);
+    box-shadow: none;
     color: var(--text-normal);
 }
 
@@ -874,7 +889,9 @@
 }
 
 .advanced-calendar-view .fc-refreshICS-button:focus {
-    box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+    outline: 2px solid var(--tn-interactive-accent);
+    outline-offset: 2px;
+    box-shadow: none;
 }
 
 /* Ensure button content is visible and matches other FC buttons */

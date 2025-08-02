@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20]
+        node-version: [20]
     
     steps:
     - name: Checkout code
@@ -24,19 +24,31 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm ci
+      run: npm ci --prefer-offline --no-audit
+      timeout-minutes: 5
+      
+    - name: Debug environment
+      run: |
+        echo "Node version: $(node --version)"
+        echo "NPM version: $(npm --version)"
+        echo "Timezone: $(date)"
+        echo "Jest version: $(npx jest --version)"
       
     - name: Run linter
       run: npm run lint
+      timeout-minutes: 10
       
     - name: Run type check
       run: npm run typecheck
+      timeout-minutes: 5
       
     - name: Run unit tests with coverage
-      run: npm run test:coverage
+      run: npm run test:coverage -- --verbose
+      timeout-minutes: 15
       
     - name: Run integration tests
       run: npm run test:integration
+      timeout-minutes: 10
       
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
@@ -46,6 +58,7 @@ jobs:
         
     - name: Performance benchmarks
       run: npm run test:performance
+      timeout-minutes: 10
       if: matrix.node-version == '20' # Only run on latest Node
       
     - name: Archive test results
@@ -72,13 +85,16 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm ci
+      run: npm ci --prefer-offline --no-audit
+      timeout-minutes: 5
       
     - name: Build plugin
       run: npm run build
+      timeout-minutes: 10
       
     - name: Test built plugin
       run: npm run test:build
+      timeout-minutes: 5
       
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4

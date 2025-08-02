@@ -1,9 +1,9 @@
-import { App, ButtonComponent, debounce, DropdownComponent, Modal, TextComponent } from 'obsidian';
+import { App, ButtonComponent, debounce, DropdownComponent, Modal, TextComponent, setTooltip } from 'obsidian';
 import { FilterCondition, FilterGroup, FilterNode, FilterOptions, FilterOperator, FilterProperty, FilterQuery, FILTER_OPERATORS, FILTER_PROPERTIES, PropertyDefinition, SavedView, TaskGroupKey, TaskSortKey } from '../types';
 import { EventEmitter } from '../utils/EventEmitter';
 import { FilterUtils } from '../utils/FilterUtils';
 import { showConfirmationModal } from '../modals/ConfirmationModal';
-import { isNaturalLanguageDate, getNaturalLanguageDateSuggestions, isValidDateInput } from '../utils/dateUtils';
+import { isValidDateInput } from '../utils/dateUtils';
 import { DragDropHandler } from './DragDropHandler';
 
 
@@ -54,6 +54,8 @@ export class FilterBar extends EventEmitter {
     private currentQuery: FilterQuery;
     private savedViews: readonly SavedView[] = [];
     private filterOptions: FilterOptions;
+    private activeSavedView: SavedView | null = null;
+    private isLoadingSavedView = false;
 
     // Debouncing for input fields
     private debouncedEmitQueryChange: () => void;
@@ -107,6 +109,12 @@ export class FilterBar extends EventEmitter {
 
         // Initialize debounced query change emission (300ms delay)
         this.debouncedEmitQueryChange = debounce(() => {
+            // Clear active saved view when user manually modifies filters (except during saved view loading)
+            if (!this.isLoadingSavedView && this.activeSavedView) {
+                this.clearActiveSavedView();
+                // Re-render the filter section to remove the view name display
+                this.updateFilterBuilder();
+            }
             this.emit('queryChange', FilterUtils.deepCloneFilterQuery(this.currentQuery));
         }, 300);
 
@@ -132,7 +140,6 @@ export class FilterBar extends EventEmitter {
             !Array.isArray(this.currentQuery.children) ||
             typeof this.currentQuery.conjunction !== 'string') {
             
-            console.warn('FilterBar: Detected old format FilterQuery, initializing with fresh default');
             
             // Create a fresh default query, preserving any sort/group settings if valid
             const sortKey = (this.currentQuery?.sortKey && typeof this.currentQuery.sortKey === 'string') ? this.currentQuery.sortKey : 'due';
@@ -158,6 +165,10 @@ export class FilterBar extends EventEmitter {
         this.currentQuery = FilterUtils.deepCloneFilterQuery(query);
         // Ensure the updated query has proper structure
         this.ensureValidFilterQuery();
+        // Clear active saved view when query is updated externally (unless loading a saved view)
+        if (!this.isLoadingSavedView && this.activeSavedView) {
+            this.clearActiveSavedView();
+        }
         this.updateUI();
     }
 
@@ -175,12 +186,12 @@ export class FilterBar extends EventEmitter {
         try {
             const searchTerm = this.searchInput?.getValue().trim() || '';
             
-            // Remove existing search conditions
+            // Remove existing search conditions and reorganize query structure
             this.removeSearchConditions();
             
             // Add new search condition if term is not empty
             if (searchTerm) {
-                this.addSearchCondition(searchTerm);
+                this.addSearchConditionWithGrouping(searchTerm);
             }
             
             // Update only the filter builder to show the search condition
@@ -199,32 +210,50 @@ export class FilterBar extends EventEmitter {
     }
 
     /**
-     * Remove existing search conditions from the query
+     * Remove existing search conditions from the query and restore original structure
      */
     private removeSearchConditions(): void {
         // Defensive check: ensure children array exists
         if (!Array.isArray(this.currentQuery.children)) {
-            console.warn('FilterBar: children array missing in removeSearchConditions');
             this.currentQuery.children = [];
             return;
         }
         
-        this.currentQuery.children = this.currentQuery.children.filter(child => {
-            if (child.type === 'condition') {
-                return !(child.property === 'title' && child.operator === 'contains' && 
-                        child.id.startsWith('search_'));
-            }
-            return true;
-        });
+        // Find the search condition
+        const searchConditionIndex = this.currentQuery.children.findIndex(child => 
+            child.type === 'condition' && 
+            child.property === 'title' && 
+            child.operator === 'contains' && 
+            child.id.startsWith('search_')
+        );
+
+        if (searchConditionIndex === -1) {
+            // No search condition found, nothing to do
+            return;
+        }
+
+        // Remove the search condition
+        this.currentQuery.children.splice(searchConditionIndex, 1);
+
+        // Check if we have a structure where the remaining child is a single group
+        // that was created to preserve existing filters when search was added
+        if (this.currentQuery.children.length === 1 && 
+            this.currentQuery.children[0].type === 'group') {
+            
+            const remainingGroup = this.currentQuery.children[0] as FilterGroup;
+            
+            // Restore the original filter structure by moving the group's children up to the root
+            this.currentQuery.children = remainingGroup.children;
+            this.currentQuery.conjunction = remainingGroup.conjunction;
+        }
     }
 
     /**
-     * Add a search condition to the query
+     * Add a search condition to the query, preserving existing filters by grouping them
      */
-    private addSearchCondition(searchTerm: string): void {
+    private addSearchConditionWithGrouping(searchTerm: string): void {
         // Defensive check: ensure children array exists
         if (!Array.isArray(this.currentQuery.children)) {
-            console.warn('FilterBar: children array missing in addSearchCondition');
             this.currentQuery.children = [];
         }
         
@@ -235,9 +264,31 @@ export class FilterBar extends EventEmitter {
             operator: 'contains',
             value: searchTerm
         };
-        
-        // Add search condition at the beginning
-        this.currentQuery.children.unshift(searchCondition);
+
+        // Get existing non-search filters
+        const existingFilters = this.currentQuery.children.filter(child => {
+            return !(child.type === 'condition' && 
+                    child.property === 'title' && 
+                    child.operator === 'contains' && 
+                    child.id.startsWith('search_'));
+        });
+
+        if (existingFilters.length === 0) {
+            // No existing filters, just add the search condition
+            this.currentQuery.children = [searchCondition];
+        } else {
+            // Create a group containing all existing filters
+            const existingFiltersGroup: FilterGroup = {
+                type: 'group',
+                id: FilterUtils.generateId(),
+                conjunction: this.currentQuery.conjunction, // Preserve the current conjunction
+                children: existingFilters
+            };
+
+            // Replace query children with the search condition AND the existing filters group
+            this.currentQuery.children = [searchCondition, existingFiltersGroup];
+            this.currentQuery.conjunction = 'and'; // Connect search with existing filters using AND
+        }
     }
 
     /**
@@ -253,6 +304,14 @@ export class FilterBar extends EventEmitter {
      */
     getCurrentQuery(): FilterQuery {
         return FilterUtils.deepCloneFilterQuery(this.currentQuery);
+    }
+
+    /**
+     * Clear the active saved view indicator (called when filters are manually modified)
+     */
+    private clearActiveSavedView(): void {
+        this.activeSavedView = null;
+        this.updateViewSelectorButtonState();
     }
 
 
@@ -307,6 +366,7 @@ export class FilterBar extends EventEmitter {
         this.searchInput = new TextComponent(topControls)
             .setPlaceholder('Search tasks...');
         this.searchInput.inputEl.addClass('filter-bar__search-input');
+        setTooltip(this.searchInput.inputEl, 'Search task titles', { placement: 'top' });
         this.searchInput.onChange(() => {
             this.isUserTyping = true;
             this.debouncedHandleSearchInput();
@@ -316,9 +376,13 @@ export class FilterBar extends EventEmitter {
         this.viewSelectorButton = new ButtonComponent(topControls)
             .setButtonText('Views')
             .setClass('filter-bar__templates-button')
+            .setTooltip('Saved filter views')
             .onClick(() => {
                 this.toggleViewSelectorDropdown();
             });
+
+        // Update button state based on active saved view
+        this.updateViewSelectorButtonState();
 
         // Main filter box (now rendered within top-controls for positioning)
         this.renderMainFilterBox(topControls);
@@ -510,10 +574,11 @@ export class FilterBar extends EventEmitter {
             });
         } else {
             const savedViewsSection = this.viewSelectorDropdown.createDiv('filter-bar__view-section');
-            savedViewsSection.createDiv({
+            const savedViewsHeader = savedViewsSection.createDiv({
                 text: 'Saved views',
                 cls: 'filter-bar__view-section-header'
             });
+            setTooltip(savedViewsHeader, 'Your saved filter configurations', { placement: 'top' });
 
             this.savedViews.forEach((view, index) => {
                 const viewItemContainer = savedViewsSection.createDiv({
@@ -526,16 +591,23 @@ export class FilterBar extends EventEmitter {
                 
                 // Add drag handle
                 const dragHandle = viewItemContainer.createDiv({
-                    cls: 'filter-bar__view-drag-handle',
-                    title: 'Drag to reorder'
+                    cls: 'filter-bar__view-drag-handle'
                 });
+                setTooltip(dragHandle, 'Drag to reorder views', { placement: 'top' });
                 
-                new ButtonComponent(viewItemContainer)
+                const viewItemButton = new ButtonComponent(viewItemContainer)
                     .setButtonText(view.name)
                     .setClass('filter-bar__view-item')
+                    .setTooltip(`Load saved view: ${view.name}`)
                     .onClick(() => {
                         this.loadSavedView(view);
                     });
+
+                // Add active state styling if this is the current active view
+                if (this.activeSavedView && this.activeSavedView.id === view.id) {
+                    viewItemButton.buttonEl.classList.add('filter-bar__view-item--active');
+                    viewItemContainer.classList.add('filter-bar__view-item-container--active');
+                }
 
                 new ButtonComponent(viewItemContainer)
                     .setIcon('trash-2')
@@ -575,6 +647,15 @@ export class FilterBar extends EventEmitter {
             text: 'Filter',
             cls: 'filter-bar__section-title'
         });
+        setTooltip(titleWrapper, 'Click to expand/collapse filter conditions', { placement: 'top' });
+        
+        // Show active saved view name if one is loaded
+        if (this.activeSavedView) {
+            titleWrapper.createSpan({
+                text: `(${this.activeSavedView.name})`,
+                cls: 'filter-bar__active-view-name'
+            });
+        }
 
         const actionsWrapper = header.createDiv('filter-bar__section-header-actions');
         new ButtonComponent(actionsWrapper)
@@ -614,7 +695,6 @@ export class FilterBar extends EventEmitter {
         
         // Ensure children array exists (defensive migration fix)
         if (!Array.isArray(group.children)) {
-            console.warn('FilterBar: Group missing children array, initializing empty array');
             group.children = [];
         }
 
@@ -625,6 +705,7 @@ export class FilterBar extends EventEmitter {
         
         // Conjunction dropdown
         const conjunctionContainer = groupHeader.createDiv('filter-bar__conjunction');
+        setTooltip(conjunctionContainer, 'Choose whether ALL or ANY of the conditions must match', { placement: 'top' });
         
         new DropdownComponent(conjunctionContainer)
             .addOption('and', depth === 0 ? 'All' : 'All')
@@ -666,6 +747,7 @@ export class FilterBar extends EventEmitter {
             .setButtonText('Add filter')
             .setClass('filter-bar__action-button')
             .setClass('filter-bar__add-filter')
+            .setTooltip('Add a new filter condition')
             .onClick(() => {
                 this.addFilterCondition(group);
             });
@@ -675,6 +757,7 @@ export class FilterBar extends EventEmitter {
             .setButtonText('Add filter group')
             .setClass('filter-bar__action-button')
             .setClass('filter-bar__add-group')
+            .setTooltip('Add a nested filter group')
             .onClick(() => {
                 this.addFilterGroup(group);
             });
@@ -708,10 +791,11 @@ export class FilterBar extends EventEmitter {
             ['', 'Select...'], // Placeholder option
             ...FILTER_PROPERTIES.map(p => [p.id, p.label])
         ]);
-        new DropdownComponent(conditionContainer)
+        const propertyDropdown = new DropdownComponent(conditionContainer)
             .addOptions(propertyOptions)
-            .setValue(condition.property)
-            .onChange((newPropertyId: FilterProperty) => {
+            .setValue(condition.property);
+        setTooltip(propertyDropdown.selectEl, 'Choose which task property to filter by', { placement: 'top' });
+        propertyDropdown.onChange((newPropertyId: FilterProperty) => {
                 condition.property = newPropertyId;
 
                 // Handle placeholder selection
@@ -737,6 +821,7 @@ export class FilterBar extends EventEmitter {
         const operatorDropdown = new DropdownComponent(conditionContainer);
         this.updateOperatorOptions(operatorDropdown, condition.property as FilterProperty);
         operatorDropdown.setValue(condition.operator);
+        setTooltip(operatorDropdown.selectEl, 'Choose how to compare the property value', { placement: 'top' });
         operatorDropdown.onChange((newOperator: FilterOperator) => {
             condition.operator = newOperator;
             this.updateUI(); // Re-render to show/hide value input
@@ -807,12 +892,13 @@ export class FilterBar extends EventEmitter {
      * Render text input
      */
     private renderTextInput(container: HTMLElement, condition: FilterCondition): void {
-        new TextComponent(container)
+        const textInput = new TextComponent(container)
             .setValue(String(condition.value || ''))
             .onChange((value) => {
                 condition.value = value || null;
                 this.debouncedEmitQueryChange();
             });
+        setTooltip(textInput.inputEl, 'Enter the value to filter by', { placement: 'top' });
     }
 
     /**
@@ -849,6 +935,8 @@ export class FilterBar extends EventEmitter {
                 });
                 break;
         }
+
+        setTooltip(dropdown.selectEl, `Select a ${propertyDef.label.toLowerCase()} to filter by`, { placement: 'top' });
 
         // Handle project link syntax for setting the initial value
         if (propertyDef.id === 'projects') {
@@ -896,6 +984,7 @@ export class FilterBar extends EventEmitter {
         // Set placeholder to guide users
         textInput.setPlaceholder('today, 2024-12-25, next week...');
         textInput.inputEl.addClass('filter-date-text-input');
+        setTooltip(textInput.inputEl, 'Enter a date using natural language or ISO format', { placement: 'top' });
         
         // Set initial validation state
         this.updateDateInputValidation(textInput, String(condition.value || ''));
@@ -903,9 +992,9 @@ export class FilterBar extends EventEmitter {
         // Add a small help button showing natural language examples
         const helpButton = dateContainer.createEl('button', {
             cls: 'filter-date-help-button',
-            text: '?',
-            title: 'Natural language dates: today, tomorrow, yesterday, next week, last week, in 3 days, 2 days ago, in 1 week, 2 weeks ago'
+            text: '?'
         });
+        setTooltip(helpButton, 'Show natural language date examples', { placement: 'top' });
         
         helpButton.addEventListener('click', (e) => {
             e.preventDefault();
@@ -942,7 +1031,7 @@ export class FilterBar extends EventEmitter {
         document.querySelectorAll('.filter-date-help-tooltip').forEach(el => el.remove());
         
         const tooltip = document.body.createDiv('filter-date-help-tooltip');
-        const suggestions = getNaturalLanguageDateSuggestions();
+        // const suggestions = getNaturalLanguageDateSuggestions(); // Not currently used in tooltip
         
         tooltip.createEl('h4', { text: 'Natural Language Dates' });
         const examplesList = tooltip.createEl('ul');
@@ -990,6 +1079,7 @@ export class FilterBar extends EventEmitter {
                 this.debouncedEmitQueryChange();
             });
         textInput.inputEl.type = 'number';
+        setTooltip(textInput.inputEl, 'Enter a numeric value to filter by', { placement: 'top' });
     }
 
     /**
@@ -1006,6 +1096,7 @@ export class FilterBar extends EventEmitter {
             text: 'Display & Organization',
             cls: 'filter-bar__section-title'
         });
+        setTooltip(titleWrapper, 'Click to expand/collapse sorting and grouping options', { placement: 'top' });
 
         // Content
         const content = section.createDiv('filter-bar__section-content');
@@ -1020,7 +1111,16 @@ export class FilterBar extends EventEmitter {
         const sortContainer = controls.createDiv('filter-bar__sort-container');
         sortContainer.createSpan({ text: 'Sort by:', cls: 'filter-bar__label' });
 
-        new DropdownComponent(sortContainer)
+        new ButtonComponent(sortContainer)
+            .setClass('filter-bar__sort-direction')
+            .setTooltip('Toggle sort direction')
+            .onClick(() => {
+                this.currentQuery.sortDirection = this.currentQuery.sortDirection === 'asc' ? 'desc' : 'asc';
+                this.updateSortDirectionButton();
+                this.emitQueryChange();
+            });
+
+        const sortDropdown = new DropdownComponent(sortContainer)
             .addOptions({
                 'due': 'Due Date',
                 'scheduled': 'Scheduled Date',
@@ -1035,21 +1135,13 @@ export class FilterBar extends EventEmitter {
                 this.currentQuery.sortKey = value;
                 this.emitQueryChange();
             });
-
-        new ButtonComponent(sortContainer)
-            .setClass('filter-bar__sort-direction')
-            .setTooltip('Toggle sort direction')
-            .onClick(() => {
-                this.currentQuery.sortDirection = this.currentQuery.sortDirection === 'asc' ? 'desc' : 'asc';
-                this.updateSortDirectionButton();
-                this.emitQueryChange();
-            });
+        setTooltip(sortDropdown.selectEl, 'Choose how to sort tasks', { placement: 'top' });
 
         // Group control
         const groupContainer = controls.createDiv('filter-bar__group-container');
         groupContainer.createSpan({ text: 'Group by:', cls: 'filter-bar__label' });
 
-        new DropdownComponent(groupContainer)
+        const groupDropdown = new DropdownComponent(groupContainer)
             .addOptions({
                 'none': 'None',
                 'status': 'Status',
@@ -1064,6 +1156,7 @@ export class FilterBar extends EventEmitter {
                 this.currentQuery.groupKey = value;
                 this.emitQueryChange();
             });
+        setTooltip(groupDropdown.selectEl, 'Group tasks by a common property', { placement: 'top' });
 
         this.updateSortDirectionButton();
 
@@ -1124,6 +1217,7 @@ export class FilterBar extends EventEmitter {
             text: 'View Options',
             cls: 'filter-bar__section-title'
         });
+        setTooltip(titleWrapper, 'Click to expand/collapse view-specific options', { placement: 'top' });
 
         const content = this.viewOptionsContainer.createDiv('filter-bar__section-content');
         if (!this.sectionStates.viewOptions) {
@@ -1142,6 +1236,7 @@ export class FilterBar extends EventEmitter {
                 cls: 'filter-bar__view-option-checkbox'
             });
             checkbox.checked = option.value;
+            setTooltip(checkbox, `Toggle ${option.label.toLowerCase()}`, { placement: 'top' });
 
             label.createSpan({
                 text: option.label,
@@ -1210,7 +1305,22 @@ export class FilterBar extends EventEmitter {
         const button = this.container.querySelector('.filter-bar__sort-direction') as HTMLElement;
         if (button) {
             button.textContent = this.currentQuery.sortDirection === 'asc' ? '↑' : '↓';
-            button.title = `Sort ${this.currentQuery.sortDirection === 'asc' ? 'Ascending' : 'Descending'}`;
+            // Remove any existing title attribute to avoid duplicate tooltips
+            button.removeAttribute('title');
+        }
+    }
+
+    /**
+     * Update view selector button state based on active saved view
+     */
+    private updateViewSelectorButtonState(): void {
+        if (!this.viewSelectorButton?.buttonEl) return;
+        
+        // Add/remove active state class
+        if (this.activeSavedView) {
+            this.viewSelectorButton.buttonEl.classList.add('filter-bar__templates-button--saved-view-active');
+        } else {
+            this.viewSelectorButton.buttonEl.classList.remove('filter-bar__templates-button--saved-view-active');
         }
     }
 
@@ -1258,9 +1368,25 @@ export class FilterBar extends EventEmitter {
      */
     private showSaveViewDialog(): void {
         new SaveViewModal(this.app, (name) => {
-            this.emit('saveView', { name, query: this.currentQuery });
+            const currentViewOptions = this.getCurrentViewOptions();
+            this.emit('saveView', { name, query: this.currentQuery, viewOptions: currentViewOptions });
             this.toggleViewSelectorDropdown();
         }).open();
+    }
+
+    /**
+     * Get current view options as a simple object
+     */
+    private getCurrentViewOptions(): {[key: string]: boolean} | undefined {
+        if (!this.viewOptionsConfig || this.viewOptionsConfig.length === 0) {
+            return undefined;
+        }
+        
+        const options: {[key: string]: boolean} = {};
+        this.viewOptionsConfig.forEach(option => {
+            options[option.id] = option.value;
+        });
+        return options;
     }
 
 
@@ -1268,10 +1394,20 @@ export class FilterBar extends EventEmitter {
      * Load a saved view
      */
     private loadSavedView(view: SavedView): void {
+        this.isLoadingSavedView = true;
         this.currentQuery = FilterUtils.deepCloneFilterQuery(view.query);
+        this.activeSavedView = view;
         this.render();
         this.emitQueryChange();
+        
+        // Emit viewOptions event if they exist
+        if (view.viewOptions) {
+            this.emit('loadViewOptions', view.viewOptions);
+        }
+        
         this.toggleViewSelectorDropdown();
+        this.updateViewSelectorButtonState();
+        this.isLoadingSavedView = false;
     }
 
     /**
@@ -1283,6 +1419,9 @@ export class FilterBar extends EventEmitter {
         
         // Re-render everything to ensure consistency
         this.render();
+        
+        // Update button state after render
+        this.updateViewSelectorButtonState();
     }
 
     /**
@@ -1363,7 +1502,6 @@ export class FilterBar extends EventEmitter {
         
         // Defensive check: ensure currentQuery has children array
         if (!this.currentQuery || !Array.isArray(this.currentQuery.children)) {
-            console.warn('FilterBar: currentQuery missing children array in syncSearchInput');
             this.searchInput.setValue('');
             return;
         }
@@ -1385,6 +1523,13 @@ export class FilterBar extends EventEmitter {
      * This prevents expensive filter operations when users are still building filters
      */
     private emitQueryChange(): void {
+        // Clear active saved view when user manually modifies filters (except during saved view loading)
+        if (!this.isLoadingSavedView && this.activeSavedView) {
+            this.clearActiveSavedView();
+            // Re-render the filter section to remove the view name display
+            this.updateFilterBuilder();
+        }
+        
         // Always emit for sort/group changes and structural operations
         this.emitQueryChangeIfComplete();
     }
@@ -1394,10 +1539,7 @@ export class FilterBar extends EventEmitter {
      */
     private emitQueryChangeIfComplete(): void {
         if (this.isQueryMeaningful(this.currentQuery)) {
-            console.debug('FilterBar: Emitting queryChange - query is complete');
             this.emit('queryChange', FilterUtils.deepCloneFilterQuery(this.currentQuery));
-        } else {
-            console.debug('FilterBar: Skipping queryChange - query has incomplete conditions');
         }
     }
     

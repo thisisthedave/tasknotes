@@ -56,6 +56,7 @@ import { createTaskLinkOverlay, dispatchTaskUpdate } from './editor/TaskLinkOver
 import { createReadingModeTaskLinkProcessor } from './editor/ReadingModeTaskLinkProcessor';
 import { createProjectNoteDecorations, dispatchProjectSubtasksUpdate } from './editor/ProjectNoteDecorations';
 import { DragDropManager } from './utils/DragDropManager';
+import { formatUTCDateForCalendar } from './utils/dateUtils';
 import { ICSSubscriptionService } from './services/ICSSubscriptionService';
 import { ICSNoteService } from './services/ICSNoteService';
 import { MigrationService } from './services/MigrationService';
@@ -93,7 +94,10 @@ export default class TaskNotesPlugin extends Plugin {
 	private resolveReady: () => void;
 	
 	// Shared state between views
-	selectedDate: Date = new Date();
+	selectedDate: Date = (() => {
+		const now = new Date();
+		return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+	})();
 	
 	// Minimal native cache manager (also handles events)
 	cacheManager: MinimalNativeCache;
@@ -188,7 +192,8 @@ export default class TaskNotesPlugin extends Plugin {
 		this.filterService = new FilterService(
 			this.cacheManager,
 			this.statusManager,
-			this.priorityManager
+			this.priorityManager,
+			this
 		);
 		this.viewStateManager = new ViewStateManager(this.app, this);
 		this.projectSubtasksService = new ProjectSubtasksService(this);
@@ -795,15 +800,23 @@ export default class TaskNotesPlugin extends Plugin {
 			// Deep merge custom statuses array
 			customStatuses: loadedData?.customStatuses || DEFAULT_SETTINGS.customStatuses,
 			// Deep merge custom priorities array  
-			customPriorities: loadedData?.customPriorities || DEFAULT_SETTINGS.customPriorities
+			customPriorities: loadedData?.customPriorities || DEFAULT_SETTINGS.customPriorities,
+			// Deep merge calendar view settings to ensure new fields get default values
+			calendarViewSettings: {
+				...DEFAULT_SETTINGS.calendarViewSettings,
+				...(loadedData?.calendarViewSettings || {})
+			}
 		};
 		
-		// Check if we added any new field mappings and save if needed
+		// Check if we added any new field mappings or calendar settings and save if needed
 		const hasNewFields = Object.keys(DEFAULT_SETTINGS.fieldMapping).some(key => 
 			!(loadedData?.fieldMapping?.[key])
 		);
+		const hasNewCalendarSettings = Object.keys(DEFAULT_SETTINGS.calendarViewSettings).some(key => 
+			!(loadedData?.calendarViewSettings?.[key as keyof typeof DEFAULT_SETTINGS.calendarViewSettings])
+		);
 		
-		if (hasNewFields) {
+		if (hasNewFields || hasNewCalendarSettings) {
 			// Save the migrated settings to include new field mappings (non-blocking)
 			setTimeout(async () => {
 				try {
@@ -969,6 +982,14 @@ export default class TaskNotesPlugin extends Plugin {
 			name: 'Convert task to TaskNote',
 			editorCallback: async (editor: Editor) => {
 				await this.convertTaskToTaskNote(editor);
+			}
+		});
+
+		this.addCommand({
+			id: 'batch-convert-all-tasks',
+			name: 'Convert all tasks in note',
+			editorCallback: async (editor: Editor) => {
+				await this.batchConvertAllTasks(editor);
 			}
 		});
 
@@ -1438,8 +1459,8 @@ private injectCustomStyles(): void {
 	 * Check if a recurring task is completed for a specific date
 	 */
 	isRecurringTaskCompleteForDate(task: TaskInfo, date: Date): boolean {
-		if (!task.recurrence) return false;
-		const dateStr = format(date, 'yyyy-MM-dd');
+		if (!task.recurrence) return false;  
+		const dateStr = formatUTCDateForCalendar(date);
 		const completeInstances = Array.isArray(task.complete_instances) ? task.complete_instances : [];
 		return completeInstances.includes(dateStr);
 	}
@@ -1530,6 +1551,26 @@ private injectCustomStyles(): void {
 	}
 
 	/**
+	 * Batch convert all checkbox tasks in the current note to TaskNotes
+	 */
+	async batchConvertAllTasks(editor: Editor): Promise<void> {
+		try {
+			// Check if instant convert service is available
+			if (!this.instantTaskConvertService) {
+				new Notice('Task conversion service not available. Please try again.');
+				return;
+			}
+			
+			// Use the instant convert service for batch conversion
+			await this.instantTaskConvertService.batchConvertAllTasks(editor);
+			
+		} catch (error) {
+			console.error('Error batch converting tasks:', error);
+			new Notice('Failed to batch convert tasks. Please try again.');
+		}
+	}
+
+	/**
 	 * Insert a wikilink to a selected tasknote at the current cursor position
 	 */
 	async insertTaskNoteLink(editor: Editor): Promise<void> {
@@ -1541,20 +1582,26 @@ private injectCustomStyles(): void {
 			// Open task selector modal
 			const modal = new TaskSelectorModal(this.app, this, unarchivedTasks, (selectedTask) => {
 				if (selectedTask) {
-					// Create wikilink using Obsidian's API
+					// Create link using Obsidian's generateMarkdownLink (respects user's link format settings)
 					const file = this.app.vault.getAbstractFileByPath(selectedTask.path);
 					if (file) {
-						const linkText = this.app.metadataCache.fileToLinktext(file as any, '');
-						const wikilink = `[[${linkText}|${selectedTask.title}]]`;
+						const currentFile = this.app.workspace.getActiveFile();
+						const sourcePath = currentFile?.path || '';
+						const properLink = this.app.fileManager.generateMarkdownLink(
+							file as TFile, 
+							sourcePath, 
+							'', 
+							selectedTask.title  // Use task title as alias
+						);
 						
 						// Insert at cursor position
 						const cursor = editor.getCursor();
-						editor.replaceRange(wikilink, cursor);
+						editor.replaceRange(properLink, cursor);
 						
 						// Move cursor to end of inserted text
 						const newCursor = {
 							line: cursor.line,
-							ch: cursor.ch + wikilink.length
+							ch: cursor.ch + properLink.length
 						};
 						editor.setCursor(newCursor);
 					} else {

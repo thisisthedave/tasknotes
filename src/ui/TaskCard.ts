@@ -1,5 +1,4 @@
-import { format } from 'date-fns';
-import { TFile, Menu, setIcon, Notice, Modal, App } from 'obsidian';
+import { TFile, Menu, setIcon, Notice, Modal, App, setTooltip } from 'obsidian';
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { calculateTotalTimeSpent, getEffectiveTaskStatus, getRecurrenceDisplayText, filterEmptyProjects } from '../utils/helpers';
@@ -8,7 +7,8 @@ import {
     isTodayTimeAware,
     isOverdueTimeAware,
     getDatePart,
-    getTimePart
+    getTimePart,
+    formatUTCDateForCalendar
 } from '../utils/dateUtils';
 import { DateContextMenu } from '../components/DateContextMenu';
 import { PriorityContextMenu } from '../components/PriorityContextMenu';
@@ -425,10 +425,10 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
         const recurringIndicator = card.createEl('div', { 
             cls: 'task-card__recurring-indicator',
             attr: { 
-                'aria-label': `Recurring: ${getRecurrenceDisplayText(task.recurrence)} (click to change)`,
-                'title': `Recurring: ${getRecurrenceDisplayText(task.recurrence)} (click to change)`
+                'aria-label': `Recurring: ${getRecurrenceDisplayText(task.recurrence)} (click to change)`
             }
         });
+        setTooltip(recurringIndicator, `Recurring: ${getRecurrenceDisplayText(task.recurrence)} (click to change)`, { placement: 'top' });
         
         // Use Obsidian's built-in rotate-ccw icon for recurring tasks
         setIcon(recurringIndicator, 'rotate-ccw');
@@ -453,7 +453,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
             projectIndicatorPlaceholder.className = 'task-card__project-indicator';
             projectIndicatorPlaceholder.removeAttribute('style');
             projectIndicatorPlaceholder.setAttribute('aria-label', 'This task is used as a project (click to filter subtasks)');
-            projectIndicatorPlaceholder.setAttribute('title', 'This task is used as a project (click to filter subtasks)');
+            setTooltip(projectIndicatorPlaceholder, 'This task is used as a project (click to filter subtasks)', { placement: 'top' });
             
             // Use Obsidian's built-in folder icon for project tasks
             setIcon(projectIndicatorPlaceholder, 'folder');
@@ -483,13 +483,13 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, options:
     const contextIcon = card.createEl('div', { 
         cls: 'task-card__context-menu',
         attr: { 
-            'aria-label': 'Task options',
-            'title': 'More options'
+            'aria-label': 'Task options'
         }
     });
     
     // Use Obsidian's built-in ellipsis-vertical icon
     setIcon(contextIcon, 'ellipsis-vertical');
+    setTooltip(contextIcon, 'Task options', { placement: 'top' });
     
     contextIcon.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -762,7 +762,7 @@ export async function showTaskContextMenu(event: MouseEvent, taskPath: string, p
             menu.addSeparator();
             
             // Check current completion status for this date
-            const dateStr = format(targetDate, 'yyyy-MM-dd');
+            const dateStr = formatUTCDateForCalendar(targetDate);
             const isCompletedForDate = task.complete_instances?.includes(dateStr) || false;
             
             menu.addItem((item) => {

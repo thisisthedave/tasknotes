@@ -18,11 +18,13 @@ The search input at the top of the FilterBar allows for quick text searches:
 The FilterBar includes a hierarchical query builder that allows you to create complex filter conditions:
 
 **Filter Groups**: Logical containers that can use AND or OR conjunctions
+
 - Groups can contain individual conditions or nested groups
 - Visual nesting shows the hierarchy
 - Each group can have its own conjunction (AND/OR)
 
 **Filter Conditions**: Individual filter rules with three parts:
+
 - **Property**: What task attribute to filter on
 - **Operator**: How to compare the property
 - **Value**: What to compare against
@@ -32,6 +34,7 @@ The FilterBar includes a hierarchical query builder that allows you to create co
 You can filter on these task properties:
 
 **Text Properties**:
+
 - `title` - Task title/name
 
 **Select Properties**:
@@ -101,6 +104,13 @@ Available grouping options:
 - `priority` - By priority level
 - `context` - By first context
 - `project` - By project (tasks can appear in multiple groups)
+
+### Project Group Headers
+
+When grouping tasks by project, the project group headers are interactive:
+- **Clickable Navigation**: Project headers that are wikilinks (e.g., `[[Project Name]]`) can be clicked to open the corresponding project note
+- **Hover Previews**: Use Ctrl+hover on project headers to preview project notes without opening them
+- **Error Handling**: Clicking on project headers for missing files shows appropriate error messages
 - `due` - By due date ranges (Today, Tomorrow, This week, etc.)
 - `scheduled` - By scheduled date ranges
 

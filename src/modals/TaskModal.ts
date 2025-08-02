@@ -1,4 +1,4 @@
-import { App, Modal, Setting, setIcon, TAbstractFile, TFile, AbstractInputSuggest } from 'obsidian';
+import { App, Modal, Setting, setIcon, TAbstractFile, TFile, AbstractInputSuggest, setTooltip } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { DateContextMenu } from '../components/DateContextMenu';
 import { PriorityContextMenu } from '../components/PriorityContextMenu';
@@ -90,13 +90,6 @@ export abstract class TaskModal extends Modal {
         this.titleInput.addEventListener('input', (e) => {
             this.title = (e.target as HTMLInputElement).value;
         });
-
-        // Auto-expand on focus
-        this.titleInput.addEventListener('focus', () => {
-            if (!this.isExpanded) {
-                this.expandModal();
-            }
-        });
     }
 
     protected createActionBar(container: HTMLElement): void {
@@ -140,7 +133,8 @@ export abstract class TaskModal extends Modal {
     ): HTMLElement {
         const iconContainer = container.createDiv('action-icon');
         iconContainer.setAttribute('aria-label', tooltip);
-        iconContainer.setAttribute('title', tooltip);
+        // Store initial tooltip for later updates but don't set title attribute
+        iconContainer.setAttribute('data-initial-tooltip', tooltip);
         
         // Add data attribute for easier identification
         if (dataType) {
@@ -165,20 +159,32 @@ export abstract class TaskModal extends Modal {
             this.detailsContainer.style.display = 'none';
         }
 
-        // Title field (appears on expansion)
-        const titleLabel = this.detailsContainer.createDiv('detail-label');
-        titleLabel.textContent = 'Title';
+        // Title field appears in details section for:
+        // 1. Edit modals (always)
+        // 2. Creation modals when NLP is enabled (since the main title input is replaced by NLP textarea)
+        const isEditModal = this.getModalTitle() === 'Edit task';
+        const isCreationWithNLP = this.getModalTitle() === 'Create task' && this.plugin.settings.enableNaturalLanguageInput;
         
-        this.titleInput = this.detailsContainer.createEl('input', {
-            type: 'text',
-            cls: 'title-input-detailed',
-            placeholder: 'Task title...'
-        });
-        
-        this.titleInput.value = this.title;
-        this.titleInput.addEventListener('input', (e) => {
-            this.title = (e.target as HTMLInputElement).value;
-        });
+        if (isEditModal || isCreationWithNLP) {
+            const titleLabel = this.detailsContainer.createDiv('detail-label');
+            titleLabel.textContent = 'Title';
+            
+            const titleInputDetailed = this.detailsContainer.createEl('input', {
+                type: 'text',
+                cls: 'title-input-detailed',
+                placeholder: 'Task title...'
+            });
+            
+            titleInputDetailed.value = this.title;
+            titleInputDetailed.addEventListener('input', (e) => {
+                this.title = (e.target as HTMLInputElement).value;
+            });
+            
+            // Store reference for creation modals with NLP
+            if (isCreationWithNLP && !this.titleInput) {
+                this.titleInput = titleInputDetailed;
+            }
+        }
 
         // Details textarea (only for creation modals, not edit modals)
         if (this.getModalTitle() !== 'Edit task') {
@@ -213,6 +219,8 @@ export abstract class TaskModal extends Modal {
                         });
                         modal.open();
                     });
+                // Add consistent button classes for transparent styling
+                button.buttonEl.addClasses(['tn-btn', 'tn-btn--ghost']);
             });
 
         // Projects list container
@@ -336,10 +344,12 @@ export abstract class TaskModal extends Modal {
 
     protected showDateContextMenu(event: MouseEvent, type: 'due' | 'scheduled'): void {
         const currentValue = type === 'due' ? this.dueDate : this.scheduledDate;
+        const title = type === 'due' ? 'Set Due Date' : 'Set Scheduled Date';
         
         const menu = new DateContextMenu({
             currentValue: currentValue ? getDatePart(currentValue) : undefined,
             currentTime: currentValue ? getTimePart(currentValue) : undefined,
+            title: title,
             onSelect: (value: string | null, time: string | null) => {
                 if (value) {
                     // Combine date and time if both are provided
@@ -528,22 +538,26 @@ export abstract class TaskModal extends Modal {
 
         // Update due date icon
         const dueDateIcon = this.actionBar.querySelector('[data-type="due-date"]') as HTMLElement;
-        if (dueDateIcon && this.dueDate) {
-            dueDateIcon.classList.add('has-value');
-            dueDateIcon.setAttribute('title', `Due: ${this.dueDate}`);
-        } else if (dueDateIcon) {
-            dueDateIcon.classList.remove('has-value');
-            dueDateIcon.setAttribute('title', 'Set due date');
+        if (dueDateIcon) {
+            if (this.dueDate) {
+                dueDateIcon.classList.add('has-value');
+                setTooltip(dueDateIcon, `Due: ${this.dueDate}`, { placement: 'top' });
+            } else {
+                dueDateIcon.classList.remove('has-value');
+                setTooltip(dueDateIcon, 'Set due date', { placement: 'top' });
+            }
         }
 
         // Update scheduled date icon
         const scheduledDateIcon = this.actionBar.querySelector('[data-type="scheduled-date"]') as HTMLElement;
-        if (scheduledDateIcon && this.scheduledDate) {
-            scheduledDateIcon.classList.add('has-value');
-            scheduledDateIcon.setAttribute('title', `Scheduled: ${this.scheduledDate}`);
-        } else if (scheduledDateIcon) {
-            scheduledDateIcon.classList.remove('has-value');
-            scheduledDateIcon.setAttribute('title', 'Set scheduled date');
+        if (scheduledDateIcon) {
+            if (this.scheduledDate) {
+                scheduledDateIcon.classList.add('has-value');
+                setTooltip(scheduledDateIcon, `Scheduled: ${this.scheduledDate}`, { placement: 'top' });
+            } else {
+                scheduledDateIcon.classList.remove('has-value');
+                setTooltip(scheduledDateIcon, 'Set scheduled date', { placement: 'top' });
+            }
         }
 
         // Update status icon
@@ -555,10 +569,10 @@ export abstract class TaskModal extends Modal {
             
             if (this.status && statusConfig && statusConfig.value !== this.getDefaultStatus()) {
                 statusIcon.classList.add('has-value');
-                statusIcon.setAttribute('title', `Status: ${statusLabel}`);
+                setTooltip(statusIcon, `Status: ${statusLabel}`, { placement: 'top' });
             } else {
                 statusIcon.classList.remove('has-value');
-                statusIcon.setAttribute('title', 'Set status');
+                setTooltip(statusIcon, 'Set status', { placement: 'top' });
             }
 
             // Apply status color to the icon
@@ -579,10 +593,10 @@ export abstract class TaskModal extends Modal {
             
             if (this.priority && priorityConfig && priorityConfig.value !== this.getDefaultPriority()) {
                 priorityIcon.classList.add('has-value');
-                priorityIcon.setAttribute('title', `Priority: ${priorityLabel}`);
+                setTooltip(priorityIcon, `Priority: ${priorityLabel}`, { placement: 'top' });
             } else {
                 priorityIcon.classList.remove('has-value');
-                priorityIcon.setAttribute('title', 'Set priority');
+                setTooltip(priorityIcon, 'Set priority', { placement: 'top' });
             }
 
             // Apply priority color to the icon
@@ -599,10 +613,10 @@ export abstract class TaskModal extends Modal {
         if (recurrenceIcon) {
             if (this.recurrenceRule && this.recurrenceRule.trim()) {
                 recurrenceIcon.classList.add('has-value');
-                recurrenceIcon.setAttribute('title', `Recurrence: ${this.getRecurrenceDisplayText()}`);
+                setTooltip(recurrenceIcon, `Recurrence: ${this.getRecurrenceDisplayText()}`, { placement: 'top' });
             } else {
                 recurrenceIcon.classList.remove('has-value');
-                recurrenceIcon.setAttribute('title', 'Set recurrence');
+                setTooltip(recurrenceIcon, 'Set recurrence', { placement: 'top' });
             }
         }
     }
@@ -711,7 +725,7 @@ export abstract class TaskModal extends Modal {
                 cls: 'task-project-remove',
                 text: '×'
             });
-            removeBtn.title = 'Remove project';
+            setTooltip(removeBtn, 'Remove project', { placement: 'top' });
             removeBtn.addEventListener('click', () => {
                 this.removeProject(file);
             });
@@ -724,9 +738,19 @@ export abstract class TaskModal extends Modal {
 }
 
 /**
+ * Context suggestion object for compatibility with other plugins
+ */
+interface ContextSuggestion {
+    value: string;
+    display: string;
+    type: 'context';
+    toString(): string;
+}
+
+/**
  * Context suggestion provider using AbstractInputSuggest
  */
-class ContextSuggest extends AbstractInputSuggest<string> {
+class ContextSuggest extends AbstractInputSuggest<ContextSuggestion> {
     private plugin: TaskNotesPlugin;
     private input: HTMLInputElement;
     
@@ -736,7 +760,7 @@ class ContextSuggest extends AbstractInputSuggest<string> {
         this.input = inputEl;
     }
     
-    protected async getSuggestions(query: string): Promise<string[]> {
+    protected async getSuggestions(query: string): Promise<ContextSuggestion[]> {
         // Handle comma-separated values
         const currentValues = this.input.value.split(',').map((v: string) => v.trim());
         const currentQuery = currentValues[currentValues.length - 1];
@@ -750,16 +774,22 @@ class ContextSuggest extends AbstractInputSuggest<string> {
                 context.toLowerCase().includes(currentQuery.toLowerCase()) &&
                 !currentValues.slice(0, -1).includes(context)
             )
-            .slice(0, 10);
+            .slice(0, 10)
+            .map(context => ({
+                value: context,
+                display: context,
+                type: 'context' as const,
+                toString() { return this.value; }
+            }));
     }
     
-    public renderSuggestion(context: string, el: HTMLElement): void {
-        el.textContent = context;
+    public renderSuggestion(contextSuggestion: ContextSuggestion, el: HTMLElement): void {
+        el.textContent = contextSuggestion.display;
     }
     
-    public selectSuggestion(context: string): void {
+    public selectSuggestion(contextSuggestion: ContextSuggestion): void {
         const currentValues = this.input.value.split(',').map((v: string) => v.trim());
-        currentValues[currentValues.length - 1] = context;
+        currentValues[currentValues.length - 1] = contextSuggestion.value;
         this.input.value = currentValues.join(', ') + ', ';
         
         // Trigger input event to update internal state
@@ -769,9 +799,19 @@ class ContextSuggest extends AbstractInputSuggest<string> {
 }
 
 /**
+ * Tag suggestion object for compatibility with other plugins
+ */
+interface TagSuggestion {
+    value: string;
+    display: string;
+    type: 'tag';
+    toString(): string;
+}
+
+/**
  * Tag suggestion provider using AbstractInputSuggest
  */
-class TagSuggest extends AbstractInputSuggest<string> {
+class TagSuggest extends AbstractInputSuggest<TagSuggestion> {
     private plugin: TaskNotesPlugin;
     private input: HTMLInputElement;
     
@@ -781,7 +821,7 @@ class TagSuggest extends AbstractInputSuggest<string> {
         this.input = inputEl;
     }
     
-    protected async getSuggestions(query: string): Promise<string[]> {
+    protected async getSuggestions(query: string): Promise<TagSuggestion[]> {
         // Handle comma-separated values
         const currentValues = this.input.value.split(',').map((v: string) => v.trim());
         const currentQuery = currentValues[currentValues.length - 1];
@@ -795,16 +835,22 @@ class TagSuggest extends AbstractInputSuggest<string> {
                 tag.toLowerCase().includes(currentQuery.toLowerCase()) &&
                 !currentValues.slice(0, -1).includes(tag)
             )
-            .slice(0, 10);
+            .slice(0, 10)
+            .map(tag => ({
+                value: tag,
+                display: tag,
+                type: 'tag' as const,
+                toString() { return this.value; }
+            }));
     }
     
-    public renderSuggestion(tag: string, el: HTMLElement): void {
-        el.textContent = tag;
+    public renderSuggestion(tagSuggestion: TagSuggestion, el: HTMLElement): void {
+        el.textContent = tagSuggestion.display;
     }
     
-    public selectSuggestion(tag: string): void {
+    public selectSuggestion(tagSuggestion: TagSuggestion): void {
         const currentValues = this.input.value.split(',').map((v: string) => v.trim());
-        currentValues[currentValues.length - 1] = tag;
+        currentValues[currentValues.length - 1] = tagSuggestion.value;
         this.input.value = currentValues.join(', ') + ', ';
         
         // Trigger input event to update internal state

@@ -1,4 +1,4 @@
-import { App, Modal, Setting, Notice, TAbstractFile, parseYaml, stringifyYaml } from 'obsidian';
+import { App, Modal, Setting, Notice, TAbstractFile, parseYaml, stringifyYaml, setTooltip } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { TimeBlock, DailyNoteFrontmatter } from '../types';
 import { generateTimeblockId } from '../utils/helpers';
@@ -237,6 +237,11 @@ export class TimeblockCreationModal extends Modal {
         if (!dailyNote) {
             // Create daily note if it doesn't exist
             dailyNote = await createDailyNote(moment);
+            
+            // Validate that daily note was created successfully
+            if (!dailyNote) {
+                throw new Error('Failed to create daily note. Please check your Daily Notes plugin configuration and ensure the daily notes folder exists.');
+            }
         }
 
         // Read current content
@@ -329,7 +334,7 @@ export class TimeblockCreationModal extends Modal {
                 cls: 'timeblock-attachment-remove',
                 text: '×'
             });
-            removeBtn.title = 'Remove attachment';
+            setTooltip(removeBtn, 'Remove attachment', { placement: 'top' });
             removeBtn.addEventListener('click', () => {
                 this.removeAttachment(file);
             });

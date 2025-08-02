@@ -16,10 +16,7 @@ import {
     endOfMonth,
     startOfYear,
     endOfYear,
-    subDays,
-    subWeeks,
-    subMonths,
-    subYears
+    // subDays, subWeeks, subMonths, subYears - removed unused imports
 } from 'date-fns';
 
 /**
@@ -263,6 +260,14 @@ export function createSafeDate(year: number, month: number, day: number): Date {
 }
 
 /**
+ * Create a safe UTC Date object for a specific year/month/day
+ */
+export function createSafeUTCDate(year: number, month: number, day: number): Date {
+    // Note: month is 0-based in Date constructor
+    return new Date(Date.UTC(year, month, day));
+}
+
+/**
  * Enhanced date validation that accepts both date-only and timezone-aware formats
  */
 export function validateDateInput(dateValue: string): boolean {
@@ -480,7 +485,7 @@ export function getCurrentTimestamp(): string {
  * Get current date in YYYY-MM-DD format for completion dates
  */
 export function getCurrentDateString(): string {
-    return format(new Date(), 'yyyy-MM-dd');
+    return formatUTCDateForCalendar(new Date());
 }
 
 /**
@@ -673,8 +678,13 @@ export function isBeforeDateTimeAware(date1: string, date2: string): boolean {
 /**
  * Check if a date/datetime is overdue (past current date/time)
  */
-export function isOverdueTimeAware(dateString: string): boolean {
+export function isOverdueTimeAware(dateString: string, isCompleted?: boolean, hideCompletedFromOverdue?: boolean): boolean {
     if (!dateString) return false;
+    
+    // If the setting is enabled and task is completed, don't consider it overdue
+    if (hideCompletedFromOverdue && isCompleted) {
+        return false;
+    }
     
     try {
         const taskDate = parseDate(dateString);

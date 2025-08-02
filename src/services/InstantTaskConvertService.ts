@@ -3,7 +3,7 @@ import TaskNotesPlugin from '../main';
 import { TasksPluginParser, ParsedTaskData } from '../utils/TasksPluginParser';
 import { NaturalLanguageParser } from './NaturalLanguageParser';
 import { TaskCreationData } from '../types';
-import { getCurrentTimestamp } from '../utils/dateUtils';
+import { getCurrentTimestamp, combineDateAndTime } from '../utils/dateUtils';
 import { calculateDefaultDate } from '../utils/helpers';
 import { StatusManager } from './StatusManager';
 import { PriorityManager } from './PriorityManager';
@@ -31,6 +31,96 @@ export class InstantTaskConvertService {
     }
 
     /**
+     * Batch convert all checkbox tasks in the current note to TaskNotes (optimized version)
+     */
+    async batchConvertAllTasks(editor: Editor): Promise<void> {
+        try {
+            // Find all checkbox tasks in the current note
+            const checkboxTasks = this.findAllCheckboxTasks(editor);
+            
+            if (checkboxTasks.length === 0) {
+                new Notice('No checkbox tasks found in the current note.');
+                return;
+            }
+            
+            new Notice(`Converting ${checkboxTasks.length} task${checkboxTasks.length === 1 ? '' : 's'}...`);
+            
+            // Batch process tasks for better performance
+            const result = await this.batchConvertTasksOptimized(editor, checkboxTasks);
+            
+            // Show summary
+            if (result.failures.length === 0) {
+                new Notice(`✅ Successfully converted ${result.successCount} task${result.successCount === 1 ? '' : 's'} to TaskNotes!`);
+            } else {
+                let message = `Converted ${result.successCount} task${result.successCount === 1 ? '' : 's'}.`;
+                if (result.failures.length > 0) {
+                    message += ` ${result.failures.length} failed.`;
+                }
+                new Notice(message);
+                
+                // Log failures for debugging
+                console.warn('Batch conversion failures:', result.failures);
+            }
+            
+        } catch (error) {
+            console.error('Error during batch task conversion:', error);
+            new Notice('Failed to perform batch conversion. Please try again.');
+        }
+    }
+
+    /**
+     * Optimized batch conversion that processes tasks in parallel and minimizes editor operations
+     */
+    private async batchConvertTasksOptimized(
+        editor: Editor, 
+        checkboxTasks: Array<{ lineNumber: number; line: string }>
+    ): Promise<{ successCount: number; failures: Array<{ lineNumber: number; error: string }> }> {
+        const failures: Array<{ lineNumber: number; error: string }> = [];
+        const taskFiles: Array<{ lineNumber: number; line: string; file: TFile; linkText: string }> = [];
+        
+        // Phase 1: Parse all tasks and create files in parallel
+        const parsePromises = checkboxTasks.map(async (task) => {
+            try {
+                const parsedData = await this.parseTaskForBatch(task.line);
+                if (!parsedData) {
+                    throw new Error('Failed to parse task');
+                }
+                
+                const file = await this.createTaskFile(parsedData);
+                const linkText = this.generateLinkText(task.line, file);
+                
+                return { lineNumber: task.lineNumber, line: task.line, file, linkText };
+            } catch (error) {
+                failures.push({
+                    lineNumber: task.lineNumber + 1,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+                return null;
+            }
+        });
+        
+        // Wait for all file creation operations to complete
+        const results = await Promise.all(parsePromises);
+        
+        // Filter out failed operations
+        for (const result of results) {
+            if (result) {
+                taskFiles.push(result);
+            }
+        }
+        
+        // Phase 2: Replace all task lines in a single editor operation
+        if (taskFiles.length > 0) {
+            this.replaceAllTaskLines(editor, taskFiles);
+        }
+        
+        // Phase 3: Let the editor handle task link overlay rendering naturally
+        // No manual overlay refresh needed - editor will detect the link changes automatically
+        
+        return { successCount: taskFiles.length, failures };
+    }
+
+    /**
      * Instantly convert a checkbox task to a TaskNote without showing the modal
      * Supports multi-line selection where additional lines become task details
      */
@@ -55,28 +145,55 @@ export class InstantTaskConvertService {
             const taskLineInfo = TasksPluginParser.parseTaskLine(currentLine);
             
             if (!taskLineInfo.isTaskLine) {
-                new Notice('Current line is not a task.');
-                return;
-            }
-            
-            if (taskLineInfo.error || !taskLineInfo.parsedData) {
-                new Notice(`Error parsing task: ${taskLineInfo.error || 'No data extracted'}`);
-                return;
-            }
-            
-            // Check if Tasks plugin parsing was sufficient (has meaningful metadata)
-            const hasMetadata = this.hasUsefulMetadata(taskLineInfo.parsedData);
-            
-            if (!hasMetadata && this.plugin.settings.enableNaturalLanguageInput) {
-                // Fallback to NLP if Tasks plugin parsing only extracted basic title
-                const nlpResult = this.tryNLPFallback(currentLine, details || '');
-                if (nlpResult) {
-                    parsedData = nlpResult;
+                // Line is not a checkbox task, but we can still convert it to a tasknote
+                // Extract the line content as the task title, removing any leading list markers
+                const taskTitle = this.extractLineContentAsTitle(currentLine);
+                
+                if (!taskTitle.trim()) {
+                    new Notice('Current line is empty or contains no valid content.');
+                    return;
+                }
+                
+                // Try NLP parsing first if enabled for better metadata extraction
+                if (this.plugin.settings.enableNaturalLanguageInput) {
+                    const nlpResult = this.tryNLPFallback(taskTitle, details || '');
+                    if (nlpResult) {
+                        parsedData = nlpResult;
+                    } else {
+                        // Fallback to basic task data with just the title
+                        parsedData = {
+                            title: taskTitle,
+                            isCompleted: false
+                        };
+                    }
+                } else {
+                    // Create basic task data with just the title
+                    parsedData = {
+                        title: taskTitle,
+                        isCompleted: false
+                    };
+                }
+            } else {
+                // Line is a checkbox task, process normally
+                if (taskLineInfo.error || !taskLineInfo.parsedData) {
+                    new Notice(`Error parsing task: ${taskLineInfo.error || 'No data extracted'}`);
+                    return;
+                }
+                
+                // Check if Tasks plugin parsing was sufficient (has meaningful metadata)
+                const hasMetadata = this.hasUsefulMetadata(taskLineInfo.parsedData);
+                
+                if (!hasMetadata && this.plugin.settings.enableNaturalLanguageInput) {
+                    // Fallback to NLP if Tasks plugin parsing only extracted basic title
+                    const nlpResult = this.tryNLPFallback(currentLine, details || '');
+                    if (nlpResult) {
+                        parsedData = nlpResult;
+                    } else {
+                        parsedData = taskLineInfo.parsedData;
+                    }
                 } else {
                     parsedData = taskLineInfo.parsedData;
                 }
-            } else {
-                parsedData = taskLineInfo.parsedData;
             }
 
             // Validate final parsed data before proceeding
@@ -252,6 +369,10 @@ export class InstantTaskConvertService {
         const parsedDueDate = this.sanitizeDate(parsedData.dueDate);
         const parsedScheduledDate = this.sanitizeDate(parsedData.scheduledDate);
         
+        // Extract time information
+        const parsedDueTime = parsedData.dueTime?.trim() || undefined;
+        const parsedScheduledTime = parsedData.scheduledTime?.trim() || undefined;
+        
         // Apply task creation defaults if setting is enabled
         let priority: string | undefined;
         let status: string | undefined;
@@ -262,6 +383,11 @@ export class InstantTaskConvertService {
         let timeEstimate: number | undefined;
         let recurrence: import('../types').RecurrenceInfo | undefined;
         
+        // Extract parsed tags, contexts, and projects
+        const parsedTags = parsedData.tags || [];
+        const parsedContexts = parsedData.contexts || [];
+        const parsedProjects = parsedData.projects || [];
+
         if (this.plugin.settings.useDefaultsOnInstantConvert) {
             const defaults = this.plugin.settings.taskCreationDefaults;
             
@@ -271,28 +397,41 @@ export class InstantTaskConvertService {
             
             // Apply due date: parsed date takes priority, then defaults
             if (parsedDueDate) {
-                dueDate = parsedDueDate;
+                dueDate = parsedDueTime ? combineDateAndTime(parsedDueDate, parsedDueTime) : parsedDueDate;
             } else if (defaults.defaultDueDate !== 'none') {
                 dueDate = calculateDefaultDate(defaults.defaultDueDate);
             }
             
             // Apply scheduled date: parsed date takes priority, then defaults
             if (parsedScheduledDate) {
-                scheduledDate = parsedScheduledDate;
+                scheduledDate = parsedScheduledTime ? combineDateAndTime(parsedScheduledDate, parsedScheduledTime) : parsedScheduledDate;
             } else if (defaults.defaultScheduledDate !== 'none') {
                 scheduledDate = calculateDefaultDate(defaults.defaultScheduledDate);
             }
             
-            // Apply default contexts
-            if (defaults.defaultContexts) {
-                contextsArray = defaults.defaultContexts.split(',').map(s => s.trim()).filter(s => s);
+            // Apply contexts: start with parsed contexts, then add default contexts
+            contextsArray = [];
+            if (parsedContexts.length > 0) {
+                contextsArray.push(...parsedContexts);
             }
+            if (defaults.defaultContexts) {
+                const defaultContextsArray = defaults.defaultContexts.split(',').map(s => s.trim()).filter(s => s);
+                contextsArray.push(...defaultContextsArray);
+            }
+            // Remove duplicates
+            contextsArray = [...new Set(contextsArray)];
             
-            // Apply default tags (add to existing task tag)
+            // Apply tags: start with task tag, add parsed tags, then add default tags
+            tagsArray = [this.plugin.settings.taskTag];
+            if (parsedTags.length > 0) {
+                tagsArray.push(...parsedTags);
+            }
             if (defaults.defaultTags) {
                 const defaultTagsArray = defaults.defaultTags.split(',').map(s => s.trim()).filter(s => s);
-                tagsArray = [...tagsArray, ...defaultTagsArray];
+                tagsArray.push(...defaultTagsArray);
             }
+            // Remove duplicates
+            tagsArray = [...new Set(tagsArray)];
             
             // Apply time estimate
             if (defaults.defaultTimeEstimate && defaults.defaultTimeEstimate > 0) {
@@ -309,11 +448,41 @@ export class InstantTaskConvertService {
             // Minimal behavior: only use parsed data, use "none" for unset values
             priority = (parsedData.priority ? this.sanitizePriority(parsedData.priority) : '') || 'none';
             status = (parsedData.status ? this.sanitizeStatus(parsedData.status) : '') || 'none';
-            dueDate = parsedDueDate || undefined;
-            scheduledDate = parsedScheduledDate || undefined;
-            // Keep minimal tags (just the task tag)
+            dueDate = parsedDueDate ? (parsedDueTime ? combineDateAndTime(parsedDueDate, parsedDueTime) : parsedDueDate) : undefined;
+            scheduledDate = parsedScheduledDate ? (parsedScheduledTime ? combineDateAndTime(parsedScheduledDate, parsedScheduledTime) : parsedScheduledDate) : undefined;
+            // Apply contexts: only use parsed contexts
+            contextsArray = [];
+            if (parsedContexts.length > 0) {
+                contextsArray.push(...parsedContexts);
+            }
+            // Apply tags: start with task tag, add parsed tags
             tagsArray = [this.plugin.settings.taskTag];
+            if (parsedTags.length > 0) {
+                tagsArray.push(...parsedTags);
+            }
+            // Remove duplicates
+            tagsArray = [...new Set(tagsArray)];
         }
+
+        // Apply projects: handle default projects if enabled, otherwise just use parsed projects
+        const projectsArray: string[] = [];
+        
+        // Apply default projects if defaults are enabled
+        if (this.plugin.settings.useDefaultsOnInstantConvert) {
+            const defaults = this.plugin.settings.taskCreationDefaults;
+            if (defaults.defaultProjects) {
+                const defaultProjectsArray = defaults.defaultProjects.split(',').map(s => s.trim()).filter(s => s);
+                projectsArray.push(...defaultProjectsArray);
+            }
+        }
+        
+        // Add parsed projects
+        if (parsedProjects.length > 0) {
+            projectsArray.push(...parsedProjects);
+        }
+        
+        // Remove duplicates
+        const uniqueProjects = [...new Set(projectsArray)];
 
         // Create TaskCreationData object with all the data
         const taskData: TaskCreationData = {
@@ -323,6 +492,7 @@ export class InstantTaskConvertService {
             due: dueDate,
             scheduled: scheduledDate,
             contexts: contextsArray.length > 0 ? contextsArray : undefined,
+            projects: uniqueProjects.length > 0 ? uniqueProjects : undefined,
             tags: tagsArray,
             timeEstimate: timeEstimate,
             recurrence: recurrence,
@@ -410,26 +580,52 @@ export class InstantTaskConvertService {
                 }
             }
 
-            // Re-validate that the first line is still a task (additional safety)
+            // Re-validate that the first line still has content (additional safety)
             const taskLineInfo = TasksPluginParser.parseTaskLine(originalContent[0]);
-            if (!taskLineInfo.isTaskLine) {
+            const isCheckboxTask = taskLineInfo.isTaskLine;
+            
+            // For checkbox tasks, ensure it's still a valid task
+            // For non-checkbox lines, just ensure there's still content
+            if (isCheckboxTask && !taskLineInfo.isTaskLine) {
                 return { success: false, error: 'First line is no longer a valid task.' };
+            } else if (!isCheckboxTask && !this.extractLineContentAsTitle(originalContent[0]).trim()) {
+                return { success: false, error: 'First line no longer contains valid content.' };
             }
 
-            // Create link text preserving original list format and indentation from the first line
+            // Create link text preserving original format and indentation from the first line
             const originalIndentation = originalContent[0].match(/^(\s*)/)?.[1] || '';
-            const listPrefixMatch = originalContent[0].match(/^\s*((?:[-*+]|\d+\.)\s+)\[/);
-            const listPrefix = listPrefixMatch?.[1] || '- ';
+            
+            let listPrefix = '';
+            if (isCheckboxTask) {
+                // For checkbox tasks, preserve the list prefix without the checkbox
+                const listPrefixMatch = originalContent[0].match(/^\s*((?:[-*+]|\d+\.)\s+)\[/);
+                listPrefix = listPrefixMatch?.[1] || '- ';
+            } else {
+                // For non-checkbox lines, try to preserve existing list markers
+                const bulletMatch = originalContent[0].match(/^\s*([-*+]\s+)/);
+                const numberedMatch = originalContent[0].match(/^\s*(\d+\.\s+)/);
+                const blockquoteMatch = originalContent[0].match(/^\s*(>\s*)/);
+                
+                if (bulletMatch) {
+                    listPrefix = bulletMatch[1];
+                } else if (numberedMatch) {
+                    listPrefix = numberedMatch[1];
+                } else if (blockquoteMatch) {
+                    listPrefix = blockquoteMatch[1];
+                } else {
+                    listPrefix = '- '; // Default to bullet point
+                }
+            }
             
             // Get the current file context for relative link generation
             const currentFile = this.plugin.app.workspace.getActiveFile();
             const sourcePath = currentFile?.path || '';
             
-            // Use Obsidian's native link text generation
-            const obsidianLinkText = this.plugin.app.metadataCache.fileToLinktext(file, sourcePath, true);
+            // Use Obsidian's generateMarkdownLink (respects user's link format settings)
+            const properLink = this.plugin.app.fileManager.generateMarkdownLink(file, sourcePath);
             
             // Create the final line with proper indentation and original list format
-            const linkText = `${originalIndentation}${listPrefix}[[${obsidianLinkText}]]`;
+            const linkText = `${originalIndentation}${listPrefix}${properLink}`;
             
             // Validate the generated link text
             if (linkText.length > 500) { // Reasonable limit for link text
@@ -527,7 +723,9 @@ export class InstantTaskConvertService {
             data.status ||
             data.recurrence ||
             data.createdDate ||
-            data.doneDate
+            data.doneDate ||
+            (data.tags && data.tags.length > 0) ||
+            (data.projects && data.projects.length > 0)
         );
     }
 
@@ -562,7 +760,12 @@ export class InstantTaskConvertService {
                 priority: nlpResult.priority,
                 dueDate: nlpResult.dueDate,
                 scheduledDate: nlpResult.scheduledDate,
+                dueTime: nlpResult.dueTime,
+                scheduledTime: nlpResult.scheduledTime,
                 recurrence: nlpResult.recurrence,
+                tags: nlpResult.tags && nlpResult.tags.length > 0 ? nlpResult.tags : undefined,
+                projects: nlpResult.projects && nlpResult.projects.length > 0 ? nlpResult.projects : undefined,
+                contexts: nlpResult.contexts && nlpResult.contexts.length > 0 ? nlpResult.contexts : undefined,
                 // TasksPlugin specific fields that NLP doesn't have
                 startDate: undefined,
                 createdDate: undefined,
@@ -586,4 +789,172 @@ export class InstantTaskConvertService {
         const cleanLine = line.replace(/^\s*(?:[-*+]|\d+\.)\s*\[[ xX]\]\s*/, '');
         return cleanLine.trim();
     }
+
+    /**
+     * Extract content from any line to use as a task title
+     * This removes common list markers and prefixes while preserving the core content
+     */
+    private extractLineContentAsTitle(line: string): string {
+        let cleanLine = line.trim();
+        
+        // Remove common list markers and bullet points
+        cleanLine = cleanLine.replace(/^\s*[-*+]\s+/, ''); // Remove bullet points
+        cleanLine = cleanLine.replace(/^\s*\d+\.\s+/, ''); // Remove numbered lists
+        
+        // Remove blockquote markers (for issue #262 - callouts support)
+        // Handle multiple levels of blockquotes like "> > > text"
+        while (cleanLine.match(/^\s*>\s*/)) {
+            cleanLine = cleanLine.replace(/^\s*>\s*/, '');
+        }
+        
+        // Remove markdown headers
+        cleanLine = cleanLine.replace(/^\s*#+\s+/, '');
+        
+        // Remove horizontal rules (these lines shouldn't become tasks anyway)
+        if (cleanLine.match(/^\s*(-{3,}|={3,})\s*$/)) {
+            return '';
+        }
+        
+        return cleanLine.trim();
+    }
+
+    /**
+     * Find all checkbox tasks in the current note
+     * Returns an array of tasks with their line numbers
+     */
+    private findAllCheckboxTasks(editor: Editor): Array<{ lineNumber: number; line: string }> {
+        const tasks: Array<{ lineNumber: number; line: string }> = [];
+        const totalLines = editor.lineCount();
+        
+        for (let lineNumber = 0; lineNumber < totalLines; lineNumber++) {
+            const line = editor.getLine(lineNumber);
+            
+            // Check if this line is a checkbox task directly
+            const taskLineInfo = TasksPluginParser.parseTaskLine(line);
+            if (taskLineInfo.isTaskLine) {
+                tasks.push({ lineNumber, line });
+                continue;
+            }
+            
+            // Also check if it's a checkbox task inside blockquotes (like "> - [ ] task")
+            // This uses the same logic as the main conversion method
+            if (line.trim().includes('[ ]') || line.trim().includes('[x]') || line.trim().includes('[X]')) {
+                // Remove blockquote markers and try parsing again
+                let cleanLine = line.trim();
+                while (cleanLine.match(/^\s*>\s*/)) {
+                    cleanLine = cleanLine.replace(/^\s*>\s*/, '');
+                }
+                
+                const cleanedTaskLineInfo = TasksPluginParser.parseTaskLine(cleanLine);
+                if (cleanedTaskLineInfo.isTaskLine) {
+                    tasks.push({ lineNumber, line });
+                }
+            }
+        }
+        
+        return tasks;
+    }
+
+    /**
+     * Parse a task line for batch processing (simplified version of the main parsing logic)
+     */
+    private async parseTaskForBatch(line: string): Promise<ParsedTaskData | null> {
+        try {
+            const taskLineInfo = TasksPluginParser.parseTaskLine(line);
+            
+            if (!taskLineInfo.isTaskLine) {
+                // Handle non-checkbox lines (like blockquoted tasks)
+                const taskTitle = this.extractLineContentAsTitle(line);
+                if (!taskTitle.trim()) {
+                    return null;
+                }
+                
+                if (this.plugin.settings.enableNaturalLanguageInput) {
+                    const nlpResult = this.tryNLPFallback(taskTitle, '');
+                    if (nlpResult) {
+                        return nlpResult;
+                    }
+                }
+                
+                return { title: taskTitle, isCompleted: false };
+            } else {
+                if (taskLineInfo.error || !taskLineInfo.parsedData) {
+                    return null;
+                }
+                
+                const hasMetadata = this.hasUsefulMetadata(taskLineInfo.parsedData);
+                if (!hasMetadata && this.plugin.settings.enableNaturalLanguageInput) {
+                    const nlpResult = this.tryNLPFallback(line, '');
+                    if (nlpResult) {
+                        return nlpResult;
+                    }
+                }
+                
+                return taskLineInfo.parsedData;
+            }
+        } catch (error) {
+            console.warn('Error parsing task for batch:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Generate link text for a task line replacement
+     */
+    private generateLinkText(originalLine: string, file: TFile): string {
+        const originalIndentation = originalLine.match(/^(\s*)/)?.[1] || '';
+        
+        // Determine if this was a checkbox task
+        const taskLineInfo = TasksPluginParser.parseTaskLine(originalLine);
+        const isCheckboxTask = taskLineInfo.isTaskLine;
+        
+        let listPrefix = '';
+        if (isCheckboxTask) {
+            const listPrefixMatch = originalLine.match(/^\s*((?:[-*+]|\d+\.)\s+)\[/);
+            listPrefix = listPrefixMatch?.[1] || '- ';
+        } else {
+            // For non-checkbox lines, preserve existing markers
+            const bulletMatch = originalLine.match(/^\s*([-*+]\s+)/);
+            const numberedMatch = originalLine.match(/^\s*(\d+\.\s+)/);
+            const blockquoteMatch = originalLine.match(/^\s*(>\s*)/);
+            
+            if (bulletMatch) {
+                listPrefix = bulletMatch[1];
+            } else if (numberedMatch) {
+                listPrefix = numberedMatch[1];
+            } else if (blockquoteMatch) {
+                listPrefix = blockquoteMatch[1];
+            } else {
+                listPrefix = '- ';
+            }
+        }
+        
+        const currentFile = this.plugin.app.workspace.getActiveFile();
+        const sourcePath = currentFile?.path || '';
+        const properLink = this.plugin.app.fileManager.generateMarkdownLink(file, sourcePath);
+        
+        return `${originalIndentation}${listPrefix}${properLink}`;
+    }
+
+    /**
+     * Replace all task lines in a single editor operation for better performance
+     */
+    private replaceAllTaskLines(
+        editor: Editor, 
+        taskFiles: Array<{ lineNumber: number; line: string; file: TFile; linkText: string }>
+    ): void {
+        // Sort by line number in descending order to avoid line number shifts
+        const sortedTasks = taskFiles.sort((a, b) => b.lineNumber - a.lineNumber);
+        
+        // Process all replacements
+        for (const task of sortedTasks) {
+            const lineLength = editor.getLine(task.lineNumber).length;
+            editor.replaceRange(
+                task.linkText,
+                { line: task.lineNumber, ch: 0 },
+                { line: task.lineNumber, ch: lineLength }
+            );
+        }
+    }
+
 }

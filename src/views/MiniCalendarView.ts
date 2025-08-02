@@ -1,5 +1,6 @@
-import { Notice, TFile, ItemView, WorkspaceLeaf, EventRef, debounce } from 'obsidian';
+import { Notice, TFile, ItemView, WorkspaceLeaf, EventRef, debounce, setTooltip } from 'obsidian';
 import { format } from 'date-fns';
+import { formatUTCDateForCalendar, createSafeUTCDate } from '../utils/dateUtils';
 import TaskNotesPlugin from '../main';
 import { getAllDailyNotes, getDailyNote } from 'obsidian-daily-notes-interface';
 import { 
@@ -166,8 +167,8 @@ export class MiniCalendarView extends ItemView {
         const currentDate = new Date(this.plugin.selectedDate);
         const date = new Date(currentDate);
         
-        // Go to previous month
-        date.setMonth(date.getMonth() - 1);
+        // Go to previous month using UTC methods
+        date.setUTCMonth(date.getUTCMonth() - 1);
         
         // Set the selected date - the event listener will handle the calendar update
         this.plugin.setSelectedDate(date);
@@ -177,15 +178,17 @@ export class MiniCalendarView extends ItemView {
         const currentDate = new Date(this.plugin.selectedDate);
         const date = new Date(currentDate);
         
-        // Go to next month
-        date.setMonth(date.getMonth() + 1);
+        // Go to next month using UTC methods
+        date.setUTCMonth(date.getUTCMonth() + 1);
         
         // Set the selected date - the event listener will handle the calendar update
         this.plugin.setSelectedDate(date);
     }
     
     async navigateToToday() {
-        const today = new Date();
+        // Create UTC date for today
+        const now = new Date();
+        const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
         
         // Set the selected date - the event listener will handle the calendar update
         this.plugin.setSelectedDate(today);
@@ -225,25 +228,25 @@ export class MiniCalendarView extends ItemView {
                 // Left arrow - previous day
                 case 'ArrowLeft':
                     newDate = new Date(currentDate);
-                    newDate.setDate(currentDate.getDate() - 1);
+                    newDate.setUTCDate(currentDate.getUTCDate() - 1);
                     break;
                     
                 // Right arrow - next day
                 case 'ArrowRight':
                     newDate = new Date(currentDate);
-                    newDate.setDate(currentDate.getDate() + 1);
+                    newDate.setUTCDate(currentDate.getUTCDate() + 1);
                     break;
                     
                 // Up arrow - previous week (same day)
                 case 'ArrowUp':
                     newDate = new Date(currentDate);
-                    newDate.setDate(currentDate.getDate() - 7);
+                    newDate.setUTCDate(currentDate.getUTCDate() - 7);
                     break;
                     
                 // Down arrow - next week (same day)
                 case 'ArrowDown':
                     newDate = new Date(currentDate);
-                    newDate.setDate(currentDate.getDate() + 7);
+                    newDate.setUTCDate(currentDate.getUTCDate() + 7);
                     break;
                 
                 // Enter key - open daily note for selected date
@@ -282,8 +285,8 @@ export class MiniCalendarView extends ItemView {
         const currentDate = new Date(this.plugin.selectedDate);
         const newDate = new Date(currentDate);
         
-        // Apply week offset (7 days per week)
-        newDate.setDate(currentDate.getDate() + (weekOffset * 7) + dayOffset);
+        // Apply week offset (7 days per week) using UTC methods
+        newDate.setUTCDate(currentDate.getUTCDate() + (weekOffset * 7) + dayOffset);
         
         // Set the selected date - the event listener will handle the calendar update
         this.plugin.setSelectedDate(newDate);
@@ -484,19 +487,19 @@ export class MiniCalendarView extends ItemView {
         const selectedDate = this.plugin.selectedDate;
         
         // Get the current month and year
-        const currentMonth = selectedDate.getMonth();
-        const currentYear = selectedDate.getFullYear();
+        const currentMonth = selectedDate.getUTCMonth();
+        const currentYear = selectedDate.getUTCFullYear();
         
         // Get the first day of the month
-        const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+        const firstDayOfMonth = new Date(Date.UTC(currentYear, currentMonth, 1));
         
         // Get the last day of the month
-        const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+        const lastDayOfMonth = new Date(Date.UTC(currentYear, currentMonth + 1, 0));
         
         const firstDaySetting = this.plugin.settings.calendarViewSettings.firstDay || 0;
         
         // Get the day of the week for the first day (0-6, 0 is Sunday)
-        const firstDayOfWeek = (firstDayOfMonth.getDay() - firstDaySetting + 7) % 7;
+        const firstDayOfWeek = (firstDayOfMonth.getUTCDay() - firstDaySetting + 7) % 7;
         
         // Create the calendar grid with ARIA role
         const calendarGrid = gridContainer.createDiv({ 
@@ -537,11 +540,11 @@ export class MiniCalendarView extends ItemView {
         
         // Calculate days from next month to show (to fill the grid)
         const totalCells = 42; // 6 rows of 7 days
-        const daysThisMonth = lastDayOfMonth.getDate();
+        const daysThisMonth = lastDayOfMonth.getUTCDate();
         const daysFromNextMonth = totalCells - daysThisMonth - daysFromPrevMonth;
         
         // Get the last day of the previous month
-        const lastDayOfPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+        const lastDayOfPrevMonth = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
         
         // Create calendar days - start new row for first week
         let currentWeekRow = calendarGrid.createDiv({
@@ -552,7 +555,7 @@ export class MiniCalendarView extends ItemView {
         // Days from previous month
         for (let i = 0; i < daysFromPrevMonth; i++) {
             const dayNum = lastDayOfPrevMonth - daysFromPrevMonth + i + 1;
-            const dayDate = new Date(currentYear, currentMonth - 1, dayNum);
+            const dayDate = new Date(Date.UTC(currentYear, currentMonth - 1, dayNum));
             
             const isSelected = isSameDay(dayDate, selectedDate);
             
@@ -600,7 +603,7 @@ export class MiniCalendarView extends ItemView {
                 });
             }
             
-            const dayDate = new Date(currentYear, currentMonth, i);
+            const dayDate = new Date(Date.UTC(currentYear, currentMonth, i));
             
             const isToday = isSameDay(dayDate, today);
             const isSelected = isSameDay(dayDate, selectedDate);
@@ -653,7 +656,7 @@ export class MiniCalendarView extends ItemView {
                 });
             }
             
-            const dayDate = new Date(currentYear, currentMonth + 1, i);
+            const dayDate = new Date(Date.UTC(currentYear, currentMonth + 1, i));
             
             const isSelected = isSameDay(dayDate, selectedDate);
             
@@ -756,7 +759,7 @@ export class MiniCalendarView extends ItemView {
                 }
                 
                 const dateObj = createSafeDate(year, actualMonth, date);
-                const dateKey = format(dateObj, 'yyyy-MM-dd');
+                const dateKey = formatUTCDateForCalendar(dateObj);
                 
                 // Get note count for this date
                 const noteCount = notesCache.get(dateKey) || 0;
@@ -783,7 +786,7 @@ export class MiniCalendarView extends ItemView {
                     
                     // Add tooltip with note count
                     indicator.setAttribute('aria-label', `${noteCount} note${noteCount > 1 ? 's' : ''}`);
-                    indicator.setAttribute('title', `${noteCount} note${noteCount > 1 ? 's' : ''}`);
+                    setTooltip(indicator, `${noteCount} note${noteCount > 1 ? 's' : ''}`, { placement: 'top' });
                     
                     // Add indicator to the day cell
                     day.appendChild(indicator);
@@ -837,7 +840,7 @@ export class MiniCalendarView extends ItemView {
                     }
                     
                     const dateObj = createSafeDate(year, actualMonth, date);
-                    const dateKey = format(dateObj, 'yyyy-MM-dd');
+                    const dateKey = formatUTCDateForCalendar(dateObj);
                     
                     cachedResult = { actualMonth, dateObj, dateKey };
                     this.monthCalculationCache.set(cacheKey, cachedResult);
@@ -880,7 +883,7 @@ export class MiniCalendarView extends ItemView {
                     
                     // Add tooltip with task count information
                     indicator.setAttribute('aria-label', `${taskStatus} tasks (${taskInfo.count})`);
-                    indicator.setAttribute('title', `${taskStatus} tasks (${taskInfo.count})`);
+                    setTooltip(indicator, `${taskStatus} tasks (${taskInfo.count})`, { placement: 'top' });
                     
                     // Add indicator to the day cell
                     day.appendChild(indicator);
@@ -948,7 +951,7 @@ export class MiniCalendarView extends ItemView {
                     }
                     
                     const dateObj = createSafeDate(year, actualMonth, date);
-                    const dateKey = format(dateObj, 'yyyy-MM-dd');
+                    const dateKey = formatUTCDateForCalendar(dateObj);
                     
                     cachedResult = { actualMonth, dateObj, dateKey };
                     this.monthCalculationCache.set(cacheKey, cachedResult);
@@ -968,7 +971,7 @@ export class MiniCalendarView extends ItemView {
                     
                     // Add tooltip for daily note
                     indicator.setAttribute('aria-label', 'Daily note exists');
-                    indicator.setAttribute('title', 'Daily note exists');
+                    setTooltip(indicator, 'Daily note exists', { placement: 'top' });
                     
                     // Add indicator to the day cell
                     day.appendChild(indicator);
@@ -1104,7 +1107,7 @@ export class MiniCalendarView extends ItemView {
             
             // Add tooltip with task count information
             indicator.setAttribute('aria-label', `${taskStatus} tasks (${taskInfo.count})`);
-            indicator.setAttribute('title', `${taskStatus} tasks (${taskInfo.count})`);
+            setTooltip(indicator, `${taskStatus} tasks (${taskInfo.count})`, { placement: 'top' });
             
             // Add indicator to the day cell
             dayEl.appendChild(indicator);
@@ -1127,7 +1130,7 @@ export class MiniCalendarView extends ItemView {
         }
         
         try {
-            return createSafeDate(currentYear, actualMonth, dayNum);
+            return createSafeUTCDate(currentYear, actualMonth, dayNum);
         } catch (error) {
             console.error('Error creating date:', error);
             return null;
@@ -1152,7 +1155,7 @@ export class MiniCalendarView extends ItemView {
             const cellDate = this.getCellDate(dayEl, date, currentYear, currentMonth);
             
             if (cellDate) {
-                const dateKey = format(cellDate, 'yyyy-MM-dd');
+                const dateKey = formatUTCDateForCalendar(cellDate);
                 this.elementToDateMap.set(element, { date, dateKey });
             }
         });
@@ -1273,7 +1276,7 @@ source: 'tasknotes-calendar',
                 }
                 
                 // Format the date for task due date (all-day)
-                const dueDate = format(dayDate, 'yyyy-MM-dd');
+                const dueDate = formatUTCDateForCalendar(dayDate);
                 
                 // Update the task's due date
                 await this.plugin.taskService.updateProperty(task, 'due', dueDate);

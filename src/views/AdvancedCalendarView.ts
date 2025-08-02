@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile, Notice, EventRef, Menu, Modal } from 'obsidian';
+import { ItemView, WorkspaceLeaf, TFile, Notice, EventRef, Menu, Modal, setTooltip } from 'obsidian';
 import { ICSEventInfoModal } from '../modals/ICSEventInfoModal';
 import { TimeblockInfoModal } from '../modals/TimeblockInfoModal';
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -156,20 +156,27 @@ export class AdvancedCalendarView extends ItemView {
             this.showTimeblocks = savedPreferences.showTimeblocks ?? this.plugin.settings.calendarViewSettings.defaultShowTimeblocks;
             this.headerCollapsed = savedPreferences.headerCollapsed ?? true;
         }
-        
-        const contentEl = this.contentEl;
-        contentEl.empty();
-        contentEl.addClass('tasknotes-plugin');
-        contentEl.addClass('advanced-calendar-view');
 
-        // Create the calendar container
-        await this.renderView();
-        
-        // Register event listeners
-        this.registerEvents();
-        
-        // Initialize the calendar
-        await this.initializeCalendar();
+        // Ensure initialization
+        const init = async () => {
+            // Cleanup old calendar if it exists
+            const contentEl = this.contentEl;
+            contentEl.empty();
+            contentEl.addClass('tasknotes-plugin');
+            contentEl.addClass('advanced-calendar-view');
+
+            // Re-render the view
+            await this.renderView();
+            this.registerEvents();
+
+            // Initialize the calendar
+            await this.initializeCalendar();            
+        }
+
+        await init();
+
+        // Re-initialize on window migration
+        this.contentEl.onWindowMigrated(init);
     }
 
     async renderView() {
@@ -186,7 +193,7 @@ export class AdvancedCalendarView extends ItemView {
         mainContainer.createDiv({ 
             cls: 'advanced-calendar-view__calendar-container',
             attr: { id: 'advanced-calendar' }
-        });
+        });       
     }
 
     async createHeader(container: HTMLElement) {
@@ -232,12 +239,17 @@ export class AdvancedCalendarView extends ItemView {
         this.filterBar.updateSavedViews(savedViews);
         
         // Listen for saved view events
-        this.filterBar.on('saveView', ({ name, query }) => {
-            this.plugin.viewStateManager.saveView(name, query);
+        this.filterBar.on('saveView', ({ name, query, viewOptions }) => {
+            this.plugin.viewStateManager.saveView(name, query, viewOptions);
         });
         
         this.filterBar.on('deleteView', (viewId: string) => {
             this.plugin.viewStateManager.deleteView(viewId);
+        });
+
+        // Listen for view options load events
+        this.filterBar.on('loadViewOptions', (viewOptions: {[key: string]: boolean}) => {
+            this.applyViewOptions(viewOptions);
         });
 
         // Listen for global saved views changes
@@ -401,10 +413,15 @@ export class AdvancedCalendarView extends ItemView {
             return false; // This hides the entire header toolbar
         }
         
+        // Check if calendar container is narrow (less than 600px wide) to hide title
+        const calendarContainer = this.contentEl.querySelector('.advanced-calendar-view__calendar-container');
+        const containerWidth = calendarContainer ? calendarContainer.getBoundingClientRect().width : window.innerWidth;
+        const isNarrowView = containerWidth <= 600;
+        
         const toolbarConfig = {
             left: 'prev,next today',
-            center: 'title',
-            right: 'refreshICS multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay'
+            center: isNarrowView ? '' : 'title', // Hide title in narrow views
+            right: 'refreshICS multiMonthYear,dayGridMonth,timeGridWeek,timeGridCustom,timeGridDay'
         };
         console.log('Header toolbar config:', toolbarConfig);
         return toolbarConfig;
@@ -482,7 +499,7 @@ export class AdvancedCalendarView extends ItemView {
     }
 
     async initializeCalendar() {
-        const calendarEl = document.getElementById('advanced-calendar');
+        const calendarEl = this.contentEl.querySelector('#advanced-calendar');
         if (!calendarEl) {
             console.error('Calendar element not found');
             return;
@@ -499,16 +516,26 @@ export class AdvancedCalendarView extends ItemView {
         console.log('Initializing calendar with customButtons:', customButtons);
         console.log('Initializing calendar with headerToolbar:', headerToolbar);
         
-        this.calendar = new Calendar(calendarEl, {
+        this.calendar = new Calendar(calendarEl as HTMLElement, {
             plugins: [dayGridPlugin, timeGridPlugin, multiMonthPlugin, interactionPlugin],
             initialView: calendarSettings.defaultView,
             headerToolbar: headerToolbar,
             customButtons: customButtons,
+            views: {
+                timeGridCustom: {
+                    type: 'timeGrid',
+                    duration: { days: calendarSettings.customDayCount || 3 },
+                    buttonText: `${calendarSettings.customDayCount || 3} days`
+                }
+            },
             height: '100%',
             editable: true,
             droppable: true,
             selectable: true,
             selectMirror: calendarSettings.selectMirror,
+            
+            // Locale settings - use browser locale for date formatting
+            locale: this.getUserLocale(),
             
             // Week settings
             firstDay: calendarSettings.firstDay,
@@ -554,6 +581,8 @@ export class AdvancedCalendarView extends ItemView {
                 this.calendar.render();
                 // Set up resize handling after initial render
                 this.setupResizeHandling();
+                // Refresh events to ensure initial state is correct
+                this.refreshEvents();
             }
         });
     }
@@ -571,46 +600,98 @@ export class AdvancedCalendarView extends ItemView {
         this.plugin.viewStateManager.setViewPreferences(ADVANCED_CALENDAR_VIEW_TYPE, preferences);
     }
 
+    /**
+     * Apply view options from a loaded saved view
+     */
+    private applyViewOptions(viewOptions: {[key: string]: boolean}): void {
+        // Apply the loaded view options to the internal state
+        if (viewOptions.hasOwnProperty('showScheduled')) {
+            this.showScheduled = viewOptions.showScheduled;
+        }
+        if (viewOptions.hasOwnProperty('showDue')) {
+            this.showDue = viewOptions.showDue;
+        }
+        if (viewOptions.hasOwnProperty('showTimeEntries')) {
+            this.showTimeEntries = viewOptions.showTimeEntries;
+        }
+        if (viewOptions.hasOwnProperty('showRecurring')) {
+            this.showRecurring = viewOptions.showRecurring;
+        }
+        if (viewOptions.hasOwnProperty('showICSEvents')) {
+            this.showICSEvents = viewOptions.showICSEvents;
+        }
+        if (viewOptions.hasOwnProperty('showTimeblocks')) {
+            this.showTimeblocks = viewOptions.showTimeblocks;
+        }
+
+        // Update the view options in the FilterBar to reflect the loaded state
+        this.setupViewOptions();
+        
+        // Refresh the calendar to apply the changes
+        this.refreshEvents();
+    }
+
     private setupResizeHandling(): void {
         if (!this.calendar) return;
 
-        // Debounced resize handler to prevent excessive updates
+        // Clean up previous resize handling
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+        if (this.resizeTimeout) {
+            window.clearTimeout(this.resizeTimeout);
+            this.resizeTimeout = null;
+        }
+
+        // Clean up previous listeners
+        this.functionListeners.forEach(unsubscribe => unsubscribe());
+        this.functionListeners = [];
+        this.listeners.forEach(listener => this.plugin.emitter.offref(listener));
+        this.listeners = [];
+
+        // Use the correct window reference (supports popout windows)
+        const win = this.contentEl.ownerDocument.defaultView || window;
+
+        // Debounced resize handler
         const debouncedResize = () => {
             if (this.resizeTimeout) {
-                window.clearTimeout(this.resizeTimeout);
+                win.clearTimeout(this.resizeTimeout);
             }
-            this.resizeTimeout = window.setTimeout(() => {
+            this.resizeTimeout = win.setTimeout(() => {
                 if (this.calendar) {
                     this.calendar.updateSize();
+                    // Update header toolbar to handle narrow view title visibility
+                    this.updateHeaderVisibility();
                 }
             }, 150);
         };
 
         // Use ResizeObserver to detect container size changes
-        if (window.ResizeObserver) {
-            this.resizeObserver = new ResizeObserver(debouncedResize);
+        if (win.ResizeObserver) {
+            this.resizeObserver = new win.ResizeObserver(debouncedResize);
             const calendarContainer = this.contentEl.querySelector('.advanced-calendar-view__calendar-container');
             if (calendarContainer) {
                 this.resizeObserver.observe(calendarContainer);
             }
         }
 
-        // Also listen for workspace layout changes (Obsidian-specific)
+        // Listen for workspace layout changes (Obsidian-specific)
         const layoutChangeListener = this.plugin.app.workspace.on('layout-change', debouncedResize);
         this.listeners.push(layoutChangeListener);
 
         // Listen for window resize as fallback
-        const windowResizeListener = () => debouncedResize();
-        window.addEventListener('resize', windowResizeListener);
-        this.functionListeners.push(() => window.removeEventListener('resize', windowResizeListener));
+        win.addEventListener('resize', debouncedResize);
+        this.functionListeners.push(() => win.removeEventListener('resize', debouncedResize));
 
         // Listen for active leaf changes that might affect calendar size
         const activeLeafListener = this.plugin.app.workspace.on('active-leaf-change', (leaf) => {
             if (leaf === this.leaf) {
-                // Small delay to ensure layout is settled
+                // Small delay to ensure layout has settled after leaf activation
                 setTimeout(debouncedResize, 100);
             }
         });
+        
         this.listeners.push(activeLeafListener);
     }
 
@@ -622,6 +703,33 @@ export class AdvancedCalendarView extends ItemView {
             case '01:00:00': return '01:00:00'; // 1-hour slots, hourly labels
             default: return '01:00:00';
         }
+    }
+
+    private getUserLocale(): string {
+        // Try to get the user's locale in order of preference:
+        // 1. Browser language (most specific)
+        // 2. Obsidian locale if available 
+        // 3. System language
+        // 4. Default to 'en' as fallback
+        
+        // Check browser language first
+        if (navigator.language) {
+            return navigator.language;
+        }
+        
+        // Check for system languages array
+        if (navigator.languages && navigator.languages.length > 0) {
+            return navigator.languages[0];
+        }
+        
+        // Check for older browser support
+        const legacyLocale = (navigator as any).userLanguage || (navigator as any).browserLanguage;
+        if (legacyLocale) {
+            return legacyLocale;
+        }
+        
+        // Default fallback
+        return 'en';
     }
 
     private getTimeFormat(timeFormat: '12' | '24'): any {
@@ -1457,7 +1565,7 @@ export class AdvancedCalendarView extends ItemView {
             arg.el.classList.add('fc-ics-event');
             
             // Add tooltip with subscription name
-            arg.el.title = `${icsEvent?.title || 'Event'} (from ${subscriptionName || 'Calendar subscription'})`;
+            setTooltip(arg.el, `${icsEvent?.title || 'Event'} (from ${subscriptionName || 'Calendar subscription'})`, { placement: 'top' });
             
             // Add context menu for ICS events
             arg.el.addEventListener("contextmenu", (jsEvent: MouseEvent) => {
@@ -1486,7 +1594,7 @@ export class AdvancedCalendarView extends ItemView {
             // Add tooltip
             const attachmentCount = timeblock?.attachments?.length || 0;
             const tooltipText = `${timeblock?.title || 'Timeblock'}${timeblock?.description ? ` - ${timeblock.description}` : ''}${attachmentCount > 0 ? ` (${attachmentCount} attachment${attachmentCount > 1 ? 's' : ''})` : ''}`;
-            arg.el.title = tooltipText;
+            setTooltip(arg.el, tooltipText, { placement: 'top' });
             
             return;
         }
@@ -1585,7 +1693,7 @@ export class AdvancedCalendarView extends ItemView {
                 } else {
                     // Standard task context menu for other event types
                     const targetDate = isRecurringInstance && instanceDate 
-                        ? parseDate(instanceDate) 
+                        ? parseDate(instanceDate + 'T00:00:00Z')  // Treat instanceDate as UTC to avoid double conversion
                         : (arg.event.start || new Date());
                         
                     showTaskContextMenu(jsEvent, taskInfo.path, this.plugin, targetDate);
@@ -1648,11 +1756,33 @@ export class AdvancedCalendarView extends ItemView {
         });
         this.listeners.push(timeblockingToggleListener);
 
-        // Listen for settings changes to update today highlight
+        // Listen for settings changes to update today highlight and custom view
         const settingsListener = this.plugin.emitter.on('settings-changed', () => {
             this.updateTodayHighlight();
+            this.updateCustomViewConfiguration();
         });
         this.listeners.push(settingsListener);
+    }
+
+    /**
+     * Update the custom view configuration when settings change
+     */
+    private updateCustomViewConfiguration(): void {
+        if (!this.calendar) return;
+        
+        const calendarSettings = this.plugin.settings.calendarViewSettings;
+        
+        // Update the custom view definition
+        this.calendar.setOption('views', {
+            timeGridCustom: {
+                type: 'timeGrid',
+                duration: { days: calendarSettings.customDayCount || 3 },
+                buttonText: `${calendarSettings.customDayCount || 3} days`
+            }
+        });
+        
+        // Update the header toolbar in case it needs to refresh
+        this.calendar.setOption('headerToolbar', this.getHeaderToolbarConfig());
     }
 
     async refreshEvents() {

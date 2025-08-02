@@ -211,8 +211,8 @@ export class KanbanView extends ItemView {
         this.filterBar.updateSavedViews(savedViews);
         
         // Listen for saved view events
-        this.filterBar.on('saveView', ({ name, query }) => {
-            this.plugin.viewStateManager.saveView(name, query);
+        this.filterBar.on('saveView', ({ name, query, viewOptions }) => {
+            this.plugin.viewStateManager.saveView(name, query, viewOptions);
             // Don't update here - the ViewStateManager event will handle it
         });
         
@@ -541,9 +541,26 @@ export class KanbanView extends ItemView {
             }
         });
 
-        // Add any new columns that aren't in our order yet
-        const allColumns = Array.from(groupedTasks.keys());
+        // Clean up obsolete columns and add new ones
+        const taskBasedColumns = Array.from(groupedTasks.keys());
+        let allColumns = taskBasedColumns;
+        
+        // If grouping by status, include all configured statuses to show empty columns
+        if (this.currentQuery.groupKey === 'status') {
+            const configuredStatuses = this.plugin.statusManager.getAllStatuses().map(s => s.value);
+            allColumns = [...new Set([...taskBasedColumns, ...configuredStatuses])];
+        }
+        
         let orderChanged = false;
+        
+        // Remove columns that no longer exist
+        const initialLength = this.columnOrder.length;
+        this.columnOrder = this.columnOrder.filter(columnId => allColumns.includes(columnId));
+        if (this.columnOrder.length !== initialLength) {
+            orderChanged = true;
+        }
+        
+        // Add any new columns that aren't in our order yet
         allColumns.forEach(columnId => {
             if (!this.columnOrder.includes(columnId)) {
                 this.columnOrder.push(columnId);
@@ -690,8 +707,17 @@ export class KanbanView extends ItemView {
             boardEl = this.boardContainer.createDiv({ cls: 'kanban-view__board' });
         }
         
-        // Get all possible columns from the grouped tasks
-        const allColumns = Array.from(groupedTasks.keys()).sort();
+        // Get all possible columns from grouped tasks and configured statuses
+        const taskBasedColumns = Array.from(groupedTasks.keys());
+        let allColumns = taskBasedColumns;
+        
+        // If grouping by status, include all configured statuses to show empty columns
+        if (this.currentQuery.groupKey === 'status') {
+            const configuredStatuses = this.plugin.statusManager.getAllStatuses().map(s => s.value);
+            allColumns = [...new Set([...taskBasedColumns, ...configuredStatuses])];
+        }
+        
+        allColumns = allColumns.sort();
 
         // Initialize column order if empty
         if (this.columnOrder.length === 0) {
@@ -701,8 +727,17 @@ export class KanbanView extends ItemView {
             }
         }
 
-        // Add any new columns that aren't in our order yet
+        // Clean up obsolete columns and add new ones
         let orderChanged = false;
+        
+        // Remove columns that no longer exist
+        const initialLength = this.columnOrder.length;
+        this.columnOrder = this.columnOrder.filter(columnId => allColumns.includes(columnId));
+        if (this.columnOrder.length !== initialLength) {
+            orderChanged = true;
+        }
+        
+        // Add any new columns that aren't in our order yet
         allColumns.forEach(columnId => {
             if (!this.columnOrder.includes(columnId)) {
                 this.columnOrder.push(columnId);
