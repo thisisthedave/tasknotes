@@ -318,7 +318,7 @@ export class TaskCreationModal extends TaskModal {
         this.nlInput = nlContainer.createEl('textarea', {
             cls: 'nl-input',
             attr: {
-                placeholder: 'Buy groceries tomorrow at 3pm @home #errands\n\nAdd details here...',
+                placeholder: 'Buy groceries tomorrow at 3pm @home #errands ^2\n\nAdd details here...',
                 rows: '3'
             }
         });
@@ -478,12 +478,14 @@ export class TaskCreationModal extends TaskModal {
         if (parsed.tags && parsed.tags.length > 0) this.tags = parsed.tags.join(', ');
         if (parsed.details) this.details = parsed.details;
         if (parsed.recurrence) this.recurrenceRule = parsed.recurrence;
+        if (parsed.points) this.points = parsed.points;
 
         // Update form inputs if they exist
         if (this.titleInput) this.titleInput.value = this.title;
         if (this.detailsInput) this.detailsInput.value = this.details;
         if (this.contextsInput) this.contextsInput.value = this.contexts;
         if (this.tagsInput) this.tagsInput.value = this.tags;
+        if (this.pointsInput) this.pointsInput.value = this.points ? this.points.toString() : '';
         
         // Handle projects differently - they use file selection, not text input
         if (parsed.projects && parsed.projects.length > 0) {

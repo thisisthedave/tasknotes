@@ -12,6 +12,7 @@ export interface ParsedTaskData {
 	createdDate?: string;
 	doneDate?: string;
 	recurrence?: string;
+	points?: number; // Story points
 	recurrenceData?: {
 		frequency: string;
 		days_of_week?: string[];

@@ -636,7 +636,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		
 		new Setting(container)
 			.setName('Enable natural language task input')
-			.setDesc('Show a smart input field in task creation modal that can parse natural language like "Buy groceries tomorrow 3pm high priority @home #errands"')
+			.setDesc('Show a smart input field in task creation modal that can parse natural language like "Buy groceries tomorrow 3pm high priority @home #errands ^2"')
 			.addToggle(toggle => {
 				toggle.toggleEl.setAttribute('aria-label', 'Enable natural language task input');
 				return toggle

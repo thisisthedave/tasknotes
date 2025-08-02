@@ -769,6 +769,7 @@ export class InstantTaskConvertService {
                 dueTime: nlpResult.dueTime,
                 scheduledTime: nlpResult.scheduledTime,
                 recurrence: nlpResult.recurrence,
+                points: nlpResult.points,
                 tags: nlpResult.tags && nlpResult.tags.length > 0 ? nlpResult.tags : undefined,
                 projects: nlpResult.projects && nlpResult.projects.length > 0 ? nlpResult.projects : undefined,
                 contexts: nlpResult.contexts && nlpResult.contexts.length > 0 ? nlpResult.contexts : undefined,

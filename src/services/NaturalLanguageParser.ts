@@ -2,6 +2,7 @@ import { format, isValid } from 'date-fns';
 import { StatusConfig, PriorityConfig } from '../types';
 import * as chrono from 'chrono-node';
 import { RRule } from 'rrule';
+import { PointsAction } from 'src/modals/StoryPointsModal';
 
 export interface ParsedTaskData {
     title: string;
@@ -17,6 +18,7 @@ export interface ParsedTaskData {
     projects: string[];
     recurrence?: string;
     estimate?: number; // in minutes
+    points?: number; // in story points
     isCompleted?: boolean;
 }
 
@@ -53,6 +55,7 @@ export class NaturalLanguageParser {
             tags: [],
             contexts: [],
             projects: [],
+            points: undefined,
         };
 
         // 1. Separate title line from details
@@ -68,6 +71,7 @@ export class NaturalLanguageParser {
         remainingText = this.extractTags(remainingText, result);
         remainingText = this.extractContexts(remainingText, result);
         remainingText = this.extractProjects(remainingText, result);
+        remainingText = this.extractPoints(remainingText, result);
 
         // Extract configured keywords
         remainingText = this.extractPriority(remainingText, result);
@@ -146,6 +150,20 @@ export class NaturalLanguageParser {
             workingText = this.cleanupWhitespace(workingText.replace(/\+[\w/]+/g, ''));
         }
         
+        return workingText;
+    }
+
+    /** Extracts ^points and from the text and adds them to the result object. */
+    private extractPoints(text: string, result: ParsedTaskData): string {
+        let workingText = text;
+
+        // Extract ^points patterns
+        const pointMatches = workingText.match(/\^(\d+)/g);
+        if (pointMatches) {
+            result.points = parseInt(pointMatches[0].substring(1), 10);
+            workingText = this.cleanupWhitespace(workingText.replace(/\^\d+/g, ''));
+        }
+
         return workingText;
     }
 
@@ -591,7 +609,8 @@ export class NaturalLanguageParser {
             parts.push({ icon: 'repeat', text: `Recurrence: ${recurrenceText}` });
         }
         if (parsed.estimate) parts.push({ icon: 'clock', text: `Estimate: ${parsed.estimate} min` });
-        
+        if (parsed.points) parts.push({ icon: PointsAction.lookupIcon(parsed.points), text: `Points: ${parsed.points} pts` });
+
         return parts;
     }
 

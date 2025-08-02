@@ -33,6 +33,7 @@ export abstract class TaskModal extends Modal {
     protected contextsInput: HTMLInputElement;
     protected projectsInput: HTMLInputElement;
     protected tagsInput: HTMLInputElement;
+    protected pointsInput: HTMLInputElement;
     protected projectsList: HTMLElement;
     protected actionBar: HTMLElement;
     protected detailsContainer: HTMLElement;
@@ -281,6 +282,9 @@ export abstract class TaskModal extends Modal {
                     .onChange(value => {
                         this.points = parseInt(value) || 0;
                     });
+
+                    // Store reference to input element
+                this.pointsInput = text.inputEl;
             });
     }
 
