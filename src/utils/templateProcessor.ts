@@ -9,6 +9,7 @@ export interface TemplateData {
     contexts: string[];
     tags: string[];
     timeEstimate: number;
+    points: number;
     dueDate: string;
     scheduledDate: string;
     details: string;

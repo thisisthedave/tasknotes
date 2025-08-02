@@ -381,6 +381,7 @@ export class InstantTaskConvertService {
         let contextsArray: string[] = [];
         let tagsArray = [this.plugin.settings.taskTag];
         let timeEstimate: number | undefined;
+        let points: number | undefined;
         let recurrence: import('../types').RecurrenceInfo | undefined;
         
         // Extract parsed tags, contexts, and projects
@@ -436,6 +437,11 @@ export class InstantTaskConvertService {
             // Apply time estimate
             if (defaults.defaultTimeEstimate && defaults.defaultTimeEstimate > 0) {
                 timeEstimate = defaults.defaultTimeEstimate;
+            }
+            
+            // Apply story points
+            if (defaults.defaultPoints && defaults.defaultPoints > 0) {
+                points = defaults.defaultPoints;
             }
             
             // Apply recurrence

@@ -1,11 +1,11 @@
-import { App, PluginSettingTab, Setting, Notice, setIcon, TAbstractFile, TFile, setTooltip } from 'obsidian';
+import { App, Notice, PluginSettingTab, setIcon, Setting, setTooltip, TAbstractFile, TFile } from 'obsidian';
 import TaskNotesPlugin from '../main';
-import { FieldMapping, StatusConfig, PriorityConfig, SavedView } from '../types';
-import { StatusManager } from '../services/StatusManager';
-import { PriorityManager } from '../services/PriorityManager';
 import { showConfirmationModal } from '../modals/ConfirmationModal';
-import { showStorageLocationConfirmationModal } from '../modals/StorageLocationConfirmationModal';
 import { ProjectSelectModal } from '../modals/ProjectSelectModal';
+import { showStorageLocationConfirmationModal } from '../modals/StorageLocationConfirmationModal';
+import { PriorityManager } from '../services/PriorityManager';
+import { StatusManager } from '../services/StatusManager';
+import { FieldMapping, PriorityConfig, SavedView, StatusConfig } from '../types';
 
 export interface TaskNotesSettings {
 	tasksFolder: string;  // Now just a default location for new tasks
@@ -767,6 +767,21 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(container)
+			.setName('Default story points')
+			.setDesc('Default story points estimate for new tasks (0 = no default)')
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Default story points estimate');
+				return text
+					.setPlaceholder('0')
+					.setValue(this.plugin.settings.taskCreationDefaults.defaultPoints?.toString() ?? '0')
+					.onChange(async (value) => {
+						const num = parseInt(value) || 0;
+						this.plugin.settings.taskCreationDefaults.defaultPoints = num;
+						await this.plugin.saveSettings();
+					});
+			});			
+
+		new Setting(container)
 			.setName('Default recurrence')
 			.setDesc('Default recurrence pattern for new tasks')
 			.addDropdown(dropdown => {
@@ -867,6 +882,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		helpList.createEl('li', { text: '{{contexts}} - Task contexts' });
 		helpList.createEl('li', { text: '{{tags}} - Task tags' });
 		helpList.createEl('li', { text: '{{timeEstimate}} - Time estimate in minutes' });
+		helpList.createEl('li', { text: '{{storyPoints}} - Story points estimate' });
 		helpList.createEl('li', { text: '{{dueDate}} - Task due date' });
 		helpList.createEl('li', { text: '{{scheduledDate}} - Task scheduled date' });
 		helpList.createEl('li', { text: '{{parentNote}} - Parent note as a properly formatted markdown link' });

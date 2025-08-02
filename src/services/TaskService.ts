@@ -96,6 +96,7 @@ export class TaskService {
                 contexts: contextsArray.length > 0 ? contextsArray : undefined,
                 projects: projectsArray.length > 0 ? projectsArray : undefined,
                 timeEstimate: taskData.timeEstimate && taskData.timeEstimate > 0 ? taskData.timeEstimate : undefined,
+                points: taskData.points && taskData.points > 0 ? taskData.points : undefined,
                 dateCreated: dateCreated,
                 dateModified: dateModified,
                 recurrence: taskData.recurrence || undefined,
@@ -198,6 +199,7 @@ export class TaskService {
                     contexts: Array.isArray(taskData.contexts) ? taskData.contexts : [],
                     tags: Array.isArray(taskData.tags) ? taskData.tags : [],
                     timeEstimate: taskData.timeEstimate || 0,
+                    points: taskData.points || 0,
                     dueDate: taskData.due || '',
                     scheduledDate: taskData.scheduled || '',
                     details: taskData.details || '',
@@ -592,6 +594,7 @@ export class TaskService {
                 if (updates.hasOwnProperty('scheduled') && updates.scheduled === undefined) delete frontmatter[this.plugin.fieldMapper.toUserField('scheduled')];
                 if (updates.hasOwnProperty('contexts') && updates.contexts === undefined) delete frontmatter[this.plugin.fieldMapper.toUserField('contexts')];
                 if (updates.hasOwnProperty('timeEstimate') && updates.timeEstimate === undefined) delete frontmatter[this.plugin.fieldMapper.toUserField('timeEstimate')];
+                if (updates.hasOwnProperty('points') && updates.points === undefined) delete frontmatter[this.plugin.fieldMapper.toUserField('points')];
                 if (updates.hasOwnProperty('completedDate') && updates.completedDate === undefined) delete frontmatter[this.plugin.fieldMapper.toUserField('completedDate')];
                 if (updates.hasOwnProperty('recurrence') && updates.recurrence === undefined) delete frontmatter[this.plugin.fieldMapper.toUserField('recurrence')];
 
