@@ -99,6 +99,7 @@ export class ICSNoteService {
                 contexts: icsEvent.location ? [icsEvent.location] : [],
                 tags: [this.plugin.fieldMapper.toUserField('icsEventTag')],
                 timeEstimate: 0,
+                points: 0,
                 dueDate: icsEvent.end || '',
                 scheduledDate: icsEvent.start || '',
                 details: icsEvent.description || '',

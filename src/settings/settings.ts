@@ -317,7 +317,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 		defaultNoteFolder: ''
 	},
 	// Saved filter views defaults
-	savedViews: []
+	savedViews: [],
+	useActiveNoteAsProject: false
 };
 
 
