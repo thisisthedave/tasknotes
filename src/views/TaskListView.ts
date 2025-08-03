@@ -24,7 +24,8 @@ import {
     copyTaskTitleToClipboard,
     showProjectModal,
     showPointsModal,
-    showTagsModal
+    showTagsModal,
+    showContextModal
 } from '../ui/TaskCard';
 import { FilterBar } from '../ui/FilterBar';
 import { DragDropHandler } from 'src/ui/DragDropHandler';
@@ -434,6 +435,12 @@ export class TaskListView extends ItemView {
         });
     }
 
+    async editContexts() {
+        await this.withSelectedOrFocusedTasks((tasks) => {
+            showContextModal(this.plugin, tasks);
+        });
+    }
+
     async editPriorities() {
         await this.withSelectedOrFocusedTasks((tasks) => {
             showPriorityContextMenu(this.plugin, tasks, this.filterBar?.container ?? this.contentEl);
@@ -810,14 +817,17 @@ export class TaskListView extends ItemView {
                 } else if (event.key == 'S') {
                     this.editScheduleDates();
                     handled = true;
-                } else if (event.key == 'E') {
+                } else if (event.key == '^') {
                     this.editPoints();
                     handled = true;
-                } else if (event.key == 't') {
+                } else if (event.key == '#') {
                     this.editTags();
                     handled = true;
-                } else if (event.key == 'P') {
+                } else if (event.key == '+') {
                     this.editProjects();
+                    handled = true;
+                } else if (event.key == '@') {
+                    this.editContexts();
                     handled = true;
                 } else if (event.key == 'p') {
                     this.editPriorities();

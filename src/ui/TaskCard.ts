@@ -17,6 +17,7 @@ import { StatusContextMenu } from '../components/StatusContextMenu';
 import { ProjectSelectModal } from 'src/modals/ProjectSelectModal';
 import { DEFAULT_POINT_SUGGESTIONS, StoryPointsModal } from 'src/modals/StoryPointsModal';
 import { TagsModal } from 'src/modals/TagsModal';
+import { ContextsModal } from 'src/modals/ContextsModal';
 
 export interface TaskCardOptions {
     showDueDate: boolean;
@@ -131,6 +132,16 @@ export function showTagsModal(
 ): void {
     if (tasks && tasks.length > 0) {
         const modal = new TagsModal(plugin.app, tasks, plugin);
+        modal.open();
+    }
+}
+
+export function showContextModal(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[]
+): void {
+    if (tasks && tasks.length > 0) {
+        const modal = new ContextsModal(plugin.app, tasks, plugin);
         modal.open();
     }
 }

@@ -2,23 +2,23 @@ import { App, FuzzySuggestModal, FuzzyMatch, setIcon, Notice, SuggestModal } fro
 import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 
-export interface TagsAction {
-    tag: string;
+export interface ContextsAction {
+    context: string;
     title: string;
     icon: string;
 }
 
-export class TagsModal extends SuggestModal<TagsAction> {
+export class ContextsModal extends SuggestModal<ContextsAction> {
     private plugin: TaskNotesPlugin;
     private tasks: TaskInfo[];
-    private actions: TagsAction[];
+    private actions: ContextsAction[];
 
     constructor(app: App, tasks: TaskInfo[], plugin: TaskNotesPlugin) {
         super(app);
         this.tasks = tasks;
         this.plugin = plugin;
         
-        this.setPlaceholder('Add tag...');
+        this.setPlaceholder('Add context...');
         this.setInstructions([
             { command: '↑↓', purpose: 'to navigate' },
             { command: '↵', purpose: 'to execute' },
@@ -33,28 +33,28 @@ export class TagsModal extends SuggestModal<TagsAction> {
         this.containerEl.setAttribute('aria-labelledby', 'task-action-palette-title');
         this.containerEl.setAttribute('role', 'dialog');
         this.containerEl.setAttribute('aria-modal', 'true');
-        this.containerEl.addClass('task-tags-modal');
+        this.containerEl.addClass('task-contexts-modal');
     }
 
-    getSuggestions(query: string): TagsAction[] {
+    getSuggestions(query: string): ContextsAction[] {
         const currentValues = query.split(',').map((v: string) => v.trim());
-
-        const tags = this.plugin.cacheManager.getAllTags();
-        return tags
-            .filter(tag => tag && typeof tag === 'string')
-            .filter(tag => 
-                tag.toLowerCase().includes(query.toLowerCase()) &&
-                !currentValues.slice(0, -1).includes(tag)
+        
+        const contexts = this.plugin.cacheManager.getAllContexts();
+        return contexts
+            .filter(context => context && typeof context === 'string')
+            .filter(context => 
+                context.toLowerCase().includes(query.toLowerCase()) &&
+                !currentValues.slice(0, -1).includes(context)
             )
             .slice(0, 10)
-            .map(tag => ({
-                tag: tag,
-                title: tag,
-                icon: 'tag',
+            .map(context => ({
+                context: context,
+                title: context,
+                icon: 'map-pin-plus',
             }));
     }
 
-    renderSuggestion(action: TagsAction, el: HTMLElement) {
+    renderSuggestion(action: ContextsAction, el: HTMLElement) {
         const container = el.createDiv({ cls: 'task-action-palette__suggestion' });
         
         // Icon
@@ -71,7 +71,7 @@ export class TagsModal extends SuggestModal<TagsAction> {
         });
     }
 
-    async onChooseSuggestion(action: TagsAction, evt: MouseEvent | KeyboardEvent) {
+    async onChooseSuggestion(action: ContextsAction, evt: MouseEvent | KeyboardEvent) {
         try {
             // Refresh task data to ensure we have the latest information
             const freshTasks = await Promise.all(this.tasks.map(task => this.plugin.cacheManager.getTaskInfo(task.path)));
@@ -79,14 +79,14 @@ export class TagsModal extends SuggestModal<TagsAction> {
                 new Notice('Task not found');
                 return;
             }
-            
+
             await Promise.all(freshTasks.map(task =>
-                task && (!task.tags || !task.tags?.includes(action.tag)) ?
-                    this.plugin.updateTaskProperty(task, 'tags', [...(task.tags ?? []), action.tag]) :
+                task && (!task.contexts || !task.contexts?.includes(action.context)) ?
+                    this.plugin.updateTaskProperty(task, 'contexts', [...(task.contexts ?? []), action.context]) :
                     Promise.resolve()));
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error('Error updating tags:', {
+            console.error('Error updating contexts:', {
                 error: errorMessage,
                 taskPaths: this.tasks.map(task => task.path)
             });
