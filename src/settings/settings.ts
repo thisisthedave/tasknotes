@@ -62,6 +62,8 @@ export interface TaskNotesSettings {
 	icsIntegration: ICSIntegrationSettings;
 	// Saved filter views
 	savedViews: SavedView[];
+	// Use current note as project by default
+	useActiveNoteAsProject: boolean;
 }
 
 export interface TaskCreationDefaults {
@@ -750,6 +752,19 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 
 		// Initial render
 		this.renderDefaultProjectsList(projectsList);
+
+		new Setting(container)
+			.setName('Add active note as project')
+			.setDesc('Add the current note as a project when creating a new task')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Add active note as project');
+				return toggle
+					.setValue(this.plugin.settings.useActiveNoteAsProject)
+					.onChange(async (value) => {
+						this.plugin.settings.useActiveNoteAsProject = value;
+						await this.plugin.saveSettings();
+					});
+			});
 
 		new Setting(container)
 			.setName('Default time estimate')

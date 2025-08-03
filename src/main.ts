@@ -238,7 +238,8 @@ export default class TaskNotesPlugin extends Plugin {
 		});
 		
 		this.addRibbonIcon('plus', 'Create new task', () => {
-			this.openTaskCreationModal();
+			// Create a subtask with the current task as the project reference			
+			this.openTaskCreationModal(this.getPrepopulatedTaskValues());
 		});
 
 		// Add commands
@@ -258,6 +259,21 @@ export default class TaskNotesPlugin extends Plugin {
 		
 		// At the very end of onload, resolve the promise to signal readiness
 		this.resolveReady();
+	}
+
+	/**
+	 * Get prepopulated task values from the current note file.
+	 * @returns partial task possibly populated with the current note file as the project.
+	 */
+	private getPrepopulatedTaskValues(): Partial<TaskInfo> | undefined {
+		if (this.settings.useActiveNoteAsProject) {
+			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+			const currentFile = view?.file
+			const projectDefault = currentFile instanceof TFile ? { projects: [ `[[${currentFile.basename}]]` ] } : undefined;
+			return projectDefault;
+		} else {
+			return undefined;
+		}
 	}
 
 	/**
@@ -973,7 +989,7 @@ export default class TaskNotesPlugin extends Plugin {
 			id: 'create-new-task',
 			name: 'Create new task',
 			callback: () => {
-				this.openTaskCreationModal();
+				this.openTaskCreationModal(this.getPrepopulatedTaskValues());
 			}
 		});
 
