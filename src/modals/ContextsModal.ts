@@ -37,14 +37,20 @@ export class ContextsModal extends SuggestModal<ContextsAction> {
     }
 
     getSuggestions(query: string): ContextsAction[] {
-        const currentValues = query.split(',').map((v: string) => v.trim());
-        
+        const currentValues = this.tasks
+            .map(task => task.contexts || [])
+            .reduce((acc, curr) => acc.filter(item => curr.includes(item)));
+
         const contexts = this.plugin.cacheManager.getAllContexts();
+        if (!contexts.includes(query)) {
+            contexts.push(query);
+        }
+
         return contexts
             .filter(context => context && typeof context === 'string')
             .filter(context => 
                 context.toLowerCase().includes(query.toLowerCase()) &&
-                !currentValues.slice(0, -1).includes(context)
+                !currentValues.includes(context)
             )
             .slice(0, 10)
             .map(context => ({

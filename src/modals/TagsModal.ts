@@ -37,14 +37,19 @@ export class TagsModal extends SuggestModal<TagsAction> {
     }
 
     getSuggestions(query: string): TagsAction[] {
-        const currentValues = query.split(',').map((v: string) => v.trim());
+        const currentValues = this.tasks
+            .map(task => task.tags || [])
+            .reduce((acc, curr) => acc.filter(item => curr.includes(item)));
 
         const tags = this.plugin.cacheManager.getAllTags();
+        if (!tags.includes(query)) {
+            tags.push(query);
+        }
         return tags
             .filter(tag => tag && typeof tag === 'string')
             .filter(tag => 
                 tag.toLowerCase().includes(query.toLowerCase()) &&
-                !currentValues.slice(0, -1).includes(tag)
+                !currentValues.includes(tag)
             )
             .slice(0, 10)
             .map(tag => ({
