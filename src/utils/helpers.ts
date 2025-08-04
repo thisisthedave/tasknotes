@@ -1073,4 +1073,15 @@ export function getTopmostVisibleElement(elements: HTMLElement[]): HTMLElement |
   return visibleElements[0].el;
 }
 
+export function mergeObjects<T extends object>(fallback: T | undefined, overrides: Partial<T>): T {
+  const merged: any = { ...fallback };
+
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value !== null && value !== undefined) {
+      merged[key] = value;
+    }
+  }
+
+  return merged as T;
+}
 

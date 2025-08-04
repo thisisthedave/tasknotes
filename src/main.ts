@@ -41,7 +41,8 @@ import { TaskSelectorModal } from './modals/TaskSelectorModal';
 import { PomodoroService } from './services/PomodoroService';
 import { 
 	formatTime,
-	getActiveTimeEntry
+	getActiveTimeEntry,
+	mergeObjects
 } from './utils/helpers';
 import { MinimalNativeCache } from './utils/MinimalNativeCache';
 import { RequestDeduplicator, PredictivePrefetcher } from './utils/RequestDeduplicator';
@@ -1574,7 +1575,7 @@ private injectCustomStyles(): void {
 		try {
 			const issue = await jira.api.base.getIssue(issueKey);
 			const taskData = this.fieldMapper.mapFromJiraIssue(issue);
-			this.openTaskCreationModal(taskData)
+			this.openTaskCreationModal(mergeObjects(this.getPrepopulatedTaskValues(), taskData));
 		} catch (err) {
 			console.error("Failed to import JIRA issue:", err);
 			new Notice("Error fetching or importing JIRA issue.");
