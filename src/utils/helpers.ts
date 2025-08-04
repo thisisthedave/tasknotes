@@ -1052,3 +1052,25 @@ export function filterEmptyProjects(projects: string[]): string[] {
 	});
 }
 
+export function getTopmostVisibleElement(elements: HTMLElement[]): HTMLElement | null {
+  const visibleElements = elements
+    .map(el => ({
+      el,
+      rect: el.getBoundingClientRect()
+    }))
+    .filter(({ rect }) =>
+      rect.bottom > 0 &&
+      rect.top < window.innerHeight &&
+      rect.right > 0 &&
+      rect.left < window.innerWidth
+    );
+
+  if (visibleElements.length === 0) return null;
+
+  // Sort by top coordinate to find the topmost one
+  visibleElements.sort((a, b) => a.rect.top - b.rect.top);
+
+  return visibleElements[0].el;
+}
+
+

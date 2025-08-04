@@ -29,6 +29,7 @@ import {
 } from '../ui/TaskCard';
 import { FilterBar } from '../ui/FilterBar';
 import { DragDropHandler } from 'src/ui/DragDropHandler';
+import { getTopmostVisibleElement } from 'src/utils/helpers';
 
 export class TaskListView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -372,15 +373,35 @@ export class TaskListView extends ItemView {
      * Get all TaskInfo objects for selected task elements
      */
     async getSelectedTasks(): Promise<TaskInfo[]> {
-        const selectedTaskPaths: string[] = this.taskElements
-            .filter(element => isTaskCardSelected(element) && element.dataset.key)
-            .map(element => element.dataset.key!);
+        const selectedTaskPaths: string[] = this.getSelectedTaskElements().map(element => element.dataset.key!);
         const selected: TaskInfo[] = [];
         for (const taskPath of new Set(selectedTaskPaths)) {
             const info = await this.plugin.cacheManager.getTaskInfo(taskPath);
             if (info) selected.push(info);
         }
         return selected;
+    }
+
+    /**
+     * Get the TaskCard div elements for all task elements that are selected.
+     * @returns An array of selected task elements.
+     */
+    getSelectedTaskElements(): HTMLElement[] {
+        return this.taskElements.filter(element => isTaskCardSelected(element));
+    }
+
+    /**
+     * Get the topmost visible task element that is used for the placement of context menus.
+     * @returns The topmost visible task element that should be used for context menus.
+     */
+    getContextShowAtElement(): HTMLElement {
+        var elements = this.getSelectedTaskElements();
+        if (elements.length === 0) {
+            const focusElement = this.getFocusedTaskElement();
+            elements = focusElement ? [focusElement] : this.taskElements;
+        }
+        const topmost = getTopmostVisibleElement(elements);
+        return topmost || this.contentEl; // Fallback to container if no visible element found
     }
 
     /**
@@ -407,13 +428,13 @@ export class TaskListView extends ItemView {
 
     async editDueDates() {
         await this.withSelectedOrFocusedTasks((tasks) => {
-            showDateContextMenu(this.plugin, tasks, "due", this.filterBar?.container ?? this.contentEl);
+            showDateContextMenu(this.plugin, tasks, "due", this.getContextShowAtElement());
         });
     }
 
     async editScheduleDates() {
         await this.withSelectedOrFocusedTasks((tasks) => {
-            showDateContextMenu(this.plugin, tasks, "scheduled", this.filterBar?.container ?? this.contentEl);
+            showDateContextMenu(this.plugin, tasks, "scheduled", this.getContextShowAtElement());
         });
     }
 
@@ -443,19 +464,19 @@ export class TaskListView extends ItemView {
 
     async editPriorities() {
         await this.withSelectedOrFocusedTasks((tasks) => {
-            showPriorityContextMenu(this.plugin, tasks, this.filterBar?.container ?? this.contentEl);
+            showPriorityContextMenu(this.plugin, tasks, this.getContextShowAtElement());
         });
     }
 
     async editRecurrence() {
         await this.withSelectedOrFocusedTasks((tasks) => {
-            showRecurrenceContextMenu(this.plugin, tasks, this.filterBar?.container ?? this.contentEl);
+            showRecurrenceContextMenu(this.plugin, tasks, this.getContextShowAtElement());
         });
     }
 
     async editStatuses() {
         await this.withSelectedOrFocusedTasks((tasks) => {
-            showStatusContextMenu(this.plugin, tasks, this.filterBar?.container ?? this.contentEl);
+            showStatusContextMenu(this.plugin, tasks, this.getContextShowAtElement());
         });
     }
 
