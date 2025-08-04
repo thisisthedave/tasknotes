@@ -49,6 +49,12 @@ export class FieldMapper {
         if (frontmatter[this.mapping.scheduled] !== undefined) {
             mapped.scheduled = frontmatter[this.mapping.scheduled];
         }
+
+        if (frontmatter[this.mapping.tags] !== undefined) {
+            const tags = frontmatter[this.mapping.tags];
+            // Ensure tags is always an array
+            mapped.tags = Array.isArray(tags) ? tags : [tags];
+        }
         
         if (frontmatter[this.mapping.contexts] !== undefined) {
             const contexts = frontmatter[this.mapping.contexts];

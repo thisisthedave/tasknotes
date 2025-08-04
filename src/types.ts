@@ -374,6 +374,7 @@ export interface FieldMapping {
 	priority: string;
 	due: string;
 	scheduled: string;
+	tags: string;
 	contexts: string;
 	projects: string;
 	timeEstimate: string;
