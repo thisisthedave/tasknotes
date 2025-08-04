@@ -104,7 +104,7 @@ export class TaskEditModal extends TaskModal {
         // Keyboard shortcuts
         document.addEventListener('keydown', this.onKeyDown);
 
-            this.initializeFormData().then(() => {
+        this.initializeFormData().then(() => {
             this.createModalContent();
             // Render projects list after modal content is created
             this.renderProjectsList();

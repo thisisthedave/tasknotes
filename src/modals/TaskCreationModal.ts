@@ -300,6 +300,9 @@ export class TaskCreationModal extends TaskModal {
 
         // Create collapsible details section
         this.createDetailsSection(container);
+        if (this.nlInput && this.title) {
+            this.nlInput.value = this.title;
+        }
         
         // Re-render projects list if pre-populated values were applied or defaults are set
         if ((this.options.prePopulatedValues && this.options.prePopulatedValues.projects) || 
@@ -551,8 +554,10 @@ export class TaskCreationModal extends TaskModal {
         }
     }
 
-    private applyPrePopulatedValues(values: Partial<TaskInfo>): void {
-        if (values.title !== undefined) this.title = values.title;
+    private applyPrePopulatedValues(values: Partial<TaskInfo>): void {        
+        if (values.title !== undefined) {
+            this.title = values.title;
+        }
         if (values.due !== undefined) this.dueDate = values.due;
         if (values.scheduled !== undefined) this.scheduledDate = values.scheduled;
         if (values.priority !== undefined) this.priority = values.priority;
