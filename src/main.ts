@@ -34,6 +34,7 @@ import { AgendaView } from './views/AgendaView';
 import { PomodoroView } from './views/PomodoroView';
 import { PomodoroStatsView } from './views/PomodoroStatsView';
 import { KanbanView } from './views/KanbanView';
+import { JiraIssueModal } from './modals/JiraIssueModal';
 import { TaskCreationModal } from './modals/TaskCreationModal';
 import { TaskEditModal } from './modals/TaskEditModal';
 import { TaskSelectorModal } from './modals/TaskSelectorModal';
@@ -1073,6 +1074,14 @@ export default class TaskNotesPlugin extends Plugin {
 			}
 		});
 
+		// JIRA commands
+		this.addCommand({
+			id: "import-jira-issue",
+			name: "Import JIRA Issue",
+			callback: async () => {
+				await this.importJiraIssue();
+			},
+		});		
 	}
 
 	// Helper method to create or activate a view of specific type
@@ -1540,6 +1549,35 @@ private injectCustomStyles(): void {
 		} catch (error) {
 			console.error('Error refreshing cache:', error);
 			new Notice('Failed to refresh cache. Please try again.');
+		}
+	}
+
+	async promptForIssueKey(): Promise<string | null> {
+		return new Promise((resolve) => {
+			new JiraIssueModal(this.app, (result) => resolve(result)).open();
+		});		
+	}
+
+	/**
+	 * Prompts for an issue key and converts the issue into a TaskNote
+	 */
+	async importJiraIssue(): Promise<void> {
+		const jira = this.app.plugins.getPlugin("obsidian-jira-issue");
+		if (!jira) {
+			new Notice("obsidian-jira-issue plugin not found.");
+			return;
+		}
+
+		const issueKey = await this.promptForIssueKey();
+		if (!issueKey) return;
+
+		try {
+			const issue = await jira.api.base.getIssue(issueKey);
+			const taskData = this.fieldMapper.mapFromJiraIssue(issue);
+			this.openTaskCreationModal(taskData)
+		} catch (err) {
+			console.error("Failed to import JIRA issue:", err);
+			new Notice("Error fetching or importing JIRA issue.");
 		}
 	}
 

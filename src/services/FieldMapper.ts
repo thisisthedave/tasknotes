@@ -1,3 +1,4 @@
+import { IJiraIssue } from 'src/types/obsidian-jira-issue';
 import { FieldMapping, TaskInfo } from '../types';
 import { validateCompleteInstances } from '../utils/dateUtils';
 
@@ -224,6 +225,26 @@ export class FieldMapper {
         }
 
         return frontmatter;
+    }
+
+    mapFromJiraIssue(issue: IJiraIssue): Partial<TaskInfo> {
+        const fields = issue.fields;
+        const points = parseInt(fields.customfield_10090); // Assuming this is the field for story points
+
+        return {
+            title: `${issue.key} ${fields.summary}\n${fields.description ?? ""}`,
+            status: fields.status?.name,
+            priority: fields.priority?.name?.toLowerCase(),
+            dateCreated: fields.created,
+            due: fields.duedate,
+            timeEstimate: fields.timeestimate ? Math.floor(fields.timeestimate / 60) : undefined,
+            tags: fields.labels,
+            points: isNaN(points) ? undefined : points,
+            // projects: fields.project ? [fields.project.key] : undefined,
+            // contexts: fields.customfield_10077?.value ? [fields.customfield_10077.value] : undefined,
+            // details: fields.description ?? "",
+            // creationContext: "import"
+        };
     }
 
     /**
