@@ -301,7 +301,10 @@ export class TaskCreationModal extends TaskModal {
         // Create collapsible details section
         this.createDetailsSection(container);
         if (this.nlInput && this.title) {
+            // If NLP is enabled, parse the title to fill the form
             this.nlInput.value = this.title;
+            this.titleInput.value = ''; // let the parsing handle the title
+            this.parseAndFillForm(this.title);
         }
         
         // Re-render projects list if pre-populated values were applied or defaults are set
