@@ -1263,6 +1263,29 @@ private injectCustomStyles(): void {
 			throw error;
 		}
 	}
+
+	async batchUpdateTasksProperty(tasks: TaskInfo[], property: keyof TaskInfo, value: TaskInfo[keyof TaskInfo], options: { silent?: boolean } = {}): Promise<TaskInfo[]> {
+		try {
+			const updatedTasks = await this.taskService.batchUpdateProperty(tasks, property, value, options);
+			
+			// Provide user feedback unless silent
+			if (!options.silent) {
+				if (property === 'status') {
+					const statusValue = typeof value === 'string' ? value : String(value);
+					const statusConfig = this.statusManager.getStatusConfig(statusValue);
+					new Notice(`${tasks.length} Tasks marked as '${statusConfig?.label || statusValue}'`);
+				} else {
+					new Notice(`${tasks.length} Tasks ${property} updated`);
+				}
+			}
+			
+			return updatedTasks;
+		} catch (error) {
+			console.error(`Failed to update ${tasks.length} tasks ${property}:`, error);
+			new Notice(`Failed to update tasks ${property}`);
+			throw error;
+		}
+	}
 	
 	/**
 	 * Toggles a recurring task's completion status for the selected date

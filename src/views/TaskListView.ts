@@ -1,4 +1,4 @@
-import { TFile, ItemView, WorkspaceLeaf, EventRef, Notice } from 'obsidian';
+import { TFile, ItemView, WorkspaceLeaf, EventRef, Notice, debounce } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     TASK_LIST_VIEW_TYPE, 
@@ -56,6 +56,9 @@ export class TaskListView extends ItemView {
     private listeners: EventRef[] = [];
     private functionListeners: (() => void)[] = [];
     
+    // Debounce timer for refreshTasks
+    private refreshTasksDebounceTimer: number | null = null;
+
     constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
         this.plugin = plugin;
@@ -160,12 +163,12 @@ export class TaskListView extends ItemView {
                     } catch (error) {
                         console.error('Error updating task card:', error);
                         // Fallback to refresh if update fails
-                        this.refreshTasks();
+                        this.debouncedRefreshTasks();
                     }
                 }
             } else {
                 // Task not currently visible - it might now match our filters, so refresh
-                this.refreshTasks();
+                this.debouncedRefreshTasks();
             }
             
             // Update FilterBar options when tasks are updated (may have new properties, contexts, etc.)
@@ -519,6 +522,10 @@ export class TaskListView extends ItemView {
             copyTaskTitleToClipboard(tasks);
         });
     }
+
+    private debouncedRefreshTasks = debounce(() => {
+        this.refreshTasks();
+    }, 100, true);
 
     /**
      * Refresh tasks using FilterService

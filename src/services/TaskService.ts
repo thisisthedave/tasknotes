@@ -254,6 +254,13 @@ export class TaskService {
     }
 
     /**
+     * Update a single property of multiple tasks following the deterministic data flow pattern
+     */
+    async batchUpdateProperty(tasks: TaskInfo[], property: keyof TaskInfo, value: any, options: { silent?: boolean } = {}): Promise<TaskInfo[]> {
+        return Promise.all(tasks.map(task => this.updateProperty(task, property, value, options)));
+    }
+
+    /**
      * Update a single property of a task following the deterministic data flow pattern
      */
     async updateProperty(task: TaskInfo, property: keyof TaskInfo, value: any, options: { silent?: boolean } = {}): Promise<TaskInfo> {

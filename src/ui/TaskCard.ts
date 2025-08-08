@@ -78,7 +78,7 @@ function createDateContextMenu(
                 } else {
                     finalValue = dateValue;
                 }
-                await Promise.all(tasks.map(task => plugin.updateTaskProperty(task, dateType, finalValue)));
+                plugin.batchUpdateTasksProperty(tasks, dateType, finalValue);
             } catch (error) {
                 console.error(`Error updating ${dateType} date:`, error);
                 new Notice(`Failed to update ${dateType} date`);
@@ -104,12 +104,7 @@ function createPriorityContextMenu(
     const menu = new PriorityContextMenu({
         currentValue: tasks.length == 1 ? tasks[0].priority : undefined,
         onSelect: async (newPriority) => {
-            try {
-                await Promise.all(tasks.map(task => plugin.updateTaskProperty(task, 'priority', newPriority)));
-            } catch (error) {
-                console.error('Error updating priority:', error);
-                new Notice('Failed to update priority');
-            }
+            plugin.batchUpdateTasksProperty(tasks, 'priority', newPriority);
         },
         plugin: plugin
     });
@@ -195,12 +190,7 @@ function createRecurrenceContextMenu(
     const menu = new RecurrenceContextMenu({
         currentValue: typeof tasks[0].recurrence === 'string' ? tasks[0].recurrence : undefined,
         onSelect: async (newRecurrence: string) => {
-            try {
-                await Promise.all(tasks.map(task => plugin.updateTaskProperty(task, 'recurrence', newRecurrence)));
-            } catch (error) {
-                console.error('Error updating recurrence:', error);
-                new Notice('Failed to update recurrence');
-            }
+            await plugin.batchUpdateTasksProperty(tasks, 'recurrence', newRecurrence);
         },
         app: plugin.app
     });
@@ -225,12 +215,7 @@ function createStatusContextMenu(
     const menu = new StatusContextMenu({
         currentValue: tasks[0].status,
         onSelect: async (newStatus: string) => {
-            try {
-                await Promise.all(tasks.map(task => plugin.updateTaskProperty(task, 'status', newStatus)));
-            } catch (error) {
-                console.error('Error updating status:', error);
-                new Notice('Failed to update status');
-            }
+            await plugin.batchUpdateTasksProperty(tasks, 'status', newStatus);
         },
         plugin: plugin
     });
