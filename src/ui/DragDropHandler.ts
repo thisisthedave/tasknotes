@@ -120,13 +120,10 @@ export class DragDropHandler {
         const rect = container.getBoundingClientRect();
         const y = e.clientY - rect.top;
         const insertBefore = y < rect.height / 2;
+        const beforeElement = insertBefore ? container : container.nextSibling as HTMLElement;
         
-        if (container.parentNode && this.dragState.placeholder) {
-            if (insertBefore) {
-                container.parentNode.insertBefore(this.dragState.placeholder, container);
-            } else {
-                container.parentNode.insertBefore(this.dragState.placeholder, container.nextSibling);
-            }
+        if (container.parentNode && this.dragState.placeholder && beforeElement.previousSibling !== this.dragState.placeholder) {
+            container.parentNode.insertBefore(this.dragState.placeholder, beforeElement);
         }
     }
 
