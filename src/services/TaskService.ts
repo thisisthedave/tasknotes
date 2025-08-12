@@ -1,10 +1,11 @@
-import { TFile, Notice, normalizePath, stringifyYaml } from 'obsidian';
+import { EVENT_TASK_DELETED, EVENT_TASK_UPDATED, TaskCreationData, TaskInfo, TimeEntry } from '../types';
+import { FilenameContext, generateTaskFilename, generateUniqueFilename } from '../utils/filenameGenerator';
+import { Notice, TFile, normalizePath, stringifyYaml } from 'obsidian';
+import { TemplateData, mergeTemplateFrontmatter, processTemplate } from '../utils/templateProcessor';
+import { addDTSTARTToRecurrenceRule, ensureFolderExists, updateToNextScheduledOccurrence } from '../utils/helpers';
+import { formatDateForStorage, getCurrentDateString, getCurrentTimestamp } from '../utils/dateUtils';
+
 import TaskNotesPlugin from '../main';
-import { TaskInfo, TimeEntry, EVENT_TASK_UPDATED, EVENT_TASK_DELETED, TaskCreationData } from '../types';
-import { getCurrentTimestamp, getCurrentDateString, formatUTCDateForCalendar } from '../utils/dateUtils';
-import { generateTaskFilename, generateUniqueFilename, FilenameContext } from '../utils/filenameGenerator';
-import { ensureFolderExists } from '../utils/helpers';
-import { processTemplate, mergeTemplateFrontmatter, TemplateData } from '../utils/templateProcessor';
 
 export class TaskService {
     constructor(private plugin: TaskNotesPlugin) {}
@@ -34,11 +35,14 @@ export class TaskService {
             // Prepare contexts, projects, and tags arrays
             const contextsArray = taskData.contexts || [];
             const projectsArray = taskData.projects || [];
-            const tagsArray = taskData.tags || [this.plugin.settings.taskTag];
+            // Handle tags based on identification method
+            let tagsArray = taskData.tags || [];
             
-            // Ensure task tag is always included
-            if (!tagsArray.includes(this.plugin.settings.taskTag)) {
-                tagsArray.unshift(this.plugin.settings.taskTag);
+            // Only add task tag if using tag-based identification
+            if (this.plugin.settings.taskIdentificationMethod === 'tag') {
+                if (!tagsArray.includes(this.plugin.settings.taskTag)) {
+                    tagsArray = [this.plugin.settings.taskTag, ...tagsArray];
+                }
             }
 
             // Generate filename
@@ -100,14 +104,32 @@ export class TaskService {
                 dateCreated: dateCreated,
                 dateModified: dateModified,
                 recurrence: taskData.recurrence || undefined,
+                reminders: taskData.reminders && taskData.reminders.length > 0 ? taskData.reminders : undefined,
                 icsEventId: taskData.icsEventId || undefined
             };
 
             // Use field mapper to convert to frontmatter with proper field mapping
             const frontmatter = this.plugin.fieldMapper.mapToFrontmatter(completeTaskData, this.plugin.settings.taskTag, this.plugin.settings.storeTitleInFilename);
             
-            // Tags are handled separately (not via field mapper)
-            frontmatter.tags = tagsArray;
+            // Handle task identification based on settings
+            if (this.plugin.settings.taskIdentificationMethod === 'property') {
+                const propName = this.plugin.settings.taskPropertyName;
+                const propValue = this.plugin.settings.taskPropertyValue;
+                if (propName && propValue) {
+                    // Coerce boolean-like strings to actual booleans for compatibility with Obsidian properties
+                    const lower = propValue.toLowerCase();
+                    const coercedValue = (lower === 'true' || lower === 'false') ? (lower === 'true') : propValue;
+                    frontmatter[propName] = coercedValue as any;
+                }
+                // Remove task tag from tags array if using property identification
+                const filteredTags = tagsArray.filter((tag: string) => tag !== this.plugin.settings.taskTag);
+                if (filteredTags.length > 0) {
+                    frontmatter.tags = filteredTags;
+                }
+            } else {
+                // Tags are handled separately (not via field mapper)
+                frontmatter.tags = tagsArray;
+            }
 
             // Apply template processing (both frontmatter and body)
             const templateResult = await this.applyTemplate(taskData);
@@ -142,8 +164,16 @@ export class TaskService {
                 archived: false
             };
 
-            // Update cache proactively
-            this.plugin.cacheManager.updateTaskInfoInCache(file.path, taskInfo);
+            // Wait for fresh data and update cache
+            try {
+                // Wait for the metadata cache to have the updated data for new tasks
+                if (this.plugin.cacheManager.waitForFreshTaskData) {
+                    await this.plugin.cacheManager.waitForFreshTaskData(file, { title: taskInfo.title });
+                }
+                this.plugin.cacheManager.updateTaskInfoInCache(file.path, taskInfo);
+            } catch (cacheError) {
+                console.error('Error updating cache for new task:', cacheError);
+            }
 
             // Emit task created event
             this.plugin.emitter.trigger(EVENT_TASK_UPDATED, {
@@ -293,10 +323,14 @@ export class TaskService {
                 const fieldName = this.plugin.fieldMapper.toUserField(property as keyof import('../types').FieldMapping);
                 
                 if (property === 'status') {
-                    frontmatter[fieldName] = value;
+                    // Coerce boolean-like status strings to actual booleans for compatibility with Obsidian checkbox properties
+                    const lower = String(value).toLowerCase();
+                    const coercedValue = (lower === 'true' || lower === 'false') ? (lower === 'true') : value;
+                    frontmatter[fieldName] = coercedValue;
                     
                     // Update completed date when marking as complete (non-recurring tasks only)
-                    if (!task.recurrence) {
+                    // FIX: Use freshTask instead of stale task to check recurrence
+                    if (!freshTask.recurrence) {
                         const completedDateField = this.plugin.fieldMapper.toUserField('completedDate');
                         if (this.plugin.statusManager.isCompletedStatus(value)) {
                             frontmatter[completedDateField] = getCurrentDateString();
@@ -319,8 +353,12 @@ export class TaskService {
                 frontmatter[dateModifiedField] = updatedTask.dateModified;
             });
             
-            // Step 3: Proactively update cache
+            // Step 3: Wait for fresh data and update cache
             try {
+                // Wait for the metadata cache to have the updated data
+                if (this.plugin.cacheManager.waitForFreshTaskData) {
+                    await this.plugin.cacheManager.waitForFreshTaskData(file, { [property]: value });
+                }
                 await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask as TaskInfo);
             } catch (cacheError) {
                 // Cache errors shouldn't break the operation, just log them
@@ -423,8 +461,17 @@ export class TaskService {
             frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
         
-        // Step 3: Proactively update cache
-        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        // Step 3: Wait for fresh data and update cache
+        try {
+            const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
+            // Wait for the metadata cache to have the updated data
+            if (file instanceof TFile && this.plugin.cacheManager.waitForFreshTaskData) {
+                await this.plugin.cacheManager.waitForFreshTaskData(file, { archived: updatedTask.archived });
+            }
+            await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        } catch (cacheError) {
+            console.error('Error updating cache for archived task:', cacheError);
+        }
         
         // Step 4: Notify system of change
         this.plugin.emitter.trigger(EVENT_TASK_UPDATED, {
@@ -480,8 +527,16 @@ export class TaskService {
             frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
 
-        // Step 3: Proactively update cache
-        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        // Step 3: Wait for fresh data and update cache
+        try {
+            // Wait for the metadata cache to have the updated time entries
+            if (this.plugin.cacheManager.waitForFreshTaskData) {
+                await this.plugin.cacheManager.waitForFreshTaskData(file, { timeEntries: updatedTask.timeEntries });
+            }
+            await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        } catch (cacheError) {
+            console.error('Error updating cache for time tracking start:', cacheError);
+        }
         
         // Step 4: Notify system of change
         this.plugin.emitter.trigger(EVENT_TASK_UPDATED, {
@@ -543,8 +598,16 @@ export class TaskService {
             frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
 
-        // Step 3: Proactively update cache
-        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        // Step 3: Wait for fresh data and update cache
+        try {
+            // Wait for the metadata cache to have the updated time entries
+            if (this.plugin.cacheManager.waitForFreshTaskData) {
+                await this.plugin.cacheManager.waitForFreshTaskData(file, { timeEntries: updatedTask.timeEntries });
+            }
+            await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        } catch (cacheError) {
+            console.error('Error updating cache for time tracking stop:', cacheError);
+        }
         
         // Step 4: Notify system of change
         this.plugin.emitter.trigger(EVENT_TASK_UPDATED, {
@@ -577,11 +640,52 @@ export class TaskService {
                 newPath = parentPath ? `${parentPath}/${newFilename}.md` : `${newFilename}.md`;
             }
 
+            // Check if recurrence rule changed and update scheduled date if needed
+            let recurrenceUpdates: Partial<TaskInfo> = {};
+            if (updates.recurrence !== undefined && updates.recurrence !== originalTask.recurrence) {
+                // Recurrence rule changed, calculate new scheduled date
+                const tempTask: TaskInfo = { ...originalTask, ...updates };
+                const nextScheduledDate = updateToNextScheduledOccurrence(tempTask);
+                if (nextScheduledDate) {
+                    recurrenceUpdates.scheduled = nextScheduledDate;
+                }
+                
+                // Add DTSTART to recurrence rule if it's missing (scenario 1: editing recurrence rule)
+                if (typeof updates.recurrence === 'string' && updates.recurrence && !updates.recurrence.includes('DTSTART:')) {
+                    const tempTaskWithRecurrence: TaskInfo = { ...originalTask, ...updates, ...recurrenceUpdates };
+                    const updatedRecurrence = addDTSTARTToRecurrenceRule(tempTaskWithRecurrence);
+                    if (updatedRecurrence) {
+                        recurrenceUpdates.recurrence = updatedRecurrence;
+                    }
+                }
+            } else if (updates.recurrence !== undefined && !originalTask.recurrence && updates.recurrence) {
+                // Scenario 2: Converting non-recurring to recurring task
+                if (typeof updates.recurrence === 'string' && !updates.recurrence.includes('DTSTART:')) {
+                    const tempTask: TaskInfo = { ...originalTask, ...updates };
+                    const updatedRecurrence = addDTSTARTToRecurrenceRule(tempTask);
+                    if (updatedRecurrence) {
+                        recurrenceUpdates.recurrence = updatedRecurrence;
+                    }
+                }
+            }
+            
+            // Scenario 3: Scheduled date update for recurring tasks
+            if (updates.scheduled !== undefined && updates.scheduled !== originalTask.scheduled && originalTask.recurrence) {
+                if (typeof originalTask.recurrence === 'string' && !originalTask.recurrence.includes('DTSTART:')) {
+                    const tempTask: TaskInfo = { ...originalTask, ...updates };
+                    const updatedRecurrence = addDTSTARTToRecurrenceRule(tempTask);
+                    if (updatedRecurrence) {
+                        recurrenceUpdates.recurrence = updatedRecurrence;
+                    }
+                }
+            }
+
             // Step 1: Persist frontmatter changes to the file at its original path
             await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
                 const completeTaskData: Partial<TaskInfo> = {
                     ...originalTask,
                     ...updates,
+                    ...recurrenceUpdates,
                     dateModified: getCurrentTimestamp()
                 };
 
@@ -625,6 +729,7 @@ export class TaskService {
             const updatedTask: TaskInfo = {
                 ...originalTask,
                 ...updates,
+                ...recurrenceUpdates,
                 path: newPath,
                 dateModified: getCurrentTimestamp()
             };
@@ -639,11 +744,23 @@ export class TaskService {
                 }
             }
 
-            // Step 4: Update cache
+            // Step 4: Wait for fresh data and update cache
             if (isRenameNeeded) {
                 this.plugin.cacheManager.clearCacheEntry(originalTask.path);
             }
             try {
+                // Wait for the metadata cache to have the updated data
+                const finalFile = this.plugin.app.vault.getAbstractFileByPath(newPath);
+                if (finalFile instanceof TFile && this.plugin.cacheManager.waitForFreshTaskData) {
+                    // Wait for key changes to be reflected
+                    const keyChanges: Partial<TaskInfo> = {};
+                    if (updates.title !== undefined) keyChanges.title = updates.title;
+                    if (updates.status !== undefined) keyChanges.status = updates.status;
+                    if (updates.priority !== undefined) keyChanges.priority = updates.priority;
+                    if (Object.keys(keyChanges).length > 0) {
+                        await this.plugin.cacheManager.waitForFreshTaskData(finalFile, keyChanges);
+                    }
+                }
                 await this.plugin.cacheManager.updateTaskInfoInCache(newPath, updatedTask);
             } catch (cacheError) {
                 // Cache errors shouldn't break the operation, just log them
@@ -735,7 +852,7 @@ export class TaskService {
 
         // Use the provided date or fall back to the currently selected date
         const targetDate = date || this.plugin.selectedDate;
-        const dateStr = formatUTCDateForCalendar(targetDate);
+        const dateStr = formatDateForStorage(targetDate);
         
         // Check current completion status for this date using fresh data
         const completeInstances = Array.isArray(freshTask.complete_instances) ? freshTask.complete_instances : [];
@@ -755,11 +872,27 @@ export class TaskService {
             // Remove date from completed instances
             updatedTask.complete_instances = completeInstances.filter(d => d !== dateStr);
         }
+
+        // Add DTSTART to recurrence rule if it's missing (only when completing)
+        if (newComplete && typeof updatedTask.recurrence === 'string' && !updatedTask.recurrence.includes('DTSTART:')) {
+            const updatedRecurrence = addDTSTARTToRecurrenceRule(updatedTask);
+            if (updatedRecurrence) {
+                updatedTask.recurrence = updatedRecurrence;
+            }
+        }
+
+        // Update scheduled date to next uncompleted occurrence
+        const nextScheduledDate = updateToNextScheduledOccurrence(updatedTask);
+        if (nextScheduledDate) {
+            updatedTask.scheduled = nextScheduledDate;
+        }
         
         // Step 2: Persist to file
         await this.plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
             const completeInstancesField = this.plugin.fieldMapper.toUserField('completeInstances');
             const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
+            const scheduledField = this.plugin.fieldMapper.toUserField('scheduled');
+            const recurrenceField = this.plugin.fieldMapper.toUserField('recurrence');
             
             // Ensure complete_instances array exists
             if (!frontmatter[completeInstancesField]) {
@@ -778,11 +911,35 @@ export class TaskService {
                 frontmatter[completeInstancesField] = completeDates.filter(d => d !== dateStr);
             }
             
+            // Update recurrence field if it was updated with DTSTART
+            if (updatedTask.recurrence !== freshTask.recurrence) {
+                frontmatter[recurrenceField] = updatedTask.recurrence;
+            }
+            
+            // Update scheduled date if it changed
+            if (updatedTask.scheduled) {
+                frontmatter[scheduledField] = updatedTask.scheduled;
+            }
+            
             frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
         
-        // Step 3: Proactively update cache
-        await this.plugin.cacheManager.updateTaskInfoInCache(freshTask.path, updatedTask);
+        // Step 3: Wait for fresh data and update cache
+        try {
+            // Wait for the metadata cache to have the updated data
+            if (this.plugin.cacheManager.waitForFreshTaskData) {
+                const expectedChanges: Partial<TaskInfo> = {
+                    complete_instances: updatedTask.complete_instances
+                };
+                if (updatedTask.scheduled !== freshTask.scheduled) {
+                    expectedChanges.scheduled = updatedTask.scheduled;
+                }
+                await this.plugin.cacheManager.waitForFreshTaskData(file, expectedChanges);
+            }
+            await this.plugin.cacheManager.updateTaskInfoInCache(freshTask.path, updatedTask);
+        } catch (cacheError) {
+            console.error('Error updating cache for recurring task:', cacheError);
+        }
         
         // Step 4: Notify system of change
         this.plugin.emitter.trigger(EVENT_TASK_UPDATED, {
@@ -832,8 +989,16 @@ export class TaskService {
             frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
 
-        // Step 3: Proactively update cache
-        await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        // Step 3: Wait for fresh data and update cache
+        try {
+            // Wait for the metadata cache to have the updated time entries
+            if (this.plugin.cacheManager.waitForFreshTaskData) {
+                await this.plugin.cacheManager.waitForFreshTaskData(file, { timeEntries: updatedTask.timeEntries });
+            }
+            await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+        } catch (cacheError) {
+            console.error('Error updating cache for time entry deletion:', cacheError);
+        }
         
         // Step 4: Notify system of change
         this.plugin.emitter.trigger(EVENT_TASK_UPDATED, {

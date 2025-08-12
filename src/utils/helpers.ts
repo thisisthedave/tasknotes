@@ -1,10 +1,10 @@
 import { normalizePath, TFile, Vault, App, parseYaml, stringifyYaml } from 'obsidian';
-import { format } from 'date-fns';
+import { format, isBefore, startOfDay } from 'date-fns';
 import { RRule } from 'rrule';
 import { TimeInfo, TaskInfo, TimeEntry, TimeBlock, DailyNoteFrontmatter } from '../types';
 import { FieldMapper } from '../services/FieldMapper';
 import { DEFAULT_FIELD_MAPPING } from '../settings/settings';
-import { isBeforeDateSafe, getTodayString, parseDate, createUTCDateForRRule, formatUTCDateForCalendar } from './dateUtils';
+import { isBeforeDateSafe, getTodayString, parseDateToLocal, parseDateToUTC, createUTCDateForRRule, formatDateForStorage, getTodayLocal, formatDateAsUTCString, hasTimeComponent } from './dateUtils';
 // import { RegexOptimizer } from './RegexOptimizer'; // Temporarily disabled
 
 /**
@@ -184,11 +184,13 @@ export function calculateDefaultDate(defaultOption: 'none' | 'today' | 'tomorrow
 			break;
 		case 'tomorrow':
 			targetDate = new Date(today);
-			targetDate.setUTCDate(today.getUTCDate() + 1);
+			// Use local date methods for consistent date arithmetic
+			targetDate.setDate(today.getDate() + 1);
 			break;
 		case 'next-week':
 			targetDate = new Date(today);
-			targetDate.setUTCDate(today.getUTCDate() + 7);
+			// Use local date methods for consistent date arithmetic
+			targetDate.setDate(today.getDate() + 7);
 			break;
 		default:
 			return '';
@@ -246,7 +248,8 @@ export function extractTaskInfo(
 				points: mappedTask.points,
 				timeEntries: mappedTask.timeEntries,
 				dateCreated: mappedTask.dateCreated,
-				dateModified: mappedTask.dateModified
+				dateModified: mappedTask.dateModified,
+				reminders: mappedTask.reminders
 			};
 			
 			return taskInfo;
@@ -273,7 +276,8 @@ export function extractTaskInfo(
 				points: mappedTask.points,
 				timeEntries: mappedTask.timeEntries,
 				dateCreated: mappedTask.dateCreated,
-				dateModified: mappedTask.dateModified
+				dateModified: mappedTask.dateModified,
+				reminders: mappedTask.reminders
 			};
 		}
 	}
@@ -285,24 +289,41 @@ export function extractTaskInfo(
 		status: 'open',
 		priority: 'normal',
 		path,
-		archived: false
+		archived: false,
+		reminders: []
 	};
 }
 
 /**
  * Checks if a task is overdue (either due date or scheduled date is in the past)
+ * @deprecated Use isOverdueTimeAware from dateUtils.ts instead. This function has timezone
+ * bugs due to mixing UTC-anchored dates with local-timezone dates in comparisons.
  */
 export function isTaskOverdue(task: {due?: string; scheduled?: string}): boolean {
-	const today = getTodayString();
+	const today = getTodayLocal();
 	
 	// Check due date
 	if (task.due) {
-		if (isBeforeDateSafe(task.due, today)) return true;
+		try {
+			// Use consistent date parsing for both datetime and date-only strings
+			const dueDate = parseDateToUTC(task.due);
+			if (isBefore(startOfDay(dueDate), startOfDay(today))) return true;
+		} catch (e) {
+			// If parsing fails, fall back to string comparison
+			if (isBeforeDateSafe(task.due, getTodayString())) return true;
+		}
 	}
 	
 	// Check scheduled date
 	if (task.scheduled) {
-		if (isBeforeDateSafe(task.scheduled, today)) return true;
+		try {
+			// Use consistent date parsing for both datetime and date-only strings
+			const scheduledDate = parseDateToUTC(task.scheduled);
+			if (isBefore(startOfDay(scheduledDate), startOfDay(today))) return true;
+		} catch (e) {
+			// If parsing fails, fall back to string comparison
+			if (isBeforeDateSafe(task.scheduled, getTodayString())) return true;
+		}
 	}
 	
 	return false;
@@ -320,28 +341,52 @@ export function isDueByRRule(task: TaskInfo, date: Date): boolean {
 	// If recurrence is a string (rrule format), process it
 	if (typeof task.recurrence === 'string') {
 		try {
-			// Determine the anchor date (dtstart) for the recurrence
-			// Use UTC date to avoid timezone issues with day-of-week calculations
+			// Parse DTSTART from RRULE string if present, otherwise use fallback logic
 			let dtstart: Date;
-			if (task.scheduled) {
-				dtstart = createUTCDateForRRule(task.scheduled);
-			} else if (task.dateCreated) {
-				dtstart = createUTCDateForRRule(task.dateCreated);
+			const dtstartMatch = task.recurrence.match(/DTSTART:(\d{8}(?:T\d{6}Z?)?)/);
+			
+			if (dtstartMatch) {
+				// Extract DTSTART from RRULE string (supports both YYYYMMDD and YYYYMMDDTHHMMSSZ formats)
+				const dtstartStr = dtstartMatch[1];
+				if (dtstartStr.length === 8) {
+					// YYYYMMDD format
+					const year = parseInt(dtstartStr.slice(0, 4));
+					const month = parseInt(dtstartStr.slice(4, 6)) - 1; // JavaScript months are 0-indexed
+					const day = parseInt(dtstartStr.slice(6, 8));
+					dtstart = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+				} else {
+					// YYYYMMDDTHHMMSSZ format - parse manually since createUTCDateForRRule expects YYYY-MM-DD
+					const year = parseInt(dtstartStr.slice(0, 4));
+					const month = parseInt(dtstartStr.slice(4, 6)) - 1; // JavaScript months are 0-indexed
+					const day = parseInt(dtstartStr.slice(6, 8));
+					const hour = parseInt(dtstartStr.slice(9, 11)) || 0;
+					const minute = parseInt(dtstartStr.slice(11, 13)) || 0;
+					const second = parseInt(dtstartStr.slice(13, 15)) || 0;
+					dtstart = new Date(Date.UTC(year, month, day, hour, minute, second, 0));
+				}
 			} else {
-				// If no anchor date available, task cannot generate recurring instances
-				return false;
+				// Fallback to original logic for backward compatibility
+				if (task.scheduled) {
+					dtstart = createUTCDateForRRule(task.scheduled);
+				} else if (task.dateCreated) {
+					dtstart = createUTCDateForRRule(task.dateCreated);
+				} else {
+					// If no anchor date available, task cannot generate recurring instances
+					return false;
+				}
 			}
 			
 			// Parse the rrule string and create RRule object
-			// The rrule string should contain all recurrence information including any UNTIL dates
-			const rruleOptions = RRule.parseString(task.recurrence);
+			// Remove DTSTART from the string before parsing since we set it manually
+			const rruleString = task.recurrence.replace(/DTSTART:[^;]+;?/, '');
+			const rruleOptions = RRule.parseString(rruleString);
 			rruleOptions.dtstart = dtstart;
 			
 			const rrule = new RRule(rruleOptions);
 			
 			// Check if the target date is an occurrence
 			// Use UTC date to match the dtstart timezone
-			const targetDateStart = createUTCDateForRRule(formatUTCDateForCalendar(date));
+			const targetDateStart = createUTCDateForRRule(formatDateAsUTCString(date));
 			const occurrences = rrule.between(targetDateStart, new Date(targetDateStart.getTime() + 24 * 60 * 60 * 1000 - 1), true);
 			
 			return occurrences.length > 0;
@@ -355,7 +400,7 @@ export function isDueByRRule(task: TaskInfo, date: Date): boolean {
 	// If recurrence is an object (legacy format), handle it inline
 	// Legacy recurrence object handling
 	const frequency = task.recurrence.frequency;
-	const targetDate = parseDate(formatUTCDateForCalendar(date));
+	const targetDate = parseDateToUTC(formatDateForStorage(date));
 	const dayOfWeek = targetDate.getUTCDay();
 	const dayOfMonth = targetDate.getUTCDate();
 	const monthOfYear = targetDate.getUTCMonth() + 1; // JavaScript months are 0-indexed
@@ -383,7 +428,7 @@ export function isDueByRRule(task: TaskInfo, date: Date): boolean {
 			// Fall back to using the original due date
 			else if (task.due) {
 				try {
-					const originalDueDate = parseDate(task.due); // Safe parsing
+					const originalDueDate = parseDateToUTC(task.due); // Safe parsing
 					return originalDueDate.getUTCDate() === dayOfMonth && 
 							originalDueDate.getUTCMonth() === targetDate.getUTCMonth();
 				} catch (error) {
@@ -409,7 +454,7 @@ export function isRecurringTaskDueOn(task: any, date: Date): boolean {
 	if (typeof task.recurrence === 'string') return true;
 	
 	const frequency = task.recurrence.frequency;
-	const targetDate = parseDate(formatUTCDateForCalendar(date));
+	const targetDate = parseDateToUTC(formatDateForStorage(date));
 	const dayOfWeek = targetDate.getUTCDay();
 	const dayOfMonth = targetDate.getUTCDate();
 	const monthOfYear = targetDate.getUTCMonth() + 1; // JavaScript months are 0-indexed
@@ -437,7 +482,7 @@ export function isRecurringTaskDueOn(task: any, date: Date): boolean {
 			// Fall back to using the original due date
 			else if (task.due) {
 				try {
-					const originalDueDate = parseDate(task.due); // Safe parsing
+					const originalDueDate = parseDateToUTC(task.due); // Safe parsing
 					return originalDueDate.getUTCDate() === dayOfMonth && 
 						originalDueDate.getUTCMonth() === targetDate.getUTCMonth();
 				} catch (error) {
@@ -460,7 +505,7 @@ export function getEffectiveTaskStatus(task: any, date: Date): string {
 	}
 	
 	// If it has recurrence, check if it's completed for the specified date
-	const dateStr = format(date, 'yyyy-MM-dd');
+	const dateStr = formatDateForStorage(date);
 	const completedDates = Array.isArray(task.complete_instances) ? task.complete_instances : [];
 	
 	return completedDates.includes(dateStr) ? 'done' : 'open';
@@ -481,7 +526,7 @@ export function shouldShowRecurringTaskOnDate(task: TaskInfo, targetDate: Date):
 export function getRecurringTaskCompletionText(task: TaskInfo, targetDate: Date): string {
 	if (!task.recurrence) return '';
 	
-	const dateStr = formatUTCDateForCalendar(targetDate);
+	const dateStr = formatDateForStorage(targetDate);
 	const isCompleted = task.complete_instances?.includes(dateStr) || false;
 	
 	return isCompleted ? 'Completed for this date' : 'Not completed for this date';
@@ -506,21 +551,45 @@ export function generateRecurringInstances(task: TaskInfo, startDate: Date, endD
 	// If recurrence is a string (rrule format), use rrule
 	if (typeof task.recurrence === 'string') {
 		try {
-			// Determine the anchor date (dtstart) for the recurrence
-			// Use UTC date to avoid timezone issues with day-of-week calculations
+			// Parse DTSTART from RRULE string if present, otherwise use fallback logic
 			let dtstart: Date;
-			if (task.scheduled) {
-				dtstart = createUTCDateForRRule(task.scheduled);
-			} else if (task.dateCreated) {
-				dtstart = createUTCDateForRRule(task.dateCreated);
+			const dtstartMatch = task.recurrence.match(/DTSTART:(\d{8}(?:T\d{6}Z?)?)/);
+			
+			if (dtstartMatch) {
+				// Extract DTSTART from RRULE string (supports both YYYYMMDD and YYYYMMDDTHHMMSSZ formats)
+				const dtstartStr = dtstartMatch[1];
+				if (dtstartStr.length === 8) {
+					// YYYYMMDD format
+					const year = parseInt(dtstartStr.slice(0, 4));
+					const month = parseInt(dtstartStr.slice(4, 6)) - 1; // JavaScript months are 0-indexed
+					const day = parseInt(dtstartStr.slice(6, 8));
+					dtstart = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+				} else {
+					// YYYYMMDDTHHMMSSZ format - parse manually since createUTCDateForRRule expects YYYY-MM-DD
+					const year = parseInt(dtstartStr.slice(0, 4));
+					const month = parseInt(dtstartStr.slice(4, 6)) - 1; // JavaScript months are 0-indexed
+					const day = parseInt(dtstartStr.slice(6, 8));
+					const hour = parseInt(dtstartStr.slice(9, 11)) || 0;
+					const minute = parseInt(dtstartStr.slice(11, 13)) || 0;
+					const second = parseInt(dtstartStr.slice(13, 15)) || 0;
+					dtstart = new Date(Date.UTC(year, month, day, hour, minute, second, 0));
+				}
 			} else {
-				// If no anchor date available, task cannot generate recurring instances
-				return [];
+				// Fallback to original logic for backward compatibility
+				if (task.scheduled) {
+					dtstart = createUTCDateForRRule(task.scheduled);
+				} else if (task.dateCreated) {
+					dtstart = createUTCDateForRRule(task.dateCreated);
+				} else {
+					// If no anchor date available, task cannot generate recurring instances
+					return [];
+				}
 			}
 			
 			// Parse the rrule string and create RRule object
-			// The rrule string should contain all recurrence information including any UNTIL dates
-			const rruleOptions = RRule.parseString(task.recurrence);
+			// Remove DTSTART from the string before parsing since we set it manually
+			const rruleString = task.recurrence.replace(/DTSTART:[^;]+;?/, '');
+			const rruleOptions = RRule.parseString(rruleString);
 			rruleOptions.dtstart = dtstart;
 			
 			const rrule = new RRule(rruleOptions);
@@ -560,6 +629,62 @@ export function generateRecurringInstances(task: TaskInfo, startDate: Date, endD
 	}
 	
 	return instances;
+}
+
+/**
+ * Calculates the next uncompleted occurrence for a recurring task
+ * Returns null if no future occurrences exist
+ */
+export function getNextUncompletedOccurrence(task: TaskInfo): Date | null {
+	// If no recurrence, return null
+	if (!task.recurrence) {
+		return null;
+	}
+
+	try {
+		// Get current date as starting point using UTC anchor principle
+		const todayStr = getTodayString(); // YYYY-MM-DD format
+		const today = parseDateToUTC(todayStr); // UTC anchored for consistent logic
+		const endDate = new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000); // Look ahead 1 year
+		
+		// Generate all occurrences from today onwards
+		const occurrences = generateRecurringInstances(task, today, endDate);
+		
+		// Get completed instances as Set for faster lookup
+		const completedInstances = new Set(task.complete_instances || []);
+		
+		// Find the first occurrence that hasn't been completed
+		for (const occurrence of occurrences) {
+			const occurrenceStr = formatDateForStorage(occurrence);
+			if (!completedInstances.has(occurrenceStr)) {
+				return occurrence;
+			}
+		}
+		
+		return null; // No future occurrences or all completed
+	} catch (error) {
+		console.error('Error calculating next uncompleted occurrence:', error, { task: task.title });
+		return null;
+	}
+}
+
+/**
+ * Updates the scheduled date of a recurring task to its next uncompleted occurrence
+ * Returns the updated scheduled date or null if no next occurrence
+ */
+export function updateToNextScheduledOccurrence(task: TaskInfo): string | null {
+	const nextOccurrence = getNextUncompletedOccurrence(task);
+	if (!nextOccurrence) {
+		return null;
+	}
+	
+	// Preserve time component if original scheduled date had time
+	if (task.scheduled && task.scheduled.includes('T')) {
+		const timePart = task.scheduled.split('T')[1];
+		return `${formatDateForStorage(nextOccurrence)}T${timePart}`;
+	} else {
+		return formatDateForStorage(nextOccurrence);
+	}
 }
 
 /**
@@ -633,7 +758,9 @@ export function getRecurrenceDisplayText(recurrence: string | any): string {
 	try {
 		// Handle rrule string format
 		if (typeof recurrence === 'string' && recurrence.includes('FREQ=')) {
-			const rrule = RRule.fromString(recurrence);
+			// Remove DTSTART from the string before parsing since RRule.fromString() expects only RRULE parameters
+			const rruleString = recurrence.replace(/DTSTART:[^;]+;?/, '');
+			const rrule = RRule.fromString(rruleString);
 			return rrule.toText();
 		}
 		
@@ -707,7 +834,7 @@ export function extractNoteInfo(app: App, content: string, path: string, file?: 
 		// If it's a full ISO timestamp or similar, extract just the date part
 		else {
 			try {
-				const date = parseDate(createdDate); // Use safe parsing
+				const date = parseDateToLocal(createdDate); // Use safe parsing
 				if (!isNaN(date.getTime())) {
 					// Format to YYYY-MM-DD to ensure consistency
 					createdDate = format(date, "yyyy-MM-dd");
@@ -821,8 +948,11 @@ export function extractTimeblocksFromNote(content: string, path: string): TimeBl
 
 /**
  * Converts a timeblock to a calendar event format
+ * Uses proper timezone handling following UTC Anchor pattern to prevent date shift issues
  */
 export function timeblockToCalendarEvent(timeblock: TimeBlock, date: string): any {
+	// Create datetime strings that FullCalendar interprets consistently
+	// Using date-only format ensures the timeblock appears on the correct day
 	const startDateTime = `${date}T${timeblock.startTime}:00`;
 	const endDateTime = `${date}T${timeblock.endTime}:00`;
 	
@@ -1052,6 +1182,121 @@ export function filterEmptyProjects(projects: string[]): string[] {
 	});
 }
 
+/**
+ * Adds DTSTART to a recurrence rule that doesn't have one, using the same fallback logic
+ * as the recurrence interpretation (scheduled date first, then dateCreated)
+ * Follows the UTC Anchor principle for consistent date handling
+ */
+export function addDTSTARTToRecurrenceRule(task: TaskInfo): string | null {
+	if (!task.recurrence || typeof task.recurrence !== 'string') {
+		return null;
+	}
+	
+	// Check if DTSTART is already present
+	if (task.recurrence.includes('DTSTART:')) {
+		return task.recurrence; // Already has DTSTART, return as-is
+	}
+	
+	// Determine the source date string using the same fallback logic as isDueByRRule
+	let sourceDateString: string;
+	if (task.scheduled) {
+		sourceDateString = task.scheduled;
+	} else if (task.dateCreated) {
+		sourceDateString = task.dateCreated;
+	} else {
+		// No anchor date available, cannot add DTSTART
+		return null;
+	}
+	
+	try {
+		// Use the plugin's established date handling approach
+		let dtstartValue: string;
+		
+		if (hasTimeComponent(sourceDateString)) {
+			// Has time component - parse as local time for accuracy, then format for DTSTART
+			const dateTime = parseDateToLocal(sourceDateString);
+			const year = dateTime.getFullYear();
+			const month = String(dateTime.getMonth() + 1).padStart(2, '0');
+			const day = String(dateTime.getDate()).padStart(2, '0');
+			const hours = String(dateTime.getHours()).padStart(2, '0');
+			const minutes = String(dateTime.getMinutes()).padStart(2, '0');
+			const seconds = String(dateTime.getSeconds()).padStart(2, '0');
+			dtstartValue = `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+		} else {
+			// Date-only - use UTC anchor principle for consistency
+			const date = parseDateToUTC(sourceDateString);
+			const year = date.getUTCFullYear();
+			const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+			const day = String(date.getUTCDate()).padStart(2, '0');
+			dtstartValue = `${year}${month}${day}`;
+		}
+		
+		// Add DTSTART at the beginning of the recurrence rule
+		return `DTSTART:${dtstartValue};${task.recurrence}`;
+	} catch (error) {
+		console.error('Error parsing date for DTSTART:', error, { sourceDateString });
+		return null; // Return null on parsing errors
+	}
+}
+
+/**
+ * Adds DTSTART to a recurrence rule with a specific time from user drag interaction
+ * Uses fallback logic for the date (scheduled first, then dateCreated) but applies the user-dragged time
+ * Follows the UTC Anchor principle for consistent date handling
+ */
+export function addDTSTARTToRecurrenceRuleWithDraggedTime(task: TaskInfo, draggedStart: Date, allDay: boolean): string | null {
+	if (!task.recurrence || typeof task.recurrence !== 'string') {
+		return null;
+	}
+	
+	// Check if DTSTART is already present
+	if (task.recurrence.includes('DTSTART:')) {
+		return task.recurrence; // Already has DTSTART, return as-is
+	}
+	
+	// Determine the source date string using the same fallback logic as isDueByRRule
+	let sourceDateString: string;
+	if (task.scheduled) {
+		sourceDateString = task.scheduled;
+	} else if (task.dateCreated) {
+		sourceDateString = task.dateCreated;
+	} else {
+		// No anchor date available, cannot add DTSTART
+		return null;
+	}
+	
+	try {
+		// Use the plugin's established date handling approach
+		let dtstartValue: string;
+		
+		if (allDay) {
+			// All-day event - use date-only format from the source date (not draggedStart)
+			const date = parseDateToUTC(sourceDateString);
+			const year = date.getUTCFullYear();
+			const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+			const day = String(date.getUTCDate()).padStart(2, '0');
+			dtstartValue = `${year}${month}${day}`;
+		} else {
+			// Timed event - use date from source, time from draggedStart
+			const sourceDate = parseDateToUTC(sourceDateString);
+			const year = sourceDate.getUTCFullYear();
+			const month = String(sourceDate.getUTCMonth() + 1).padStart(2, '0');
+			const day = String(sourceDate.getUTCDate()).padStart(2, '0');
+			
+			// Use the time from the dragged position
+			const hours = String(draggedStart.getHours()).padStart(2, '0');
+			const minutes = String(draggedStart.getMinutes()).padStart(2, '0');
+			dtstartValue = `${year}${month}${day}T${hours}${minutes}00Z`;
+		}
+		
+		// Add DTSTART at the beginning of the recurrence rule
+		return `DTSTART:${dtstartValue};${task.recurrence}`;
+	} catch (error) {
+		console.error('Error parsing date for DTSTART with dragged time:', error, { sourceDateString, draggedStart, allDay });
+		return null; // Return null on parsing errors
+	}
+}
+
 export function getTopmostVisibleElement(elements: HTMLElement[]): HTMLElement | null {
   const visibleElements = elements
     .map(el => ({
@@ -1084,4 +1329,3 @@ export function mergeObjects<T extends object>(fallback: T | undefined, override
 
   return merged as T;
 }
-

@@ -58,14 +58,15 @@ import { createTaskLinkOverlay, dispatchTaskUpdate } from './editor/TaskLinkOver
 import { createReadingModeTaskLinkProcessor } from './editor/ReadingModeTaskLinkProcessor';
 import { createProjectNoteDecorations, dispatchProjectSubtasksUpdate } from './editor/ProjectNoteDecorations';
 import { DragDropManager } from './utils/DragDropManager';
-import { formatUTCDateForCalendar } from './utils/dateUtils';
+import { formatDateForStorage, getTodayLocal, createUTCDateFromLocalCalendarDate } from './utils/dateUtils';
 import { ICSSubscriptionService } from './services/ICSSubscriptionService';
 import { ICSNoteService } from './services/ICSNoteService';
 import { MigrationService } from './services/MigrationService';
 import { showMigrationPrompt } from './modals/MigrationModal';
 import { StatusBarService } from './services/StatusBarService';
 import { ProjectSubtasksService } from './services/ProjectSubtasksService';
-import { InputObserver } from './utils/InputObserver';
+import { ExpandedProjectsService } from './services/ExpandedProjectsService';
+import { NotificationService } from './services/NotificationService';
 
 // Type definitions for better type safety
 interface TaskUpdateEventData {
@@ -96,10 +97,8 @@ export default class TaskNotesPlugin extends Plugin {
 	private resolveReady: () => void;
 	
 	// Shared state between views
-	selectedDate: Date = (() => {
-		const now = new Date();
-		return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-	})();
+	// Initialize with UTC anchor for today's calendar date
+	selectedDate: Date = createUTCDateFromLocalCalendarDate(getTodayLocal());
 	
 	// Minimal native cache manager (also handles events)
 	cacheManager: MinimalNativeCache;
@@ -124,6 +123,7 @@ export default class TaskNotesPlugin extends Plugin {
 	filterService: FilterService;
 	viewStateManager: ViewStateManager;
 	projectSubtasksService: ProjectSubtasksService;
+	expandedProjectsService: ExpandedProjectsService;
 	
 	// Editor services  
 	taskLinkDetectionService?: import('./services/TaskLinkDetectionService').TaskLinkDetectionService;
@@ -144,8 +144,8 @@ export default class TaskNotesPlugin extends Plugin {
 	// Status bar service
 	statusBarService: StatusBarService;
 	
-	// Track input focus state for keyboard shortcuts
-	inputObserver: InputObserver;
+	// Notification service
+	notificationService: NotificationService;
 	
 	// Event listener cleanup  
 	private taskUpdateListenerForEditor: import('obsidian').EventRef | null = null;
@@ -179,11 +179,8 @@ export default class TaskNotesPlugin extends Plugin {
 		// Initialize minimal native cache manager
 		this.cacheManager = new MinimalNativeCache(
 			this.app,
-			this.settings.taskTag,
-			this.settings.excludedFolders,
-			this.fieldMapper,
-			this.settings.disableNoteIndexing,
-			this.settings.storeTitleInFilename
+			this.settings,
+			this.fieldMapper
 		);
 		
 		// Use same instance for event emitting
@@ -199,10 +196,11 @@ export default class TaskNotesPlugin extends Plugin {
 		);
 		this.viewStateManager = new ViewStateManager(this.app, this);
 		this.projectSubtasksService = new ProjectSubtasksService(this);
+		this.expandedProjectsService = new ExpandedProjectsService(this);
 		this.dragDropManager = new DragDropManager(this);
 		this.migrationService = new MigrationService(this.app);
 		this.statusBarService = new StatusBarService(this);
-		this.inputObserver = new InputObserver(this.app);
+		this.notificationService = new NotificationService(this);
 		
 		// Note: View registration and heavy operations moved to onLayoutReady
 		
@@ -343,6 +341,9 @@ export default class TaskNotesPlugin extends Plugin {
 			
 			// Initialize status bar service
 			this.statusBarService.initialize();
+			
+			// Initialize notification service
+			await this.notificationService.initialize();
 			
 			// Defer heavy service initialization until needed
 			this.initializeServicesLazily();
@@ -753,10 +754,10 @@ export default class TaskNotesPlugin extends Plugin {
 		if (this.statusBarService) {
 			this.statusBarService.destroy();
 		}
-
-		// Clean up input observer
-		if (this.inputObserver) {
-			this.inputObserver.disconnect();
+		
+		// Clean up notification service
+		if (this.notificationService) {
+			this.notificationService.destroy();
 		}
 		
 		// Clean up native cache manager
@@ -815,15 +816,25 @@ export default class TaskNotesPlugin extends Plugin {
 				...DEFAULT_SETTINGS.fieldMapping,
 				...(loadedData?.fieldMapping || {})
 			},
-			// Deep merge custom statuses array
-			customStatuses: loadedData?.customStatuses || DEFAULT_SETTINGS.customStatuses,
-			// Deep merge custom priorities array  
-			customPriorities: loadedData?.customPriorities || DEFAULT_SETTINGS.customPriorities,
+			// Deep merge task creation defaults to ensure new fields get default values
+			taskCreationDefaults: {
+				...DEFAULT_SETTINGS.taskCreationDefaults,
+				...(loadedData?.taskCreationDefaults || {})
+			},
 			// Deep merge calendar view settings to ensure new fields get default values
 			calendarViewSettings: {
 				...DEFAULT_SETTINGS.calendarViewSettings,
 				...(loadedData?.calendarViewSettings || {})
-			}
+			},
+			// Deep merge ICS integration settings to ensure new fields get default values
+			icsIntegration: {
+				...DEFAULT_SETTINGS.icsIntegration,
+				...(loadedData?.icsIntegration || {})
+			},
+			// Array handling - maintain existing arrays or use defaults
+			customStatuses: loadedData?.customStatuses || DEFAULT_SETTINGS.customStatuses,
+			customPriorities: loadedData?.customPriorities || DEFAULT_SETTINGS.customPriorities,
+			savedViews: loadedData?.savedViews || DEFAULT_SETTINGS.savedViews
 		};
 		
 		// Check if we added any new field mappings or calendar settings and save if needed
@@ -1296,7 +1307,7 @@ private injectCustomStyles(): void {
 			const updatedTask = await this.taskService.toggleRecurringTaskComplete(task, date);
 			
 			// Determine if task was completed or marked incomplete
-			const dateStr = format(targetDate, 'yyyy-MM-dd');
+			const dateStr = formatDateForStorage(targetDate);
 			const wasCompleted = updatedTask.complete_instances?.includes(dateStr);
 			const action = wasCompleted ? 'completed' : 'marked incomplete';
 			
@@ -1388,11 +1399,17 @@ private injectCustomStyles(): void {
 	}
 
 	/**
-	 * Add a project filter condition to the FilterBar (similar to search)
+	 * Add a project filter condition to the FilterBar with proper grouping
+	 * Uses the same pattern as search to ensure correct AND/OR logic
 	 */
 	private addProjectCondition(filterBar: any, projectName: string): void {
 		// Remove existing project conditions first
 		this.removeProjectConditions(filterBar);
+		
+		// Defensive check: ensure children array exists
+		if (!Array.isArray(filterBar.currentQuery.children)) {
+			filterBar.currentQuery.children = [];
+		}
 		
 		// Create condition for wikilink format [[Project Name]]
 		const projectCondition = {
@@ -1402,13 +1419,31 @@ private injectCustomStyles(): void {
 			operator: 'contains',
 			value: `[[${projectName}]]`
 		};
-		
-		// Add to the current query (same pattern as search)
-		if (!Array.isArray(filterBar.currentQuery.children)) {
-			filterBar.currentQuery.children = [];
+
+		// Get existing non-project filters
+		const existingFilters = filterBar.currentQuery.children.filter((child: any) => {
+			return !(child.type === 'condition' && 
+					child.property === 'projects' && 
+					child.operator === 'contains' && 
+					child.id.startsWith('project_'));
+		});
+
+		if (existingFilters.length === 0) {
+			// No existing filters, just add the project condition
+			filterBar.currentQuery.children = [projectCondition];
+		} else {
+			// Create a group containing all existing filters
+			const existingFiltersGroup = {
+				type: 'group',
+				id: this.generateFilterId(),
+				conjunction: filterBar.currentQuery.conjunction, // Preserve the current conjunction
+				children: existingFilters
+			};
+
+			// Replace query children with the project condition AND the existing filters group
+			filterBar.currentQuery.children = [projectCondition, existingFiltersGroup];
+			filterBar.currentQuery.conjunction = 'and'; // Connect project with existing filters using AND
 		}
-		
-		filterBar.currentQuery.children.unshift(projectCondition);
 		
 		// Update the filter bar UI and emit changes
 		filterBar.updateFilterBuilder();
@@ -1509,7 +1544,7 @@ private injectCustomStyles(): void {
 	 */
 	isRecurringTaskCompleteForDate(task: TaskInfo, date: Date): boolean {
 		if (!task.recurrence) return false;  
-		const dateStr = formatUTCDateForCalendar(date);
+		const dateStr = formatDateForStorage(date);
 		const completeInstances = Array.isArray(task.complete_instances) ? task.complete_instances : [];
 		return completeInstances.includes(dateStr);
 	}

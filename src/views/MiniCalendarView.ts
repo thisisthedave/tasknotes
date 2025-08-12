@@ -1,6 +1,6 @@
 import { Notice, TFile, ItemView, WorkspaceLeaf, EventRef, debounce, setTooltip } from 'obsidian';
 import { format } from 'date-fns';
-import { formatUTCDateForCalendar, createSafeUTCDate } from '../utils/dateUtils';
+import { formatDateForStorage, getTodayLocal, createUTCDateFromLocalCalendarDate } from '../utils/dateUtils';
 import TaskNotesPlugin from '../main';
 import { getAllDailyNotes, getDailyNote } from 'obsidian-daily-notes-interface';
 import { 
@@ -15,7 +15,7 @@ import {
     isSameDay
 } from '../utils/helpers';
 import { perfMonitor } from '../utils/PerformanceMonitor';
-import { createSafeDate, normalizeDateString } from '../utils/dateUtils';
+import { createSafeDate, createSafeUTCDate, getDatePart } from '../utils/dateUtils';
 
 export class MiniCalendarView extends ItemView {
     // Static property to track initialization status for daily notes
@@ -44,8 +44,9 @@ export class MiniCalendarView extends ItemView {
         
         // Initialize displayed month/year tracking
         const currentDate = this.plugin.selectedDate;
-        this.displayedMonth = currentDate.getMonth();
-        this.displayedYear = currentDate.getFullYear();
+        // FIX: Use UTC methods since selectedDate is UTC-anchored
+        this.displayedMonth = currentDate.getUTCMonth();
+        this.displayedYear = currentDate.getUTCFullYear();
         
         // Register event listeners
         this.registerEvents();
@@ -65,17 +66,20 @@ export class MiniCalendarView extends ItemView {
         // Listen for date selection changes
         const dateListener = this.plugin.emitter.on(EVENT_DATE_SELECTED, (date: Date) => {
             // Check if we're changing months compared to what's currently displayed
-            if (this.displayedMonth !== date.getMonth() || this.displayedYear !== date.getFullYear()) {
+            // FIX: Use UTC methods since selectedDate is UTC-anchored
+            if (this.displayedMonth !== date.getUTCMonth() || this.displayedYear !== date.getUTCFullYear()) {
                 // Month changed - update tracking and do full refresh
-                this.displayedMonth = date.getMonth();
-                this.displayedYear = date.getFullYear();
+                // FIX: Use UTC methods since selectedDate is UTC-anchored
+                this.displayedMonth = date.getUTCMonth();
+                this.displayedYear = date.getUTCFullYear();
                 
                 // Clear month calculation cache for performance
                 this.clearMonthCalculationCache();
                 
                 // Force daily notes cache rebuild for the new month if in daily mode
                 if (this.colorizeMode === 'daily') {
-                    this.plugin.cacheManager.rebuildDailyNotesCache(date.getFullYear(), date.getMonth());
+                    // FIX: Use UTC methods since selectedDate is UTC-anchored
+                    this.plugin.cacheManager.rebuildDailyNotesCache(date.getUTCFullYear(), date.getUTCMonth());
                 }
                 
                 // Do full calendar refresh
@@ -165,33 +169,35 @@ export class MiniCalendarView extends ItemView {
     
     async navigateToPreviousPeriod() {
         const currentDate = new Date(this.plugin.selectedDate);
-        const date = new Date(currentDate);
+        // Create a new date object to avoid modifying the original
+        const newDate = new Date(currentDate.getTime());
         
-        // Go to previous month using UTC methods
-        date.setUTCMonth(date.getUTCMonth() - 1);
+        // FIX: Use UTC methods for date arithmetic since selectedDate is UTC-anchored
+        newDate.setUTCMonth(currentDate.getUTCMonth() - 1);
         
         // Set the selected date - the event listener will handle the calendar update
-        this.plugin.setSelectedDate(date);
+        this.plugin.setSelectedDate(newDate);
     }
     
     async navigateToNextPeriod() {
         const currentDate = new Date(this.plugin.selectedDate);
-        const date = new Date(currentDate);
+        // Create a new date object to avoid modifying the original
+        const newDate = new Date(currentDate.getTime());
         
-        // Go to next month using UTC methods
-        date.setUTCMonth(date.getUTCMonth() + 1);
+        // FIX: Use UTC methods for date arithmetic since selectedDate is UTC-anchored
+        newDate.setUTCMonth(currentDate.getUTCMonth() + 1);
         
         // Set the selected date - the event listener will handle the calendar update
-        this.plugin.setSelectedDate(date);
+        this.plugin.setSelectedDate(newDate);
     }
     
     async navigateToToday() {
-        // Create UTC date for today
-        const now = new Date();
-        const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+        // Get today in the user's local timezone and convert to UTC anchor
+        const todayLocal = getTodayLocal();
+        const todayUTCRepresentation = createUTCDateFromLocalCalendarDate(todayLocal);
         
         // Set the selected date - the event listener will handle the calendar update
-        this.plugin.setSelectedDate(today);
+        this.plugin.setSelectedDate(todayUTCRepresentation);
     }
     
   
@@ -470,8 +476,9 @@ export class MiniCalendarView extends ItemView {
             
             // If switching to daily notes mode, rebuild the daily notes cache
             if (mode === 'daily') {
-                const currentYear = this.plugin.selectedDate.getFullYear();
-                const currentMonth = this.plugin.selectedDate.getMonth();
+                // FIX: Use UTC methods since selectedDate is UTC-anchored
+                const currentYear = this.plugin.selectedDate.getUTCFullYear();
+                const currentMonth = this.plugin.selectedDate.getUTCMonth();
                 await this.plugin.cacheManager.rebuildDailyNotesCache(currentYear, currentMonth);
             }
             
@@ -741,8 +748,9 @@ export class MiniCalendarView extends ItemView {
             const dateText = (day as HTMLElement).innerText.trim();
             if (dateText) {
                 // Create the date string in yyyy-MM-dd format
-                const year = this.plugin.selectedDate.getFullYear();
-                const month = this.plugin.selectedDate.getMonth();
+                // FIX: Use UTC methods since selectedDate is UTC-anchored
+                const year = this.plugin.selectedDate.getUTCFullYear();
+                const month = this.plugin.selectedDate.getUTCMonth();
                 const date = parseInt(dateText);
                 
                 // Skip if the date is not valid
@@ -758,8 +766,9 @@ export class MiniCalendarView extends ItemView {
                     }
                 }
                 
-                const dateObj = createSafeDate(year, actualMonth, date);
-                const dateKey = formatUTCDateForCalendar(dateObj);
+                // FIX: Use UTC-anchored date to prevent timezone-dependent storage key generation
+                const dateObj = createSafeUTCDate(year, actualMonth, date);
+                const dateKey = formatDateForStorage(dateObj);
                 
                 // Get note count for this date
                 const noteCount = notesCache.get(dateKey) || 0;
@@ -802,8 +811,9 @@ export class MiniCalendarView extends ItemView {
         this.clearCalendarColorization();
         
         // Get current year and month
-        const currentYear = this.plugin.selectedDate.getFullYear();
-        const currentMonth = this.plugin.selectedDate.getMonth();
+        // FIX: Use UTC methods since selectedDate is UTC-anchored
+        const currentYear = this.plugin.selectedDate.getUTCFullYear();
+        const currentMonth = this.plugin.selectedDate.getUTCMonth();
         
         // Get calendar data from unified cache
         const calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
@@ -817,8 +827,9 @@ export class MiniCalendarView extends ItemView {
             const dateText = (day as HTMLElement).innerText.trim();
             if (dateText) {
                 // Create the date string in yyyy-MM-dd format
-                const year = this.plugin.selectedDate.getFullYear();
-                const month = this.plugin.selectedDate.getMonth();
+                // FIX: Use UTC methods since selectedDate is UTC-anchored
+                const year = this.plugin.selectedDate.getUTCFullYear();
+                const month = this.plugin.selectedDate.getUTCMonth();
                 const date = parseInt(dateText);
                 
                 // Skip if the date is not valid
@@ -839,8 +850,9 @@ export class MiniCalendarView extends ItemView {
                         }
                     }
                     
-                    const dateObj = createSafeDate(year, actualMonth, date);
-                    const dateKey = formatUTCDateForCalendar(dateObj);
+                    // FIX: Use UTC-anchored date to prevent timezone-dependent storage key generation
+                    const dateObj = createSafeUTCDate(year, actualMonth, date);
+                    const dateKey = formatDateForStorage(dateObj);
                     
                     cachedResult = { actualMonth, dateObj, dateKey };
                     this.monthCalculationCache.set(cacheKey, cachedResult);
@@ -898,8 +910,9 @@ export class MiniCalendarView extends ItemView {
         this.clearCalendarColorization();
         
         // Get current year and month
-        const currentYear = this.plugin.selectedDate.getFullYear();
-        const currentMonth = this.plugin.selectedDate.getMonth();
+        // FIX: Use UTC methods since selectedDate is UTC-anchored
+        const currentYear = this.plugin.selectedDate.getUTCFullYear();
+        const currentMonth = this.plugin.selectedDate.getUTCMonth();
         
         // Force a rebuild of the cache on the first call to ensure daily notes are properly indexed
         // Using class property instead of static variable to track first call
@@ -928,8 +941,9 @@ export class MiniCalendarView extends ItemView {
             const dateText = (day as HTMLElement).innerText.trim();
             if (dateText) {
                 // Create the date string in yyyy-MM-dd format
-                const year = this.plugin.selectedDate.getFullYear();
-                const month = this.plugin.selectedDate.getMonth();
+                // FIX: Use UTC methods since selectedDate is UTC-anchored
+                const year = this.plugin.selectedDate.getUTCFullYear();
+                const month = this.plugin.selectedDate.getUTCMonth();
                 const date = parseInt(dateText);
                 
                 // Skip if the date is not valid
@@ -950,8 +964,9 @@ export class MiniCalendarView extends ItemView {
                         }
                     }
                     
-                    const dateObj = createSafeDate(year, actualMonth, date);
-                    const dateKey = formatUTCDateForCalendar(dateObj);
+                    // FIX: Use UTC-anchored date to prevent timezone-dependent storage key generation
+                    const dateObj = createSafeUTCDate(year, actualMonth, date);
+                    const dateKey = formatDateForStorage(dateObj);
                     
                     cachedResult = { actualMonth, dateObj, dateKey };
                     this.monthCalculationCache.set(cacheKey, cachedResult);
@@ -994,22 +1009,22 @@ export class MiniCalendarView extends ItemView {
         
         // Add original due date if it exists
         if (originalTask?.due) {
-            affectedDates.add(normalizeDateString(originalTask.due));
+            affectedDates.add(getDatePart(originalTask.due));
         }
         
         // Add new due date if it exists
         if (updatedTask.due) {
-            affectedDates.add(normalizeDateString(updatedTask.due));
+            affectedDates.add(getDatePart(updatedTask.due));
         }
         
         // Add original scheduled date if it exists
         if (originalTask?.scheduled) {
-            affectedDates.add(normalizeDateString(originalTask.scheduled));
+            affectedDates.add(getDatePart(originalTask.scheduled));
         }
         
         // Add new scheduled date if it exists
         if (updatedTask.scheduled) {
-            affectedDates.add(normalizeDateString(updatedTask.scheduled));
+            affectedDates.add(getDatePart(updatedTask.scheduled));
         }
         
         // If no dates are affected, nothing to update
@@ -1028,8 +1043,9 @@ export class MiniCalendarView extends ItemView {
         if (dates.length === 0) return;
         
         // Get current calendar data
-        const currentYear = this.plugin.selectedDate.getFullYear();
-        const currentMonth = this.plugin.selectedDate.getMonth();
+        // FIX: Use UTC methods since selectedDate is UTC-anchored
+        const currentYear = this.plugin.selectedDate.getUTCFullYear();
+        const currentMonth = this.plugin.selectedDate.getUTCMonth();
         const calendarData = await this.plugin.cacheManager.getCalendarData(currentYear, currentMonth);
         const tasksCache = calendarData.tasks;
         
@@ -1155,7 +1171,7 @@ export class MiniCalendarView extends ItemView {
             const cellDate = this.getCellDate(dayEl, date, currentYear, currentMonth);
             
             if (cellDate) {
-                const dateKey = formatUTCDateForCalendar(cellDate);
+                const dateKey = formatDateForStorage(cellDate);
                 this.elementToDateMap.set(element, { date, dateKey });
             }
         });
@@ -1166,7 +1182,8 @@ export class MiniCalendarView extends ItemView {
      */
     private clearMonthCalculationCache(): void {
         // Only keep cache for current month to prevent memory buildup
-        const currentCachePrefix = `${this.plugin.selectedDate.getFullYear()}-${this.plugin.selectedDate.getMonth()}`;
+        // FIX: Use UTC methods since selectedDate is UTC-anchored
+        const currentCachePrefix = `${this.plugin.selectedDate.getUTCFullYear()}-${this.plugin.selectedDate.getUTCMonth()}`;
         
         for (const [key] of this.monthCalculationCache) {
             if (!key.startsWith(currentCachePrefix)) {
@@ -1190,12 +1207,14 @@ export class MiniCalendarView extends ItemView {
     // Helper methods for date calculations
     getViewStartDate(): Date {
         // First day of the month
-        return createSafeDate(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth(), 1);
+        // FIX: Use UTC methods since selectedDate is UTC-anchored
+        return createSafeDate(this.plugin.selectedDate.getUTCFullYear(), this.plugin.selectedDate.getUTCMonth(), 1);
     }
     
     getViewEndDate(): Date {
         // Last day of the month
-        return createSafeDate(this.plugin.selectedDate.getFullYear(), this.plugin.selectedDate.getMonth() + 1, 0);
+        // FIX: Use UTC methods since selectedDate is UTC-anchored
+        return createSafeDate(this.plugin.selectedDate.getUTCFullYear(), this.plugin.selectedDate.getUTCMonth() + 1, 0);
     }
     
     // Helper method to show day preview on hover
@@ -1276,7 +1295,7 @@ source: 'tasknotes-calendar',
                 }
                 
                 // Format the date for task due date (all-day)
-                const dueDate = formatUTCDateForCalendar(dayDate);
+                const dueDate = formatDateForStorage(dayDate);
                 
                 // Update the task's due date
                 await this.plugin.taskService.updateProperty(task, 'due', dueDate);

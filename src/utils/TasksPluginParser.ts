@@ -1,4 +1,4 @@
-import { parseDate, isPastDate, isToday, formatUTCDateForCalendar } from './dateUtils';
+import { parseDateToUTC, isPastDate, isToday, formatDateForStorage } from './dateUtils';
 
 export interface ParsedTaskData {
 	title: string;
@@ -233,19 +233,20 @@ export class TasksPluginParser {
 				
 				// Validate date format and range
 				try {
-					const date = parseDate(dateString);
+					// Use parseDateToUTC for consistent parsing
+					const date = parseDateToUTC(dateString);
 					
 					// Check if date is valid and within reasonable range
 					if (isNaN(date.getTime())) {
 						return undefined;
 					}
 					
-					const year = date.getFullYear();
+					const year = date.getUTCFullYear();
 					if (year < 1900 || year > 2100) {
 						return undefined;
 					}
 					
-					return formatUTCDateForCalendar(date);
+					return formatDateForStorage(date);
 				} catch {
 					return undefined;
 				}

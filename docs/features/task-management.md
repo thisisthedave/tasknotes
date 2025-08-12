@@ -51,6 +51,7 @@ Each task in TaskNotes is a Markdown file with a YAML frontmatter block that sto
 - **Time Estimate**: The estimated time required to complete the task, in minutes.
 - **Recurrence**: The pattern for repeating tasks, using the RRule standard.
 - **Time Entries**: An array of recorded work sessions, with start and stop times.
+- **Reminders**: Custom reminders to notify you before or at specific times related to the task.
 
 You can also add your own custom fields to the YAML frontmatter, and use the **Field Mapping** feature to map them to TaskNotes' internal properties.
 
@@ -90,34 +91,405 @@ TaskNotes also supports **Templates** for both the YAML frontmatter and the body
 
 ## Recurring Tasks
 
-TaskNotes supports recurring tasks using the RFC 5545 RRule standard, which allows for complex recurrence patterns. Recurring tasks can repeat on schedules like daily, weekly, monthly, or custom patterns such as "every third Tuesday" or "last Friday of each month."
+TaskNotes provides sophisticated recurring task management using the RFC 5545 RRule standard with enhanced DTSTART support and dynamic scheduled dates. The system separates recurring pattern behavior from individual occurrence scheduling, giving you complete control over both aspects.
+
+### Core Concepts
+
+Recurring tasks in TaskNotes operate on two independent levels:
+
+1. **Recurring Pattern**: Defines when pattern instances appear (controlled by DTSTART in the recurrence rule)
+2. **Next Occurrence**: The specific date/time when you plan to work on the next instance (controlled by the scheduled field)
+
+This separation allows for flexible scheduling where you can reschedule individual occurrences without affecting the overall pattern.
 
 ### Setting Up Recurring Tasks
 
-Recurring tasks require two key components:
+#### Creating Recurrence Patterns
 
-1. **Scheduled Date**: This serves as the start date (anchor date) for the recurrence pattern. The scheduled date determines when the recurring series begins.
-2. **Recurrence Pattern**: An RRule string that defines how the task repeats.
+You can create recurring tasks through:
 
-If no scheduled date is provided, the task's creation date is used as the fallback start date.
+1. **Recurrence Context Menu**: Right-click the recurrence field in any task modal to access preset patterns or custom recurrence options
+2. **Preset Options**: Quick selections like "Daily," "Weekly on [current day]," "Monthly on the [current date]"
+3. **Custom Recurrence Modal**: Advanced editor with date picker, time picker, and full RRule configuration
 
-### Recurrence Patterns
+#### Required Components
 
-TaskNotes uses the RRule standard format for defining recurrence patterns. Common examples include:
+Recurring tasks require:
+- **Recurrence Rule**: An RRule string with DTSTART defining the pattern
+- **Scheduled Date**: The next occurrence date (can be independent from the pattern)
 
-- `FREQ=DAILY` - Repeats every day
-- `FREQ=WEEKLY;BYDAY=MO,WE,FR` - Repeats on Monday, Wednesday, and Friday
-- `FREQ=MONTHLY;BYMONTHDAY=15` - Repeats on the 15th of each month
-- `FREQ=MONTHLY;BYDAY=-1FR` - Repeats on the last Friday of each month
+#### DTSTART Integration
+
+All recurrence rules now include DTSTART (start date and optionally time):
+- **Date-only**: `DTSTART:20250804;FREQ=DAILY` (pattern instances appear all-day)
+- **Date and time**: `DTSTART:20250804T090000Z;FREQ=DAILY` (pattern instances appear at 9:00 AM)
+
+### Recurrence Pattern Examples
+
+TaskNotes supports the full RFC 5545 RRule standard with DTSTART:
+
+```
+DTSTART:20250804T090000Z;FREQ=DAILY
+→ Daily at 9:00 AM, starting August 4, 2025
+
+DTSTART:20250804T140000Z;FREQ=WEEKLY;BYDAY=MO,WE,FR
+→ Monday, Wednesday, Friday at 2:00 PM, starting August 4, 2025
+
+DTSTART:20250815;FREQ=MONTHLY;BYMONTHDAY=15
+→ 15th of each month (all-day), starting August 15, 2025
+
+DTSTART:20250801T100000Z;FREQ=MONTHLY;BYDAY=-1FR
+→ Last Friday of each month at 10:00 AM, starting August 1, 2025
+```
+
+### Visual Hierarchy in Calendar Views
+
+The Advanced Calendar View displays recurring tasks with distinct visual styling:
+
+#### Next Scheduled Occurrence
+- **Solid border** with full opacity
+- Shows at the date/time specified in the `scheduled` field
+- Can appear on any date, even outside the recurring pattern
+- Dragging updates only the `scheduled` field (manual reschedule)
+
+#### Pattern Instances  
+- **Dashed border** with reduced opacity (70%)
+- Shows preview of when future recurring instances will appear
+- Generated from the DTSTART date/time and recurrence rule
+- Dragging updates the DTSTART time (changes all future pattern instances)
+
+### Dynamic Scheduled Dates
+
+The `scheduled` field automatically updates to show the next uncompleted occurrence:
+
+1. **When creating**: Initially set to the DTSTART date
+2. **When completing**: Automatically advances to the next uncompleted occurrence
+3. **When rule changes**: Recalculates based on the new pattern
+4. **Manual reschedule**: Can be set to any date independently
+
+#### Example Behavior
+
+```yaml
+# Initial state
+
+recurrence: "DTSTART:20250804T090000Z;FREQ=DAILY"
+scheduled: "2025-08-04T09:00"
+complete_instances: []
+
+# After completing Aug 4th
+
+recurrence: "DTSTART:20250804T090000Z;FREQ=DAILY"  # unchanged
+scheduled: "2025-08-05T09:00"  # auto-updated to next day
+complete_instances: ["2025-08-04"]
+
+# After manually rescheduling next occurrence
+
+recurrence: "DTSTART:20250804T090000Z;FREQ=DAILY"  # unchanged
+scheduled: "2025-08-05T14:30"  # manually set to 2:30 PM
+complete_instances: ["2025-08-04"]
+
+# Calendar view shows:
+
+# - Aug 5 at 2:30 PM: Next occurrence (solid border)
+# - Aug 6+ at 9:00 AM: Pattern instances (dashed border)
+```
+
+### Drag and Drop Behavior
+
+#### Dragging Next Scheduled Occurrence (Solid Border)
+
+- **Updates**: Only the `scheduled` field
+- **Effect**: Reschedules just that specific occurrence  
+- **Pattern**: Remains unchanged
+- **Use case**: "I need to do today's workout at 2 PM instead of 9 AM"
+
+#### Dragging Pattern Instances (Dashed Border)  
+
+- **Updates**: DTSTART time in the recurrence rule
+- **Effect**: Changes when all future pattern instances appear
+- **Next occurrence**: Remains independently scheduled
+- **Use case**: "I want to change my daily workout from 9 AM to 2 PM going forward"
 
 ### Completion Tracking
 
-Each instance of a recurring task can be completed independently. When you complete a recurring task on a specific date, that completion is recorded in the `complete_instances` array as a YYYY-MM-DD date string. This allows you to track which instances have been completed while keeping the recurrence pattern intact.
+#### Individual Instance Completion
+Each occurrence can be completed independently through:
+- Task cards (completes for current date)
+- Calendar context menu (completes for specific date)
+- Task edit modal completion calendar
 
-### Date Calculation
+Completed instances are stored in the `complete_instances` array:
+```yaml
+complete_instances: ["2025-08-04", "2025-08-06", "2025-08-08"]
+```
 
-Recurring task instances are generated using UTC dates to prevent timezone-related display issues. The system calculates which dates should show the recurring task based on the scheduled date and recurrence pattern, ensuring consistent behavior across different time zones.
+#### Automatic Scheduled Date Updates
 
-### Legacy Format Support
+When completing occurrences:
+- The `scheduled` field automatically updates to the next uncompleted occurrence
+- Uses UTC anchor principle for consistent timezone handling
+- Skips already completed dates when calculating the next occurrence
 
-TaskNotes maintains backward compatibility with older recurrence formats. The system automatically converts legacy recurrence data to the modern RRule format when needed, ensuring your existing recurring tasks continue to work correctly.
+### Flexible Scheduling
+
+#### Next Occurrence Independence
+
+The next scheduled occurrence can be set to any date, including:
+- **Before DTSTART**: Schedule the next occurrence before the pattern officially begins
+- **Outside pattern**: Schedule Tuesday's occurrence for a weekly Monday pattern  
+- **Different time**: Next occurrence at 2 PM while pattern instances remain at 9 AM
+- **Far future**: Schedule weeks ahead while pattern continues normally
+
+#### Examples of Flexible Scheduling
+
+**Example 1: Early Start**
+```yaml
+recurrence: "DTSTART:20250810T090000Z;FREQ=WEEKLY;BYDAY=MO"  # Mondays at 9 AM
+scheduled: "2025-08-07T14:00"  # Next occurrence on preceding Thursday
+```
+Shows next occurrence Thursday 2 PM, pattern instances on Mondays 9 AM.
+
+**Example 2: Off-Pattern Day**
+```yaml
+recurrence: "DTSTART:20250804T090000Z;FREQ=WEEKLY;BYDAY=MO"  # Mondays at 9 AM  
+scheduled: "2025-08-06T15:30"  # Next occurrence on Wednesday
+```
+Shows next occurrence Wednesday 3:30 PM, pattern instances on Mondays 9 AM.
+
+### Completion Calendar
+
+The task edit modal includes a completion calendar for recurring tasks:
+- Click any date to toggle completion status for that specific occurrence
+- Changing completions automatically updates the scheduled date to the next uncompleted occurrence
+- Visual indicators show which dates are part of the recurring pattern vs completed
+
+### Timezone Handling
+
+All recurring task logic uses the UTC Anchor principle:
+- Pattern generation uses UTC dates for consistency
+- DTSTART dates are interpreted as UTC anchors
+- Display adapts to user's local timezone
+- Prevents off-by-one date errors across timezone boundaries
+
+### Backward Compatibility
+
+TaskNotes maintains full backward compatibility:
+- **Legacy RRule strings** without DTSTART continue to work using scheduled date as anchor
+- **Legacy recurrence objects** are automatically converted to RRule format
+- **Existing tasks** gain new functionality without requiring migration
+- **Mixed formats** are handled transparently
+
+### Advanced Configuration
+
+#### Custom Recurrence Modal
+
+Access advanced options through the custom recurrence modal:
+- **Start date picker**: Set the DTSTART date
+- **Start time picker**: Set the DTSTART time (optional)
+- **Frequency options**: Daily, weekly, monthly, yearly
+- **Advanced patterns**: Complex RRule configurations
+- **End conditions**: Until date, count limits, or never-ending
+
+#### Time Independence
+
+Pattern time (DTSTART) and next occurrence time (scheduled) are completely independent:
+- Pattern instances can appear at 9 AM while next occurrence is at 2 PM
+- Dragging pattern instances changes the pattern time for all future instances
+- Dragging next occurrence only affects that specific instance
+- Users have complete control over both timing aspects
+
+## Task Reminders
+
+TaskNotes provides a reminder system that allows you to set notifications for your tasks. The reminder system uses the iCalendar VALARM specification and supports both relative reminders (based on due or scheduled dates) and absolute reminders (specific date and time).
+
+### Reminder Types
+
+#### Relative Reminders
+
+Relative reminders are triggered relative to a task's due date or scheduled date. These are useful for consistent notification patterns across different tasks.
+
+**Examples:**
+- 15 minutes before due date
+- 1 hour before scheduled date
+- 2 days before due date
+- 30 minutes after scheduled date
+
+#### Absolute Reminders
+
+Absolute reminders are triggered at a specific date and time, regardless of the task's due or scheduled dates. These are useful for time-sensitive notifications or follow-up actions.
+
+**Examples:**
+
+- October 26, 2025 at 9:00 AM
+- Tomorrow at 2:30 PM
+- Next Monday at 10:00 AM
+
+### Setting Up Reminders
+
+#### Adding Reminders to Tasks
+
+You can add reminders to tasks through several methods:
+
+1. **Task Creation Modal**: When creating a new task, use the reminder field to access the reminder interface
+2. **Task Edit Modal**: Edit existing tasks and manage their reminders
+3. **Task Cards**: Click the bell icon on any task card to access quick reminder options
+4. **Context Menu**: Right-click the reminder field for quick access to common options
+
+#### Quick Reminder Options
+
+The reminder context menu provides quick access to common reminder patterns:
+
+**Before Due Date:**
+- 5 minutes before
+- 15 minutes before  
+- 1 hour before
+- 1 day before
+
+**Before Scheduled Date:**
+- 5 minutes before
+- 15 minutes before
+- 1 hour before  
+- 1 day before
+
+These quick options are only available when the task has the corresponding due or scheduled date set.
+
+#### Reminder Modal
+
+For advanced reminder management, use the Reminder Modal which provides:
+
+- **Form-based reminder creation** with validation and real-time preview
+- **Multiple reminder management** for complex notification needs
+- **Custom descriptions** for personalized reminder messages
+- **Visual indicators** showing task context (due date, scheduled date)
+- **Editing and deletion** of existing reminders
+
+### Reminder Data Format
+
+Reminders are stored in the task's YAML frontmatter as an array using the following format:
+
+#### Relative Reminder Structure
+
+```yaml
+reminders:
+  - id: "rem_1678886400000_abc123xyz"
+    type: "relative"
+    relatedTo: "due"
+    offset: "-PT15M"
+    description: "Review task details"
+```
+
+#### Absolute Reminder Structure
+
+```yaml
+reminders:
+  - id: "rem_1678886400001_def456uvw"
+    type: "absolute" 
+    absoluteTime: "2025-10-26T09:00:00"
+    description: "Follow up with client"
+```
+
+#### Field Descriptions
+
+- **id**: Unique identifier for UI management and updates
+- **type**: Either "relative" or "absolute"
+- **relatedTo** (relative only): Anchor date - either "due" or "scheduled"
+- **offset** (relative only): ISO 8601 duration format (negative for before, positive for after)
+- **absoluteTime** (absolute only): Full ISO 8601 timestamp
+- **description** (optional): Custom notification message
+
+### Visual Indicators
+
+#### Task Card Bell Icons
+
+Tasks with reminders display a bell icon on their task cards:
+- **Solid bell**: Task has active reminders
+- **Clickable**: Opens the reminder context menu for quick management
+- **Positioned**: Properly spaced with other task indicators (priority, status, etc.)
+
+#### Reminder Context Information
+
+When managing reminders, the interface displays relevant task context:
+- Current due date (if set)
+- Current scheduled date (if set)
+- Existing reminders count
+- Task title for reference
+
+### Default Reminders
+
+TaskNotes supports configuring default reminders that automatically apply to new tasks. This feature eliminates the need to manually add common reminders to every task.
+
+#### Configuring Default Reminders
+
+Default reminders are configured in the TaskNotes settings under "Task Creation Defaults":
+
+1. Navigate to Settings → TaskNotes → Task Defaults
+2. Scroll to the "Default Reminders" section
+3. Use the form to add new default reminders
+4. Specify reminder type, timing, and optional descriptions
+
+#### Default Reminder Application
+
+Default reminders automatically apply to:
+
+- **Manual task creation** through the task creation modal
+- **Instant conversion** of existing content to tasks
+- **Natural language task creation** using the parser
+
+#### Default Reminder Examples
+
+Common default reminder configurations:
+
+- 15 minutes before due date (for all tasks with due dates)
+- 1 hour before scheduled date (for time-sensitive tasks) 
+- 1 day before due date (for project deadlines)
+- Custom absolute reminders for recurring processes
+
+### Integration with Task Workflows
+
+#### Task Creation Integration
+
+Reminders integrate with all task creation workflows:
+
+- Default reminders apply automatically during creation
+- Additional reminders can be added during the creation process
+
+#### Task Editing Integration
+
+The task editing process provides full reminder management:
+
+- View all existing reminders
+- Add, edit, or remove individual reminders
+- Quick access through context menus
+- Real-time validation and preview
+
+#### Calendar View Integration
+
+Reminders work alongside calendar features:
+
+- Visual reminder indicators on task cards in calendar views
+- Quick reminder management through calendar context menus
+- Compatibility with drag-and-drop scheduling
+
+### Field Mapping Support
+
+The reminder system integrates with TaskNotes' field mapping functionality:
+
+- **Custom Property Names**: Map reminders to custom frontmatter property names
+- **Vault Compatibility**: Adapt to existing vault structures and naming conventions
+- **Migration Support**: Maintain compatibility when changing field mappings
+
+### Technical Implementation
+
+#### iCalendar VALARM Compliance
+
+TaskNotes reminder implementation follows the iCalendar VALARM specification:
+- Standard duration formats (ISO 8601)
+- Proper trigger mechanisms for relative and absolute reminders
+- Compatible data structures for interoperability
+
+#### Performance Considerations
+
+The reminder system is designed for efficiency:
+- Lazy loading of reminder data
+- Minimal impact on task loading performance
+- Efficient storage in YAML frontmatter format

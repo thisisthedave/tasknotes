@@ -449,6 +449,11 @@ export class TaskCreationModal extends TaskModal {
             this.showRecurrenceContextMenu(event);
         }, 'recurrence');
 
+        // Reminder icon
+        this.createActionIcon(this.actionBar, 'bell', 'Set reminders', (icon, event) => {
+            this.showReminderContextMenu(event);
+        }, 'reminders');
+
         // Update icon states based on current values
         this.updateIconStates();
     }
@@ -546,6 +551,13 @@ export class TaskCreationModal extends TaskModal {
             this.timeEstimate = defaults.defaultTimeEstimate;
         }
         
+        // Apply default reminders
+        if (defaults.defaultReminders && defaults.defaultReminders.length > 0) {
+            // Import the conversion function
+            const { convertDefaultRemindersToReminders } = await import('../settings/settings');
+            this.reminders = convertDefaultRemindersToReminders(defaults.defaultReminders);
+	}
+	
         // Apply story points estimate
         if (defaults.defaultPoints && defaults.defaultPoints > 0) {
             this.points = defaults.defaultPoints;
@@ -656,6 +668,7 @@ export class TaskCreationModal extends TaskModal {
             timeEstimate: this.timeEstimate > 0 ? this.timeEstimate : undefined,
             points: this.points > 0 ? this.points : undefined,
             recurrence: this.recurrenceRule || undefined,
+            reminders: this.reminders.length > 0 ? this.reminders : undefined,
             creationContext: 'manual-creation', // Mark as manual creation for folder logic
             dateCreated: now,
             dateModified: now

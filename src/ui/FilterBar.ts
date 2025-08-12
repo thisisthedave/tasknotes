@@ -600,7 +600,12 @@ export class FilterBar extends EventEmitter {
                     .setClass('filter-bar__view-item')
                     .setTooltip(`Load saved view: ${view.name}`)
                     .onClick(() => {
-                        this.loadSavedView(view);
+                        // If this view is already active, clear all filters instead of reloading
+                        if (this.activeSavedView && this.activeSavedView.id === view.id) {
+                            this.clearAllFilters();
+                        } else {
+                            this.loadSavedView(view);
+                        }
                     });
 
                 // Add active state styling if this is the current active view
@@ -977,7 +982,8 @@ export class FilterBar extends EventEmitter {
                 // Only emit query change if input is valid or empty
                 const trimmedValue = (value || '').trim();
                 if (trimmedValue === '' || isValidDateInput(trimmedValue)) {
-                    this.emitQueryChange();
+                    // FIX: Use the debounced version for performance
+                    this.debouncedEmitQueryChange();
                 }
             });
         
@@ -1172,6 +1178,7 @@ export class FilterBar extends EventEmitter {
     private removeFilterGroup(parentGroup: FilterGroup, index: number): void {
         parentGroup.children.splice(index, 1);
         this.ignoreNextClickOutside();
+        // FIX: Re-render the UI completely before emitting the change.
         this.updateFilterBuilderComplete();
         this.emitQueryChange();
     }
@@ -1294,6 +1301,7 @@ export class FilterBar extends EventEmitter {
     private removeFilterCondition(group: FilterGroup, index: number): void {
         group.children.splice(index, 1);
         this.ignoreNextClickOutside();
+        // FIX: Re-render the UI completely before emitting the change.
         this.updateFilterBuilderComplete();
         this.emitQueryChange();
     }
@@ -1389,6 +1397,38 @@ export class FilterBar extends EventEmitter {
         return options;
     }
 
+
+    /**
+     * Clear all filters and reset to default state
+     */
+    private clearAllFilters(): void {
+        // Create a fresh default query with preserved sort/group settings
+        this.currentQuery = {
+            type: 'group',
+            id: FilterUtils.generateId(),
+            conjunction: 'and',
+            children: [],
+            sortKey: this.currentQuery.sortKey || 'due',
+            sortDirection: this.currentQuery.sortDirection || 'asc',
+            groupKey: this.currentQuery.groupKey || 'none'
+        };
+        
+        // Clear the active saved view
+        this.activeSavedView = null;
+        
+        // Clear the search input
+        if (this.searchInput) {
+            this.searchInput.setValue('');
+        }
+        
+        // Update UI and emit change
+        this.render();
+        this.updateViewSelectorButtonState();
+        this.emitQueryChange();
+        
+        // Close the dropdown
+        this.toggleViewSelectorDropdown();
+    }
 
     /**
      * Load a saved view

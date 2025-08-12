@@ -2,11 +2,11 @@
  * Test for Context Menu Completion Date Fix
  * 
  * This test verifies that the fix for the context menu completion date bug works correctly.
- * The fix ensures that all date formatting uses formatUTCDateForCalendar() consistently
+ * The fix ensures that all date formatting uses formatDateForStorage() consistently
  * to avoid timezone-related off-by-one errors.
  */
 
-import { formatUTCDateForCalendar } from '../../../src/utils/dateUtils';
+import { formatDateForStorage } from '../../../src/utils/dateUtils';
 import { format } from 'date-fns';
 
 // Mock date-fns to simulate timezone differences (same as original test)
@@ -37,12 +37,13 @@ describe('Context Menu Completion Date Fix', () => {
     const targetDate = new Date('2025-01-15T23:00:00Z');
     
     // All components now use consistent UTC formatting
-    const contextMenuCheck = formatUTCDateForCalendar(targetDate); // Always used this
-    const taskServiceStores = formatUTCDateForCalendar(targetDate); // Always used this
-    const mainTsCheck = formatUTCDateForCalendar(targetDate); // Now uses this (fixed)
+    const contextMenuCheck = formatDateForStorage(targetDate); // Always used this
+    const taskServiceStores = formatDateForStorage(targetDate); // Always used this
+    const mainTsCheck = formatDateForStorage(targetDate); // Now uses this (fixed)
     const localTimezoneFormat = format(targetDate, 'yyyy-MM-dd'); // Local timezone (varies by environment)
     
-    // Verify the fix works - all UTC-based components are consistent
+    // Verify the fix works - all components now use UTC dates
+    // With UTC-based formatting, 2025-01-15T23:00:00Z formats as '2025-01-15'
     expect(contextMenuCheck).toBe('2025-01-15');
     expect(taskServiceStores).toBe('2025-01-15');
     expect(mainTsCheck).toBe('2025-01-15');
@@ -67,14 +68,16 @@ describe('Context Menu Completion Date Fix', () => {
     ];
 
     testCases.forEach(date => {
-      const contextMenuDate = formatUTCDateForCalendar(date);
-      const taskServiceDate = formatUTCDateForCalendar(date);
-      const mainTsDate = formatUTCDateForCalendar(date); // After fix
+      const contextMenuDate = formatDateForStorage(date);
+      const taskServiceDate = formatDateForStorage(date);
+      const mainTsDate = formatDateForStorage(date); // After fix
       
       // All should be the same regardless of timezone
       expect(contextMenuDate).toBe(taskServiceDate);
       expect(taskServiceDate).toBe(mainTsDate);
-      expect(contextMenuDate).toBe('2025-01-15'); // Always UTC date
+      // With UTC-based formatting, all dates format using UTC components
+      // All dates on 2025-01-15 format as '2025-01-15' regardless of time
+      expect(contextMenuDate).toBe('2025-01-15');
     });
   });
 
@@ -85,18 +88,19 @@ describe('Context Menu Completion Date Fix', () => {
     
     // 1. Context menu checks completion status
     const isCompleted = false; // Assume not completed initially
-    const expectedDateStr = formatUTCDateForCalendar(targetDate);
+    const expectedDateStr = formatDateForStorage(targetDate);
     
     // 2. User clicks "mark completed for this date"
-    // TaskService would store completion using formatUTCDateForCalendar
-    const storedCompletionDate = formatUTCDateForCalendar(targetDate);
+    // TaskService would store completion using formatDateForStorage
+    const storedCompletionDate = formatDateForStorage(targetDate);
     
     // 3. Main.ts checks completion status (now using fixed date formatting)
-    const mainTsCheckDate = formatUTCDateForCalendar(targetDate);
+    const mainTsCheckDate = formatDateForStorage(targetDate);
     
     // 4. All three should now be consistent
     expect(expectedDateStr).toBe(storedCompletionDate);
     expect(storedCompletionDate).toBe(mainTsCheckDate);
+    // With UTC-based formatting, 2025-01-15T23:00:00Z formats as '2025-01-15'
     expect(expectedDateStr).toBe('2025-01-15');
     
     // 5. The bug is fixed: no more off-by-one errors

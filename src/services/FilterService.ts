@@ -6,7 +6,7 @@ import { PriorityManager } from './PriorityManager';
 import { EventEmitter } from '../utils/EventEmitter';
 import { FilterUtils, FilterValidationError, FilterEvaluationError, TaskPropertyValue } from '../utils/FilterUtils';
 import { isDueByRRule, filterEmptyProjects, getEffectiveTaskStatus } from '../utils/helpers';
-import { format, isToday } from 'date-fns';
+import { format } from 'date-fns';
 import { 
     getTodayString, 
     isBeforeDateSafe, 
@@ -15,7 +15,10 @@ import {
     isToday as isTodayUtil,
     isBeforeDateTimeAware,
     isOverdueTimeAware,
-    getDatePart
+    getDatePart,
+    formatDateForStorage,
+    parseDateToUTC,
+    isTodayUTC
 } from '../utils/dateUtils';
 
 /**
@@ -478,19 +481,127 @@ export class FilterService extends EventEmitter {
             taskValue = this.statusManager.isCompletedStatus(effectiveStatus);
         }
         
+        // Handle special case for projects - resolve wikilinks before comparison
+        if (property === 'projects' && (operator === 'contains' || operator === 'does-not-contain')) {
+            const result = this.evaluateProjectsCondition(taskValue, operator as FilterOperator, value);
+            return result;
+        }
+        
         // Apply the operator
         return FilterUtils.applyOperator(taskValue, operator as FilterOperator, value, condition.id, property as FilterProperty);
     }
 
+    /**
+     * Evaluate projects condition with wikilink resolution
+     * Resolves wikilink paths to handle cases where task projects use relative paths
+     * but filter condition uses simple names, or vice versa
+     */
+    private evaluateProjectsCondition(taskValue: TaskPropertyValue, operator: FilterOperator, conditionValue: TaskPropertyValue): boolean {
+        if (!Array.isArray(taskValue)) {
+            return false;
+        }
+        
+        if (typeof conditionValue !== 'string') {
+            return false;
+        }
+        
+        // Extract the condition project name (handle both [[Name]] and Name formats)
+        const conditionProjectName = this.extractProjectName(conditionValue);
+        if (!conditionProjectName) {
+            return false;
+        }
+        
+        // Check if any task project matches the condition project
+        const hasMatch = taskValue.some(taskProject => {
+            const taskProjectName = this.extractProjectName(taskProject as string);
+            if (!taskProjectName) {
+                return false;
+            }
+            
+            // Direct name comparison
+            if (taskProjectName === conditionProjectName) {
+                return true;
+            }
+            
+            // Resolve wikilinks and compare resolved paths
+            return this.compareProjectWikilinks(taskProject as string, conditionValue);
+        });
+        
+        return operator === 'contains' ? hasMatch : !hasMatch;
+    }
 
+    /**
+     * Extract clean project name from various formats ([[Name]], Name, [[path/Name]], etc.)
+     */
+    private extractProjectName(projectValue: string): string | null {
+        if (!projectValue || typeof projectValue !== 'string') {
+            return null;
+        }
+        
+        // Handle [[Name]] format
+        if (projectValue.startsWith('[[') && projectValue.endsWith(']]')) {
+            const linkContent = projectValue.slice(2, -2);
+            // Extract just the name part if it's a path
+            const parts = linkContent.split('/');
+            return parts[parts.length - 1] || null;
+        }
+        
+        // Handle plain name
+        return projectValue.trim() || null;
+    }
+
+    /**
+     * Compare two project wikilinks by resolving them to actual files
+     * Returns true if both links resolve to the same file
+     */
+    private compareProjectWikilinks(taskProject: string, conditionProject: string): boolean {
+        if (!this.plugin?.app) {
+            return false;
+        }
+        
+        // Extract link paths
+        const taskLinkPath = this.extractWikilinkPath(taskProject);
+        const conditionLinkPath = this.extractWikilinkPath(conditionProject);
+        
+        if (!taskLinkPath || !conditionLinkPath) {
+            return false;
+        }
+        
+        // Resolve both links to actual files
+        const taskFile = this.plugin.app.metadataCache.getFirstLinkpathDest(taskLinkPath, '');
+        const conditionFile = this.plugin.app.metadataCache.getFirstLinkpathDest(conditionLinkPath, '');
+        
+        // Compare resolved file paths
+        if (taskFile && conditionFile) {
+            return taskFile.path === conditionFile.path;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Extract the link path from a wikilink (handles [[path]] format)
+     */
+    private extractWikilinkPath(linkValue: string): string | null {
+        if (!linkValue || typeof linkValue !== 'string') {
+            return null;
+        }
+        
+        if (linkValue.startsWith('[[') && linkValue.endsWith(']]')) {
+            return linkValue.slice(2, -2);
+        }
+        
+        return linkValue;
+    }
 
     /**
      * Get task paths within a date range
      */
     private async getTaskPathsInDateRange(startDate: string, endDate: string): Promise<Set<string>> {
         const pathsInRange = new Set<string>();
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        // Use UTC anchors for consistent date range operations
+        const start = parseDateToUTC(startDate);
+        const end = parseDateToUTC(endDate);
 
         // Get tasks with due dates in the range (existing logic)
         for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
@@ -574,10 +685,9 @@ export class FilterService extends EventEmitter {
      */
     private isSameDayAs(dateObj: Date, dateString: string): boolean {
         try {
-            const dateObjNormalized = new Date(dateObj);
-            dateObjNormalized.setHours(0, 0, 0, 0);
-            const targetDate = startOfDayForDateString(dateString);
-            return dateObjNormalized.getTime() === targetDate.getTime();
+            // Use safe date comparison with UTC anchors
+            const dateObjString = format(dateObj, 'yyyy-MM-dd');
+            return isSameDateSafe(dateObjString, dateString);
         } catch (error) {
             console.error('Error comparing date object with date string:', { dateObj, dateString, error });
             return false;
@@ -1106,7 +1216,6 @@ export class FilterService extends EventEmitter {
         // 1. If cache is very fresh (< 30 seconds), keep it (most changes don't affect options)
         // 2. If cache is older, invalidate it to ensure new options are picked up
         // This gives us good performance for rapid file changes while ensuring freshness
-        
         const minCacheAge = 30000; // 30 seconds
         
         if (cacheAge > minCacheAge) {
@@ -1121,6 +1230,14 @@ export class FilterService extends EventEmitter {
         if (this.filterOptionsCache) {
             this.filterOptionsCache = null;
         }
+    }
+    
+    /**
+     * Force refresh of filter options cache
+     * This can be called by UI components when they detect stale data
+     */
+    refreshFilterOptions(): void {
+        this.invalidateFilterOptionsCache();
     }
     
     /**
@@ -1349,8 +1466,8 @@ export class FilterService extends EventEmitter {
         baseQuery: FilterQuery,
         includeOverdue = false
     ): Promise<TaskInfo[]> {
-        // Normalize to the date string first to avoid timezone boundary issues
-        const dateStr = format(date, 'yyyy-MM-dd');
+        // FIXED: Use UTC-aware date formatting to prevent timezone bugs
+        const dateStr = formatDateForStorage(date);
         const normalizedDate = startOfDayForDateString(dateStr);
         const isViewingToday = isTodayUtil(dateStr);
         
@@ -1433,7 +1550,7 @@ export class FilterService extends EventEmitter {
             const tasksForDate = await this.getTasksForDate(
                 date, 
                 baseQuery, 
-                showOverdueOnToday && isToday(date)
+                showOverdueOnToday && isTodayUTC(date)
             );
             
             agendaData.push({

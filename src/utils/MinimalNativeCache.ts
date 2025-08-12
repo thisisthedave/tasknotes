@@ -5,9 +5,11 @@ import {
     getTodayString, 
     isBeforeDateSafe, 
     getDatePart,
-    parseDate
+    parseDateToUTC,
+    formatDateForStorage
 } from './dateUtils';
 import { filterEmptyProjects } from './helpers';
+import { TaskNotesSettings } from '../settings/settings';
 
 /**
  * Ultra-minimal cache manager that leverages Obsidian's native metadata cache
@@ -21,6 +23,7 @@ import { filterEmptyProjects } from './helpers';
  */
 export class MinimalNativeCache extends Events {
     private app: App;
+    private settings: TaskNotesSettings;
     private taskTag: string;
     private excludedFolders: string[];
     private fieldMapper?: FieldMapper;
@@ -39,23 +42,31 @@ export class MinimalNativeCache extends Events {
     // Event listeners for cleanup
     private eventListeners: EventRef[] = [];
     
+    // Debouncing for file changes to prevent excessive updates during typing
+    private debouncedHandlers: Map<string, NodeJS.Timeout> = new Map();
+    private readonly DEBOUNCE_DELAY = 300; // 300ms delay after user stops typing
+    
+    // Cache of last known task info for comparison to detect actual changes
+    private lastKnownTaskInfo: Map<string, TaskInfo | null> = new Map();
+    
+    // Cache of last known frontmatter to detect frontmatter-specific changes
+    private lastKnownFrontmatter: Map<string, any> = new Map();
+    
     constructor(
         app: App,
-        taskTag: string,
-        excludedFolders = '',
-        fieldMapper?: FieldMapper,
-        disableNoteIndexing = false,
-        storeTitleInFilename = false
+        settings: TaskNotesSettings,
+        fieldMapper?: FieldMapper
     ) {
         super();
         this.app = app;
-        this.taskTag = taskTag;
-        this.excludedFolders = excludedFolders 
-            ? excludedFolders.split(',').map(folder => folder.trim())
+        this.settings = settings;
+        this.taskTag = settings.taskTag;
+        this.excludedFolders = settings.excludedFolders
+            ? settings.excludedFolders.split(',').map(folder => folder.trim())
             : [];
         this.fieldMapper = fieldMapper;
-        this.disableNoteIndexing = disableNoteIndexing;
-        this.storeTitleInFilename = storeTitleInFilename;
+        this.disableNoteIndexing = settings.disableNoteIndexing;
+        this.storeTitleInFilename = settings.storeTitleInFilename;
     }
     
     /**
@@ -79,6 +90,31 @@ export class MinimalNativeCache extends Events {
     getApp(): App {
         return this.app;
     }
+
+    /**
+     * Check if a file is a task based on current settings
+     */
+    private isTaskFile(frontmatter: any): boolean {
+        if (!frontmatter) return false;
+
+        if (this.settings.taskIdentificationMethod === 'property') {
+            const propName = this.settings.taskPropertyName;
+            const propValue = this.settings.taskPropertyValue;
+            if (!propName || !propValue) return false; // Not configured
+
+            const frontmatterValue = frontmatter[propName];
+            if (frontmatterValue === undefined) return false;
+
+            // Handle both single and multi-value properties
+            if (Array.isArray(frontmatterValue)) {
+                return frontmatterValue.includes(propValue);
+            }
+            return frontmatterValue === propValue;
+        } else {
+            // Fallback to legacy tag-based method
+            return Array.isArray(frontmatter.tags) && frontmatter.tags.includes(this.taskTag);
+        }
+    }
     
     /**
      * Set up native event listeners for real-time updates
@@ -88,7 +124,7 @@ export class MinimalNativeCache extends Events {
         this.eventListeners.push(
             this.app.metadataCache.on('changed', (file, data, cache) => {
                 if (file instanceof TFile && file.extension === 'md' && this.isValidFile(file.path)) {
-                    this.handleFileChanged(file, cache);
+                    this.handleFileChangedDebounced(file, cache);
                 }
             })
         );
@@ -136,7 +172,7 @@ export class MinimalNativeCache extends Events {
                 for (const file of batch) {
                     try {
                         const metadata = this.app.metadataCache.getFileCache(file);
-                        if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+                        if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                             await this.indexTaskFile(file, metadata.frontmatter);
                         }
                     } catch (error) {
@@ -206,7 +242,7 @@ export class MinimalNativeCache extends Events {
         const tasks: TaskInfo[] = [];
         for (const file of markdownFiles) {
             const metadata = this.app.metadataCache.getFileCache(file);
-            if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+            if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                 const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
                 if (taskInfo) tasks.push(taskInfo);
             }
@@ -271,7 +307,7 @@ export class MinimalNativeCache extends Events {
             if (!metadata?.frontmatter) continue;
             
             const frontmatter = metadata.frontmatter;
-            const isTask = frontmatter.tags?.includes(this.taskTag);
+            const isTask = this.isTaskFile(frontmatter);
             
             if (!isTask && !this.disableNoteIndexing) {
                 // This is a note - extract date information
@@ -351,7 +387,7 @@ export class MinimalNativeCache extends Events {
         
         for (const file of markdownFiles) {
             const metadata = this.app.metadataCache.getFileCache(file);
-            if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+            if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                 taskPaths.add(file.path);
             }
         }
@@ -374,7 +410,7 @@ export class MinimalNativeCache extends Events {
             
             for (const file of markdownFiles) {
                 const metadata = this.app.metadataCache.getFileCache(file);
-                if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+                if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                     const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
                     if (taskInfo?.status) {
                         statuses.add(taskInfo.status);
@@ -398,7 +434,7 @@ export class MinimalNativeCache extends Events {
         
         for (const file of markdownFiles) {
             const metadata = this.app.metadataCache.getFileCache(file);
-            if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+            if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                 const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
                 if (taskInfo?.priority) {
                     priorities.add(taskInfo.priority);
@@ -419,7 +455,7 @@ export class MinimalNativeCache extends Events {
         
         for (const file of markdownFiles) {
             const metadata = this.app.metadataCache.getFileCache(file);
-            if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+            if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                 const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
                 if (taskInfo?.tags && Array.isArray(taskInfo.tags)) {
                     taskInfo.tags.forEach(tag => tags.add(tag));
@@ -440,7 +476,7 @@ export class MinimalNativeCache extends Events {
         
         for (const file of markdownFiles) {
             const metadata = this.app.metadataCache.getFileCache(file);
-            if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+            if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                 const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
                 if (taskInfo?.contexts && Array.isArray(taskInfo.contexts)) {
                     taskInfo.contexts.forEach(context => contexts.add(context));
@@ -463,14 +499,22 @@ export class MinimalNativeCache extends Events {
         
         for (const file of markdownFiles) {
             const metadata = this.app.metadataCache.getFileCache(file);
-            if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+            if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                 const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
-                const filteredProjects = filterEmptyProjects(taskInfo?.projects || []);
-                if (filteredProjects.length > 0) {
-                    filteredProjects.forEach(project => {
-                        const extractedProjects = this.extractProjectNamesFromValue(project, file.path);
-                        extractedProjects.forEach(projectName => projects.add(projectName));
-                    });
+                if (taskInfo && taskInfo.projects) {
+                    const filteredProjects = filterEmptyProjects(taskInfo.projects);
+                    if (filteredProjects.length > 0) {
+                        filteredProjects.forEach(project => {
+                            const extractedProjects = this.extractProjectNamesFromValue(project, file.path);
+                            extractedProjects.forEach(projectName => {
+                                // Trim and validate project names to avoid empty entries
+                                const cleanName = projectName.trim();
+                                if (cleanName.length > 0) {
+                                    projects.add(cleanName);
+                                }
+                            });
+                        });
+                    }
                 }
             }
         }
@@ -502,7 +546,7 @@ export class MinimalNativeCache extends Events {
         
         for (const file of markdownFiles) {
             const metadata = this.app.metadataCache.getFileCache(file);
-            if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+            if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                 const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
                 const filteredProjects = filterEmptyProjects(taskInfo?.projects || []);
                 if (filteredProjects.length > 0) {
@@ -679,7 +723,7 @@ export class MinimalNativeCache extends Events {
         if (!metadata?.frontmatter) return null;
         
         // Check if the note has the task tag
-        if (!metadata.frontmatter.tags?.includes(this.taskTag)) return null;
+        if (!this.isTaskFile(metadata.frontmatter)) return null;
         
         return this.extractTaskInfoFromNative(path, metadata.frontmatter);
     }
@@ -713,7 +757,7 @@ export class MinimalNativeCache extends Events {
             if (!metadata?.frontmatter) continue;
             
             const frontmatter = metadata.frontmatter;
-            const isTask = frontmatter.tags?.includes(this.taskTag);
+            const isTask = this.isTaskFile(frontmatter);
             
             // Skip task files - we only want notes
             if (isTask) continue;
@@ -737,8 +781,8 @@ export class MinimalNativeCache extends Events {
                         // Continue to filename parsing
                     } else {
                         try {
-                            const parsed = parseDate(dateValue);
-                            noteDate = getDatePart(parsed.toISOString());
+                            const parsed = parseDateToUTC(dateValue);
+                            noteDate = formatDateForStorage(parsed);
                         } catch (e) {
                             // Ignore invalid dates or parsing errors
                             console.debug('Failed to parse date from note frontmatter:', { 
@@ -757,8 +801,8 @@ export class MinimalNativeCache extends Events {
                 const dateMatch = fileName.match(/(\d{4}-\d{2}-\d{2})/);
                 if (dateMatch) {
                     try {
-                        const parsed = parseDate(dateMatch[1]);
-                        noteDate = getDatePart(parsed.toISOString());
+                        const parsed = parseDateToUTC(dateMatch[1]);
+                        noteDate = formatDateForStorage(parsed);
                     } catch (e) {
                         // Ignore invalid dates or parsing errors
                     }
@@ -819,7 +863,7 @@ export class MinimalNativeCache extends Events {
         
         for (const file of markdownFiles) {
             const metadata = this.app.metadataCache.getFileCache(file);
-            if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+            if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                 const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
                 if (taskInfo?.priority === priority) {
                     taskPaths.push(file.path);
@@ -895,14 +939,68 @@ export class MinimalNativeCache extends Events {
     // EVENT HANDLERS
     // ========================================
     
-    private handleFileChanged(file: TFile, cache: any): void {
+    /**
+     * Debounced version of handleFileChanged to prevent excessive updates during typing
+     */
+    private handleFileChangedDebounced(file: TFile, cache: any): void {
+        // Early exit: Only process files that are potentially task files
+        const metadata = this.app.metadataCache.getFileCache(file);
+        if (!metadata?.frontmatter || !this.isTaskFile(metadata.frontmatter)) {
+            return;
+        }
+        
+        // Check if frontmatter actually changed by comparing raw frontmatter objects
+        const currentFrontmatter = metadata.frontmatter;
+        const lastKnownFrontmatter = this.lastKnownFrontmatter.get(file.path);
+        
+        if (this.frontmatterEquals(currentFrontmatter, lastKnownFrontmatter)) {
+            // Frontmatter hasn't changed - this was likely just a content change or mtime update
+            return;
+        }
+        
+        // Store the current frontmatter for future comparisons
+        this.lastKnownFrontmatter.set(file.path, this.deepClone(currentFrontmatter));
+        
+        // Extract task info for view update comparison
+        const currentTaskInfo = this.extractTaskInfoFromNative(file.path, currentFrontmatter);
+        const lastKnownTaskInfo = this.getLastKnownTaskInfo(file.path);
+        
+        // Even if frontmatter changed, check if it affects task rendering
+        if (this.taskInfoEquals(currentTaskInfo, lastKnownTaskInfo)) {
+            // Update our cached task info but don't trigger view updates
+            this.setLastKnownTaskInfo(file.path, currentTaskInfo);
+            return;
+        }
+        
+        // Store the current task info for future comparisons
+        this.setLastKnownTaskInfo(file.path, currentTaskInfo);
+        
+        // Clear any existing timeout for this file
+        const existingTimeout = this.debouncedHandlers.get(file.path);
+        if (existingTimeout) {
+            clearTimeout(existingTimeout);
+        }
+        
+        // Set up new debounced handler
+        const timeout = setTimeout(() => {
+            this.handleFileChanged(file, cache);
+            this.debouncedHandlers.delete(file.path);
+        }, this.DEBOUNCE_DELAY);
+        
+        this.debouncedHandlers.set(file.path, timeout);
+    }
+    
+    private async handleFileChanged(file: TFile, cache: any): Promise<void> {
         if (!this.initialized) return;
         
         this.clearFileFromIndexes(file.path);
         
+        // Wait for fresh data to be available before proceeding
+        await this.waitForFreshData(file);
+        
         const metadata = this.app.metadataCache.getFileCache(file);
-        if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
-            this.indexTaskFile(file, metadata.frontmatter);
+        if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
+            await this.indexTaskFile(file, metadata.frontmatter);
         }
         
         this.trigger('file-updated', { path: file.path, file });
@@ -912,25 +1010,226 @@ export class MinimalNativeCache extends Events {
         if (!this.initialized) return;
         
         this.clearFileFromIndexes(path);
+        this.lastKnownTaskInfo.delete(path); // Clean up cached task info
+        this.lastKnownFrontmatter.delete(path); // Clean up cached frontmatter
         this.trigger('file-deleted', { path });
     }
     
-    private handleFileRenamed(file: TFile, oldPath: string): void {
+    private async handleFileRenamed(file: TFile, oldPath: string): Promise<void> {
         if (!this.initialized) return;
         
         this.clearFileFromIndexes(oldPath);
+        this.lastKnownTaskInfo.delete(oldPath); // Clean up old path cached task info
+        this.lastKnownFrontmatter.delete(oldPath); // Clean up old path cached frontmatter
+        
+        // Wait for fresh data to be available before proceeding
+        await this.waitForFreshData(file);
         
         const metadata = this.app.metadataCache.getFileCache(file);
-        if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
-            this.indexTaskFile(file, metadata.frontmatter);
+        if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
+            await this.indexTaskFile(file, metadata.frontmatter);
+            // Store the task info and frontmatter for the new path
+            const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
+            this.setLastKnownTaskInfo(file.path, taskInfo);
+            this.lastKnownFrontmatter.set(file.path, this.deepClone(metadata.frontmatter));
         }
         
         this.trigger('file-renamed', { oldPath, newPath: file.path, file });
     }
     
+    /**
+     * Wait for fresh data to be available in Obsidian's metadata cache
+     * This ensures we don't emit events before the data is actually updated
+     */
+    private async waitForFreshData(file: TFile, maxAttempts: number = 10): Promise<void> {
+        const startTime = Date.now();
+        
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                // Try to get file stats and metadata
+                const fileStat = await this.app.vault.adapter.stat(file.path);
+                if (!fileStat) break;
+                
+                const metadata = this.app.metadataCache.getFileCache(file);
+                
+                // If metadata exists and we can extract task info, data is ready
+                if (metadata?.frontmatter) {
+                    const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
+                    if (taskInfo || !this.isTaskFile(metadata.frontmatter)) {
+                        // Data is available (either valid task info or confirmed non-task)
+                        return;
+                    }
+                }
+                
+                // Data not ready yet, wait with exponential backoff
+                const delay = Math.min(50 * Math.pow(1.5, attempt), 200);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+            } catch (error) {
+                // If we can't check file stats, just wait briefly and continue
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        }
+        
+        // Log if we timed out (for debugging slow systems)
+        const elapsed = Date.now() - startTime;
+        if (elapsed > 500) {
+            console.debug(`MinimalNativeCache: Waited ${elapsed}ms for fresh data on ${file.path}`);
+        }
+    }
+    
+    /**
+     * Wait for fresh task data with specific expected changes
+     * This can be called from TaskService to verify specific updates are reflected
+     */
+    async waitForFreshTaskData(file: TFile, expectedChanges?: Partial<TaskInfo>, maxAttempts: number = 10): Promise<void> {
+        const startTime = Date.now();
+        
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                const metadata = this.app.metadataCache.getFileCache(file);
+                if (!metadata?.frontmatter) {
+                    const delay = Math.min(50 * Math.pow(1.5, attempt), 200);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+                
+                // Try to extract task info
+                const taskInfo = this.extractTaskInfoFromNative(file.path, metadata.frontmatter);
+                if (taskInfo) {
+                    // If we have expected changes, verify they're present
+                    if (expectedChanges) {
+                        let dataIsUpdated = true;
+                        for (const [key, expectedValue] of Object.entries(expectedChanges)) {
+                            const actualValue = taskInfo[key as keyof TaskInfo];
+                            if (actualValue !== expectedValue) {
+                                dataIsUpdated = false;
+                                break;
+                            }
+                        }
+                        if (dataIsUpdated) {
+                            return; // Data matches expectations
+                        }
+                    } else {
+                        return; // Data is available
+                    }
+                }
+                
+                // Data not ready yet, wait with exponential backoff
+                const delay = Math.min(50 * Math.pow(1.5, attempt), 200);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+            } catch (error) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        }
+        
+        // Log if we timed out (for debugging)
+        const elapsed = Date.now() - startTime;
+        if (elapsed > 500) {
+            console.debug(`MinimalNativeCache: Waited ${elapsed}ms for fresh task data on ${file.path}`, expectedChanges);
+        }
+    }
+    
     // ========================================
     // UTILITY METHODS
     // ========================================
+    
+    /**
+     * Get the last known task info for a file path
+     */
+    private getLastKnownTaskInfo(path: string): TaskInfo | null {
+        return this.lastKnownTaskInfo.get(path) || null;
+    }
+    
+    /**
+     * Store the last known task info for a file path
+     */
+    private setLastKnownTaskInfo(path: string, taskInfo: TaskInfo | null): void {
+        this.lastKnownTaskInfo.set(path, taskInfo);
+    }
+    
+    /**
+     * Compare two TaskInfo objects to see if they're functionally equivalent
+     * Only compares fields that would affect view rendering
+     */
+    private taskInfoEquals(current: TaskInfo | null, previous: TaskInfo | null): boolean {
+        if (current === null && previous === null) return true;
+        if (current === null || previous === null) return false;
+        
+        // Compare scalar fields
+        const scalarFieldsEqual = (
+            current.title === previous.title &&
+            current.status === previous.status &&
+            current.priority === previous.priority &&
+            current.due === previous.due &&
+            current.scheduled === previous.scheduled &&
+            current.archived === previous.archived &&
+            current.completedDate === previous.completedDate &&
+            current.recurrence === previous.recurrence &&
+            current.timeEstimate === previous.timeEstimate
+        );
+        
+        if (!scalarFieldsEqual) return false;
+        
+        // Compare array fields more efficiently
+        return (
+            this.arraysEqual(current.tags, previous.tags) &&
+            this.arraysEqual(current.contexts, previous.contexts) &&
+            this.arraysEqual(current.projects, previous.projects) &&
+            this.objectsEqual(current.timeEntries, previous.timeEntries) &&
+            this.objectsEqual(current.reminders, previous.reminders) &&
+            this.objectsEqual(current.complete_instances, previous.complete_instances)
+        );
+    }
+    
+    /**
+     * Compare two arrays for equality (order-independent for string arrays)
+     */
+    private arraysEqual(a: any[] | undefined, b: any[] | undefined): boolean {
+        if (a === b) return true;
+        if (!a || !b) return a === b;
+        if (a.length !== b.length) return false;
+        
+        // For string arrays, sort and compare
+        if (a.length === 0) return true;
+        if (typeof a[0] === 'string') {
+            const sortedA = [...a].sort();
+            const sortedB = [...b].sort();
+            return sortedA.every((val, i) => val === sortedB[i]);
+        }
+        
+        // For object arrays, fall back to JSON comparison (less common case)
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+    
+    /**
+     * Compare two objects for deep equality
+     */
+    private objectsEqual(a: any, b: any): boolean {
+        if (a === b) return true;
+        if (!a || !b) return a === b;
+        return JSON.stringify(a) === JSON.stringify(b);
+    }
+    
+    /**
+     * Compare two frontmatter objects for equality
+     */
+    private frontmatterEquals(current: any, previous: any): boolean {
+        if (current === previous) return true;
+        if (!current || !previous) return current === previous;
+        
+        // Use JSON comparison for frontmatter since it's typically small
+        return JSON.stringify(current) === JSON.stringify(previous);
+    }
+    
+    /**
+     * Deep clone an object (for caching frontmatter)
+     */
+    private deepClone(obj: any): any {
+        if (obj === null || typeof obj !== 'object') return obj;
+        return JSON.parse(JSON.stringify(obj));
+    }
     
     private extractTaskInfoFromNative(path: string, frontmatter: any): TaskInfo | null {
         if (!this.fieldMapper) return null;
@@ -957,6 +1256,7 @@ export class MinimalNativeCache extends Events {
                 timeEntries: mappedTask.timeEntries,
                 dateCreated: mappedTask.dateCreated,
                 dateModified: mappedTask.dateModified,
+                reminders: mappedTask.reminders,
                 sortOrder: mappedTask.sortOrder,
             };
         } catch (error) {
@@ -1019,7 +1319,7 @@ export class MinimalNativeCache extends Events {
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file instanceof TFile) {
             const metadata = this.app.metadataCache.getFileCache(file);
-            if (metadata?.frontmatter?.tags?.includes(this.taskTag)) {
+            if (metadata?.frontmatter && this.isTaskFile(metadata.frontmatter)) {
                 this.indexTaskFile(file, metadata.frontmatter);
             }
         }
@@ -1067,6 +1367,14 @@ export class MinimalNativeCache extends Events {
             this.app.metadataCache.offref(listener);
         });
         this.eventListeners = [];
+        
+        // Clean up any pending debounced handlers
+        this.debouncedHandlers.forEach(timeout => clearTimeout(timeout));
+        this.debouncedHandlers.clear();
+        
+        // Clean up task info cache
+        this.lastKnownTaskInfo.clear();
+        this.lastKnownFrontmatter.clear();
         
         this.clearAllIndexes();
         this.initialized = false;

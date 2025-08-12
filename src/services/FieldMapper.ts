@@ -36,7 +36,13 @@ export class FieldMapper {
         }
         
         if (frontmatter[this.mapping.status] !== undefined) {
-            mapped.status = frontmatter[this.mapping.status];
+            const statusValue = frontmatter[this.mapping.status];
+            // Handle boolean status values (convert back to string for internal use)
+            if (typeof statusValue === 'boolean') {
+                mapped.status = statusValue ? 'true' : 'false';
+            } else {
+                mapped.status = statusValue;
+            }
         }
         
         if (frontmatter[this.mapping.priority] !== undefined) {
@@ -107,6 +113,12 @@ export class FieldMapper {
             // Ensure icsEventId is always an array
             mapped.icsEventId = Array.isArray(icsEventId) ? icsEventId : [icsEventId];
         }
+        
+        if (frontmatter[this.mapping.reminders] !== undefined) {
+            const reminders = frontmatter[this.mapping.reminders];
+            // Ensure reminders is always an array
+            mapped.reminders = Array.isArray(reminders) ? reminders : [reminders];
+        }
 
         // Handle tags array (includes archive tag)
         if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
@@ -142,7 +154,10 @@ export class FieldMapper {
         }
         
         if (taskData.status !== undefined) {
-            frontmatter[this.mapping.status] = taskData.status;
+            // Coerce boolean-like status strings to actual booleans for compatibility with Obsidian checkbox properties
+            const lower = taskData.status.toLowerCase();
+            const coercedValue = (lower === 'true' || lower === 'false') ? (lower === 'true') : taskData.status;
+            frontmatter[this.mapping.status] = coercedValue;
         }
         
         if (taskData.priority !== undefined) {
@@ -199,6 +214,10 @@ export class FieldMapper {
         
         if (taskData.icsEventId !== undefined && taskData.icsEventId.length > 0) {
             frontmatter[this.mapping.icsEventId] = taskData.icsEventId;
+        }
+        
+        if (taskData.reminders !== undefined && taskData.reminders.length > 0) {
+            frontmatter[this.mapping.reminders] = taskData.reminders;
         }
 
         // Handle tags (merge archive status into tags array)

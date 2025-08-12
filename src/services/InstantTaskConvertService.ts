@@ -3,7 +3,7 @@ import TaskNotesPlugin from '../main';
 import { TasksPluginParser, ParsedTaskData } from '../utils/TasksPluginParser';
 import { NaturalLanguageParser } from './NaturalLanguageParser';
 import { TaskCreationData } from '../types';
-import { getCurrentTimestamp, combineDateAndTime } from '../utils/dateUtils';
+import { getCurrentTimestamp, combineDateAndTime, parseDateToUTC, formatDateForStorage } from '../utils/dateUtils';
 import { calculateDefaultDate } from '../utils/helpers';
 import { StatusManager } from './StatusManager';
 import { PriorityManager } from './PriorityManager';
@@ -350,8 +350,14 @@ export class InstantTaskConvertService {
             return false;
         }
 
-        const date = new Date(dateString);
-        return date instanceof Date && !isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateString;
+        try {
+            // Use UTC anchor for consistent date validation
+            const date = parseDateToUTC(dateString);
+            // Check if the parsed date matches the original string
+            return formatDateForStorage(date) === dateString;
+        } catch {
+            return false;
+        }
     }
 
     /**
@@ -480,6 +486,12 @@ export class InstantTaskConvertService {
                 const defaultProjectsArray = defaults.defaultProjects.split(',').map(s => s.trim()).filter(s => s);
                 projectsArray.push(...defaultProjectsArray);
             }
+            
+            // Add parent note as project if enabled
+            if (defaults.useParentNoteAsProject && currentFile) {
+                // The parentNote is already a markdown link, so we can add it directly
+                projectsArray.push(parentNote);
+            }
         }
         
         // Add parsed projects
@@ -489,6 +501,17 @@ export class InstantTaskConvertService {
         
         // Remove duplicates
         const uniqueProjects = [...new Set(projectsArray)];
+
+        // Apply default reminders if enabled
+        let reminders: any[] | undefined = undefined;
+        if (this.plugin.settings.useDefaultsOnInstantConvert) {
+            const defaults = this.plugin.settings.taskCreationDefaults;
+            if (defaults.defaultReminders && defaults.defaultReminders.length > 0) {
+                // Import the conversion function
+                const { convertDefaultRemindersToReminders } = await import('../settings/settings');
+                reminders = convertDefaultRemindersToReminders(defaults.defaultReminders);
+            }
+        }
 
         // Create TaskCreationData object with all the data
         const taskData: TaskCreationData = {
@@ -502,6 +525,7 @@ export class InstantTaskConvertService {
             tags: tagsArray,
             timeEstimate: timeEstimate,
             recurrence: recurrence,
+            reminders: reminders,
             details: details, // Use provided details from selection
             parentNote: parentNote, // Include parent note for template variable
             creationContext: 'inline-conversion', // Mark as inline conversion for folder logic

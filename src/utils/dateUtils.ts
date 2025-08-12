@@ -6,7 +6,6 @@ import {
     isValid, 
     startOfDay, 
     addDays as addDaysFns, 
-    endOfDay,
     addWeeks,
     addMonths,
     addYears,
@@ -22,6 +21,9 @@ import {
 /**
  * Smart date parsing that detects timezone info and handles appropriately
  * Supports various date formats including space-separated datetime and ISO week formats
+ * 
+ * @deprecated Use parseDateToUTC for internal logic or parseDateToLocal for UI
+ * This function will be renamed to parseDateToLocal to make its behavior explicit.
  */
 export function parseDate(dateString: string): Date {
     if (!dateString) {
@@ -186,13 +188,98 @@ export function parseDate(dateString: string): Date {
 }
 
 /**
+ * Parses a date string into a Date object anchored to UTC.
+ * - 'YYYY-MM-DD' becomes midnight UTC of that day.
+ * - Full ISO strings are parsed as-is.
+ * 
+ * This is the new standard for internal date representation to ensure
+ * timezone-independent logic throughout the application.
+ * 
+ * @param dateString The date string to parse
+ * @returns A Date object representing the UTC anchor for that date
+ */
+export function parseDateToUTC(dateString: string): Date {
+    if (!dateString) {
+        const error = new Error('Date string cannot be empty');
+        console.error('Date parsing error:', { dateString, error: error.message });
+        throw error;
+    }
+    
+    // Trim whitespace
+    const trimmed = dateString.trim();
+    
+    try {
+        // For date-only strings (YYYY-MM-DD), create a Date at UTC midnight
+        const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (dateOnlyMatch) {
+            const [, year, month, day] = dateOnlyMatch;
+            const yearNum = parseInt(year, 10);
+            const monthNum = parseInt(month, 10);
+            const dayNum = parseInt(day, 10);
+            
+            // Validate date components
+            if (monthNum < 1 || monthNum > 12) {
+                throw new Error(`Invalid month in date: ${dateString}`);
+            }
+            
+            if (dayNum < 1 || dayNum > 31) {
+                throw new Error(`Invalid day in date: ${dateString}`);
+            }
+            
+            // Create Date object at UTC midnight for this calendar day
+            const parsed = new Date(Date.UTC(yearNum, monthNum - 1, dayNum));
+            
+            // Validate that the date didn't roll over (e.g., Feb 31 -> March 3)
+            if (parsed.getUTCFullYear() !== yearNum || 
+                parsed.getUTCMonth() !== monthNum - 1 || 
+                parsed.getUTCDate() !== dayNum) {
+                throw new Error(`Invalid date values: ${dateString}`);
+            }
+            
+            return parsed;
+        }
+        
+        // For datetime strings, ISO week format, or any other format,
+        // delegate to parseDateToLocal to handle the complexity
+        // This maintains backward compatibility for complex formats
+        return parseDateToLocal(trimmed);
+        
+    } catch (error) {
+        const wrappedError = new Error(`Failed to parse date to UTC: ${trimmed}`);
+        console.error('Date parsing error:', { 
+            dateString, 
+            trimmed, 
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined
+        });
+        throw wrappedError;
+    }
+}
+
+/**
+ * Parses a date string into a Date object in the user's local timezone.
+ * - 'YYYY-MM-DD' becomes midnight in the user's local timezone
+ * - Full ISO strings are parsed according to their timezone info
+ * 
+ * Use this for UI display and user-facing date operations.
+ * For internal logic, prefer parseDateToUTC.
+ */
+export const parseDateToLocal = parseDate;
+
+/**
  * Safe date comparison that handles mixed timezone contexts
  */
 export function isSameDateSafe(date1: string, date2: string): boolean {
     try {
-        const d1 = parseDate(date1);
-        const d2 = parseDate(date2);
-        return isSameDay(d1, d2);
+        // For date-only comparisons, we need to extract the date parts
+        // and compare them as calendar dates
+        const date1Part = getDatePart(date1);
+        const date2Part = getDatePart(date2);
+        
+        // Use UTC anchors for consistent comparison
+        const d1 = parseDateToUTC(date1Part);
+        const d2 = parseDateToUTC(date2Part);
+        return d1.getTime() === d2.getTime();
     } catch (error) {
         console.error('Error comparing dates:', { date1, date2, error });
         return false;
@@ -204,9 +291,13 @@ export function isSameDateSafe(date1: string, date2: string): boolean {
  */
 export function isBeforeDateSafe(date1: string, date2: string): boolean {
     try {
-        const d1 = startOfDay(parseDate(date1));
-        const d2 = startOfDay(parseDate(date2));
-        return isBefore(d1, d2);
+        // For date-only comparisons, use UTC anchors
+        const date1Part = getDatePart(date1);
+        const date2Part = getDatePart(date2);
+        
+        const d1 = parseDateToUTC(date1Part);
+        const d2 = parseDateToUTC(date2Part);
+        return d1.getTime() < d2.getTime();
     } catch (error) {
         console.error('Error comparing dates for before:', { date1, date2, error });
         return false;
@@ -218,6 +309,45 @@ export function isBeforeDateSafe(date1: string, date2: string): boolean {
  */
 export function getTodayString(): string {
     return format(new Date(), 'yyyy-MM-dd');
+}
+
+/**
+ * Get today's date as a Date object set to midnight local time.
+ * This represents "today" from the user's perspective.
+ */
+export function getTodayLocal(): Date {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+/**
+ * Parse a date string into a Date object that represents the calendar day
+ * from the user's perspective. For date-only strings (YYYY-MM-DD), this
+ * creates a date at midnight local time to ensure consistent behavior.
+ */
+export function parseDateAsLocal(dateString: string): Date {
+    if (!dateString) {
+        throw new Error('Date string cannot be empty');
+    }
+    
+    const trimmed = dateString.trim();
+    
+    // For date-only strings, create a date at midnight local time
+    const dateMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        const parsed = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
+        
+        if (!isValid(parsed) || parsed.getFullYear() !== parseInt(year, 10) || 
+            parsed.getMonth() !== parseInt(month, 10) - 1 || parsed.getDate() !== parseInt(day, 10)) {
+            throw new Error(`Invalid date values: ${dateString}`);
+        }
+        
+        return parsed;
+    }
+    
+    // For datetime strings, use the existing parseDate logic
+    return parseDate(dateString);
 }
 
 /**
@@ -239,10 +369,10 @@ export function normalizeDateString(dateString: string): string {
             }
         }
         
-        // For non-timezone strings, parse and format
-        const parsed = parseDate(dateString);
+        // For non-timezone strings, parse with UTC anchor for consistent storage
+        const parsed = parseDateToUTC(dateString);
         if (isValid(parsed)) {
-            return format(parsed, 'yyyy-MM-dd');
+            return formatDateForStorage(parsed);
         }
         return dateString;
     } catch (error) {
@@ -265,6 +395,19 @@ export function createSafeDate(year: number, month: number, day: number): Date {
 export function createSafeUTCDate(year: number, month: number, day: number): Date {
     // Note: month is 0-based in Date constructor
     return new Date(Date.UTC(year, month, day));
+}
+
+/**
+ * Converts a UTC-anchored Date object back to a local Date object
+ * representing the same calendar day, for display purposes.
+ * @param utcDate - A UTC-anchored Date object (e.g., from selectedDate)
+ * @returns A local Date object (e.g., for formatting with date-fns)
+ */
+export function convertUTCToLocalCalendarDate(utcDate: Date): Date {
+    const year = utcDate.getUTCFullYear();
+    const month = utcDate.getUTCMonth();
+    const day = utcDate.getUTCDate();
+    return new Date(year, month, day);
 }
 
 /**
@@ -418,12 +561,13 @@ export function getEndOfYearString(): string {
 }
 
 /**
- * Get start of day for a date string, preserving the date format
+ * Get start of day for a date string using UTC anchoring for consistency
+ * Uses parseDateToUTC to ensure timezone-independent comparisons
  */
 export function startOfDayForDateString(dateString: string): Date {
     try {
-        const parsed = parseDate(dateString);
-        return startOfDay(parsed);
+        const parsed = parseDateToUTC(dateString);
+        return parsed; // parseDateToUTC already returns midnight UTC for date-only strings
     } catch (error) {
         console.error('Error getting start of day for date string:', { dateString, error });
         throw error;
@@ -434,7 +578,15 @@ export function startOfDayForDateString(dateString: string): Date {
  * Check if a date string represents today
  */
 export function isToday(dateString: string): boolean {
-    return isSameDateSafe(dateString, getTodayString());
+    if (!dateString) return false;
+    try {
+        const date = parseDateAsLocal(dateString);
+        const today = getTodayLocal();
+        return isSameDay(date, today);
+    } catch (error) {
+        console.error('Error checking if date is today:', { dateString, error });
+        return false;
+    }
 }
 
 /**
@@ -485,7 +637,7 @@ export function getCurrentTimestamp(): string {
  * Get current date in YYYY-MM-DD format for completion dates
  */
 export function getCurrentDateString(): string {
-    return formatUTCDateForCalendar(new Date());
+    return formatDateForStorage(new Date());
 }
 
 /**
@@ -549,8 +701,20 @@ export function getDatePart(dateString: string): string {
     if (!dateString) return '';
     
     try {
-        const parsed = parseDate(dateString);
-        return format(parsed, 'yyyy-MM-dd');
+        // If it's already a date-only string (YYYY-MM-DD), return as-is
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            return dateString;
+        }
+        
+        // For datetime strings, extract just the date part
+        const tIndex = dateString.indexOf('T');
+        if (tIndex > -1) {
+            return dateString.substring(0, tIndex);
+        }
+        
+        // For other formats, parse and format using UTC anchor for consistency
+        const parsed = parseDateToUTC(dateString);
+        return formatDateForStorage(parsed);
     } catch (error) {
         console.error('Error extracting date part:', { dateString, error });
         return dateString;
@@ -582,7 +746,19 @@ export function combineDateAndTime(dateString: string, timeString: string): stri
     if (!timeString) return dateString;
     
     try {
-        // Parse the date part
+        // For date-only strings (YYYY-MM-DD), use them directly without parsing
+        // This avoids timezone shifts when parsing and reformatting
+        const dateOnlyMatch = dateString.match(/^(\d{4}-\d{2}-\d{2})$/);
+        if (dateOnlyMatch) {
+            // Validate time format (HH:mm)
+            if (!/^\d{2}:\d{2}$/.test(timeString)) {
+                console.warn('Invalid time format, expected HH:mm:', timeString);
+                return dateString;
+            }
+            return `${dateOnlyMatch[1]}T${timeString}`;
+        }
+        
+        // For datetime strings, extract the date part
         const datePart = getDatePart(dateString);
         
         // Validate that we got a valid date part (YYYY-MM-DD format)
@@ -646,29 +822,52 @@ export function formatDateTimeForDisplay(dateString: string, options: {
 }
 
 /**
- * Time-aware comparison for before/after relationships
- * For date-only strings, treats them as end-of-day for sorting purposes
+ * Time-aware comparison for before/after relationships with consistent UTC parsing
+ * Uses UTC anchoring for all date-only strings to ensure timezone-independent comparisons
  */
 export function isBeforeDateTimeAware(date1: string, date2: string): boolean {
     try {
-        const d1 = parseDate(date1);
-        const d2 = parseDate(date2);
+        // Step 1: Parse all dates to UTC anchors for consistency
+        const d1UTC = parseDateToUTC(date1);
+        const d2UTC = parseDateToUTC(date2);
         
-        // If both have time, direct comparison
-        if (hasTimeComponent(date1) && hasTimeComponent(date2)) {
-            return isBefore(d1, d2);
+        // Step 2: For datetime strings, add time component to UTC anchor
+        let d1Final = d1UTC;
+        let d2Final = d2UTC;
+        
+        if (hasTimeComponent(date1)) {
+            // Extract time and apply it to UTC anchor
+            const timeInfo = getTimePart(date1);
+            if (timeInfo) {
+                const [hours, minutes] = timeInfo.split(':').map(Number);
+                d1Final = new Date(d1UTC);
+                d1Final.setUTCHours(hours, minutes, 0, 0);
+            }
         }
         
-        // If neither has time, compare dates only
-        if (!hasTimeComponent(date1) && !hasTimeComponent(date2)) {
-            return isBefore(startOfDay(d1), startOfDay(d2));
+        if (hasTimeComponent(date2)) {
+            // Extract time and apply it to UTC anchor
+            const timeInfo = getTimePart(date2);
+            if (timeInfo) {
+                const [hours, minutes] = timeInfo.split(':').map(Number);
+                d2Final = new Date(d2UTC);
+                d2Final.setUTCHours(hours, minutes, 0, 0);
+            }
         }
         
-        // Mixed case: treat date-only as end-of-day for sorting
-        const d1Normalized = hasTimeComponent(date1) ? d1 : endOfDay(d1);
-        const d2Normalized = hasTimeComponent(date2) ? d2 : endOfDay(d2);
+        // Step 3: Handle mixed case by treating date-only as end-of-day
+        if (hasTimeComponent(date1) && !hasTimeComponent(date2)) {
+            // date2 is date-only, treat as end of day for sorting
+            d2Final = new Date(d2UTC);
+            d2Final.setUTCHours(23, 59, 59, 999);
+        } else if (!hasTimeComponent(date1) && hasTimeComponent(date2)) {
+            // date1 is date-only, treat as end of day for sorting
+            d1Final = new Date(d1UTC);
+            d1Final.setUTCHours(23, 59, 59, 999);
+        }
         
-        return isBefore(d1Normalized, d2Normalized);
+        // Step 4: Direct comparison with consistent UTC timestamps
+        return d1Final.getTime() < d2Final.getTime();
     } catch (error) {
         console.error('Error comparing dates time-aware:', { date1, date2, error });
         return false;
@@ -677,6 +876,7 @@ export function isBeforeDateTimeAware(date1: string, date2: string): boolean {
 
 /**
  * Check if a date/datetime is overdue (past current date/time)
+ * Uses UTC anchor principle for consistent comparisons
  */
 export function isOverdueTimeAware(dateString: string, isCompleted?: boolean, hideCompletedFromOverdue?: boolean): boolean {
     if (!dateString) return false;
@@ -687,18 +887,18 @@ export function isOverdueTimeAware(dateString: string, isCompleted?: boolean, hi
     }
     
     try {
-        const taskDate = parseDate(dateString);
         const now = new Date();
+        const taskDateUTC = parseDateToUTC(dateString); // Task's UTC anchor
         
-        // If task has time, compare with current date/time
         if (hasTimeComponent(dateString)) {
-            return isBefore(taskDate, now);
+            // Task has a specific time; it's overdue if that moment has passed
+            return isBefore(taskDateUTC, now);
+        } else {
+            // Task is date-only. It's overdue if the UTC anchor is before
+            // the start of the user's current local day
+            const todayLocalStart = startOfDay(new Date()); // User's midnight
+            return isBefore(taskDateUTC, todayLocalStart);
         }
-        
-        // If task is date-only, it's overdue if the date is before today
-        const today = startOfDay(now);
-        const taskDateStart = startOfDay(taskDate);
-        return isBefore(taskDateStart, today);
     } catch (error) {
         console.error('Error checking overdue status:', { dateString, error });
         return false;
@@ -712,7 +912,7 @@ export function isTodayTimeAware(dateString: string): boolean {
     if (!dateString) return false;
     
     try {
-        const taskDate = parseDate(dateString);
+        const taskDate = hasTimeComponent(dateString) ? parseDate(dateString) : parseDateAsLocal(dateString);
         const now = new Date();
         
         return isSameDay(taskDate, now);
@@ -830,15 +1030,14 @@ export function addDaysToDateTime(dateString: string, days: number): string {
  */
 export function createUTCDateForRRule(dateString: string): Date {
     try {
-        // Extract just the date part to avoid any time/timezone complications
-        const datePart = getDatePart(dateString);
-        const dateMatch = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        
-        if (!dateMatch) {
+        // Extract just the date part directly from the string
+        // Don't use getDatePart as it can cause timezone shifts
+        const dateOnlyMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!dateOnlyMatch) {
             throw new Error(`Invalid date format for RRULE: ${dateString}`);
         }
         
-        const [, year, month, day] = dateMatch;
+        const [, year, month, day] = dateOnlyMatch;
         const yearNum = parseInt(year, 10);
         const monthNum = parseInt(month, 10);
         const dayNum = parseInt(day, 10);
@@ -871,6 +1070,48 @@ export function createUTCDateForRRule(dateString: string): Date {
 }
 
 /**
+ * Create a UTC date that represents the start of a calendar day
+ * This is used when converting user-selected dates to UTC for storage
+ * @param localDate - A date object representing a calendar date in local time
+ * @returns A UTC date representing midnight UTC on that calendar date
+ */
+export function createUTCDateFromLocalCalendarDate(localDate: Date): Date {
+    // Extract the local date components
+    const year = localDate.getFullYear();
+    const month = localDate.getMonth();
+    const day = localDate.getDate();
+    
+    // Create a UTC date for that calendar date
+    return new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+}
+
+/**
+ * Checks if a UTC-anchored date object represents the user's local "today".
+ * This is timezone-safe unlike date-fns isToday() which can give wrong results
+ * for UTC-anchored dates in non-UTC timezones.
+ * 
+ * @param date - A UTC-anchored Date object (e.g., 2024-10-26T00:00:00.000Z)
+ * @returns true if the date represents today's calendar date for the user
+ */
+export function isTodayUTC(date: Date): boolean {
+    try {
+        // Get today's calendar date in the user's local timezone
+        const todayLocal = getTodayLocal();
+        
+        // Convert today to a UTC anchor for comparison
+        const todayUTCAnchor = createUTCDateFromLocalCalendarDate(todayLocal);
+        
+        // Compare the UTC date components (timezone-safe)
+        return date.getUTCFullYear() === todayUTCAnchor.getUTCFullYear() &&
+               date.getUTCMonth() === todayUTCAnchor.getUTCMonth() &&
+               date.getUTCDate() === todayUTCAnchor.getUTCDate();
+    } catch (error) {
+        console.error('Error in isTodayUTC:', error);
+        return false;
+    }
+}
+
+/**
  * Convert FullCalendar's date boundaries to UTC for consistent RRULE processing
  * This prevents off-by-one errors when calendar view boundaries don't align with RRule timezone
  */
@@ -891,22 +1132,54 @@ export function normalizeCalendarBoundariesToUTC(startDate: Date, endDate: Date)
     }
 }
 
+
 /**
- * Format a UTC date from RRule back to YYYY-MM-DD string without timezone conversion
- * This prevents the date from shifting when displayed on calendar
+ * Format a date as UTC YYYY-MM-DD for RRule operations
+ * This is specifically for RRule which requires UTC dates
  */
-export function formatUTCDateForCalendar(utcDate: Date): string {
+export function formatDateAsUTCString(date: Date): string {
     try {
-        // Use UTC methods to extract date components without timezone conversion
-        const year = utcDate.getUTCFullYear();
-        const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(utcDate.getUTCDate()).padStart(2, '0');
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    } catch (error) {
+        console.error('Error formatting date as UTC string:', { date, error });
+        // Fallback to ISO string date part
+        return date.toISOString().split('T')[0];
+    }
+}
+
+/**
+ * Format a date to YYYY-MM-DD string using local time methods
+ * This ensures consistent date representation across all timezones.
+ * 
+ * IMPORTANT: This function now uses UTC methods to prevent timezone-dependent
+ * date shifts. A task due at "2024-10-01T23:00:00Z" will always format as
+ * "2024-10-01" regardless of the user's timezone.
+ * 
+ * @param date - Date object (can represent any moment in time)
+ * @returns YYYY-MM-DD string representing the UTC calendar date
+ */
+export function formatDateForStorage(date: Date): string {
+    try {
+        // Validate input
+        if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+            console.warn('formatDateForStorage received invalid date:', date);
+            return '';
+        }
+        
+        // Use UTC methods to extract date components
+        // This ensures the same date string regardless of user timezone
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
         
         return `${year}-${month}-${day}`;
     } catch (error) {
-        console.error('Error formatting UTC date for calendar:', { utcDate, error });
-        // Fallback to ISO string date part extraction
-        return utcDate.toISOString().split('T')[0];
+        console.error('Error formatting date for storage:', { date, error });
+        // Return empty string for invalid dates rather than potentially incorrect fallback
+        return '';
     }
 }
 
@@ -918,8 +1191,8 @@ export function generateUTCCalendarDates(startDate: Date, endDate: Date): Date[]
     const dates: Date[] = [];
     
     // Convert to UTC date strings and back to ensure consistent UTC dates
-    const startDateStr = formatUTCDateForCalendar(startDate);
-    const endDateStr = formatUTCDateForCalendar(endDate);
+    const startDateStr = formatDateForStorage(startDate);
+    const endDateStr = formatDateForStorage(endDate);
     
     const current = createUTCDateForRRule(startDateStr);
     const end = createUTCDateForRRule(endDateStr);
@@ -936,7 +1209,7 @@ export function generateUTCCalendarDates(startDate: Date, endDate: Date): Date[]
  * Get the start of week for a UTC date, returning a UTC date
  */
 export function getUTCStartOfWeek(date: Date, weekStartsOn = 1): Date {
-    const utcDate = createUTCDateForRRule(formatUTCDateForCalendar(date));
+    const utcDate = createUTCDateForRRule(formatDateForStorage(date));
     const dayOfWeek = utcDate.getUTCDay();
     const diff = (dayOfWeek - weekStartsOn + 7) % 7;
     const startOfWeek = new Date(utcDate);
@@ -958,7 +1231,7 @@ export function getUTCEndOfWeek(date: Date, weekStartsOn = 1): Date {
  * Get the start of month for a UTC date, returning a UTC date
  */
 export function getUTCStartOfMonth(date: Date): Date {
-    const utcDate = createUTCDateForRRule(formatUTCDateForCalendar(date));
+    const utcDate = createUTCDateForRRule(formatDateForStorage(date));
     return new Date(Date.UTC(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), 1));
 }
 
@@ -966,7 +1239,7 @@ export function getUTCStartOfMonth(date: Date): Date {
  * Get the end of month for a UTC date, returning a UTC date
  */
 export function getUTCEndOfMonth(date: Date): Date {
-    const utcDate = createUTCDateForRRule(formatUTCDateForCalendar(date));
+    const utcDate = createUTCDateForRRule(formatDateForStorage(date));
     return new Date(Date.UTC(utcDate.getUTCFullYear(), utcDate.getUTCMonth() + 1, 0));
 }
 

@@ -85,56 +85,76 @@ export class RecurrenceContextMenu {
         const currentMonthName = monthNames[today.getMonth()];
         const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
 
+        // Format today as DTSTART, preserving existing time if available
+        let todayDTSTART = this.formatDateForDTSTART(today);
+        
+        // If there's an existing recurrence with time, preserve the time component
+        if (this.options.currentValue) {
+            const existingDtstartMatch = this.options.currentValue.match(/DTSTART:(\d{8}(?:T\d{6}Z?)?)/);
+            if (existingDtstartMatch && existingDtstartMatch[1].includes('T')) {
+                // Extract time part from existing DTSTART
+                const existingTime = existingDtstartMatch[1].split('T')[1];
+                todayDTSTART = `${todayDTSTART}T${existingTime}`;
+            }
+        }
+
         // Daily
         options.push({
             label: 'Daily',
-            value: 'FREQ=DAILY;INTERVAL=1',
+            value: `DTSTART:${todayDTSTART};FREQ=DAILY;INTERVAL=1`,
             icon: 'calendar-days'
         });
 
         // Weekly (for current day of week)
         options.push({
             label: `Weekly on ${dayName}`,
-            value: `FREQ=WEEKLY;INTERVAL=1;BYDAY=${currentDay}`,
+            value: `DTSTART:${todayDTSTART};FREQ=WEEKLY;INTERVAL=1;BYDAY=${currentDay}`,
             icon: 'calendar'
         });
 
         // Every 2 weeks (for current day of week)
         options.push({
             label: `Every 2 weeks on ${dayName}`,
-            value: `FREQ=WEEKLY;INTERVAL=2;BYDAY=${currentDay}`,
+            value: `DTSTART:${todayDTSTART};FREQ=WEEKLY;INTERVAL=2;BYDAY=${currentDay}`,
             icon: 'calendar'
         });
 
         // Monthly (on current date)
         options.push({
             label: `Monthly on the ${this.getOrdinal(currentDate)}`,
-            value: `FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=${currentDate}`,
+            value: `DTSTART:${todayDTSTART};FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=${currentDate}`,
             icon: 'calendar-range'
         });
 
         // Every 3 months (on current date)
         options.push({
             label: `Every 3 months on the ${this.getOrdinal(currentDate)}`,
-            value: `FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=${currentDate}`,
+            value: `DTSTART:${todayDTSTART};FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=${currentDate}`,
             icon: 'calendar-range'
         });
 
         // Yearly (on current date)
         options.push({
             label: `Yearly on ${currentMonthName} ${this.getOrdinal(currentDate)}`,
-            value: `FREQ=YEARLY;INTERVAL=1;BYMONTH=${currentMonth};BYMONTHDAY=${currentDate}`,
+            value: `DTSTART:${todayDTSTART};FREQ=YEARLY;INTERVAL=1;BYMONTH=${currentMonth};BYMONTHDAY=${currentDate}`,
             icon: 'calendar-clock'
         });
 
         // Weekdays only
         options.push({
             label: 'Weekdays only',
-            value: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
+            value: `DTSTART:${todayDTSTART};FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR`,
             icon: 'briefcase'
         });
 
         return options;
+    }
+
+    private formatDateForDTSTART(date: Date): string {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}${month}${day}`;
     }
 
     private getOrdinal(n: number): string {
@@ -175,6 +195,8 @@ class CustomRecurrenceModal extends Modal {
     private count: number | undefined;
     private until = '';
     private endType: 'never' | 'count' | 'until' = 'never';
+    private dtstart = '';
+    private dtstartTime = '';
 
     constructor(app: App, currentValue: string, onSubmit: (result: string | null) => void) {
         super(app);
@@ -184,7 +206,11 @@ class CustomRecurrenceModal extends Modal {
     }
 
     private parseCurrentValue(): void {
-        if (!this.currentValue) return;
+        if (!this.currentValue) {
+            // Set default DTSTART to today
+            this.dtstart = this.formatTodayForInput();
+            return;
+        }
 
         // Parse RRULE format
         const parts = this.currentValue.split(';');
@@ -193,6 +219,29 @@ class CustomRecurrenceModal extends Modal {
             const [key, value] = part.split('=');
             
             switch (key) {
+                case 'DTSTART':
+                    // Convert YYYYMMDD or YYYYMMDDTHHMMSSZ to YYYY-MM-DD for date input
+                    if (value.length >= 8) {
+                        this.dtstart = `${value.slice(0,4)}-${value.slice(4,6)}-${value.slice(6,8)}`;
+                        
+                        // Extract time if present (YYYYMMDDTHHMMSSZ format)
+                        if (value.length > 8 && value.includes('T')) {
+                            const timeStr = value.slice(9); // Get HHMMSSZ part
+                            if (timeStr.length >= 4) {
+                                this.dtstartTime = `${timeStr.slice(0,2)}:${timeStr.slice(2,4)}`;
+                            }
+                        }
+                    } else {
+                        // Fallback: try to parse as ISO date or use current date
+                        const parsed = new Date(value);
+                        if (!isNaN(parsed.getTime())) {
+                            this.dtstart = value; // Already in YYYY-MM-DD format
+                        } else {
+                            // Invalid date, use today as fallback
+                            this.dtstart = this.formatTodayForInput();
+                        }
+                    }
+                    break;
                 case 'FREQ':
                     this.frequency = value;
                     break;
@@ -246,11 +295,43 @@ class CustomRecurrenceModal extends Modal {
         }
     }
 
+    private formatTodayForInput(): string {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
 
         contentEl.createEl('h2', { text: 'Custom Recurrence' });
+
+        // Start date selection
+        new Setting(contentEl)
+            .setName('Start date')
+            .setDesc('The date when the recurrence pattern begins')
+            .addText(text => {
+                text.inputEl.type = 'date';
+                text.setValue(this.dtstart)
+                    .onChange(value => {
+                        this.dtstart = value;
+                    });
+            });
+
+        // Start time selection
+        new Setting(contentEl)
+            .setName('Start time')
+            .setDesc('The time when recurring instances should appear (optional)')
+            .addText(text => {
+                text.inputEl.type = 'time';
+                text.setValue(this.dtstartTime)
+                    .onChange(value => {
+                        this.dtstartTime = value;
+                    });
+            });
 
         // Frequency selection
         new Setting(contentEl)
@@ -607,7 +688,22 @@ class CustomRecurrenceModal extends Modal {
     }
 
     private buildRRule(monthlyType?: string, yearlyType?: string): string {
-        let parts = [`FREQ=${this.frequency}`];
+        let parts = [];
+        
+        // Add DTSTART first (convert YYYY-MM-DD to YYYYMMDD or YYYYMMDDTHHMMSSZ format)
+        if (this.dtstart) {
+            let dtstartFormatted = this.dtstart.replace(/-/g, '');
+            
+            // Add time if specified
+            if (this.dtstartTime) {
+                const timeFormatted = this.dtstartTime.replace(':', '') + '00Z';
+                dtstartFormatted = `${dtstartFormatted}T${timeFormatted}`;
+            }
+            
+            parts.push(`DTSTART:${dtstartFormatted}`);
+        }
+        
+        parts.push(`FREQ=${this.frequency}`);
         
         if (this.interval > 1) {
             parts.push(`INTERVAL=${this.interval}`);

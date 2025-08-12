@@ -13,6 +13,7 @@ import { perfMonitor } from '../utils/PerformanceMonitor';
 import { 
     createTaskCard,
     updateTaskCard,
+    refreshParentTaskSubtasks,
     toggleTaskCardSelection,
     setTaskCardSelected,
     isTaskCardSelected,
@@ -139,6 +140,9 @@ export class TaskListView extends ItemView {
                 console.error('EVENT_TASK_UPDATED received invalid data:', { path, originalTask, updatedTask });
                 return;
             }
+            
+            // Check if any parent task cards need their subtasks refreshed
+            await refreshParentTaskSubtasks(updatedTask, this.plugin, this.contentEl);
             
             // Check if this task is currently visible in our view
             const taskElements = this.taskElements.filter(element => element.dataset.key === path);

@@ -1,15 +1,18 @@
-import { App, Notice, PluginSettingTab, setIcon, Setting, setTooltip, TAbstractFile, TFile } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, setIcon, TAbstractFile, TFile, setTooltip } from 'obsidian';
 import TaskNotesPlugin from '../main';
-import { showConfirmationModal } from '../modals/ConfirmationModal';
-import { ProjectSelectModal } from '../modals/ProjectSelectModal';
-import { showStorageLocationConfirmationModal } from '../modals/StorageLocationConfirmationModal';
-import { PriorityManager } from '../services/PriorityManager';
+import { FieldMapping, StatusConfig, PriorityConfig, SavedView, Reminder, TaskInfo } from '../types';
 import { StatusManager } from '../services/StatusManager';
-import { FieldMapping, PriorityConfig, SavedView, StatusConfig } from '../types';
+import { PriorityManager } from '../services/PriorityManager';
+import { showConfirmationModal } from '../modals/ConfirmationModal';
+import { showStorageLocationConfirmationModal } from '../modals/StorageLocationConfirmationModal';
+import { ProjectSelectModal } from '../modals/ProjectSelectModal';
 
 export interface TaskNotesSettings {
 	tasksFolder: string;  // Now just a default location for new tasks
 	taskTag: string;      // The tag that identifies tasks
+	taskIdentificationMethod: 'tag' | 'property';  // Method to identify tasks
+	taskPropertyName: string;     // Property name for property-based identification
+	taskPropertyValue: string;    // Property value for property-based identification
 	excludedFolders: string;  // Comma-separated list of folders to exclude from Notes tab
 	defaultTaskPriority: string;  // Changed to string to support custom priorities
 	defaultTaskStatus: string;    // Changed to string to support custom statuses
@@ -56,14 +59,33 @@ export interface TaskNotesSettings {
 	autoStopTimeTrackingNotification: boolean;
 	// Project subtasks widget settings
 	showProjectSubtasks: boolean;
+	showExpandableSubtasks: boolean;
+	projectSubtasksPosition: 'top' | 'bottom';
 	// Overdue behavior settings
 	hideCompletedFromOverdue: boolean;
 	// ICS integration settings
 	icsIntegration: ICSIntegrationSettings;
 	// Saved filter views
 	savedViews: SavedView[];
+	// Notification settings
+	enableNotifications: boolean;
+	notificationType: 'in-app' | 'system';
 	// Use current note as project by default
 	useActiveNoteAsProject: boolean;
+}
+
+export interface DefaultReminder {
+	id: string;
+	type: 'relative' | 'absolute';
+	// For relative reminders
+	relatedTo?: 'due' | 'scheduled';
+	offset?: number; // Amount in specified unit
+	unit?: 'minutes' | 'hours' | 'days';
+	direction?: 'before' | 'after';
+	// For absolute reminders
+	absoluteTime?: string; // Time in HH:MM format
+	absoluteDate?: string; // Date in YYYY-MM-DD format
+	description?: string;
 }
 
 export interface TaskCreationDefaults {
@@ -71,6 +93,7 @@ export interface TaskCreationDefaults {
 	defaultContexts: string;  // Comma-separated list
 	defaultTags: string;      // Comma-separated list
 	defaultProjects: string;  // Comma-separated list of project links
+	useParentNoteAsProject: boolean; // Use the parent note as a project during instant conversion
 	defaultTimeEstimate: number; // minutes, 0 = no default
 	defaultPoints: number; // story points, 0 = no default
 	defaultRecurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -80,6 +103,8 @@ export interface TaskCreationDefaults {
 	// Body template settings
 	bodyTemplate: string;     // Path to template file for task body, empty = no template
 	useBodyTemplate: boolean; // Whether to use body template by default
+	// Reminder defaults
+	defaultReminders: DefaultReminder[];
 }
 
 export interface ICSIntegrationSettings {
@@ -144,6 +169,7 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	pomodoros: 'pomodoros',
 	icsEventId: 'icsEventId',
 	icsEventTag: 'ics_event',
+	reminders: 'reminders'
 	sortOrder: 'sort_order'
 };
 
@@ -219,13 +245,15 @@ export const DEFAULT_TASK_CREATION_DEFAULTS: TaskCreationDefaults = {
 	defaultContexts: '',
 	defaultTags: '',
 	defaultProjects: '',
+	useParentNoteAsProject: false,
 	defaultTimeEstimate: 0,
 	defaultPoints: 0,
 	defaultRecurrence: 'none',
 	defaultDueDate: 'none',
 	defaultScheduledDate: 'today',
 	bodyTemplate: '',
-	useBodyTemplate: false
+	useBodyTemplate: false,
+	defaultReminders: []
 };
 
 export const DEFAULT_CALENDAR_VIEW_SETTINGS: CalendarViewSettings = {
@@ -264,6 +292,9 @@ export const DEFAULT_CALENDAR_VIEW_SETTINGS: CalendarViewSettings = {
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	tasksFolder: 'TaskNotes/Tasks',
 	taskTag: 'task',
+	taskIdentificationMethod: 'tag',  // Default to tag-based identification
+	taskPropertyName: '',
+	taskPropertyValue: '',
 	excludedFolders: '',  // Default to no excluded folders
 	defaultTaskPriority: 'normal',
 	defaultTaskStatus: 'open',
@@ -310,6 +341,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	autoStopTimeTrackingNotification: false,
 	// Project subtasks widget defaults
 	showProjectSubtasks: true,
+	showExpandableSubtasks: true,
+	projectSubtasksPosition: 'bottom',
 	// Overdue behavior defaults
 	hideCompletedFromOverdue: true,
 	// ICS integration defaults
@@ -319,8 +352,66 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	},
 	// Saved filter views defaults
 	savedViews: [],
-	useActiveNoteAsProject: false
+	useActiveNoteAsProject: false,
+	// Notification defaults
+	enableNotifications: true,
+	notificationType: 'system'
 };
+
+/**
+ * Converts DefaultReminder objects to Reminder objects that can be used in tasks.
+ * This function handles the conversion of user-configured default reminders into
+ * the format expected by the task reminder system.
+ */
+export function convertDefaultRemindersToReminders(
+	defaultReminders: DefaultReminder[],
+	task?: TaskInfo
+): Reminder[] {
+	return defaultReminders.map(defaultReminder => {
+		const reminder: Reminder = {
+			id: `rem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+			type: defaultReminder.type,
+			description: defaultReminder.description
+		};
+
+		if (defaultReminder.type === 'relative') {
+			// For relative reminders, validate that the anchor date will be available
+			if (defaultReminder.relatedTo && defaultReminder.offset && defaultReminder.unit && defaultReminder.direction) {
+				// Convert offset to ISO 8601 duration format
+				let duration = 'PT';
+				if (defaultReminder.unit === 'days') {
+					duration = `P${defaultReminder.offset}D`;
+				} else if (defaultReminder.unit === 'hours') {
+					duration = `PT${defaultReminder.offset}H`;
+				} else {
+					duration = `PT${defaultReminder.offset}M`;
+				}
+
+				// Add negative sign for "before"
+				if (defaultReminder.direction === 'before') {
+					duration = '-' + duration;
+				}
+
+				reminder.relatedTo = defaultReminder.relatedTo;
+				reminder.offset = duration;
+			}
+		} else if (defaultReminder.type === 'absolute') {
+			// For absolute reminders, convert date and time to ISO string
+			if (defaultReminder.absoluteDate && defaultReminder.absoluteTime) {
+				reminder.absoluteTime = `${defaultReminder.absoluteDate}T${defaultReminder.absoluteTime}:00`;
+			}
+		}
+
+		return reminder;
+	}).filter(reminder => {
+		// Filter out invalid reminders
+		if (reminder.type === 'relative') {
+			return reminder.relatedTo && reminder.offset;
+		} else {
+			return reminder.absoluteTime;
+		}
+	});
+}
 
 
 export class TaskNotesSettingTab extends PluginSettingTab {
@@ -352,6 +443,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			{ id: 'statuses', name: 'Statuses' },
 			{ id: 'priorities', name: 'Priorities' },
 			{ id: 'pomodoro', name: 'Pomodoro' },
+			{ id: 'notifications', name: 'Notifications' },
 			{ id: 'misc', name: 'Misc' }
 		];
 		
@@ -444,6 +536,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				break;
 			case 'pomodoro':
 				this.renderPomodoroTab();
+				break;
+			case 'notifications':
+				this.renderNotificationsTab();
 				break;
 			case 'misc':
 				this.renderMiscTab();
@@ -550,18 +645,57 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			});
 		
 		new Setting(container)
-			.setName('Task tag')
-			.setDesc('Tag that identifies notes as tasks (without #)')
-			.addText(text => {
-				text.inputEl.setAttribute('aria-label', 'Task identification tag');
-				return text
-					.setPlaceholder('task')
-					.setValue(this.plugin.settings.taskTag)
-					.onChange(async (value) => {
-						this.plugin.settings.taskTag = value;
+			.setName('Identify tasks by')
+			.setDesc('Choose whether to identify tasks by tag or by a frontmatter property')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('tag', 'Tag')
+					.addOption('property', 'Property')
+					.setValue(this.plugin.settings.taskIdentificationMethod)
+					.onChange(async (value: 'tag' | 'property') => {
+						this.plugin.settings.taskIdentificationMethod = value;
 						await this.plugin.saveSettings();
+						this.renderActiveTab(); // Re-render to show/hide conditional fields
 					});
 			});
+
+		if (this.plugin.settings.taskIdentificationMethod === 'tag') {
+			new Setting(container)
+				.setName('Task tag')
+				.setDesc('Tag that identifies notes as tasks (without #)')
+				.addText(text => {
+					text.inputEl.setAttribute('aria-label', 'Task identification tag');
+					return text
+						.setPlaceholder('task')
+						.setValue(this.plugin.settings.taskTag)
+						.onChange(async (value) => {
+							this.plugin.settings.taskTag = value;
+							await this.plugin.saveSettings();
+						});
+				});
+		} else { // Property-based identification
+			new Setting(container)
+				.setName('Task property name')
+				.setDesc('The frontmatter property name (e.g., "category")')
+				.addText(text => text
+					.setPlaceholder('category')
+					.setValue(this.plugin.settings.taskPropertyName)
+					.onChange(async (value) => {
+						this.plugin.settings.taskPropertyName = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(container)
+				.setName('Task property value')
+				.setDesc('The value that identifies a task (e.g., "[[Tasks]]")')
+				.addText(text => text
+					.setPlaceholder('[[Tasks]]')
+					.setValue(this.plugin.settings.taskPropertyValue)
+					.onChange(async (value) => {
+						this.plugin.settings.taskPropertyValue = value;
+						await this.plugin.saveSettings();
+					}));
+		}
 		
 		new Setting(container)
 			.setName('Excluded folders')
@@ -616,7 +750,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			if (this.plugin.settings.taskFilenameFormat === 'custom') {
 				new Setting(container)
 					.setName('Custom filename template')
-					.setDesc('Template for custom filenames. Available variables: {title}, {date}, {time}, {priority}, {status}, {timestamp}, {dueDate}, {scheduledDate}, etc.')
+					.setDesc('Template for custom filenames. Available variables: {title}, {titleLower}, {titleUpper}, {titleSnake}, {titleKebab}, {titleCamel}, {titlePascal}, {date}, {shortDate}, {time}, {time12}, {time24}, {timestamp}, {dateTime}, {year}, {month}, {monthName}, {monthNameShort}, {day}, {dayName}, {dayNameShort}, {hour}, {hour12}, {minute}, {second}, {milliseconds}, {ms}, {ampm}, {week}, {quarter}, {unix}, {unixMs}, {timezone}, {timezoneShort}, {utcOffset}, {utcOffsetShort}, {utcZ}, {zettel}, {nano}, {priority}, {priorityShort}, {status}, {statusShort}, {dueDate}, {scheduledDate}')
 					.addText(text => {
 						text.inputEl.setAttribute('aria-label', 'Custom filename template with variables');
 						return text
@@ -754,7 +888,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 
 		// Initial render
 		this.renderDefaultProjectsList(projectsList);
-
+		
 		new Setting(container)
 			.setName('Add active note as project')
 			.setDesc('Add the current note as a project when creating a new task')
@@ -764,6 +898,19 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.useActiveNoteAsProject)
 					.onChange(async (value) => {
 						this.plugin.settings.useActiveNoteAsProject = value;
+						await this.plugin.saveSettings();
+					});
+			});
+			
+		new Setting(container)
+			.setName('Use parent note as project')
+			.setDesc('During instant task conversion, automatically add the parent note as a project')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Use parent note as project for instant conversion');
+				return toggle
+					.setValue(this.plugin.settings.taskCreationDefaults.useParentNoteAsProject)
+					.onChange(async (value) => {
+						this.plugin.settings.taskCreationDefaults.useParentNoteAsProject = value;
 						await this.plugin.saveSettings();
 					});
 			});
@@ -908,6 +1055,24 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			text: 'Template is applied when the task is created with all final values from the form. Use {{details}} to include user content from the Details field.\n{{parentNote}} will resolve to a quoted markdown link (e.g., "[[Note Name]]") for the note where the task was created. For project organization, use it as a YAML list item: "project:\\n  - {{parentNote}}". Variables use the same format as daily note templates.',
 			cls: 'settings-help-note'
 		});
+
+		// Reminder defaults section
+		new Setting(container).setName('Reminder defaults').setHeading();
+
+		const reminderSection = container.createDiv('reminder-defaults-section');
+		reminderSection.createEl('p', { 
+			text: 'Configure default reminders that will be automatically added to new tasks. These can be relative to due or scheduled dates.',
+			cls: 'settings-help-note'
+		});
+
+		// Current default reminders list
+		const remindersList = reminderSection.createDiv('reminder-defaults-list');
+		this.renderDefaultRemindersList(remindersList);
+
+		// Add reminder form
+		this.renderAddDefaultReminderForm(reminderSection);
+
+
 	}
 	
 	private renderCalendarTab(): void {
@@ -1531,6 +1696,47 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				}));
 	}
 	
+	private renderNotificationsTab(): void {
+		const container = this.tabContents['notifications'];
+		
+		new Setting(container).setName('Notifications').setHeading();
+		
+		container.createEl('p', { 
+			text: 'Configure task reminder notifications.',
+			cls: 'settings-help-note'
+		});
+		
+		new Setting(container)
+			.setName('Enable reminders')
+			.setDesc('Enable the task reminder system. When disabled, no reminder notifications will be shown.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableNotifications)
+				.onChange(async (value) => {
+					this.plugin.settings.enableNotifications = value;
+					await this.plugin.saveSettings();
+				}));
+		
+		new Setting(container)
+			.setName('Notification type')
+			.setDesc('Choose how reminder notifications are displayed.')
+			.addDropdown(dropdown => dropdown
+				.addOption('system', 'System notifications')
+				.addOption('in-app', 'In-app notices')
+				.setValue(this.plugin.settings.notificationType)
+				.onChange(async (value: 'system' | 'in-app') => {
+					this.plugin.settings.notificationType = value;
+					await this.plugin.saveSettings();
+				}));
+		
+		// Additional info about system notifications
+		const systemNotesEl = container.createDiv({ cls: 'setting-item-description' });
+		systemNotesEl.innerHTML = `
+			<strong>System notifications:</strong> Use your operating system's native notification system. 
+			Requires permission and works even when Obsidian is minimized.<br>
+			<strong>In-app notices:</strong> Show notifications as temporary popups within Obsidian only.
+		`;
+	}
+	
 	private renderMiscTab(): void {
 		const container = this.tabContents['misc'];
 		
@@ -1572,6 +1778,39 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 						this.plugin.settings.showProjectSubtasks = value;
 						await this.plugin.saveSettings();
 						// Refresh all open editors to apply the change
+						this.plugin.notifyDataChanged();
+					});
+			});
+
+		// Project subtasks widget position
+		new Setting(container)
+			.setName('Project subtasks widget position')
+			.setDesc('Choose where the subtasks widget appears in project notes')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('top', 'Top of note')
+					.addOption('bottom', 'Bottom of note')
+					.setValue(this.plugin.settings.projectSubtasksPosition || 'bottom')
+					.onChange(async (value: 'top' | 'bottom') => {
+						this.plugin.settings.projectSubtasksPosition = value;
+						await this.plugin.saveSettings();
+						// Refresh all open editors to apply the change
+						this.plugin.notifyDataChanged();
+					});
+			});
+
+		// Expandable subtasks in task cards
+		new Setting(container)
+			.setName('Show expandable subtasks in task cards')
+			.setDesc('Add a chevron icon to project task cards that allows expanding to view subtasks inline')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Show expandable subtasks in task cards');
+				return toggle
+					.setValue(this.plugin.settings.showExpandableSubtasks)
+					.onChange(async (value) => {
+						this.plugin.settings.showExpandableSubtasks = value;
+						await this.plugin.saveSettings();
+						// Refresh task views to apply the change
 						this.plugin.notifyDataChanged();
 					});
 			});
@@ -2717,6 +2956,353 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 
 		this.plugin.settings.taskCreationDefaults.defaultProjects = projectStrings.join(', ');
 		this.plugin.saveSettings();
+	}
+
+	private renderDefaultRemindersList(container: HTMLElement): void {
+		container.empty();
+		
+		const reminders = this.plugin.settings.taskCreationDefaults.defaultReminders || [];
+		
+		if (reminders.length === 0) {
+			const emptyState = container.createDiv({ cls: 'reminder-defaults-empty' });
+			setIcon(emptyState.createDiv({ cls: 'reminder-defaults-empty-icon' }), 'bell-off');
+			emptyState.createEl('div', { 
+				cls: 'reminder-defaults-empty-text',
+				text: 'No default reminders configured' 
+			});
+			return;
+		}
+		
+		const remindersList = container.createDiv({ cls: 'reminder-defaults-items' });
+		
+		reminders.forEach((reminder, index) => {
+			const reminderCard = remindersList.createDiv({ cls: 'reminder-defaults-card' });
+			
+			// Reminder type icon
+			const iconContainer = reminderCard.createDiv({ cls: 'reminder-defaults-icon' });
+			const iconName = reminder.type === 'absolute' ? 'calendar-clock' : 'timer';
+			setIcon(iconContainer, iconName);
+			
+			// Main content area
+			const content = reminderCard.createDiv({ cls: 'reminder-defaults-content' });
+			
+			// Primary info (timing)
+			const primaryInfo = content.createDiv({ cls: 'reminder-defaults-primary' });
+			primaryInfo.textContent = this.formatDefaultReminderText(reminder);
+			
+			// Custom description (if any)
+			if (reminder.description) {
+				const description = content.createDiv({ cls: 'reminder-defaults-description' });
+				description.textContent = `"${reminder.description}"`;
+			}
+
+			// Actions area
+			const actions = reminderCard.createDiv({ cls: 'reminder-defaults-actions' });
+			
+			// Remove button
+			const removeBtn = actions.createEl('button', { 
+				cls: 'reminder-defaults-remove-btn'
+			});
+			setIcon(removeBtn, 'trash-2');
+			setTooltip(removeBtn, 'Delete this default reminder');
+			removeBtn.onclick = async () => {
+				await this.removeDefaultReminder(index);
+			};
+		});
+	}
+
+	private renderAddDefaultReminderForm(container: HTMLElement): void {
+		const formContainer = container.createDiv({ cls: 'reminder-defaults-form' });
+		
+		const formHeader = formContainer.createEl('h4', { 
+			text: 'Add Default Reminder',
+			cls: 'reminder-defaults-form-header'
+		});
+		
+		// Type selector
+		const typeSelector = formContainer.createDiv({ cls: 'reminder-defaults-type-selector' });
+		
+		const relativeTab = typeSelector.createEl('button', { 
+			cls: 'reminder-defaults-type-tab reminder-defaults-type-tab--active',
+			text: 'Relative',
+			attr: { 'data-type': 'relative' }
+		});
+		
+		const absoluteTab = typeSelector.createEl('button', { 
+			cls: 'reminder-defaults-type-tab',
+			text: 'Absolute',
+			attr: { 'data-type': 'absolute' }
+		});
+		
+		let selectedType: 'relative' | 'absolute' = 'relative';
+		let relativeAnchor: 'due' | 'scheduled' = 'due';
+		let relativeOffset = 15;
+		let relativeUnit: 'minutes' | 'hours' | 'days' = 'minutes';
+		let relativeDirection: 'before' | 'after' = 'before';
+		let absoluteDate = '';
+		let absoluteTime = '';
+		let description = '';
+		
+		// Tab switching
+		const switchToType = (type: 'relative' | 'absolute') => {
+			selectedType = type;
+			relativeTab.classList.toggle('reminder-defaults-type-tab--active', type === 'relative');
+			absoluteTab.classList.toggle('reminder-defaults-type-tab--active', type === 'absolute');
+			updateFormVisibility();
+		};
+		
+		relativeTab.onclick = () => switchToType('relative');
+		absoluteTab.onclick = () => switchToType('absolute');
+
+		// Relative form fields
+		const relativeFields = formContainer.createDiv({ cls: 'reminder-defaults-relative-fields' });
+
+		new Setting(relativeFields)
+			.setName('Time')
+			.addText(text => {
+				text
+					.setPlaceholder('15')
+					.setValue(String(relativeOffset))
+					.onChange(value => {
+						relativeOffset = parseInt(value) || 0;
+					});
+			})
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('minutes', 'minutes')
+					.addOption('hours', 'hours')
+					.addOption('days', 'days')
+					.setValue(relativeUnit)
+					.onChange(value => {
+						relativeUnit = value as 'minutes' | 'hours' | 'days';
+					});
+			});
+
+		new Setting(relativeFields)
+			.setName('Direction')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('before', 'Before')
+					.addOption('after', 'After')
+					.setValue(relativeDirection)
+					.onChange(value => {
+						relativeDirection = value as 'before' | 'after';
+					});
+			});
+
+		new Setting(relativeFields)
+			.setName('Relative to')
+			.addDropdown(dropdown => {
+				dropdown
+					.addOption('due', 'Due date')
+					.addOption('scheduled', 'Scheduled date')
+					.setValue(relativeAnchor)
+					.onChange(value => {
+						relativeAnchor = value as 'due' | 'scheduled';
+					});
+			});
+
+		// Absolute form fields
+		const absoluteFields = formContainer.createDiv({ cls: 'reminder-defaults-absolute-fields' });
+
+		new Setting(absoluteFields)
+			.setName('Date')
+			.addText(text => {
+				text
+					.setPlaceholder('YYYY-MM-DD')
+					.setValue(absoluteDate)
+					.onChange(value => {
+						absoluteDate = value;
+					});
+				text.inputEl.type = 'date';
+			});
+
+		new Setting(absoluteFields)
+			.setName('Time')
+			.addText(text => {
+				text
+					.setPlaceholder('HH:MM')
+					.setValue(absoluteTime)
+					.onChange(value => {
+						absoluteTime = value;
+					});
+				text.inputEl.type = 'time';
+			});
+
+		// Description field (common)
+		new Setting(formContainer)
+			.setName('Description (optional)')
+			.addText(text => {
+				text
+					.setPlaceholder('Custom reminder message')
+					.setValue(description)
+					.onChange(value => {
+						description = value;
+					});
+			});
+
+		// Add button
+		const addBtn = formContainer.createEl('button', { 
+			cls: 'reminder-defaults-add-btn'
+		});
+		
+		const addIcon = addBtn.createSpan({ cls: 'reminder-defaults-add-icon' });
+		setIcon(addIcon, 'plus');
+		addBtn.createSpan({ 
+			cls: 'reminder-defaults-add-text',
+			text: 'Add Default Reminder' 
+		});
+
+		addBtn.onclick = async () => {
+			try {
+				const newReminder = this.createDefaultReminder(
+					selectedType,
+					relativeAnchor,
+					relativeOffset,
+					relativeUnit,
+					relativeDirection,
+					absoluteDate,
+					absoluteTime,
+					description
+				);
+				
+				if (newReminder) {
+					await this.addDefaultReminder(newReminder);
+					
+					// Reset form
+					if (selectedType === 'relative') {
+						relativeOffset = 15;
+						relativeUnit = 'minutes';
+						description = '';
+					} else {
+						absoluteDate = '';
+						absoluteTime = '';
+						description = '';
+					}
+					
+					// Reset form inputs
+					this.resetDefaultReminderForm(formContainer);
+				}
+			} catch (error) {
+				console.error('Error adding default reminder:', error);
+				new Notice('Failed to add default reminder. Please check your inputs.');
+			}
+		};
+		
+		const updateFormVisibility = () => {
+			relativeFields.style.display = selectedType === 'relative' ? 'block' : 'none';
+			absoluteFields.style.display = selectedType === 'absolute' ? 'block' : 'none';
+		};
+		
+		// Set initial form visibility
+		updateFormVisibility();
+	}
+
+	private formatDefaultReminderText(reminder: DefaultReminder): string {
+		if (reminder.type === 'absolute') {
+			if (reminder.absoluteDate && reminder.absoluteTime) {
+				return `${reminder.absoluteDate} at ${reminder.absoluteTime}`;
+			}
+			return 'Absolute reminder';
+		} else {
+			const anchor = reminder.relatedTo === 'due' ? 'due date' : 'scheduled date';
+			const offset = this.formatDefaultReminderOffset(reminder);
+			return `${offset} ${anchor}`;
+		}
+	}
+
+	private formatDefaultReminderOffset(reminder: DefaultReminder): string {
+		if (!reminder.offset || !reminder.unit) return 'At time of';
+		
+		const direction = reminder.direction === 'before' ? 'before' : 'after';
+		const unit = reminder.offset === 1 ? reminder.unit.slice(0, -1) : reminder.unit; // Remove 's' for singular
+		return `${reminder.offset} ${unit} ${direction}`;
+	}
+
+	private createDefaultReminder(
+		type: 'relative' | 'absolute',
+		anchor: 'due' | 'scheduled',
+		offset: number,
+		unit: 'minutes' | 'hours' | 'days',
+		direction: 'before' | 'after',
+		date: string,
+		time: string,
+		description: string
+	): DefaultReminder | null {
+		const id = `def_rem_${Date.now()}`;
+
+		if (type === 'relative') {
+			return {
+				id,
+				type: 'relative',
+				relatedTo: anchor,
+				offset,
+				unit,
+				direction,
+				description: description || undefined
+			};
+		} else {
+			if (!date || !time) {
+				new Notice('Please specify both date and time for absolute reminder');
+				return null;
+			}
+
+			return {
+				id,
+				type: 'absolute',
+				absoluteDate: date,
+				absoluteTime: time,
+				description: description || undefined
+			};
+		}
+	}
+
+	private async addDefaultReminder(reminder: DefaultReminder): Promise<void> {
+		if (!this.plugin.settings.taskCreationDefaults.defaultReminders) {
+			this.plugin.settings.taskCreationDefaults.defaultReminders = [];
+		}
+		
+		this.plugin.settings.taskCreationDefaults.defaultReminders.push(reminder);
+		await this.plugin.saveSettings();
+		
+		// Re-render the list
+		const remindersList = document.querySelector('.reminder-defaults-list') as HTMLElement;
+		if (remindersList) {
+			this.renderDefaultRemindersList(remindersList);
+		}
+		
+		new Notice('Default reminder added successfully');
+	}
+
+	private async removeDefaultReminder(index: number): Promise<void> {
+		if (!this.plugin.settings.taskCreationDefaults.defaultReminders) return;
+		
+		this.plugin.settings.taskCreationDefaults.defaultReminders.splice(index, 1);
+		await this.plugin.saveSettings();
+		
+		// Re-render the list
+		const remindersList = document.querySelector('.reminder-defaults-list') as HTMLElement;
+		if (remindersList) {
+			this.renderDefaultRemindersList(remindersList);
+		}
+		
+		new Notice('Default reminder removed');
+	}
+
+	private resetDefaultReminderForm(formContainer: HTMLElement): void {
+		// Reset all form inputs to their default values
+		const inputs = formContainer.querySelectorAll('input, select') as NodeListOf<HTMLInputElement | HTMLSelectElement>;
+		inputs.forEach(input => {
+			if (input.type === 'text' || input.type === 'date' || input.type === 'time') {
+				input.value = '';
+			} else if (input.tagName === 'SELECT') {
+				(input as HTMLSelectElement).selectedIndex = 0;
+			}
+		});
+		
+		// Reset number input to default
+		const offsetInput = formContainer.querySelector('input[placeholder="15"]') as HTMLInputElement;
+		if (offsetInput) offsetInput.value = '15';
 	}
 
 }

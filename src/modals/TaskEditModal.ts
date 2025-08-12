@@ -2,10 +2,11 @@ import { App, Notice, TFile } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { TaskModal } from './TaskModal';
 import { TaskInfo } from '../types';
-import { getCurrentTimestamp, createUTCDateForRRule, formatUTCDateForCalendar, generateUTCCalendarDates, getUTCStartOfWeek, getUTCEndOfWeek, getUTCStartOfMonth, getUTCEndOfMonth } from '../utils/dateUtils';
+import { getCurrentTimestamp, formatDateForStorage, generateUTCCalendarDates, getUTCStartOfWeek, getUTCEndOfWeek, getUTCStartOfMonth, getUTCEndOfMonth, getTodayLocal, parseDateAsLocal, createUTCDateFromLocalCalendarDate } from '../utils/dateUtils';
 import { formatTimestampForDisplay } from '../utils/dateUtils';
-import { format, isSameMonth } from 'date-fns';
-import { generateRecurringInstances, extractTaskInfo, calculateTotalTimeSpent, formatTime } from '../utils/helpers';
+import { format } from 'date-fns';
+import { generateRecurringInstances, extractTaskInfo, calculateTotalTimeSpent, formatTime, updateToNextScheduledOccurrence } from '../utils/helpers';
+import { ReminderContextMenu } from '../components/ReminderContextMenu';
 
 export interface TaskEditOptions {
     task: TaskInfo;
@@ -71,6 +72,9 @@ export class TaskEditModal extends TaskModal {
         } else {
             this.recurrenceRule = '';
         }
+        
+        // Initialize reminders
+        this.reminders = this.task.reminders ? [...this.task.reminders] : [];
     }
 
     private convertLegacyRecurrenceToString(recurrence: { frequency?: string; days_of_week?: string[]; day_of_month?: number }): string {
@@ -89,6 +93,30 @@ export class TaskEditModal extends TaskModal {
         }
         
         return recurrenceText;
+    }
+
+    protected showReminderContextMenu(event: MouseEvent): void {
+        // Override parent method to use the actual task with its path
+        // Update the task object with current form values before showing menu
+        const currentTask: TaskInfo = {
+            ...this.task,
+            title: this.title,
+            due: this.dueDate,
+            scheduled: this.scheduledDate,
+            reminders: this.reminders
+        };
+        
+        const menu = new ReminderContextMenu(
+            this.plugin,
+            currentTask, // Use task with current form values and correct path
+            event.target as HTMLElement,
+            (updatedTask: TaskInfo) => {
+                this.reminders = updatedTask.reminders || [];
+                this.updateReminderIconState();
+            }
+        );
+        
+        menu.show(event);
     }
 
     async onOpen() {
@@ -239,19 +267,14 @@ export class TaskEditModal extends TaskModal {
         this.calendarWrapper = container.createDiv('recurring-calendar');
         
         // Show current month by default, or the month with most recent completions
-        // Use UTC date to be consistent with the rest of the calendar
-        const currentDate = new Date();
-        const currentUTCDate = new Date(Date.UTC(
-            currentDate.getUTCFullYear(), 
-            currentDate.getUTCMonth(), 
-            currentDate.getUTCDate()
-        ));
-        let mostRecentCompletion = currentUTCDate;
+        // Use local dates for calendar display
+        const currentDate = getTodayLocal();
+        let mostRecentCompletion = currentDate;
         
         if (this.task.complete_instances && this.task.complete_instances.length > 0) {
             const validCompletions = this.task.complete_instances
                 .filter(d => d && typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) // Only valid YYYY-MM-DD dates
-                .map(d => createUTCDateForRRule(d).getTime())
+                .map(d => parseDateAsLocal(d).getTime())
                 .filter(time => !isNaN(time)); // Filter out invalid dates
                 
             if (validCompletions.length > 0) {
@@ -293,6 +316,7 @@ export class TaskEditModal extends TaskModal {
         const calendarEnd = getUTCEndOfWeek(monthEnd, firstDaySetting);
         const allDays = generateUTCCalendarDates(calendarStart, calendarEnd);
         
+        
         // Generate recurring instances for this month (with some buffer)
         const bufferStart = getUTCStartOfMonth(displayDate);
         bufferStart.setUTCMonth(bufferStart.getUTCMonth() - 1);
@@ -300,7 +324,7 @@ export class TaskEditModal extends TaskModal {
         bufferEnd.setUTCMonth(bufferEnd.getUTCMonth() + 1);
         
         const recurringDates = generateRecurringInstances(this.task, bufferStart, bufferEnd);
-        const recurringDateStrings = new Set(recurringDates.map(d => formatUTCDateForCalendar(d)));
+        const recurringDateStrings = new Set(recurringDates.map(d => formatDateForStorage(d)));
         
         // Get current completed instances (original + changes)
         const completedInstances = new Set(this.task.complete_instances || []);
@@ -314,13 +338,15 @@ export class TaskEditModal extends TaskModal {
         
         // Render each day (no headers, just numbers)
         allDays.forEach(day => {
-            const dayStr = formatUTCDateForCalendar(day);
-            const isCurrentMonth = isSameMonth(day, displayDate);
+            const dayStr = formatDateForStorage(day);
+            // FIX: Use UTC-to-UTC comparison instead of mixing local and UTC dates
+            const isCurrentMonth = day.getUTCMonth() === displayDate.getUTCMonth();
             const isRecurring = recurringDateStrings.has(dayStr);
             const isCompleted = completedInstances.has(dayStr);
             
             const dayElement = grid.createDiv('recurring-calendar__day');
-            dayElement.textContent = format(day, 'd');
+            // FIX: Use UTC date method instead of timezone-sensitive format()
+            dayElement.textContent = String(day.getUTCDate());
             
             // Apply BEM modifier classes
             if (!isCurrentMonth) {
@@ -347,22 +373,16 @@ export class TaskEditModal extends TaskModal {
         
         // Navigation event handlers
         prevButton.addEventListener('click', () => {
-            // Create previous month date using UTC to avoid timezone issues
-            const prevMonth = new Date(Date.UTC(
-                displayDate.getUTCFullYear(), 
-                displayDate.getUTCMonth() - 1, 
-                1
-            ));
+            // FIX: Use UTC methods to prevent timezone drift
+            const prevMonth = new Date(displayDate);
+            prevMonth.setUTCMonth(prevMonth.getUTCMonth() - 1);
             this.renderCalendarMonth(container, prevMonth);
         });
         
         nextButton.addEventListener('click', () => {
-            // Create next month date using UTC to avoid timezone issues
-            const nextMonth = new Date(Date.UTC(
-                displayDate.getUTCFullYear(), 
-                displayDate.getUTCMonth() + 1, 
-                1
-            ));
+            // FIX: Use UTC methods to prevent timezone drift
+            const nextMonth = new Date(displayDate);
+            nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
             this.renderCalendarMonth(container, nextMonth);
         });
     }
@@ -492,6 +512,14 @@ export class TaskEditModal extends TaskModal {
             changes.recurrence = this.recurrenceRule || undefined;
         }
 
+        // Compare reminders
+        const oldReminders = this.task.reminders || [];
+        const newReminders = this.reminders || [];
+        
+        if (JSON.stringify(newReminders) !== JSON.stringify(oldReminders)) {
+            changes.reminders = newReminders.length > 0 ? newReminders : undefined;
+        }
+
         // Apply completed instances changes
         if (this.completedInstancesChanges.size > 0) {
             const currentCompleted = new Set(this.task.complete_instances || []);
@@ -503,6 +531,15 @@ export class TaskEditModal extends TaskModal {
                 }
             });
             changes.complete_instances = Array.from(currentCompleted);
+            
+            // If task has recurrence, update scheduled date to next uncompleted occurrence
+            if (this.task.recurrence) {
+                const tempTask: TaskInfo = { ...this.task, ...changes };
+                const nextScheduledDate = updateToNextScheduledOccurrence(tempTask);
+                if (nextScheduledDate) {
+                    changes.scheduled = nextScheduledDate;
+                }
+            }
         }
 
         // Always update modified timestamp if there are changes
