@@ -67,6 +67,7 @@ import { StatusBarService } from './services/StatusBarService';
 import { ProjectSubtasksService } from './services/ProjectSubtasksService';
 import { ExpandedProjectsService } from './services/ExpandedProjectsService';
 import { NotificationService } from './services/NotificationService';
+import { InputObserver } from './utils/InputObserver';
 
 // Type definitions for better type safety
 interface TaskUpdateEventData {
@@ -147,6 +148,9 @@ export default class TaskNotesPlugin extends Plugin {
 	// Notification service
 	notificationService: NotificationService;
 	
+	// Track input focus state for keyboard shortcuts
+	inputObserver: InputObserver;
+	
 	// Event listener cleanup  
 	private taskUpdateListenerForEditor: import('obsidian').EventRef | null = null;
 	
@@ -201,7 +205,8 @@ export default class TaskNotesPlugin extends Plugin {
 		this.migrationService = new MigrationService(this.app);
 		this.statusBarService = new StatusBarService(this);
 		this.notificationService = new NotificationService(this);
-		
+		this.inputObserver = new InputObserver(this.app);
+
 		// Note: View registration and heavy operations moved to onLayoutReady
 		
 		// Add ribbon icons
@@ -758,6 +763,11 @@ export default class TaskNotesPlugin extends Plugin {
 		// Clean up notification service
 		if (this.notificationService) {
 			this.notificationService.destroy();
+		}
+		
+		// Clean up input observer
+		if (this.inputObserver) {
+			this.inputObserver.disconnect();
 		}
 		
 		// Clean up native cache manager

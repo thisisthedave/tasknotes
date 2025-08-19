@@ -169,7 +169,7 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	pomodoros: 'pomodoros',
 	icsEventId: 'icsEventId',
 	icsEventTag: 'ics_event',
-	reminders: 'reminders'
+	reminders: 'reminders',
 	sortOrder: 'sort_order'
 };
 

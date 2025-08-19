@@ -127,14 +127,14 @@ export class StoryPointsModal extends SuggestModal<PointsAction> {
     async onChooseSuggestion(action: PointsAction, evt: MouseEvent | KeyboardEvent) {
         try {
             // Refresh task data to ensure we have the latest information
-            const freshTasks = (await Promise.all(this.tasks.map(task => this.plugin.cacheManager.getTaskInfo(task.path))))
-                .filter(task => task !== null && task !== undefined);
+            const freshTasks: TaskInfo[] = (await Promise.all(this.tasks.map(task => this.plugin.cacheManager.getTaskInfo(task.path))))
+                .filter(task => task !== null && task !== undefined) as TaskInfo[];
             if (!freshTasks || freshTasks.length === 0) {
                 new Notice('Task not found');
                 return;
             }
 
-            await this.plugin.batchUpdateTasksProperty(freshTasks, 'points', action.points);
+            await this.plugin.batchUpdateTasksProperty(freshTasks!, 'points', action.points);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.error('Error updating story point estimate:', {
