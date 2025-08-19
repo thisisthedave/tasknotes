@@ -1,14 +1,100 @@
-import { EVENT_TASK_DELETED, EVENT_TASK_UPDATED, TaskCreationData, TaskInfo, TimeEntry } from '../types';
+import { EVENT_TASK_DELETED, EVENT_TASK_UPDATED, TaskCreationData, TaskInfo, TimeEntry, IWebhookNotifier } from '../types';
 import { FilenameContext, generateTaskFilename, generateUniqueFilename } from '../utils/filenameGenerator';
 import { Notice, TFile, normalizePath, stringifyYaml } from 'obsidian';
 import { TemplateData, mergeTemplateFrontmatter, processTemplate } from '../utils/templateProcessor';
 import { addDTSTARTToRecurrenceRule, ensureFolderExists, updateToNextScheduledOccurrence } from '../utils/helpers';
 import { formatDateForStorage, getCurrentDateString, getCurrentTimestamp } from '../utils/dateUtils';
+import { format } from 'date-fns';
 
 import TaskNotesPlugin from '../main';
 
 export class TaskService {
+    private webhookNotifier?: IWebhookNotifier;
+    
     constructor(private plugin: TaskNotesPlugin) {}
+    
+    /**
+     * Set webhook notifier for triggering webhook events
+     * Called after HTTPAPIService is initialized to avoid circular dependencies
+     */
+    setWebhookNotifier(notifier: IWebhookNotifier): void {
+        this.webhookNotifier = notifier;
+    }
+
+    /**
+     * Process a folder path template with task and date variables
+     * 
+     * This method enables dynamic folder creation by replacing template variables 
+     * with actual values from the task data and current date.
+     * 
+     * Supported task variables:
+     * - {{context}} - First context from the task's contexts array
+     * - {{project}} - First project from the task's projects array  
+     * - {{priority}} - Task priority (e.g., "high", "medium", "low")
+     * - {{status}} - Task status (e.g., "todo", "in-progress", "done")
+     * - {{title}} - Task title (sanitized for folder names)
+     * 
+     * Supported date variables:
+     * - {{year}} - Current year (e.g., "2025")
+     * - {{month}} - Current month with leading zero (e.g., "08")
+     * - {{day}} - Current day with leading zero (e.g., "15")
+     * - {{date}} - Full current date (e.g., "2025-08-15")
+     * 
+     * @param folderTemplate - The template string with variables to process
+     * @param taskData - Optional task data for variable substitution
+     * @param date - Date to use for date variables (defaults to current date)
+     * @returns Processed folder path with variables replaced
+     * 
+     * @example
+     * processFolderTemplate("Tasks/{{year}}/{{month}}", taskData)
+     * // Returns: "Tasks/2025/08"
+     * 
+     * @example 
+     * processFolderTemplate("{{project}}/{{priority}}", taskData)
+     * // Returns: "ProjectName/high"
+     */
+    private processFolderTemplate(folderTemplate: string, taskData?: TaskCreationData, date: Date = new Date()): string {
+        if (!folderTemplate) {
+            return folderTemplate;
+        }
+
+        let processedPath = folderTemplate;
+        
+        // Replace task variables if taskData is provided
+        if (taskData) {
+            // Handle single context (first one if multiple)
+            const context = Array.isArray(taskData.contexts) && taskData.contexts.length > 0 
+                ? taskData.contexts[0] 
+                : '';
+            processedPath = processedPath.replace(/\{\{context\}\}/g, context);
+            
+            // Handle single project (first one if multiple) 
+            const project = Array.isArray(taskData.projects) && taskData.projects.length > 0
+                ? taskData.projects[0]
+                : '';
+            processedPath = processedPath.replace(/\{\{project\}\}/g, project);
+            
+            // Handle priority
+            const priority = taskData.priority || '';
+            processedPath = processedPath.replace(/\{\{priority\}\}/g, priority);
+            
+            // Handle status
+            const status = taskData.status || '';
+            processedPath = processedPath.replace(/\{\{status\}\}/g, status);
+            
+            // Handle title (sanitized for folder names)
+            const title = taskData.title ? taskData.title.replace(/[<>:"/\\|?*]/g, '_') : '';
+            processedPath = processedPath.replace(/\{\{title\}\}/g, title);
+        }
+        
+        // Replace date variables with current date values
+        processedPath = processedPath.replace(/\{\{year\}\}/g, format(date, 'yyyy'));
+        processedPath = processedPath.replace(/\{\{month\}\}/g, format(date, 'MM'));
+        processedPath = processedPath.replace(/\{\{day\}\}/g, format(date, 'dd'));
+        processedPath = processedPath.replace(/\{\{date\}\}/g, format(date, 'yyyy-MM-dd'));
+        
+        return processedPath;
+    }
 
     /**
      * Create a new task file with all the necessary setup
@@ -58,6 +144,7 @@ export class TaskService {
             const baseFilename = generateTaskFilename(filenameContext, this.plugin.settings);
             
             // Determine folder based on creation context
+            // Process folder templates with task and date variables for dynamic folder organization
             let folder = '';
             if (taskData.creationContext === 'inline-conversion') {
                 // For inline conversion, use the inline task folder setting with variable support
@@ -72,13 +159,17 @@ export class TaskService {
                     } else {
                         folder = inlineFolder;
                     }
+                    // Process task and date variables in the inline folder path
+                    folder = this.processFolderTemplate(folder, taskData);
                 } else {
                     // Fallback to default tasks folder when inline folder is empty (#128)
-                    folder = this.plugin.settings.tasksFolder || '';
+                    const tasksFolder = this.plugin.settings.tasksFolder || '';
+                    folder = this.processFolderTemplate(tasksFolder, taskData);
                 }
             } else {
                 // For manual creation and other contexts, use the general tasks folder
-                folder = this.plugin.settings.tasksFolder || '';
+                const tasksFolder = this.plugin.settings.tasksFolder || '';
+                folder = this.processFolderTemplate(tasksFolder, taskData);
             }
             
             // Ensure folder exists
@@ -180,6 +271,15 @@ export class TaskService {
                 path: file.path,
                 updatedTask: taskInfo
             });
+
+            // Trigger webhook for task creation
+            if (this.webhookNotifier) {
+                try {
+                    await this.webhookNotifier.triggerWebhook('task.created', { task: taskInfo });
+                } catch (error) {
+                    console.warn('Failed to trigger webhook for task creation:', error);
+                }
+            }
 
             return { file, taskInfo };
         } catch (error) {
@@ -383,6 +483,28 @@ export class TaskService {
                 // Event emission errors shouldn't break the operation
             }
             
+            // Trigger webhooks for property updates
+            if (this.webhookNotifier) {
+                try {
+                    // Check if this was a completion
+                    const wasCompleted = this.plugin.statusManager.isCompletedStatus(task.status);
+                    const isCompleted = property === 'status' && this.plugin.statusManager.isCompletedStatus(value);
+                    
+                    if (property === 'status' && !wasCompleted && isCompleted) {
+                        // Task was completed
+                        await this.webhookNotifier.triggerWebhook('task.completed', { task: updatedTask as TaskInfo });
+                    } else {
+                        // Regular property update
+                        await this.webhookNotifier.triggerWebhook('task.updated', { 
+                            task: updatedTask as TaskInfo,
+                            previous: task 
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Failed to trigger webhook for property update:', error);
+                }
+            }
+            
             // Step 5: Return authoritative data
             return updatedTask as TaskInfo;
         } catch (error) {
@@ -460,25 +582,102 @@ export class TaskService {
             // Always update the modification timestamp using field mapper
             frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
+
+        // Step 2.5: Move file based on archive operation and settings
+        let movedFile = file;
+        if (this.plugin.settings.moveArchivedTasks) {
+            try {
+                if (!isCurrentlyArchived && this.plugin.settings.archiveFolder?.trim()) {
+                    // Archiving: Move to archive folder
+                    const archiveFolder = this.plugin.settings.archiveFolder.trim();
+                    
+                    // Ensure archive folder exists
+                    await ensureFolderExists(this.plugin.app.vault, archiveFolder);
+                    
+                    // Construct new path in archive folder
+                    const newPath = `${archiveFolder}/${file.name}`;
+                    
+                    // Check if file already exists at destination
+                    const existingFile = this.plugin.app.vault.getAbstractFileByPath(newPath);
+                    if (existingFile) {
+                        throw new Error(`A file named "${file.name}" already exists in the archive folder "${archiveFolder}". Cannot move task to avoid overwriting existing file.`);
+                    }
+                    
+                    // Move the file
+                    await this.plugin.app.fileManager.renameFile(file, newPath);
+                    
+                    // Update the file reference and task path
+                    movedFile = this.plugin.app.vault.getAbstractFileByPath(newPath) as TFile;
+                    updatedTask.path = newPath;
+                    
+                    // Clear old cache entry and update path in task object
+                    this.plugin.cacheManager.clearCacheEntry(task.path);
+                } else if (isCurrentlyArchived && this.plugin.settings.tasksFolder?.trim()) {
+                    // Unarchiving: Move to default tasks folder
+                    const tasksFolder = this.plugin.settings.tasksFolder.trim();
+                    
+                    // Ensure tasks folder exists
+                    await ensureFolderExists(this.plugin.app.vault, tasksFolder);
+                    
+                    // Construct new path in tasks folder
+                    const newPath = `${tasksFolder}/${file.name}`;
+                    
+                    // Check if file already exists at destination
+                    const existingFile = this.plugin.app.vault.getAbstractFileByPath(newPath);
+                    if (existingFile) {
+                        throw new Error(`A file named "${file.name}" already exists in the tasks folder "${tasksFolder}". Cannot move task to avoid overwriting existing file.`);
+                    }
+                    
+                    // Move the file
+                    await this.plugin.app.fileManager.renameFile(file, newPath);
+                    
+                    // Update the file reference and task path
+                    movedFile = this.plugin.app.vault.getAbstractFileByPath(newPath) as TFile;
+                    updatedTask.path = newPath;
+                    
+                    // Clear old cache entry and update path in task object
+                    this.plugin.cacheManager.clearCacheEntry(task.path);
+                }
+            } catch (moveError) {
+                // If moving fails, show error but don't break the archive operation
+                const errorMessage = moveError instanceof Error ? moveError.message : String(moveError);
+                const operation = isCurrentlyArchived ? 'unarchiving' : 'archiving';
+                console.error(`Error moving ${operation} task:`, errorMessage);
+                new Notice(`Failed to move ${operation} task: ${errorMessage}`);
+                // Continue with archive operation without moving the file
+            }
+        }
         
         // Step 3: Wait for fresh data and update cache
         try {
-            const file = this.plugin.app.vault.getAbstractFileByPath(task.path);
             // Wait for the metadata cache to have the updated data
-            if (file instanceof TFile && this.plugin.cacheManager.waitForFreshTaskData) {
-                await this.plugin.cacheManager.waitForFreshTaskData(file, { archived: updatedTask.archived });
+            if (movedFile instanceof TFile && this.plugin.cacheManager.waitForFreshTaskData) {
+                await this.plugin.cacheManager.waitForFreshTaskData(movedFile, { archived: updatedTask.archived });
             }
-            await this.plugin.cacheManager.updateTaskInfoInCache(task.path, updatedTask);
+            await this.plugin.cacheManager.updateTaskInfoInCache(updatedTask.path, updatedTask);
         } catch (cacheError) {
             console.error('Error updating cache for archived task:', cacheError);
         }
         
         // Step 4: Notify system of change
         this.plugin.emitter.trigger(EVENT_TASK_UPDATED, {
-            path: task.path,
+            path: updatedTask.path,
             originalTask: task,
             updatedTask: updatedTask
         });
+        
+        // Trigger webhook for archive/unarchive
+        if (this.webhookNotifier) {
+            try {
+                if (updatedTask.archived) {
+                    await this.webhookNotifier.triggerWebhook('task.archived', { task: updatedTask });
+                } else {
+                    await this.webhookNotifier.triggerWebhook('task.unarchived', { task: updatedTask });
+                }
+            } catch (error) {
+                console.warn('Failed to trigger webhook for task archive/unarchive:', error);
+            }
+        }
         
         // Step 5: Return authoritative data
         return updatedTask;
@@ -544,6 +743,18 @@ export class TaskService {
             originalTask: task,
             updatedTask: updatedTask
         });
+        
+        // Trigger webhook for time tracking start
+        if (this.webhookNotifier) {
+            try {
+                await this.webhookNotifier.triggerWebhook('time.started', { 
+                    task: updatedTask,
+                    session: updatedTask.timeEntries?.[updatedTask.timeEntries.length - 1]
+                });
+            } catch (error) {
+                console.warn('Failed to trigger webhook for time tracking start:', error);
+            }
+        }
         
         // Step 5: Return authoritative data
         return updatedTask;
@@ -615,6 +826,18 @@ export class TaskService {
             originalTask: task,
             updatedTask: updatedTask
         });
+        
+        // Trigger webhook for time tracking stop
+        if (this.webhookNotifier) {
+            try {
+                await this.webhookNotifier.triggerWebhook('time.stopped', { 
+                    task: updatedTask,
+                    session: updatedTask.timeEntries?.[updatedTask.timeEntries.length - 1]
+                });
+            } catch (error) {
+                console.warn('Failed to trigger webhook for time tracking stop:', error);
+            }
+        }
         
         // Step 5: Return authoritative data
         return updatedTask;
@@ -785,6 +1008,28 @@ export class TaskService {
                 // Event emission errors shouldn't break the operation
             }
 
+            // Trigger webhooks for task update/completion
+            if (this.webhookNotifier) {
+                try {
+                    // Check if this was a completion
+                    const wasCompleted = this.plugin.statusManager.isCompletedStatus(originalTask.status);
+                    const isCompleted = this.plugin.statusManager.isCompletedStatus(updatedTask.status);
+                    
+                    if (!wasCompleted && isCompleted) {
+                        // Task was completed
+                        await this.webhookNotifier.triggerWebhook('task.completed', { task: updatedTask });
+                    } else {
+                        // Regular update
+                        await this.webhookNotifier.triggerWebhook('task.updated', { 
+                            task: updatedTask,
+                            previous: originalTask 
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Failed to trigger webhook for task update:', error);
+                }
+            }
+
             return updatedTask;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -821,6 +1066,15 @@ export class TaskService {
                 path: task.path,
                 deletedTask: task
             });
+
+            // Trigger webhook for task deletion
+            if (this.webhookNotifier) {
+                try {
+                    await this.webhookNotifier.triggerWebhook('task.deleted', { task });
+                } catch (error) {
+                    console.warn('Failed to trigger webhook for task deletion:', error);
+                }
+            }
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -948,7 +1202,20 @@ export class TaskService {
             updatedTask: updatedTask
         });
         
-        // Step 5: Return authoritative data
+        // Step 5: Trigger webhook for recurring task completion
+        if (newComplete && this.webhookNotifier) {
+            try {
+                await this.webhookNotifier.triggerWebhook('recurring.instance.completed', { 
+                    task: updatedTask,
+                    date: dateStr,
+                    targetDate: targetDate
+                });
+            } catch (webhookError) {
+                console.error('Error triggering recurring task completion webhook:', webhookError);
+            }
+        }
+        
+        // Step 6: Return authoritative data
         return updatedTask;
     }
 

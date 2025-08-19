@@ -9,7 +9,7 @@ import {
     formatDateForStorage
 } from './dateUtils';
 import { filterEmptyProjects } from './helpers';
-import { TaskNotesSettings } from '../settings/settings';
+import { TaskNotesSettings } from '../types/settings';
 
 /**
  * Ultra-minimal cache manager that leverages Obsidian's native metadata cache
@@ -43,7 +43,7 @@ export class MinimalNativeCache extends Events {
     private eventListeners: EventRef[] = [];
     
     // Debouncing for file changes to prevent excessive updates during typing
-    private debouncedHandlers: Map<string, NodeJS.Timeout> = new Map();
+    private debouncedHandlers: Map<string, number> = new Map();
     private readonly DEBOUNCE_DELAY = 300; // 300ms delay after user stops typing
     
     // Cache of last known task info for comparison to detect actual changes
@@ -107,13 +107,29 @@ export class MinimalNativeCache extends Events {
 
             // Handle both single and multi-value properties
             if (Array.isArray(frontmatterValue)) {
-                return frontmatterValue.includes(propValue);
+                return frontmatterValue.some((val: any) => this.comparePropertyValues(val, propValue));
             }
-            return frontmatterValue === propValue;
+            return this.comparePropertyValues(frontmatterValue, propValue);
         } else {
             // Fallback to legacy tag-based method
             return Array.isArray(frontmatter.tags) && frontmatter.tags.includes(this.taskTag);
         }
+    }
+
+    /**
+     * Compare frontmatter property values with settings value, with boolean coercion support.
+     */
+    private comparePropertyValues(frontmatterValue: any, settingValue: string): boolean {
+        // Handle boolean frontmatter values compared to string settings (e.g., true vs "true")
+        if (typeof frontmatterValue === 'boolean' && typeof settingValue === 'string') {
+            const lower = settingValue.toLowerCase();
+            if (lower === 'true' || lower === 'false') {
+                return frontmatterValue === (lower === 'true');
+            }
+        }
+
+        // Fallback to strict equality for other types (strings, numbers, etc.)
+        return frontmatterValue === settingValue;
     }
     
     /**
@@ -985,7 +1001,7 @@ export class MinimalNativeCache extends Events {
         const timeout = setTimeout(() => {
             this.handleFileChanged(file, cache);
             this.debouncedHandlers.delete(file.path);
-        }, this.DEBOUNCE_DELAY);
+        }, this.DEBOUNCE_DELAY) as unknown as number;
         
         this.debouncedHandlers.set(file.path, timeout);
     }
@@ -1041,7 +1057,7 @@ export class MinimalNativeCache extends Events {
      * Wait for fresh data to be available in Obsidian's metadata cache
      * This ensures we don't emit events before the data is actually updated
      */
-    private async waitForFreshData(file: TFile, maxAttempts: number = 10): Promise<void> {
+    private async waitForFreshData(file: TFile, maxAttempts = 10): Promise<void> {
         const startTime = Date.now();
         
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -1082,7 +1098,7 @@ export class MinimalNativeCache extends Events {
      * Wait for fresh task data with specific expected changes
      * This can be called from TaskService to verify specific updates are reflected
      */
-    async waitForFreshTaskData(file: TFile, expectedChanges?: Partial<TaskInfo>, maxAttempts: number = 10): Promise<void> {
+    async waitForFreshTaskData(file: TFile, expectedChanges?: Partial<TaskInfo>, maxAttempts = 10): Promise<void> {
         const startTime = Date.now();
         
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -1238,6 +1254,7 @@ export class MinimalNativeCache extends Events {
             const mappedTask = this.fieldMapper.mapFromFrontmatter(frontmatter, path, this.storeTitleInFilename);
             
             return {
+                id: path, // Add id field for API consistency
                 title: mappedTask.title || 'Untitled task',
                 status: mappedTask.status || 'open',
                 priority: mappedTask.priority || 'normal',

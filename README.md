@@ -1,4 +1,4 @@
-# TaskNotes for Obsidian
+# <img src="tasknotes-gradient.svg" width="32" height="32" style="vertical-align: middle;"> TaskNotes for Obsidian
 
 A task management plugin where each task is stored as an individual note using YAML frontmatter with calendar, kanban and pomodoro integration.
 
@@ -7,7 +7,15 @@ A task management plugin where each task is stored as an individual note using Y
 
 ## Documentation
 
-**[Documentation](https://callumalpass.github.io/tasknotes/)**
+**[📖 Complete Documentation](https://callumalpass.github.io/tasknotes/)**
+
+### Quick Links
+- **[Getting Started](./docs/index.md)** - Core concepts and setup
+- **[Features Overview](./docs/features.md)** - Complete feature list
+- **[Views Guide](./docs/views.md)** - All available view types
+- **[Settings](./docs/settings.md)** - Configuration options
+- **[HTTP API](./docs/HTTP_API.md)** - External integrations
+- **[Troubleshooting](./docs/troubleshooting.md)** - Common issues
 
 ## Overview
 
@@ -102,6 +110,41 @@ title: "Weekly meeting"
 recurrence: "FREQ=WEEKLY;BYDAY=MO"
 complete_instances: ["2024-01-08"]
 ```
+
+## HTTP API
+
+TaskNotes includes an optional HTTP API server for external integrations. This enables creating tasks from browsers, automation tools, mobile apps, and custom scripts.
+
+### Quick Start
+1. Enable the HTTP API in Settings → HTTP API tab (desktop only)
+2. Configure port (default: 8080) and optional auth token  
+3. Restart Obsidian to start the server
+
+### Basic Usage
+```bash
+# Health check
+curl http://localhost:8080/api/health
+
+# List all tasks
+curl http://localhost:8080/api/tasks
+
+# Create a task
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title": "New task", "priority": "High"}'
+
+# Get task statistics
+curl http://localhost:8080/api/stats
+```
+
+### Browser Integration
+The API enables powerful browser integrations:
+- **Bookmarklets** for one-click task creation from any webpage
+- **Browser extensions** for Gmail, Outlook, and other email providers  
+- **Automation** with Zapier, IFTTT, and similar services
+
+### Documentation
+See [HTTP API Documentation](./docs/HTTP_API.md) for complete endpoint reference and integration examples.
 
 ## Credits
 

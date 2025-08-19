@@ -1,8 +1,8 @@
-import { App, Notice, TFile } from 'obsidian';
+import { App, Notice, TFile, setIcon } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { TaskModal } from './TaskModal';
 import { TaskInfo } from '../types';
-import { getCurrentTimestamp, formatDateForStorage, generateUTCCalendarDates, getUTCStartOfWeek, getUTCEndOfWeek, getUTCStartOfMonth, getUTCEndOfMonth, getTodayLocal, parseDateAsLocal, createUTCDateFromLocalCalendarDate } from '../utils/dateUtils';
+import { getCurrentTimestamp, formatDateForStorage, generateUTCCalendarDates, getUTCStartOfWeek, getUTCEndOfWeek, getUTCStartOfMonth, getUTCEndOfMonth, getTodayLocal, parseDateAsLocal } from '../utils/dateUtils';
 import { formatTimestampForDisplay } from '../utils/dateUtils';
 import { format } from 'date-fns';
 import { generateRecurringInstances, extractTaskInfo, calculateTotalTimeSpent, formatTime, updateToNextScheduledOccurrence } from '../utils/helpers';
@@ -127,8 +127,15 @@ export class TaskEditModal extends TaskModal {
         await this.refreshTaskData();
         
         this.containerEl.addClass('tasknotes-plugin', 'minimalist-task-modal');
-        this.titleEl.textContent = this.getModalTitle();
-
+        
+        // Set the modal title using the standard Obsidian approach (preserves close button)
+        this.titleEl.setText(this.getModalTitle());
+        
+        // Add TaskNotes icon at the beginning of the title
+        const iconContainer = this.titleEl.createSpan('modal-header-icon');
+        setIcon(iconContainer, 'tasknotes-simple');
+        this.titleEl.insertBefore(iconContainer, this.titleEl.firstChild);
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', this.onKeyDown);
 
@@ -573,6 +580,7 @@ export class TaskEditModal extends TaskModal {
             new Notice('Failed to open task note');
         }
     }
+
 
     private async archiveTask(): Promise<void> {
         try {

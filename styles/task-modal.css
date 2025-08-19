@@ -6,6 +6,46 @@
     /* Modal container adjustments */
 }
 
+/* Modal header with TaskNotes icon */
+.modal-header-container {
+    display: flex;
+    align-items: center;
+    gap: var(--size-4-2);
+    margin-bottom: var(--size-4-3);
+}
+
+.modal-header-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+    color: var(--color-accent);
+    width: 20px;
+    height: 20px;
+}
+
+.modal-header-icon svg {
+    width: 20px !important;
+    height: 20px !important;
+    color: var(--color-accent);
+}
+
+.modal-header-icon .svg-icon {
+    width: 20px !important;
+    height: 20px !important;
+}
+
+.modal-header-icon .tasknotes-simple {
+    width: 20px !important;
+    height: 20px !important;
+    color: var(--color-accent) !important;
+}
+
+.modal-header-title {
+    font-size: var(--font-ui-larger);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-normal);
+}
+
 .tasknotes-plugin .minimalist-task-modal .modal-content {
     padding: 0;
     border-radius: var(--radius-l);

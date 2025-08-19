@@ -22,6 +22,89 @@
     isolation: isolate; /* Create a new stacking context */
 }
 
+
+/* Filter toggle base (positioning for badge) */
+.tasknotes-plugin .filter-bar__filter-toggle {
+  position: relative; /* context for badge */
+}
+
+/* Active filter badge dot */
+.tasknotes-plugin .filter-bar__filter-toggle.has-active-filters::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #a78bfa; /* subtle purple */
+}
+
+/* Clear all button in Filter section header */
+.tasknotes-plugin .filter-bar__clear-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tn-spacing-xs);
+  margin-left: var(--tn-spacing-sm);
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--color-grey-tint);
+  background-color: var(--color-grey-base);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+.tasknotes-plugin .filter-bar__clear-filters:hover {
+  background-color: var(--interactive-hover);
+}
+.tasknotes-plugin .filter-bar__clear-filters svg {
+  width: 16px; height: 16px;
+}
+
+/* Clear all filters button in Filter section header - matches Save button style exactly */
+.tasknotes-plugin .filter-bar__clear-all-button {
+  /* Ensure identical sizing and alignment with Save button */
+  width: var(--input-height);
+  height: var(--input-height);
+  min-width: var(--input-height);
+  min-height: var(--input-height);
+  padding: 0;
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: top;
+}
+
+/* Ensure the icon is properly centered */
+.tasknotes-plugin .filter-bar__clear-all-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Close modal button - matches other buttons exactly but with transparent background */
+.tasknotes-plugin .filter-bar__close-modal-button {
+  /* Identical sizing to Clear and Save buttons */
+  width: var(--input-height);
+  height: var(--input-height);
+  min-width: var(--input-height);
+  min-height: var(--input-height);
+  padding: 0;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: top;
+  /* Transparent background */
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Ensure the close icon is properly centered */
+.tasknotes-plugin .filter-bar__close-modal-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* Natural Language Date Input Enhancement */
 .tasknotes-plugin .filter-date-input-container {
     display: flex;
@@ -127,7 +210,7 @@
 }
 
 .tasknotes-plugin .filter-bar__filter-toggle:hover {
-    background: var(--interactive-hover);
+    background: var(--interactive-hover) !important;
     color: var(--text-normal);
 }
 
@@ -152,7 +235,7 @@
 }
 
 .tasknotes-plugin .filter-bar__templates-button:hover {
-    background: var(--interactive-hover);
+    background: var(--interactive-hover) !important;
     color: var(--text-normal);
     transform: none;
     box-shadow: none;
@@ -233,7 +316,8 @@
 .tasknotes-plugin .filter-bar__view-selector-dropdown {
     position: absolute;
     top: 100%;
-    right: 0; /* Align to the right of the container */
+    right: 0; /* Default align to right of the container */
+    left: auto;
     min-width: 240px;
     max-width: 320px;
     z-index: 1000; /* Ensure it's on top */
@@ -247,6 +331,12 @@
     opacity: 1;
     transform: translateY(0) scale(1);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Left-aligned variant for Views-left configuration */
+.tasknotes-plugin .filter-bar__view-selector-dropdown.filter-bar__view-selector-dropdown--left {
+    left: 0;
+    right: auto;
 }
 
 .tasknotes-plugin .filter-bar__view-selector-dropdown--hidden {
@@ -313,7 +403,7 @@
     height: 2px;
     background: currentColor;
     border-radius: 1px;
-    box-shadow: 
+    box-shadow:
         0 -4px 0 currentColor,
         0 4px 0 currentColor;
 }
@@ -355,10 +445,10 @@
 }
 
 @keyframes placeholderPulse {
-    0%, 100% { 
+    0%, 100% {
         opacity: 0.5;
     }
-    50% { 
+    50% {
         opacity: 0.7;
     }
 }
@@ -495,6 +585,10 @@
 }
 
 .tasknotes-plugin .filter-bar__section-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--tn-spacing-sm);
+
     padding-right: var(--tn-spacing-sm);
 }
 
@@ -505,6 +599,36 @@
 }
 
 .tasknotes-plugin .filter-bar__save-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Expand/Collapse all group buttons - Add pointer cursor but keep good hover */
+.tasknotes-plugin .filter-bar__expand-groups,
+.tasknotes-plugin .filter-bar__collapse-groups {
+    padding: var(--tn-spacing-xs);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-s);
+    color: var(--text-muted);
+    cursor: pointer !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--tn-button-height-md);
+    height: var(--tn-button-height-md);
+    transition: all 0.2s ease;
+    box-shadow: none;
+}
+
+.tasknotes-plugin .filter-bar__expand-groups:hover,
+.tasknotes-plugin .filter-bar__collapse-groups:hover {
+    background: var(--interactive-hover);
+    color: var(--text-normal);
+}
+
+.tasknotes-plugin .filter-bar__expand-groups svg,
+.tasknotes-plugin .filter-bar__collapse-groups svg {
     width: 16px;
     height: 16px;
 }
@@ -915,7 +1039,7 @@
     .tasknotes-plugin .filter-bar__condition {
         flex-wrap: wrap;
     }
-    
+
     .tasknotes-plugin .filter-bar__value-container {
         min-width: 120px;
     }

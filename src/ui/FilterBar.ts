@@ -68,6 +68,8 @@ export class FilterBar extends EventEmitter {
     private displaySection?: HTMLElement;
     private viewOptionsContainer?: HTMLElement;
     private searchInput?: TextComponent;
+    private viewsButtonAlignment: 'left' | 'right' = 'right';
+
     private isUserTyping = false;
     private viewOptionsConfig: Array<{id: string, label: string, value: boolean, onChange: (value: boolean) => void}> | null = null;
     private dragDropHandler: DragDropHandler;
@@ -86,17 +88,23 @@ export class FilterBar extends EventEmitter {
         viewOptions: false  // View Options - collapsed by default
     };
 
+    private enableGroupExpandCollapse = true;
+
     constructor(
         app: App,
         container: HTMLElement,
         initialQuery: FilterQuery,
-        filterOptions: FilterOptions
+        filterOptions: FilterOptions,
+        viewsButtonAlignment: 'left' | 'right' = 'right',
+        options?: { enableGroupExpandCollapse?: boolean }
     ) {
         super();
         this.app = app;
         this.container = container;
         this.currentQuery = FilterUtils.deepCloneFilterQuery(initialQuery);
         this.filterOptions = filterOptions;
+        this.viewsButtonAlignment = viewsButtonAlignment;
+        this.enableGroupExpandCollapse = options?.enableGroupExpandCollapse ?? true;
 
         // Initialize drag and drop handler
         this.dragDropHandler = new DragDropHandler((fromIndex, toIndex, draggedElement, placeholder) => {
@@ -116,6 +124,7 @@ export class FilterBar extends EventEmitter {
                 this.updateFilterBuilder();
             }
             this.emit('queryChange', FilterUtils.deepCloneFilterQuery(this.currentQuery));
+            this.updateFilterToggleBadge();
         }, 300);
 
         // Initialize debounced search input handling (800ms delay to reduce lag)
@@ -134,18 +143,18 @@ export class FilterBar extends EventEmitter {
      */
     private ensureValidFilterQuery(): void {
         // Check if query has the new FilterGroup structure
-        if (!this.currentQuery || 
+        if (!this.currentQuery ||
             typeof this.currentQuery !== 'object' ||
             this.currentQuery.type !== 'group' ||
             !Array.isArray(this.currentQuery.children) ||
             typeof this.currentQuery.conjunction !== 'string') {
-            
-            
+
+
             // Create a fresh default query, preserving any sort/group settings if valid
             const sortKey = (this.currentQuery?.sortKey && typeof this.currentQuery.sortKey === 'string') ? this.currentQuery.sortKey : 'due';
             const sortDirection = (this.currentQuery?.sortDirection && typeof this.currentQuery.sortDirection === 'string') ? this.currentQuery.sortDirection : 'asc';
             const groupKey = (this.currentQuery?.groupKey && typeof this.currentQuery.groupKey === 'string') ? this.currentQuery.groupKey : 'none';
-            
+
             this.currentQuery = {
                 type: 'group',
                 id: FilterUtils.generateId(),
@@ -185,21 +194,21 @@ export class FilterBar extends EventEmitter {
     private handleSearchInput(): void {
         try {
             const searchTerm = this.searchInput?.getValue().trim() || '';
-            
+
             // Remove existing search conditions and reorganize query structure
             this.removeSearchConditions();
-            
+
             // Add new search condition if term is not empty
             if (searchTerm) {
                 this.addSearchConditionWithGrouping(searchTerm);
             }
-            
+
             // Update only the filter builder to show the search condition
             this.updateFilterBuilder();
-            
-            // Emit query change 
-            this.emit('queryChange', FilterUtils.deepCloneFilterQuery(this.currentQuery));
-            
+
+            // Emit query change (and update badge immediately)
+            this.emitQueryChange();
+
             // Reset typing flag after a delay
             setTimeout(() => {
                 this.isUserTyping = false;
@@ -218,12 +227,12 @@ export class FilterBar extends EventEmitter {
             this.currentQuery.children = [];
             return;
         }
-        
+
         // Find the search condition
-        const searchConditionIndex = this.currentQuery.children.findIndex(child => 
-            child.type === 'condition' && 
-            child.property === 'title' && 
-            child.operator === 'contains' && 
+        const searchConditionIndex = this.currentQuery.children.findIndex(child =>
+            child.type === 'condition' &&
+            child.property === 'title' &&
+            child.operator === 'contains' &&
             child.id.startsWith('search_')
         );
 
@@ -237,11 +246,11 @@ export class FilterBar extends EventEmitter {
 
         // Check if we have a structure where the remaining child is a single group
         // that was created to preserve existing filters when search was added
-        if (this.currentQuery.children.length === 1 && 
+        if (this.currentQuery.children.length === 1 &&
             this.currentQuery.children[0].type === 'group') {
-            
+
             const remainingGroup = this.currentQuery.children[0] as FilterGroup;
-            
+
             // Restore the original filter structure by moving the group's children up to the root
             this.currentQuery.children = remainingGroup.children;
             this.currentQuery.conjunction = remainingGroup.conjunction;
@@ -256,7 +265,7 @@ export class FilterBar extends EventEmitter {
         if (!Array.isArray(this.currentQuery.children)) {
             this.currentQuery.children = [];
         }
-        
+
         const searchCondition: FilterCondition = {
             type: 'condition',
             id: `search_${FilterUtils.generateId()}`,
@@ -267,9 +276,9 @@ export class FilterBar extends EventEmitter {
 
         // Get existing non-search filters
         const existingFilters = this.currentQuery.children.filter(child => {
-            return !(child.type === 'condition' && 
-                    child.property === 'title' && 
-                    child.operator === 'contains' && 
+            return !(child.type === 'condition' &&
+                    child.property === 'title' &&
+                    child.operator === 'contains' &&
                     child.id.startsWith('search_'));
         });
 
@@ -353,33 +362,82 @@ export class FilterBar extends EventEmitter {
     private renderTopControls(): void {
         const topControls = this.container.createDiv('filter-bar__top-controls');
 
-        // Filter toggle icon
-        new ButtonComponent(topControls)
-            .setIcon('list-filter')
-            .setTooltip('Toggle filter')
-            .setClass('filter-bar__filter-toggle')
-            .onClick(() => {
-                this.toggleMainFilterBox();
+        const makeViewsButton = () => {
+            this.viewSelectorButton = new ButtonComponent(topControls)
+                .setButtonText('Views')
+                .setClass('filter-bar__templates-button')
+                .setTooltip('Saved filter views')
+                .onClick(() => {
+                    this.toggleViewSelectorDropdown();
+                });
+            this.viewSelectorButton.buttonEl.addClass('clickable-icon');
+            this.updateViewSelectorButtonState();
+        };
+        const makeFilterToggle = () => {
+            const filterToggle = new ButtonComponent(topControls)
+                .setIcon('list-filter')
+                .setTooltip('Toggle filter')
+                .setClass('filter-bar__filter-toggle')
+                .onClick(() => {
+                    this.toggleMainFilterBox();
+                });
+            filterToggle.buttonEl.addClass('clickable-icon');
+            // Right-click quick clear
+            filterToggle.buttonEl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.hasActiveFilters()) {
+                    this.clearAllFilters();
+                }
             });
-
-        // Search input
-        this.searchInput = new TextComponent(topControls)
-            .setPlaceholder('Search tasks...');
-        this.searchInput.inputEl.addClass('filter-bar__search-input');
-        setTooltip(this.searchInput.inputEl, 'Search task titles', { placement: 'top' });
-        this.searchInput.onChange(() => {
-            this.isUserTyping = true;
-            this.debouncedHandleSearchInput();
-        });
-
-        // Templates button
-        this.viewSelectorButton = new ButtonComponent(topControls)
-            .setButtonText('Views')
-            .setClass('filter-bar__templates-button')
-            .setTooltip('Saved filter views')
-            .onClick(() => {
-                this.toggleViewSelectorDropdown();
+        };
+        const makeSearchInput = () => {
+            this.searchInput = new TextComponent(topControls)
+                .setPlaceholder('Search tasks...');
+            this.searchInput.inputEl.addClass('filter-bar__search-input');
+            setTooltip(this.searchInput.inputEl, 'Search task titles', { placement: 'top' });
+            this.searchInput.onChange(() => {
+                this.isUserTyping = true;
+                this.debouncedHandleSearchInput();
             });
+        };
+
+        // Create expand/collapse button functions
+        const makeExpandCollapseButtons = () => {
+            const isGrouped = (this.currentQuery.groupKey || 'none') !== 'none';
+            if (isGrouped && this.enableGroupExpandCollapse) {
+                // Expand button first (always to the left of collapse)
+                const expandAllBtn = new ButtonComponent(topControls)
+                    .setIcon('list-tree')
+                    .setTooltip('Expand All Groups')
+                    .setClass('filter-bar__expand-groups')
+                    .onClick(() => this.emit('expandAllGroups'));
+                expandAllBtn.buttonEl.addClass('clickable-icon');
+
+                // Collapse button second
+                const collapseAllBtn = new ButtonComponent(topControls)
+                    .setIcon('list-collapse')
+                    .setTooltip('Collapse All Groups')
+                    .setClass('filter-bar__collapse-groups')
+                    .onClick(() => this.emit('collapseAllGroups'));
+                collapseAllBtn.buttonEl.addClass('clickable-icon');
+            }
+        };
+
+        // Order controls based on alignment preference
+        if (this.viewsButtonAlignment === 'left') {
+            // Left: Views -> Expand -> Collapse -> Filter -> Search Box
+            makeViewsButton();
+            makeExpandCollapseButtons();
+            makeFilterToggle();
+            makeSearchInput();
+        } else {
+            // Right (default): Expand -> Collapse -> Filter -> Search Box -> Views
+            makeExpandCollapseButtons();
+            makeFilterToggle();
+            makeSearchInput();
+            makeViewsButton();
+        }
 
         // Update button state based on active saved view
         this.updateViewSelectorButtonState();
@@ -387,10 +445,11 @@ export class FilterBar extends EventEmitter {
         // Main filter box (now rendered within top-controls for positioning)
         this.renderMainFilterBox(topControls);
 
-        // Templates dropdown
-        this.viewSelectorDropdown = topControls.createDiv({
-            cls: 'filter-bar__view-selector-dropdown filter-bar__view-selector-dropdown--hidden',
-        });
+        // Views dropdown; add left modifier when aligning left
+        const dropdownClass = this.viewsButtonAlignment === 'left'
+            ? 'filter-bar__view-selector-dropdown filter-bar__view-selector-dropdown--hidden filter-bar__view-selector-dropdown--left'
+            : 'filter-bar__view-selector-dropdown filter-bar__view-selector-dropdown--hidden';
+        this.viewSelectorDropdown = topControls.createDiv({ cls: dropdownClass });
 
         // Populate the dropdown with saved views
         this.renderViewSelectorDropdown();
@@ -422,12 +481,12 @@ export class FilterBar extends EventEmitter {
         // Create AbortController for clean event management
         this.abortController = new AbortController();
         const { signal } = this.abortController;
-        
+
         // Click outside handler with passive option for better performance
         document.addEventListener('click', (event: MouseEvent) => {
             this.handleDocumentClick(event);
         }, { signal, passive: true });
-        
+
         // Keyboard escape handler for accessibility
         document.addEventListener('keydown', (event: KeyboardEvent) => {
             this.handleKeyDown(event);
@@ -439,12 +498,12 @@ export class FilterBar extends EventEmitter {
      */
     private ignoreNextClickOutside(): void {
         this.ignoreNextClick = true;
-        
+
         // Clear any existing timeout
         if (this.ignoreClickTimeout) {
             window.clearTimeout(this.ignoreClickTimeout);
         }
-        
+
         // Reset the flag after a short delay as a safety measure
         this.ignoreClickTimeout = window.setTimeout(() => {
             this.ignoreNextClick = false;
@@ -464,7 +523,7 @@ export class FilterBar extends EventEmitter {
                 event.preventDefault();
                 return;
             }
-            
+
             // Close view selector dropdown if open
             if (this.viewSelectorDropdown && !this.viewSelectorDropdown.classList.contains('filter-bar__view-selector-dropdown--hidden')) {
                 this.viewSelectorDropdown.classList.add('filter-bar__view-selector-dropdown--hidden');
@@ -485,32 +544,32 @@ export class FilterBar extends EventEmitter {
             this.ignoreNextClick = false;
             return;
         }
-        
+
         const target = event.target as HTMLElement;
         if (!target) return;
-        
+
         // Check if click is outside the main filter box
         if (this.sectionStates.filterBox && this.mainFilterBox && this.container) {
             const filterToggleButton = this.container.querySelector('.filter-bar__filter-toggle');
-            
+
             // Check if the click is inside the entire filter bar container
             const isInsideFilterBar = this.container.contains(target);
             const isFilterToggleButton = filterToggleButton && filterToggleButton.contains(target);
-            
+
             // Only close if clicking completely outside the filter bar, but not on the toggle button
             if (!isInsideFilterBar && !isFilterToggleButton) {
                 this.sectionStates.filterBox = false;
                 this.updateFilterBoxState();
             }
         }
-        
+
         // Check if click is outside the view selector dropdown
         if (this.viewSelectorDropdown && this.viewSelectorButton?.buttonEl) {
             const isDropdownHidden = this.viewSelectorDropdown.classList.contains('filter-bar__view-selector-dropdown--hidden');
-            
+
             // Don't close if clicking on the views button or inside the dropdown
-            if (!isDropdownHidden && 
-                !this.viewSelectorButton.buttonEl.contains(target) && 
+            if (!isDropdownHidden &&
+                !this.viewSelectorButton.buttonEl.contains(target) &&
                 !this.viewSelectorDropdown.contains(target)) {
                 this.viewSelectorDropdown.classList.add('filter-bar__view-selector-dropdown--hidden');
                 this.viewSelectorButton.buttonEl.classList.remove('filter-bar__templates-button--active');
@@ -537,11 +596,11 @@ export class FilterBar extends EventEmitter {
     private updateFilterBoxState(): void {
         const mainBox = this.container.querySelector('.filter-bar__main-box');
         const filterToggle = this.container.querySelector('.filter-bar__filter-toggle');
-        
+
         if (mainBox) {
             mainBox.classList.toggle('filter-bar__main-box--collapsed', !this.sectionStates.filterBox);
         }
-        
+
         if (filterToggle) {
             filterToggle.classList.toggle('filter-bar__filter-toggle--active', this.sectionStates.filterBox);
         }
@@ -584,17 +643,17 @@ export class FilterBar extends EventEmitter {
                 const viewItemContainer = savedViewsSection.createDiv({
                     cls: 'filter-bar__view-item-container'
                 });
-                
+
                 // Make the container draggable
                 viewItemContainer.draggable = true;
                 viewItemContainer.setAttribute('data-view-index', index.toString());
-                
+
                 // Add drag handle
                 const dragHandle = viewItemContainer.createDiv({
                     cls: 'filter-bar__view-drag-handle'
                 });
                 setTooltip(dragHandle, 'Drag to reorder views', { placement: 'top' });
-                
+
                 const viewItemButton = new ButtonComponent(viewItemContainer)
                     .setButtonText(view.name)
                     .setClass('filter-bar__view-item')
@@ -628,11 +687,11 @@ export class FilterBar extends EventEmitter {
                             this.emit('deleteView', view.id);
                         }
                     });
-                
+
                 // Add drag and drop event handlers
                 this.dragDropHandler.setupDragAndDrop(viewItemContainer, index);
             });
-            
+
             // Add global handlers to ensure drop events work reliably
             this.dragDropHandler.setupGlobalHandlers(savedViewsSection);
         }
@@ -646,14 +705,14 @@ export class FilterBar extends EventEmitter {
 
         // Collapsible header
         const header = section.createDiv('filter-bar__section-header');
-        
+
         const titleWrapper = header.createDiv('filter-bar__section-header-main');
         titleWrapper.createSpan({
             text: 'Filter',
             cls: 'filter-bar__section-title'
         });
         setTooltip(titleWrapper, 'Click to expand/collapse filter conditions', { placement: 'top' });
-        
+
         // Show active saved view name if one is loaded
         if (this.activeSavedView) {
             titleWrapper.createSpan({
@@ -663,13 +722,35 @@ export class FilterBar extends EventEmitter {
         }
 
         const actionsWrapper = header.createDiv('filter-bar__section-header-actions');
-        new ButtonComponent(actionsWrapper)
+
+        // Clear all filters button (always visible in modal)
+        const clearButton = new ButtonComponent(actionsWrapper)
+            .setIcon('eraser')
+            .setTooltip('Clear all filters and groups')
+            .setClass('filter-bar__clear-all-button')
+            .onClick(() => {
+                this.clearAllFiltersKeepModalOpen();
+            });
+        clearButton.buttonEl.addClass('clickable-icon');
+
+        const saveButton = new ButtonComponent(actionsWrapper)
             .setIcon('save')
             .setTooltip('Save current filter as view')
             .setClass('filter-bar__save-button')
             .onClick(() => {
                 this.showSaveViewDialog();
             });
+        saveButton.buttonEl.addClass('clickable-icon');
+
+        // Close modal button
+        const closeButton = new ButtonComponent(actionsWrapper)
+            .setIcon('x')
+            .setTooltip('Close filter modal')
+            .setClass('filter-bar__close-modal-button')
+            .onClick(() => {
+                this.closeFilterModal();
+            });
+        closeButton.buttonEl.addClass('clickable-icon');
 
         // Content
         const content = section.createDiv('filter-bar__section-content');
@@ -697,21 +778,21 @@ export class FilterBar extends EventEmitter {
             console.error('FilterBar: Invalid group object provided to renderFilterGroup');
             return;
         }
-        
+
         // Ensure children array exists (defensive migration fix)
         if (!Array.isArray(group.children)) {
             group.children = [];
         }
 
         const groupContainer = parent.createDiv('filter-bar__group');
-        
+
         // Group header with conjunction and delete button
         const groupHeader = groupContainer.createDiv('filter-bar__group-header');
-        
+
         // Conjunction dropdown
         const conjunctionContainer = groupHeader.createDiv('filter-bar__conjunction');
         setTooltip(conjunctionContainer, 'Choose whether ALL or ANY of the conditions must match', { placement: 'top' });
-        
+
         new DropdownComponent(conjunctionContainer)
             .addOption('and', depth === 0 ? 'All' : 'All')
             .addOption('or', depth === 0 ? 'Any' : 'Any')
@@ -746,7 +827,7 @@ export class FilterBar extends EventEmitter {
 
         // Action buttons
         const actionsContainer = groupContainer.createDiv('filter-bar__group-actions');
-        
+
         new ButtonComponent(actionsContainer)
             .setIcon('plus')
             .setButtonText('Add filter')
@@ -817,7 +898,7 @@ export class FilterBar extends EventEmitter {
                         condition.value = operatorDef?.requiresValue ? '' : null;
                     }
                 }
-                
+
                 this.updateUI();
                 this.emitQueryChange();
             });
@@ -852,7 +933,7 @@ export class FilterBar extends EventEmitter {
      */
     private updateOperatorOptions(dropdown: DropdownComponent, property: FilterProperty): void {
         dropdown.selectEl.empty();
-        
+
         const propertyDef = FILTER_PROPERTIES.find(p => p.id === property);
         if (!propertyDef) return;
 
@@ -872,7 +953,7 @@ export class FilterBar extends EventEmitter {
 
         const propertyDef = FILTER_PROPERTIES.find(p => p.id === condition.property);
         const operatorDef = FILTER_OPERATORS.find(op => op.id === condition.operator);
-        
+
         if (!propertyDef || !operatorDef || !operatorDef.requiresValue) {
             return; // No value input needed
         }
@@ -939,6 +1020,11 @@ export class FilterBar extends EventEmitter {
                     dropdown.addOption(option, option);
                 });
                 break;
+            case 'path':
+                this.filterOptions.folders.forEach(option => {
+                    dropdown.addOption(option, option);
+                });
+                break;
         }
 
         setTooltip(dropdown.selectEl, `Select a ${propertyDef.label.toLowerCase()} to filter by`, { placement: 'top' });
@@ -952,6 +1038,10 @@ export class FilterBar extends EventEmitter {
             } else {
                 dropdown.setValue(currentValue);
             }
+        } else if (propertyDef.id === 'path') {
+            const currentValue = String(condition.value || '');
+            // Show "(Root)" for empty string path
+            dropdown.setValue(currentValue === '' ? '(Root)' : currentValue);
         } else {
             dropdown.setValue(String(condition.value || ''));
         }
@@ -959,6 +1049,8 @@ export class FilterBar extends EventEmitter {
         dropdown.onChange((value) => {
             if (propertyDef.id === 'projects' && value) {
                 condition.value = `[[${value}]]`;
+            } else if (propertyDef.id === 'path' && value === '(Root)') {
+                condition.value = '';
             } else {
                 condition.value = value || null;
             }
@@ -971,14 +1063,14 @@ export class FilterBar extends EventEmitter {
      */
     private renderDateInput(container: HTMLElement, condition: FilterCondition): void {
         const dateContainer = container.createDiv('filter-date-input-container');
-        
+
         // Main text input for both natural language and date entry
         const textInput = new TextComponent(dateContainer)
             .setValue(String(condition.value || ''))
             .onChange((value) => {
                 condition.value = value || null;
                 this.updateDateInputValidation(textInput, value);
-                
+
                 // Only emit query change if input is valid or empty
                 const trimmedValue = (value || '').trim();
                 if (trimmedValue === '' || isValidDateInput(trimmedValue)) {
@@ -986,40 +1078,40 @@ export class FilterBar extends EventEmitter {
                     this.debouncedEmitQueryChange();
                 }
             });
-        
+
         // Set placeholder to guide users
         textInput.setPlaceholder('today, 2024-12-25, next week...');
         textInput.inputEl.addClass('filter-date-text-input');
         setTooltip(textInput.inputEl, 'Enter a date using natural language or ISO format', { placement: 'top' });
-        
+
         // Set initial validation state
         this.updateDateInputValidation(textInput, String(condition.value || ''));
-        
+
         // Add a small help button showing natural language examples
         const helpButton = dateContainer.createEl('button', {
             cls: 'filter-date-help-button',
             text: '?'
         });
         setTooltip(helpButton, 'Show natural language date examples', { placement: 'top' });
-        
+
         helpButton.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.showNaturalLanguageDateHelp(helpButton);
         });
     }
-    
+
     /**
      * Update date input validation styling based on the current value
      */
     private updateDateInputValidation(textInput: TextComponent, value: string): void {
         const inputEl = textInput.inputEl;
-        
+
         // Remove all validation classes
         inputEl.removeClass('is-valid', 'is-invalid', 'is-empty');
-        
+
         const trimmedValue = value.trim();
-        
+
         if (trimmedValue === '') {
             inputEl.addClass('is-empty');
         } else if (isValidDateInput(trimmedValue)) {
@@ -1028,20 +1120,20 @@ export class FilterBar extends EventEmitter {
             inputEl.addClass('is-invalid');
         }
     }
-    
+
     /**
      * Show natural language date help tooltip
      */
     private showNaturalLanguageDateHelp(button: HTMLElement): void {
         // Remove existing tooltip
         document.querySelectorAll('.filter-date-help-tooltip').forEach(el => el.remove());
-        
+
         const tooltip = document.body.createDiv('filter-date-help-tooltip');
         // const suggestions = getNaturalLanguageDateSuggestions(); // Not currently used in tooltip
-        
+
         tooltip.createEl('h4', { text: 'Natural Language Dates' });
         const examplesList = tooltip.createEl('ul');
-        
+
         // Show the actual available patterns from our simplified implementation
         const availablePatterns = [
             'today', 'tomorrow', 'yesterday',
@@ -1050,24 +1142,24 @@ export class FilterBar extends EventEmitter {
             'in 1 week', '2 weeks ago',
             '2024-12-25', '2024-12-25T14:30:00'
         ];
-        
+
         availablePatterns.forEach(example => {
             examplesList.createEl('li', { text: example });
         });
-        
+
         // Position tooltip near the button
         const buttonRect = button.getBoundingClientRect();
         tooltip.style.position = 'absolute';
         tooltip.style.top = `${buttonRect.bottom + 5}px`;
         tooltip.style.left = `${buttonRect.left}px`;
         tooltip.style.zIndex = '1000';
-        
+
         // Remove tooltip when clicking elsewhere
         const removeTooltip = () => {
             tooltip.remove();
             document.removeEventListener('click', removeTooltip);
         };
-        
+
         // Add delay to prevent immediate removal
         setTimeout(() => {
             document.addEventListener('click', removeTooltip);
@@ -1096,13 +1188,14 @@ export class FilterBar extends EventEmitter {
 
         // Collapsible header
         const header = section.createDiv('filter-bar__section-header');
-        
+
         const titleWrapper = header.createDiv('filter-bar__section-header-main');
         titleWrapper.createSpan({
             text: 'Display & Organization',
             cls: 'filter-bar__section-title'
         });
         setTooltip(titleWrapper, 'Click to expand/collapse sorting and grouping options', { placement: 'top' });
+
 
         // Content
         const content = section.createDiv('filter-bar__section-content');
@@ -1160,6 +1253,10 @@ export class FilterBar extends EventEmitter {
             .setValue(this.currentQuery.groupKey || 'none')
             .onChange((value: TaskGroupKey) => {
                 this.currentQuery.groupKey = value;
+                // Update expand/collapse buttons visibility immediately
+                this.updateExpandCollapseButtons();
+                // Re-render controls to show/hide group actions when grouping changes
+                this.updateUI();
                 this.emitQueryChange();
             });
         setTooltip(groupDropdown.selectEl, 'Group tasks by a common property', { placement: 'top' });
@@ -1189,7 +1286,7 @@ export class FilterBar extends EventEmitter {
     private renderViewOptions(container: HTMLElement): void {
         const section = container.createDiv('filter-bar__section');
         this.viewOptionsContainer = section.createDiv('filter-bar__view-options-container');
-        
+
         // Initial population of view options
         this.populateViewOptions();
     }
@@ -1215,7 +1312,7 @@ export class FilterBar extends EventEmitter {
             this.viewOptionsContainer.addClass('filter-bar__section--hidden');
             return;
         }
-        
+
         this.viewOptionsContainer.removeClass('filter-bar__section--hidden');
 
         const header = this.viewOptionsContainer.createDiv('filter-bar__section-header');
@@ -1233,7 +1330,7 @@ export class FilterBar extends EventEmitter {
 
         options.forEach(option => {
             const optionContainer = content.createDiv('filter-bar__view-option');
-            
+
             const label = optionContainer.createEl('label', {
                 cls: 'filter-bar__view-option-label'
             });
@@ -1271,7 +1368,7 @@ export class FilterBar extends EventEmitter {
             operator: 'contains',
             value: ''
         };
-        
+
         group.children.push(condition);
         this.ignoreNextClickOutside();
         this.updateFilterBuilderComplete();
@@ -1288,7 +1385,7 @@ export class FilterBar extends EventEmitter {
             conjunction: 'and',
             children: []
         };
-        
+
         group.children.push(newGroup);
         this.ignoreNextClickOutside();
         this.updateFilterBuilderComplete();
@@ -1323,7 +1420,7 @@ export class FilterBar extends EventEmitter {
      */
     private updateViewSelectorButtonState(): void {
         if (!this.viewSelectorButton?.buttonEl) return;
-        
+
         // Add/remove active state class
         if (this.activeSavedView) {
             this.viewSelectorButton.buttonEl.classList.add('filter-bar__templates-button--saved-view-active');
@@ -1337,10 +1434,10 @@ export class FilterBar extends EventEmitter {
      */
     private toggleViewSelectorDropdown(): void {
         if (!this.viewSelectorDropdown || !this.viewSelectorButton) return;
-        
+
         const isHidden = this.viewSelectorDropdown.classList.contains('filter-bar__view-selector-dropdown--hidden');
         this.viewSelectorDropdown.classList.toggle('filter-bar__view-selector-dropdown--hidden', !isHidden);
-        
+
         // Toggle active state on the button
         if (isHidden) {
             // Opening dropdown - add active class
@@ -1366,7 +1463,7 @@ export class FilterBar extends EventEmitter {
     private toggleSection(sectionKey: 'filterBox' | 'filters' | 'display' | 'viewOptions', header: HTMLElement, content: HTMLElement): void {
         this.sectionStates[sectionKey] = !this.sectionStates[sectionKey];
         const isExpanded = this.sectionStates[sectionKey];
-        
+
         header.classList.toggle('filter-bar__section-header--collapsed', !isExpanded);
         content.classList.toggle('filter-bar__section-content--collapsed', !isExpanded);
     }
@@ -1389,7 +1486,7 @@ export class FilterBar extends EventEmitter {
         if (!this.viewOptionsConfig || this.viewOptionsConfig.length === 0) {
             return undefined;
         }
-        
+
         const options: {[key: string]: boolean} = {};
         this.viewOptionsConfig.forEach(option => {
             options[option.id] = option.value;
@@ -1410,24 +1507,82 @@ export class FilterBar extends EventEmitter {
             children: [],
             sortKey: this.currentQuery.sortKey || 'due',
             sortDirection: this.currentQuery.sortDirection || 'asc',
-            groupKey: this.currentQuery.groupKey || 'none'
+            groupKey: 'none'
         };
-        
+
         // Clear the active saved view
         this.activeSavedView = null;
-        
+
         // Clear the search input
         if (this.searchInput) {
             this.searchInput.setValue('');
         }
-        
-        // Update UI and emit change
-        this.render();
+
+        // Update only the filter builder to avoid collapsing the filter box
+        this.updateFilterBuilder();
+        this.updateDisplaySection();
         this.updateViewSelectorButtonState();
         this.emitQueryChange();
-        
-        // Close the dropdown
-        this.toggleViewSelectorDropdown();
+
+        // Close the dropdown if it's open (do not toggle open on clear)
+        if (this.viewSelectorDropdown && !this.viewSelectorDropdown.classList.contains('filter-bar__view-selector-dropdown--hidden')) {
+            this.viewSelectorDropdown.classList.add('filter-bar__view-selector-dropdown--hidden');
+            if (this.viewSelectorButton?.buttonEl) {
+                this.viewSelectorButton.buttonEl.classList.remove('filter-bar__templates-button--active');
+            }
+        }
+    }
+
+    /**
+     * Clear all filters but keep the modal open (for Clear button in modal)
+     */
+    private clearAllFiltersKeepModalOpen(): void {
+        // Create a fresh default query with preserved sort/group settings
+        this.currentQuery = {
+            type: 'group',
+            id: FilterUtils.generateId(),
+            conjunction: 'and',
+            children: [],
+            sortKey: this.currentQuery.sortKey || 'due',
+            sortDirection: this.currentQuery.sortDirection || 'asc',
+            groupKey: 'none'
+        };
+
+        // Clear the active saved view
+        this.activeSavedView = null;
+
+        // Clear the search input
+        if (this.searchInput) {
+            this.searchInput.setValue('');
+        }
+
+        // Update only the filter builder to avoid collapsing the filter box
+        this.updateFilterBuilder();
+        this.updateDisplaySection();
+        this.updateViewSelectorButtonState();
+
+        // Don't emit query change immediately to prevent modal closure
+        // Instead, just update the badge and emit after a delay
+        this.updateFilterToggleBadge();
+        setTimeout(() => {
+            this.emitQueryChangeIfComplete();
+        }, 100);
+
+        // Close the dropdown if it's open (do not toggle open on clear)
+        if (this.viewSelectorDropdown && !this.viewSelectorDropdown.classList.contains('filter-bar__view-selector-dropdown--hidden')) {
+            this.viewSelectorDropdown.classList.add('filter-bar__view-selector-dropdown--hidden');
+            if (this.viewSelectorButton?.buttonEl) {
+                this.viewSelectorButton.buttonEl.classList.remove('filter-bar__templates-button--active');
+            }
+        }
+    }
+
+    /**
+     * Close the filter modal
+     */
+    private closeFilterModal(): void {
+        this.sectionStates.filterBox = false;
+        this.updateFilterBoxState();
     }
 
     /**
@@ -1439,12 +1594,12 @@ export class FilterBar extends EventEmitter {
         this.activeSavedView = view;
         this.render();
         this.emitQueryChange();
-        
+
         // Emit viewOptions event if they exist
         if (view.viewOptions) {
             this.emit('loadViewOptions', view.viewOptions);
         }
-        
+
         this.toggleViewSelectorDropdown();
         this.updateViewSelectorButtonState();
         this.isLoadingSavedView = false;
@@ -1456,12 +1611,63 @@ export class FilterBar extends EventEmitter {
     private updateUI(): void {
         // Sync search input with current query
         this.syncSearchInput();
-        
+
         // Re-render everything to ensure consistency
         this.render();
-        
+
         // Update button state after render
         this.updateViewSelectorButtonState();
+        this.updateFilterToggleBadge();
+    }
+
+    /**
+     * Update only the display section (sort/group controls)
+     */
+    private updateDisplaySection(): void {
+        try {
+            // Find the group dropdown and update its value
+            const groupDropdown = this.container.querySelector('.filter-bar__group-container select') as HTMLSelectElement;
+            if (groupDropdown) {
+                groupDropdown.value = this.currentQuery.groupKey || 'none';
+            }
+
+            // Find the sort dropdown and update its value
+            const sortDropdown = this.container.querySelector('.filter-bar__sort-container select') as HTMLSelectElement;
+            if (sortDropdown) {
+                sortDropdown.value = this.currentQuery.sortKey || 'due';
+            }
+
+            // Update sort direction button
+            this.updateSortDirectionButton();
+
+            // Update expand/collapse buttons visibility
+            this.updateExpandCollapseButtons();
+        } catch (error) {
+            console.error('Error updating display section:', error);
+        }
+    }
+
+    /**
+     * Update expand/collapse buttons visibility based on current grouping state
+     */
+    private updateExpandCollapseButtons(): void {
+        try {
+            const isGrouped = (this.currentQuery.groupKey || 'none') !== 'none';
+            const shouldShow = isGrouped && this.enableGroupExpandCollapse;
+
+            // Find existing expand/collapse buttons
+            const expandBtn = this.container.querySelector('.filter-bar__expand-groups') as HTMLElement;
+            const collapseBtn = this.container.querySelector('.filter-bar__collapse-groups') as HTMLElement;
+
+            if (expandBtn) {
+                expandBtn.style.display = shouldShow ? '' : 'none';
+            }
+            if (collapseBtn) {
+                collapseBtn.style.display = shouldShow ? '' : 'none';
+            }
+        } catch (error) {
+            console.error('Error updating expand/collapse buttons:', error);
+        }
     }
 
     /**
@@ -1473,10 +1679,10 @@ export class FilterBar extends EventEmitter {
                 // Store current search input value and focus state
                 const currentValue = this.searchInput?.getValue();
                 const hasFocus = this.searchInput?.inputEl === document.activeElement;
-                
+
                 this.filterBuilder.empty();
                 this.renderFilterGroup(this.filterBuilder, this.currentQuery, 0);
-                
+
                 // Restore search input value and focus if needed
                 if (this.searchInput && currentValue !== undefined) {
                     this.searchInput.setValue(currentValue);
@@ -1484,7 +1690,7 @@ export class FilterBar extends EventEmitter {
                         this.searchInput.inputEl.focus();
                     }
                 }
-                
+
                 // Maintain filter button active state
                 this.updateFilterBoxState();
             }
@@ -1493,6 +1699,8 @@ export class FilterBar extends EventEmitter {
             // Don't re-throw to prevent cascading failures
         }
     }
+
+
 
     /**
      * Update filter builder ensuring all conjunction buttons and UI elements are properly rendered
@@ -1504,18 +1712,15 @@ export class FilterBar extends EventEmitter {
                 // Store current search input value and focus state
                 const currentValue = this.searchInput?.getValue();
                 const hasFocus = this.searchInput?.inputEl === document.activeElement;
-                
-                // Update the filter builder section completely
+
+                // Update the filter content
                 this.filterBuilder.empty();
                 this.renderFilterGroup(this.filterBuilder, this.currentQuery, 0);
-                
-                // Update display section to ensure sort/group controls are in sync
-                const displaySection = this.container.querySelector('.filter-bar__display-section');
-                if (displaySection) {
-                    displaySection.empty();
-                    this.renderDisplaySection(displaySection as HTMLElement);
-                }
-                
+
+
+
+                // Note: Display section doesn't need updating for filter changes
+
                 // Restore search input value and focus if needed
                 if (this.searchInput && currentValue !== undefined) {
                     this.searchInput.setValue(currentValue);
@@ -1523,7 +1728,7 @@ export class FilterBar extends EventEmitter {
                         this.searchInput.inputEl.focus();
                     }
                 }
-                
+
                 // Maintain filter button active state
                 this.updateFilterBoxState();
             }
@@ -1539,21 +1744,21 @@ export class FilterBar extends EventEmitter {
      */
     private syncSearchInput(): void {
         if (!this.searchInput || this.isUserTyping) return;
-        
+
         // Defensive check: ensure currentQuery has children array
         if (!this.currentQuery || !Array.isArray(this.currentQuery.children)) {
             this.searchInput.setValue('');
             return;
         }
-        
+
         // Find search condition in current query
-        const searchCondition = this.currentQuery.children.find(child => 
-            child.type === 'condition' && 
-            child.property === 'title' && 
+        const searchCondition = this.currentQuery.children.find(child =>
+            child.type === 'condition' &&
+            child.property === 'title' &&
             child.operator === 'contains' &&
             child.id.startsWith('search_')
         ) as FilterCondition | undefined;
-        
+
         // Update search input value only if user is not actively typing
         this.searchInput.setValue(String(searchCondition?.value || ''));
     }
@@ -1569,11 +1774,13 @@ export class FilterBar extends EventEmitter {
             // Re-render the filter section to remove the view name display
             this.updateFilterBuilder();
         }
-        
+
         // Always emit for sort/group changes and structural operations
+        // Also update the filter toggle badge instantly
+        this.updateFilterToggleBadge();
         this.emitQueryChangeIfComplete();
     }
-    
+
     /**
      * Check if the current query is complete and meaningful, then emit if so
      */
@@ -1582,7 +1789,7 @@ export class FilterBar extends EventEmitter {
             this.emit('queryChange', FilterUtils.deepCloneFilterQuery(this.currentQuery));
         }
     }
-    
+
     /**
      * Check if a query is meaningful (has complete conditions or no conditions)
      * Incomplete conditions (missing required values) should not trigger filtering
@@ -1592,11 +1799,11 @@ export class FilterBar extends EventEmitter {
         if (query.children.length === 0) {
             return true;
         }
-        
+
         // Check if query has at least one complete condition or group
         return this.hasCompleteConditions(query);
     }
-    
+
     /**
      * Recursively check if a group has any complete conditions
      */
@@ -1626,6 +1833,30 @@ export class FilterBar extends EventEmitter {
         this.updateUI();
     }
 
+    /** True if a saved view is active OR any complete filter condition exists */
+    private hasActiveFilters(): boolean {
+        try {
+            if (this.activeSavedView) return true;
+            // Active if any complete filter condition exists OR any grouping is applied
+            const hasFilters = this.isQueryMeaningful(this.currentQuery) && this.currentQuery.children.length > 0;
+            const hasGrouping = (this.currentQuery.groupKey ?? 'none') !== 'none';
+            return hasFilters || !!hasGrouping;
+        } catch {
+            return false;
+        }
+    }
+
+    /** Update filter toggle badge and tooltip */
+    private updateFilterToggleBadge(): void {
+        const el = this.container.querySelector('.filter-bar__filter-toggle') as HTMLElement | null;
+        if (!el) return;
+        const active = this.hasActiveFilters();
+        el.classList.toggle('has-active-filters', active);
+        setTooltip(el, active ? 'Active filters – Click to modify, right-click to clear' : 'Toggle filter', { placement: 'top' });
+
+
+    }
+
     /**
      * Get current filter options (for debugging)
      */
@@ -1651,13 +1882,13 @@ export class FilterBar extends EventEmitter {
                 this.container.empty();
             }
             this.removeAllListeners();
-            
+
             // Clean up event listeners and timeout
             if (this.abortController) {
                 this.abortController.abort();
                 this.abortController = undefined;
             }
-            
+
             if (this.ignoreClickTimeout) {
                 window.clearTimeout(this.ignoreClickTimeout);
                 this.ignoreClickTimeout = undefined;
@@ -1671,7 +1902,7 @@ export class FilterBar extends EventEmitter {
                     this.abortController.abort();
                     this.abortController = undefined;
                 }
-                
+
                 if (this.ignoreClickTimeout) {
                     window.clearTimeout(this.ignoreClickTimeout);
                     this.ignoreClickTimeout = undefined;
