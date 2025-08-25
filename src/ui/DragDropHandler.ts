@@ -172,9 +172,11 @@ export class DragDropHandler {
         
         // Adjust position if we're dropping after the original position
         // When dragging down, the original item is missing from the DOM, so we need to account for it
-        if (position > this.dragState.draggedIndex) {
-            position--;
-        }
+        // XXXdsmith - the original item is -not- missing from the DOM. I wonder what's the disconnect here?
+        // Maybe handleDragStart used to remove the original item to replace it with the placeholder?
+        // if (position > this.dragState.draggedIndex) {
+        //     position--;
+        // }
         
         return position;
     }

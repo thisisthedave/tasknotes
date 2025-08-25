@@ -1278,98 +1278,141 @@ export class TaskService {
         return updatedTask;
     }
     
-    async reorderTasks(tasks: TaskInfo[], fromIndex: number, toIndex: number): Promise<TaskInfo[]> {
+    /**
+     * Reorder multiple tasks in the specified range. Update the tasks' sortOrder properties to reflect their new positions.
+     * If the sortOrder property is not set, it will be initialized with a default value. If the sortOrder values
+     * become too bunched, the sort order values will be renormalized evenly with spacing of 1000.
+     * @param tasks All the fresh tasks in the range of tasks that need updates to the sortOrder property
+     * @param indicesToMove Indices of the tasks to move
+     * @param toIndex Target index to move the tasks to
+     * @returns The updated list of tasks
+     */
+    async reorderTasks(
+        tasks: TaskInfo[],            // the full list for the target group, in current rendered order
+        indicesToMove: number[],      // indices in `tasks` (before removal)
+        toIndex: number               // drop index reported by the UI (before removal)
+    ): Promise<TaskInfo[]> {
         try {
-            if (fromIndex < 0 || fromIndex >= tasks.length || toIndex < 0 || toIndex >= tasks.length) {
-                throw new Error("Invalid task indices for reordering");
-            }
+            if (tasks.length === 0 || indicesToMove.length === 0) return tasks;
 
+            // Sanitize inputs
+            const n = tasks.length;
+            const uniqSorted = [...new Set(indicesToMove.filter(i => i >= 0 && i < n))].sort((a, b) => a - b);
+            if (uniqSorted.length === 0) return tasks;
+            if (toIndex < 0) toIndex = 0;
+            if (toIndex > n) toIndex = n;
+
+            // Lazily initialize sortOrders
             const INITIAL_SPACING = 1000;
-            const newOrders: number[] = tasks.map(t => t.sortOrder ?? NaN);
-            // console.log("Prev order:\n" + tasks.map(t => `${t.sortOrder}: ${t.title}`).join("\n"));
-
-            // --- Step 1: Lazily assign sortOrders without mutating tasks ---
-            let lastSortOrder = 0;
-            for (let i = 0; i < tasks.length; i++) {
+            const newOrders: number[] = tasks.map(t => Number.isFinite(t.sortOrder) ? t.sortOrder! : NaN);
+            let last = 0;
+            for (let i = 0; i < newOrders.length; i++) {
                 if (!Number.isFinite(newOrders[i])) {
-                    const nextIndex = tasks.findIndex((t, idx) => idx > i && Number.isFinite(newOrders[idx]));
-                    if (nextIndex !== -1) {
-                        const nextVal = newOrders[nextIndex]!;
-                        const span = nextVal - lastSortOrder;
-                        const gapCount = (nextIndex - i) + 1;
-                        for (let j = i; j < nextIndex; j++) {
-                            newOrders[j] = lastSortOrder + (span * (j - (i - 1))) / gapCount;
+                    const nextIdx = newOrders.findIndex((v, idx) => idx > i && Number.isFinite(v));
+                    if (nextIdx !== -1) {
+                        const nextVal = newOrders[nextIdx]!;
+                        const span = nextVal - last;
+                        const gapCount = (nextIdx - i) + 1;
+                        for (let j = i; j < nextIdx; j++) {
+                            newOrders[j] = last + (span * (j - (i - 1))) / gapCount;
                         }
-                        lastSortOrder = nextVal;
-                        i = nextIndex - 1; // skip ahead to the last initialized one
+                        last = nextVal;
+                        i = nextIdx - 1;
                     } else {
-                        newOrders[i] = lastSortOrder + INITIAL_SPACING;
-                        lastSortOrder = newOrders[i];
+                        newOrders[i] = last + INITIAL_SPACING;
+                        last = newOrders[i];
                     }
                 } else {
-                    lastSortOrder = newOrders[i];
+                    last = newOrders[i];
                 }
             }
 
-            // --- Step 2: Move the task in the array (and reorder the newOrders array to match) ---
-            const [movedTask] = tasks.splice(fromIndex, 1);
-            const [movedOrder] = newOrders.splice(fromIndex, 1);
-            tasks.splice(toIndex, 0, movedTask);
-            newOrders.splice(toIndex, 0, movedOrder);
+            // Remove the moving block (preserving relative order)
+            const movingTasks: TaskInfo[] = [];
+            const movingOrders: number[] = [];
+            let removedBeforeTo = 0;
+            let offset = 0;
+            let workTasks = tasks.slice();
+            let workOrders = newOrders.slice();
 
-            // --- Step 3: Compute new sortOrder for the moved task ---
-            const prevOrder = newOrders[toIndex - 1];
-            const nextOrder = newOrders[toIndex + 1];
-            if (prevOrder !== undefined && nextOrder !== undefined) {
-                newOrders[toIndex] = (prevOrder + nextOrder) / 2;
-            } else if (prevOrder === undefined && nextOrder !== undefined) {
-                newOrders[toIndex] = nextOrder - INITIAL_SPACING;
-            } else if (prevOrder !== undefined && nextOrder === undefined) {
-                newOrders[toIndex] = prevOrder + INITIAL_SPACING;
+            for (const idx of uniqSorted) {
+                const i = idx - offset;
+                movingTasks.push(workTasks.splice(i, 1)[0]);
+                movingOrders.push(workOrders.splice(i, 1)[0]);
+                if (idx < toIndex) removedBeforeTo++;
+                offset++;
+            }
+
+            // Compute adjusted insertion index in the shrunken array
+            let insertAt = toIndex - removedBeforeTo;
+            if (insertAt < 0) insertAt = 0;
+            if (insertAt > workTasks.length) insertAt = workTasks.length;
+
+            // Insert the block at the new position (relative order preserved)
+            workTasks.splice(insertAt, 0, ...movingTasks);
+            workOrders.splice(insertAt, 0, ...Array(movingTasks.length).fill(NaN)); // fill then assign
+
+            // Assign orders for the inserted block using surrounding neighbors 
+            const prevOrder = workOrders[insertAt - 1];
+            const nextOrder = workOrders[insertAt + movingTasks.length];
+
+            if (Number.isFinite(prevOrder) && Number.isFinite(nextOrder)) {
+                // distribute linearly between prev and next
+                const span = (nextOrder as number) - (prevOrder as number);
+                for (let k = 0; k < movingTasks.length; k++) {
+                    workOrders[insertAt + k] = (prevOrder as number) + ((k + 1) * span) / (movingTasks.length + 1);
+                }
+            } else if (!Number.isFinite(prevOrder) && Number.isFinite(nextOrder)) {
+                // before the first: step backwards from next
+                for (let k = movingTasks.length - 1; k >= 0; k--) {
+                    workOrders[insertAt + k] = (nextOrder as number) - INITIAL_SPACING * (movingTasks.length - k);
+                }
+            } else if (Number.isFinite(prevOrder) && !Number.isFinite(nextOrder)) {
+                // after the last: step forward from prev
+                for (let k = 0; k < movingTasks.length; k++) {
+                    workOrders[insertAt + k] = (prevOrder as number) + INITIAL_SPACING * (k + 1);
+                }
             } else {
-                newOrders[toIndex] = 0; // only task in list
-            }
-
-            // --- Step 4: Renormalize if any gaps are too small ---
-            const MIN_GAP = 1e-4;
-            let needsRenormalization = false;
-            for (let i = 1; i < newOrders.length; i++) {
-                if ((newOrders[i] - newOrders[i - 1]) < MIN_GAP) {
-                    needsRenormalization = true;
-                    break;
+                // only items in list
+                for (let k = 0; k < movingTasks.length; k++) {
+                    workOrders[insertAt + k] = (k + 1) * INITIAL_SPACING;
                 }
             }
 
-            if (needsRenormalization) {
-                for (let i = 0; i < newOrders.length; i++) {
-                    newOrders[i] = i * INITIAL_SPACING;
-                }
+            // Renormalize if gaps are too small
+            const MIN_GAP = 1;
+            let needsRenorm = false;
+            for (let i = 1; i < workOrders.length; i++) {
+                if ((workOrders[i] - workOrders[i - 1]) < MIN_GAP) { needsRenorm = true; break; }
+            }
+            if (needsRenorm) {
+                for (let i = 0; i < workOrders.length; i++) workOrders[i] = i * INITIAL_SPACING;
             }
 
-            // --- Step 5: Persist only changed sortOrders ---
-            const updates = tasks.map((task, idx) => {
-                if (task.sortOrder !== newOrders[idx]) {
-                    return this.updateProperty(task, "sortOrder", newOrders[idx]);
+            // Persist changes only where needed
+            const updates: Array<Promise<unknown>> = [];
+            for (let i = 0; i < workTasks.length; i++) {
+                const t = workTasks[i];
+                const next = workOrders[i];
+                if (t.sortOrder !== next) {
+                    updates.push(this.updateProperty(t, "sortOrder", next));
                 }
-                return Promise.resolve(task);
-            });
-
-            const updatedTasks = await Promise.all(updates);
-            // console.log("New order:\n" + updatedTasks.map(t => `${t.sortOrder}: ${t.title}`).join("\n"));
-
-            return updatedTasks;
+            }
+            const results = await Promise.all(updates);
+            
+            // Return the authoritative tasks for convenience (you can map if needed)
+            return workTasks;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.error("Error reordering tasks:", {
                 error: errorMessage,
                 stack: error instanceof Error ? error.stack : undefined,
                 tasks,
-                fromIndex,
+                indicesToMove,
                 toIndex
             });
             throw new Error(`Failed to reorder tasks: ${errorMessage}`);
         }
     }
-
 
 }

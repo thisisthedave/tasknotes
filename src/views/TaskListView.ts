@@ -69,37 +69,62 @@ export class TaskListView extends ItemView {
         };
 
         // Initialize drag and drop handler
-        this.dragDropHandler = new DragDropHandler(async (fromIndex, toIndex, draggedElement, placeholder) => {
-            let awaitedUpdates: Promise<any>[] = [];
-            if (fromIndex != toIndex) {
-                // Clamp to array bounds
-                const start = Math.max(0, fromIndex > toIndex ? toIndex - 1 : fromIndex - 1);
-                const end = Math.min(this.taskElements.length, fromIndex > toIndex ? fromIndex + 2 : toIndex + 2); // +2 because end is exclusive for slice
+        this.dragDropHandler = new DragDropHandler(async (fromIndex, toIndex, draggedEl, placeholder) => {
+            const pending: Array<Promise<unknown>> = [];
 
-                const affectedTaskElements = this.taskElements.slice(start, end); // returns a copy
+            // Determine the destination group container (whatever you currently use)
+            const destGroupId = this.findTaskElementGroup(placeholder);
+
+            // Determine which elements move: dragged + selected-in-same-group
+            setTaskCardSelected(draggedEl, true); // Ensure dragged element is selected
+            const movingEls = this.getSelectedTaskElements();
+
+            // Collect elements in that group in *current* DOM order
+            const groupEls = movingEls.map(el => this.findTaskElementGroup(el));
+
+            // Find their indices (ascending)
+            const indicesToMove = movingEls.map(el => this.taskElements.indexOf(el));
+
+            if (indicesToMove.length > 0) {
+                // Find the affected range of tasks to update.
+                fromIndex = indicesToMove[0]
+                const affectedStart = Math.max(0, fromIndex > toIndex ? toIndex - 1 : fromIndex - 1);
+                const affectedEnd = Math.min(this.taskElements.length, fromIndex > toIndex ? fromIndex + 2 : toIndex + 2); // +2 because end is exclusive for slice
+                const affectedTaskElements = this.taskElements.slice(affectedStart, affectedEnd); // returns a copy
+                const affectedIndices = indicesToMove.map(idx => idx - affectedStart);
                 if (affectedTaskElements.length > 0) {
-                    const tasks = await Promise.all(
+                    // Load tasks and ensure they're loaded
+                    const affectedTasks = await Promise.all(
                         affectedTaskElements.map(child => this.plugin.cacheManager.getTaskInfo((child as HTMLElement).dataset.key!))
                     );
-                    console.log(`Reordering tasks from ${fromIndex} to ${toIndex}. Loaded ${tasks.length} tasks with offset ${start}`);
-                    const promise = plugin.reorderTasks(tasks as TaskInfo[], fromIndex - start, toIndex - start); // offset indices by the array slice
-                    awaitedUpdates.push(promise);
+                    const failedLoad = affectedTasks.map((task, idx) => [task, affectedTaskElements[idx].dataset.key]).filter(([task, key]) => task == null)
+                    if (failedLoad.length > 0) {
+                        throw new Error(`TaskInfo not found for key(s) ${failedLoad.map(([task, key]) => key).join(', ')}`);
+                    }
+
+                    // reorder the tasks
+                    console.debug(`Reordering tasks from ${fromIndex} to ${toIndex}. Loaded ${affectedTasks.length} tasks with offset ${affectedStart}`);
+                    const reorder = this.plugin.taskService.reorderTasks(affectedTasks as TaskInfo[], affectedIndices, toIndex - affectedStart);
+                    pending.push(reorder);
                 }
+
             }
 
             // Update the value of the grouping field if the task was moved, e.g. from "In Progress" to "Done"
             if (this.currentQuery.groupKey) {
-                const fromGroup = this.findTaskElementGroup(draggedElement);
-                const toGroup = this.findTaskElementGroup(placeholder);
-                const movePromise = this.moveBetweenGroups(draggedElement.dataset.key!, fromGroup, toGroup);
-                awaitedUpdates.push(movePromise);
+                const groupMoves = movingEls.map((taskEl, idx) => {
+                    const srcGroupId = groupEls[idx];
+                    return this.moveBetweenGroups(taskEl.dataset.key!, srcGroupId, destGroupId);
+                })
+                pending.push(...groupMoves);
             }
 
-            if (awaitedUpdates.length > 0) {
-                await Promise.all(awaitedUpdates);
-                this.debouncedRefreshTasks();
+            if (pending.length) {
+                await Promise.all(pending);
+                this.debouncedRefreshTasks(); // Ensures DOM reflects new order
             }
         });
+
 
         // Register event listeners
         this.registerEvents();
@@ -534,9 +559,10 @@ export class TaskListView extends ItemView {
             if (isArrayProperty) {
                 const oldValue = (movedTask[propertyKey]! as string[])
                 newValue = 
-                    (toGroup !== null && fromGroup !== null && !oldValue.includes(toGroup)) ? oldValue.map(oldProject => oldProject == fromGroup ? toGroup : oldProject) : // swap projects
-                    (toGroup !== null && !oldValue.includes(toGroup)) ? [...oldValue, toGroup] : // add new project
-                    oldValue.filter(oldProject => oldProject != fromGroup) // remove old project
+                    (toGroup !== null && fromGroup !== null && oldValue.includes(toGroup)) ? oldValue : // Moved to a group that is already present - no change
+                    (toGroup !== null && fromGroup !== null && !oldValue.includes(toGroup)) ? oldValue.map(oldProject => oldProject == fromGroup ? toGroup : oldProject) : // swap projects / groups
+                    (toGroup !== null && !oldValue.includes(toGroup)) ? [...oldValue, toGroup] : // Moved from null to a new group. Add new project / group.
+                    /* toGroup == null && fromGroup !== null */oldValue.filter(oldProject => oldProject != fromGroup) // Moved from a group into null. Remove old project / group
             }
             await this.plugin.updateTaskProperty(movedTask, propertyKey, newValue as TaskInfo[keyof TaskInfo]);
         }

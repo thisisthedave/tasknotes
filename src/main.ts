@@ -1428,9 +1428,9 @@ private injectCustomStyles(): void {
 		}
 	}
 
-	async reorderTasks(tasks: TaskInfo[], fromIndex: number, toIndex: number): Promise<TaskInfo[]> {
+	async reorderTasks(tasks: TaskInfo[], indicesToMove: number[], toIndex: number): Promise<TaskInfo[]> {
 		try {
-			const updatedTasks = await this.taskService.reorderTasks(tasks, fromIndex, toIndex);
+			const updatedTasks = await this.taskService.reorderTasks(tasks, indicesToMove, toIndex);
 			return updatedTasks;
 		} catch (error) {
 			console.error('Failed to reorder tasks:', error);
