@@ -79,8 +79,15 @@ export class TaskListView extends ItemView {
             setTaskCardSelected(draggedEl, true); // Ensure dragged element is selected
             const movingEls = this.getSelectedTaskElements();
 
-            // Collect elements in that group in *current* DOM order
-            const groupEls = movingEls.map(el => this.findTaskElementGroup(el));
+            // Keep track of original groupings
+            const srcGroupsByTaskId = movingEls.reduce<Record<string, string[]>>((acc, el: HTMLElement) => {
+                const taskGroup = this.findTaskElementGroup(el);
+                if (taskGroup) {
+                    const taskId: string = el.dataset.key!;
+                    (acc[taskId] ??= []).push(taskGroup);
+                }
+                return acc;
+            }, {});
 
             // Find their indices (ascending)
             const indicesToMove = movingEls.map(el => this.taskElements.indexOf(el));
@@ -89,7 +96,7 @@ export class TaskListView extends ItemView {
                 // Find the affected range of tasks to update.
                 fromIndex = indicesToMove[0]
                 const affectedStart = Math.max(0, fromIndex > toIndex ? toIndex - 1 : fromIndex - 1);
-                const affectedEnd = Math.min(this.taskElements.length, fromIndex > toIndex ? fromIndex + 2 : toIndex + 2); // +2 because end is exclusive for slice
+                const affectedEnd = Math.min(this.taskElements.length, Math.max(toIndex, indicesToMove.at(-1)!) + 2); // +2 because end is exclusive for slice
                 const affectedTaskElements = this.taskElements.slice(affectedStart, affectedEnd); // returns a copy
                 const affectedIndices = indicesToMove.map(idx => idx - affectedStart);
                 if (affectedTaskElements.length > 0) {
@@ -106,22 +113,23 @@ export class TaskListView extends ItemView {
                     console.debug(`Reordering tasks from ${fromIndex} to ${toIndex}. Loaded ${affectedTasks.length} tasks with offset ${affectedStart}`);
                     const reorder = this.plugin.taskService.reorderTasks(affectedTasks as TaskInfo[], affectedIndices, toIndex - affectedStart);
                     pending.push(reorder);
+
+                    // Update the value of the grouping field if the task was moved, e.g. from "In Progress" to "Done"
+                    if (this.currentQuery.groupKey) {
+                        for (const task of affectedTasks) {
+                            const srcGroups = srcGroupsByTaskId[task!.id!];
+                            if (srcGroups) {
+                                const regroup = this.moveBetweenGroups(task!, srcGroups.filter(group => group !== null), destGroupId);
+                                pending.push(regroup);
+                            } 
+                        }
+                    }
+
+                    if (pending.length > 0) {
+                        await Promise.all(pending);
+                        this.debouncedRefreshTasks(); // Ensures DOM reflects new order
+                    }
                 }
-
-            }
-
-            // Update the value of the grouping field if the task was moved, e.g. from "In Progress" to "Done"
-            if (this.currentQuery.groupKey) {
-                const groupMoves = movingEls.map((taskEl, idx) => {
-                    const srcGroupId = groupEls[idx];
-                    return this.moveBetweenGroups(taskEl.dataset.key!, srcGroupId, destGroupId);
-                })
-                pending.push(...groupMoves);
-            }
-
-            if (pending.length) {
-                await Promise.all(pending);
-                this.debouncedRefreshTasks(); // Ensures DOM reflects new order
             }
         });
 
@@ -548,9 +556,8 @@ export class TaskListView extends ItemView {
         });
     }
 
-    async moveBetweenGroups(taskPath: string, fromGroup: string | null, toGroup: string | null) {
-        const movedTask = await this.plugin.cacheManager.getTaskInfo(taskPath);
-        if (movedTask && fromGroup !== toGroup) {
+    async moveBetweenGroups(movedTask: TaskInfo, fromGroups: string[], toGroup: string | null) {
+        if (movedTask && (fromGroups.length !== 1 || fromGroups[0] !== toGroup)) {
             const [propertyKey, isArrayProperty] =
                 this.currentQuery.groupKey == 'project' ? ['projects' as keyof TaskInfo, true] :
                 this.currentQuery.groupKey == 'context' ? ['contexts' as keyof TaskInfo, true] :
@@ -558,11 +565,10 @@ export class TaskListView extends ItemView {
             let newValue: string | string[] | null = toGroup;
             if (isArrayProperty) {
                 const oldValue = (movedTask[propertyKey]! as string[])
-                newValue = 
-                    (toGroup !== null && fromGroup !== null && oldValue.includes(toGroup)) ? oldValue : // Moved to a group that is already present - no change
-                    (toGroup !== null && fromGroup !== null && !oldValue.includes(toGroup)) ? oldValue.map(oldProject => oldProject == fromGroup ? toGroup : oldProject) : // swap projects / groups
-                    (toGroup !== null && !oldValue.includes(toGroup)) ? [...oldValue, toGroup] : // Moved from null to a new group. Add new project / group.
-                    /* toGroup == null && fromGroup !== null */oldValue.filter(oldProject => oldProject != fromGroup) // Moved from a group into null. Remove old project / group
+                newValue = oldValue.filter(oldProject => !fromGroups.includes(oldProject));
+                if (toGroup != null && !newValue.includes(toGroup)) {
+                    newValue.push(toGroup);
+                }
             }
             await this.plugin.updateTaskProperty(movedTask, propertyKey, newValue as TaskInfo[keyof TaskInfo]);
         }
@@ -958,8 +964,8 @@ export class TaskListView extends ItemView {
                 } else if (event.key === 'x') {
                     const focusedElement = this.getFocusedTaskElement();
                     if (focusedElement) {
-                        const matchingCards = this.taskElements.filter(card => card.dataset.key === focusedElement.dataset.key);
-                        toggleTaskCardSelection(matchingCards);
+                        // const matchingCards = this.taskElements.filter(card => card.dataset.key === focusedElement.dataset.key);
+                        toggleTaskCardSelection([focusedElement]);
                     }
                     handled = true;
                 } else if (event.key === 'a' && (event.ctrlKey || event.metaKey)) {
