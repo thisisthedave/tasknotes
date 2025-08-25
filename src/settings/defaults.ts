@@ -185,6 +185,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	useDefaultsOnInstantConvert: true,
 	enableNaturalLanguageInput: true,
 	nlpDefaultToScheduled: true,
+	singleClickAction: 'edit',
+	doubleClickAction: 'openNote',
 	// Inline task conversion defaults
 	inlineTaskConvertFolder: '{{currentNotePath}}',
 	// Performance defaults
@@ -224,5 +226,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	apiPort: 8080,
 	apiAuthToken: '',
 	// Webhook defaults
-	webhooks: []
+	webhooks: [],
+	// User Fields defaults (multiple)
+	userFields: []
 };

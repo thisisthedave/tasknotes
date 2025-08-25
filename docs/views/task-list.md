@@ -86,6 +86,19 @@ The FilterBar supports saving and loading filter configurations:
 - **Delete**: Remove saved views
 - Saved views include the complete filter hierarchy, sorting, and grouping preferences
 
+
+### Heading display and completion count
+
+The Task List heading shows the active saved view name and the current task count (completed / total).
+
+- No filter selected (shows “All”):
+
+![Saved view heading with count (no filter)](../assets/tasklist_filter_name+count_no_filter.png)
+
+- Saved view selected:
+
+![Saved view heading with count (with filter)](../assets/tasklist_filter_name+count_with_filter.png)
+
 ### Sorting Options
 
 Available sort criteria:
@@ -93,6 +106,7 @@ Available sort criteria:
 - `scheduled` - Scheduled date
 - `priority` - Priority level (by weight)
 - `title` - Alphabetical
+- User fields (from Settings → Advanced → User Fields), shown by their Display Name
 
 When primary sort criteria are equal, tasks are sorted by: scheduled → due → priority → title
 
@@ -104,6 +118,8 @@ Available grouping options:
 - `priority` - By priority level
 - `context` - By first context
 - `project` - By project (tasks can appear in multiple groups)
+
+Note: When Group by equals the Sort user field, group headers follow the selected sort direction.
 
 ### Project Group Headers
 
