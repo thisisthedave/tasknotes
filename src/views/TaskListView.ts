@@ -70,6 +70,7 @@ export class TaskListView extends ItemView {
 
         // Initialize drag and drop handler
         this.dragDropHandler = new DragDropHandler(async (fromIndex, toIndex, draggedElement, placeholder) => {
+            let awaitedUpdates: Promise<any>[] = [];
             if (fromIndex != toIndex) {
                 // Clamp to array bounds
                 const start = Math.max(0, fromIndex > toIndex ? toIndex - 1 : fromIndex - 1);
@@ -81,15 +82,22 @@ export class TaskListView extends ItemView {
                         affectedTaskElements.map(child => this.plugin.cacheManager.getTaskInfo((child as HTMLElement).dataset.key!))
                     );
                     console.log(`Reordering tasks from ${fromIndex} to ${toIndex}. Loaded ${tasks.length} tasks with offset ${start}`);
-                    plugin.reorderTasks(tasks as TaskInfo[], fromIndex - start, toIndex - start); // offset indices by the array slice
+                    const promise = plugin.reorderTasks(tasks as TaskInfo[], fromIndex - start, toIndex - start); // offset indices by the array slice
+                    awaitedUpdates.push(promise);
                 }
             }
 
             // Update the value of the grouping field if the task was moved, e.g. from "In Progress" to "Done"
             if (this.currentQuery.groupKey) {
-                let fromGroup = this.findTaskElementGroup(draggedElement);
-                let toGroup = this.findTaskElementGroup(placeholder);
-                this.moveBetweenGroups(draggedElement.dataset.key!, fromGroup, toGroup);
+                const fromGroup = this.findTaskElementGroup(draggedElement);
+                const toGroup = this.findTaskElementGroup(placeholder);
+                const movePromise = this.moveBetweenGroups(draggedElement.dataset.key!, fromGroup, toGroup);
+                awaitedUpdates.push(movePromise);
+            }
+
+            if (awaitedUpdates.length > 0) {
+                await Promise.all(awaitedUpdates);
+                this.debouncedRefreshTasks();
             }
         });
 
