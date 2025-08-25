@@ -112,20 +112,32 @@ export class DragDropHandler {
 
     private handleDragOver(e: DragEvent, container: HTMLElement): void {
         e.preventDefault();
-        
+
         if (!this.dragState?.draggedElement || this.dragState.draggedElement === container) {
             return;
         }
-        
+
         const rect = container.getBoundingClientRect();
         const y = e.clientY - rect.top;
         const insertBefore = y < rect.height / 2;
-        const beforeElement = insertBefore ? container : container.nextSibling as HTMLElement;
-        
-        if (container.parentNode && this.dragState.placeholder && beforeElement.previousSibling !== this.dragState.placeholder) {
-            container.parentNode.insertBefore(this.dragState.placeholder, beforeElement);
+
+        const parent = container.parentNode;
+        const placeholder = this.dragState.placeholder;
+
+        if (!parent || !placeholder) return;
+
+        // Target node to place the placeholder before (null means "append at end")
+        const target: Node | null = insertBefore ? container : container.nextSibling;
+
+        // If the placeholder is already right before the target, skip the DOM write.
+        // This works even when target is null.
+        if (placeholder.parentNode === parent && placeholder.nextSibling === target) {
+            return;
         }
+
+        parent.insertBefore(placeholder, target);
     }
+
 
     private handleDrop(e: DragEvent, index: number): void {
         e.preventDefault();
