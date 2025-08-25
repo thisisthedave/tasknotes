@@ -6,6 +6,8 @@ import { ReminderModal } from '../modals/ReminderModal';
 import { CalendarExportService } from '../services/CalendarExportService';
 import { showConfirmationModal } from '../modals/ConfirmationModal';
 import { showTextInputModal } from '../modals/TextInputModal';
+import { showProjectModal } from '../modals/ProjectSelectModal';
+import { DEFAULT_POINT_SUGGESTIONS } from 'src/modals/StoryPointsModal';
 
 export interface TaskContextMenuOptions {
     task: TaskInfo;
@@ -149,6 +151,33 @@ export class TaskContextMenu {
                     }
                 );
                 modal.open();
+            });
+        });
+        
+        this.menu.addSeparator();
+
+        // Set story points
+        DEFAULT_POINT_SUGGESTIONS.forEach((pointsAction) => {
+            this.menu.addItem((item) => {
+                const isSelected = task.points === pointsAction.points;
+                item.setTitle(pointsAction.title);
+                item.setIcon(pointsAction.icon);
+                if (isSelected) {
+                    item.setIcon('check');
+                }
+                item.onClick(async () => {
+                    try {
+                        // Use the fresh task data that showTaskContextMenu just fetched
+                        await plugin.updateTaskProperty(task, 'points', pointsAction.points);
+                    } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        console.error('Error updating story points estimate:', {
+                            error: errorMessage,
+                            taskPath: task.path
+                        });
+                        new Notice(`Failed to update story points estimate: ${errorMessage}`);
+                    }
+                });
             });
         });
         
@@ -403,6 +432,15 @@ export class TaskContextMenu {
         });
         
         this.menu.addSeparator();
+
+        // Add Project
+        this.menu.addItem((item) => {
+            item.setTitle('Add project...');
+            item.setIcon('folder-plus');
+            item.onClick(() => {
+                showProjectModal(plugin, [task]);
+            });
+        });
         
         // Create subtask
         this.menu.addItem((item) => {

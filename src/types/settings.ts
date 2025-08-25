@@ -69,6 +69,8 @@ export interface TaskNotesSettings {
 	// Notification settings
 	enableNotifications: boolean;
 	notificationType: 'in-app' | 'system';
+	// Use current note as project by default
+	useActiveNoteAsProject: boolean;
 	// HTTP API settings
 	enableAPI: boolean;
 	apiPort: number;
@@ -98,6 +100,7 @@ export interface TaskCreationDefaults {
 	defaultProjects: string;  // Comma-separated list of project links
 	useParentNoteAsProject: boolean; // Use the parent note as a project during instant conversion
 	defaultTimeEstimate: number; // minutes, 0 = no default
+	defaultPoints: number; // story points, 0 = no default
 	defaultRecurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 	// Date defaults
 	defaultDueDate: 'none' | 'today' | 'tomorrow' | 'next-week';

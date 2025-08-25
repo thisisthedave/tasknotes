@@ -100,3 +100,13 @@ export class ContextsModal extends SuggestModal<ContextsAction> {
         }
     }
 }
+
+export function showContextModal(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[]
+): void {
+    if (tasks && tasks.length > 0) {
+        const modal = new ContextsModal(plugin.app, tasks, plugin);
+        modal.open();
+    }
+}

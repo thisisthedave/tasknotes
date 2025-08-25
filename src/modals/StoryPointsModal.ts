@@ -145,3 +145,13 @@ export class StoryPointsModal extends SuggestModal<PointsAction> {
         }
     }
 }
+
+export function showPointsModal(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[]
+): void {
+    if (tasks && tasks.length > 0) {
+        const modal = new StoryPointsModal(plugin.app, tasks, plugin);
+        modal.open();
+    }
+}

@@ -1,6 +1,6 @@
 import { Menu } from 'obsidian';
 import TaskNotesPlugin from '../main';
-import { PriorityConfig } from '../types';
+import { PriorityConfig, TaskInfo } from '../types';
 
 export interface PriorityContextMenuOptions {
     currentValue?: string;
@@ -86,3 +86,29 @@ export class PriorityContextMenu {
         });
     }
 }
+
+export function createPriorityContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+): PriorityContextMenu {
+    const menu = new PriorityContextMenu({
+        currentValue: tasks.length == 1 ? tasks[0].priority : undefined,
+        onSelect: async (newPriority) => {
+            plugin.batchUpdateTasksProperty(tasks, 'priority', newPriority);
+        },
+        plugin: plugin
+    });
+    return menu;
+}
+
+export function showPriorityContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+    showAtElement: HTMLElement
+): void {
+    if (tasks && tasks.length > 0) {
+        const menu = createPriorityContextMenu(plugin, tasks);
+        menu.showAtElement(showAtElement);
+    }
+}
+

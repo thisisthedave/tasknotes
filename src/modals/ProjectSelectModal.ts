@@ -1,5 +1,6 @@
-import { App, FuzzySuggestModal, TAbstractFile, TFile, SearchResult, parseFrontMatterAliases } from 'obsidian';
+import { App, FuzzySuggestModal, TAbstractFile, TFile, SearchResult, parseFrontMatterAliases, Notice } from 'obsidian';
 import type TaskNotesPlugin from '../main';
+import { TaskInfo } from 'src/types';
 
 /**
  * Modal for selecting project notes using fuzzy search
@@ -83,5 +84,36 @@ export class ProjectSelectModal extends FuzzySuggestModal<TAbstractFile> {
 
     onChooseItem(file: TAbstractFile, evt: MouseEvent | KeyboardEvent) {
         this.onChoose(file);
+    }
+}
+
+export function showProjectModal(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[]
+): void {
+    if (tasks && tasks.length > 0) {
+        const modal = new ProjectSelectModal(plugin.app, plugin, async (file) => {
+            try {
+                // fileToLinktext expects TFile, so cast safely since we know these are markdown files
+                const updates = tasks.map(task => {
+                    const linkText = plugin.app.metadataCache.fileToLinktext(file as TFile, task.path || '', true);
+                    const projectLink = `[[${linkText}]]`;
+                    
+                    if (task.projects && task.projects.includes(projectLink)) {
+                        return Promise.resolve(); // Already includes this project, skip
+                    }
+
+                    // add the project link to the task's projects
+                    return plugin.updateTaskProperty(task, 'projects', [...(task.projects || []), projectLink]);
+                });
+
+                // Wait for all updates to complete
+                await Promise.all(updates);
+            } catch (error) {
+                console.error('Error updating recurrence:', error);
+                new Notice('Failed to update recurrence');
+            }
+        });
+        modal.open();
     }
 }

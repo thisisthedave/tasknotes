@@ -99,3 +99,14 @@ export class TagsModal extends SuggestModal<TagsAction> {
         }
     }
 }
+
+export function showTagsModal(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[]
+): void {
+    if (tasks && tasks.length > 0) {
+        const modal = new TagsModal(plugin.app, tasks, plugin);
+        modal.open();
+    }
+}
+

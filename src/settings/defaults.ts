@@ -8,9 +8,11 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	priority: 'priority',
 	due: 'due',
 	scheduled: 'scheduled',
+	tags: 'tags',
 	contexts: 'contexts',
 	projects: 'projects',
 	timeEstimate: 'timeEstimate',
+	points: 'points',
 	completedDate: 'completedDate',
 	dateCreated: 'dateCreated',
 	dateModified: 'dateModified',
@@ -21,7 +23,8 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	pomodoros: 'pomodoros',
 	icsEventId: 'icsEventId',
 	icsEventTag: 'ics_event',
-	reminders: 'reminders'
+	reminders: 'reminders',
+	sortOrder: 'sort_order'
 };
 
 // Default status configuration matches current hardcoded behavior
@@ -98,6 +101,7 @@ export const DEFAULT_TASK_CREATION_DEFAULTS: TaskCreationDefaults = {
 	defaultProjects: '',
 	useParentNoteAsProject: false,
 	defaultTimeEstimate: 0,
+	defaultPoints: 0, // story points, 0 = no default
 	defaultRecurrence: 'none',
 	defaultDueDate: 'none',
 	defaultScheduledDate: 'today',
@@ -213,6 +217,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	// Notification defaults
 	enableNotifications: true,
 	notificationType: 'system',
+	// Use current note as project by default
+	useActiveNoteAsProject: false,
 	// HTTP API defaults
 	enableAPI: false,
 	apiPort: 8080,

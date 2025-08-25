@@ -11,8 +11,8 @@ import {
     getTimePart
 } from '../utils/dateUtils';
 import { DateContextMenu } from '../components/DateContextMenu';
-import { PriorityContextMenu } from '../components/PriorityContextMenu';
-import { RecurrenceContextMenu } from '../components/RecurrenceContextMenu';
+import { createPriorityContextMenu, PriorityContextMenu } from '../components/PriorityContextMenu';
+import { createRecurrenceContextMenu, RecurrenceContextMenu } from '../components/RecurrenceContextMenu';
 import { StatusContextMenu } from '../components/StatusContextMenu';
 import { ProjectSelectModal } from '../modals/ProjectSelectModal';
 import { DEFAULT_POINT_SUGGESTIONS, StoryPointsModal } from '../modals/StoryPointsModal';
@@ -96,117 +96,6 @@ export function showDateContextMenu(
 ): void {
     const menu = createDateContextMenu(plugin, tasks, dateType);
     menu.showAtElement(showAtElement);
-}
-
-function createPriorityContextMenu(
-    plugin: TaskNotesPlugin,
-    tasks: TaskInfo[],
-): PriorityContextMenu {
-    const menu = new PriorityContextMenu({
-        currentValue: tasks.length == 1 ? tasks[0].priority : undefined,
-        onSelect: async (newPriority) => {
-            plugin.batchUpdateTasksProperty(tasks, 'priority', newPriority);
-        },
-        plugin: plugin
-    });
-    return menu;
-}
-
-export function showPointsModal(
-    plugin: TaskNotesPlugin,
-    tasks: TaskInfo[]
-): void {
-    if (tasks && tasks.length > 0) {
-        const modal = new StoryPointsModal(plugin.app, tasks, plugin);
-        modal.open();
-    }
-}
-
-export function showTagsModal(
-    plugin: TaskNotesPlugin,
-    tasks: TaskInfo[]
-): void {
-    if (tasks && tasks.length > 0) {
-        const modal = new TagsModal(plugin.app, tasks, plugin);
-        modal.open();
-    }
-}
-
-export function showContextModal(
-    plugin: TaskNotesPlugin,
-    tasks: TaskInfo[]
-): void {
-    if (tasks && tasks.length > 0) {
-        const modal = new ContextsModal(plugin.app, tasks, plugin);
-        modal.open();
-    }
-}
-
-export function showProjectModal(
-    plugin: TaskNotesPlugin,
-    tasks: TaskInfo[]
-): void {
-    if (tasks && tasks.length > 0) {
-        const modal = new ProjectSelectModal(plugin.app, plugin, async (file) => {
-            try {
-                // fileToLinktext expects TFile, so cast safely since we know these are markdown files
-                const updates = tasks.map(task => {
-                    const linkText = plugin.app.metadataCache.fileToLinktext(file as TFile, task.path || '', true);
-                    const projectLink = `[[${linkText}]]`;
-                    
-                    if (task.projects && task.projects.includes(projectLink)) {
-                        return Promise.resolve(); // Already includes this project, skip
-                    }
-
-                    // add the project link to the task's projects
-                    return plugin.updateTaskProperty(task, 'projects', [...(task.projects || []), projectLink]);
-                });
-
-                // Wait for all updates to complete
-                await Promise.all(updates);
-            } catch (error) {
-                console.error('Error updating recurrence:', error);
-                new Notice('Failed to update recurrence');
-            }
-        });
-        modal.open();
-    }
-}
-
-export function showPriorityContextMenu(
-    plugin: TaskNotesPlugin,
-    tasks: TaskInfo[],
-    showAtElement: HTMLElement
-): void {
-    if (tasks && tasks.length > 0) {
-        const menu = createPriorityContextMenu(plugin, tasks);
-        menu.showAtElement(showAtElement);
-    }
-}
-
-function createRecurrenceContextMenu(
-    plugin: TaskNotesPlugin,
-    tasks: TaskInfo[],
-): RecurrenceContextMenu {
-    const menu = new RecurrenceContextMenu({
-        currentValue: typeof tasks[0].recurrence === 'string' ? tasks[0].recurrence : undefined,
-        onSelect: async (newRecurrence: string) => {
-            await plugin.batchUpdateTasksProperty(tasks, 'recurrence', newRecurrence);
-        },
-        app: plugin.app
-    });
-    return menu;
-}
-
-export function showRecurrenceContextMenu(
-    plugin: TaskNotesPlugin,
-    tasks: TaskInfo[],
-    showAtElement: HTMLElement
-): void {
-    if (tasks && tasks.length > 0) {
-        const menu = createRecurrenceContextMenu(plugin, tasks);
-        menu.showAtElement(showAtElement);
-    }
 }
 
 function createStatusContextMenu(

@@ -1,4 +1,4 @@
-import { TFile, ItemView, WorkspaceLeaf, EventRef, Notice } from 'obsidian';
+import { TFile, ItemView, WorkspaceLeaf, EventRef, Notice, debounce, setIcon } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import {
     TASK_LIST_VIEW_TYPE,
@@ -10,9 +10,17 @@ import {
 } from '../types';
 // No helper functions needed from helpers
 import { perfMonitor } from '../utils/PerformanceMonitor';
-import { createTaskCard, updateTaskCard, refreshParentTaskSubtasks } from '../ui/TaskCard';
+import { createTaskCard, updateTaskCard, refreshParentTaskSubtasks, isTaskCardSelected, showDateContextMenu, showStatusContextMenu, showDeleteConfirmationModal, copyTaskTitleToClipboard, toggleTaskCardSelection, setTaskCardSelected } from '../ui/TaskCard';
 import { FilterBar } from '../ui/FilterBar';
 import { GroupingUtils } from '../utils/GroupingUtils';
+import { DragDropHandler } from 'src/ui/DragDropHandler';
+import { getTopmostVisibleElement } from 'src/utils/helpers';
+import { showPointsModal } from 'src/modals/StoryPointsModal';
+import { showTagsModal } from 'src/modals/TagsModal';
+import { showProjectModal } from 'src/modals/ProjectSelectModal';
+import { showContextModal } from 'src/modals/ContextsModal';
+import { showPriorityContextMenu } from 'src/components/PriorityContextMenu';
+import { showRecurrenceContextMenu } from 'src/components/RecurrenceContextMenu';
 
 export class TaskListView extends ItemView {
     plugin: TaskNotesPlugin;

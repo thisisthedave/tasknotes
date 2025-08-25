@@ -1,4 +1,6 @@
 import { Menu, Modal, App, Setting } from 'obsidian';
+import TaskNotesPlugin from 'src/main';
+import { TaskInfo } from 'src/types';
 
 export interface RecurrenceOption {
     label: string;
@@ -772,3 +774,29 @@ class CustomRecurrenceModal extends Modal {
         contentEl.empty();
     }
 }
+
+export function createRecurrenceContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+): RecurrenceContextMenu {
+    const menu = new RecurrenceContextMenu({
+        currentValue: typeof tasks[0].recurrence === 'string' ? tasks[0].recurrence : undefined,
+        onSelect: async (newRecurrence: string) => {
+            await plugin.batchUpdateTasksProperty(tasks, 'recurrence', newRecurrence);
+        },
+        app: plugin.app
+    });
+    return menu;
+}
+
+export function showRecurrenceContextMenu(
+    plugin: TaskNotesPlugin,
+    tasks: TaskInfo[],
+    showAtElement: HTMLElement
+): void {
+    if (tasks && tasks.length > 0) {
+        const menu = createRecurrenceContextMenu(plugin, tasks);
+        menu.showAtElement(showAtElement);
+    }
+}
+
