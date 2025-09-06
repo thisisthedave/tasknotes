@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, EventRef, debounce } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, EventRef, debounce, TFile } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import { 
     KANBAN_VIEW_TYPE, 
@@ -88,7 +88,8 @@ export class KanbanView extends ItemView {
             if (taskElement) {
                 // Task is visible - update it in place
                 try {
-                    updateTaskCard(taskElement, updatedTask, this.plugin, {
+                    const visibleProperties = this.getCurrentVisibleProperties();
+                    updateTaskCard(taskElement, updatedTask, this.plugin, visibleProperties, {
                         showDueDate: true,
                         showCheckbox: false,
                         showTimeTracking: true
@@ -204,6 +205,7 @@ export class KanbanView extends ItemView {
         // Create new FilterBar
         this.filterBar = new FilterBar(
             this.app,
+            this.plugin,
             filterBarContainer,
             this.currentQuery,
             filterOptions,
@@ -216,9 +218,10 @@ export class KanbanView extends ItemView {
         this.filterBar.updateSavedViews(savedViews);
         
         // Listen for saved view events
-        this.filterBar.on('saveView', ({ name, query, viewOptions }) => {
-            this.plugin.viewStateManager.saveView(name, query, viewOptions);
-            // Don't update here - the ViewStateManager event will handle it
+        this.filterBar.on('saveView', ({ name, query, viewOptions, visibleProperties }) => {
+            const savedView = this.plugin.viewStateManager.saveView(name, query, viewOptions, visibleProperties);
+            // Set the newly saved view as active to prevent incorrect view matching
+            this.filterBar!.setActiveSavedView(savedView);
         });
         
         this.filterBar.on('deleteView', (viewId: string) => {
@@ -244,6 +247,12 @@ export class KanbanView extends ItemView {
             this.currentQuery = newQuery;
             // Save the filter state
             await this.plugin.viewStateManager.setFilterState(KANBAN_VIEW_TYPE, newQuery);
+            this.loadAndRenderBoard();
+        });
+
+        // Listen for properties changes
+        this.filterBar.on('propertiesChanged', (properties: string[]) => {
+            // Refresh the task display with new properties
             this.loadAndRenderBoard();
         });
 
@@ -328,7 +337,23 @@ export class KanbanView extends ItemView {
                 this.updateBoardStats(statsContainer, allTasks);
             }
         } catch (error) {
-            console.error("Error loading Kanban board:", error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error("KanbanView: Error loading Kanban board:", {
+                error: errorMessage,
+                stack: error instanceof Error ? error.stack : undefined,
+                query: this.currentQuery,
+                cacheInitialized: this.plugin.cacheManager?.isInitialized() || false,
+                visibleProperties: this.getCurrentVisibleProperties(),
+                filterServiceQuery: JSON.stringify(this.currentQuery, null, 2)
+            });
+            
+            // Additional debugging info
+            console.error('KanbanView: Detailed error context:', {
+                pluginInitialized: !!this.plugin,
+                filterServiceInitialized: !!this.plugin?.filterService,
+                containerExists: !!this.boardContainer
+            });
+            
             new Notice("Failed to load Kanban board. See console for details.");
             
             // Remove loading indicator if it exists
@@ -406,7 +431,8 @@ export class KanbanView extends ItemView {
         } else {
             // Tasks are already sorted by FilterService, just render them
             tasks.forEach(task => {
-                const taskCard = createTaskCard(task, this.plugin, {
+                const visibleProperties = this.getCurrentVisibleProperties();
+                const taskCard = createTaskCard(task, this.plugin, visibleProperties, {
                     showDueDate: true,
                     showCheckbox: false,
                     showTimeTracking: true
@@ -680,8 +706,22 @@ export class KanbanView extends ItemView {
                                 break;
                             case 'project':
                                 propertyToUpdate = 'projects';
-                                // For projects, set as array with single value
-                                valueToSet = targetColumnId === 'No Project' ? [] : [targetColumnId];
+                                // For projects, set as array with proper wikilink format
+                                if (targetColumnId === 'No Project') {
+                                    valueToSet = [];
+                                } else {
+                                    // Check if task already has this project in a different format
+                                    const existingFormat = this.findExistingProjectFormat(task, targetColumnId);
+                                    if (existingFormat) {
+                                        // Preserve the existing format by setting projects to only include this one
+                                        valueToSet = [existingFormat];
+                                    } else {
+                                        // Use a reasonable default format (simple wikilink with absolute path)
+                                        // Add .md extension if it's a file path
+                                        const wikilinkPath = targetColumnId.includes('/') ? `${targetColumnId}.md` : targetColumnId;
+                                        valueToSet = [`[[${wikilinkPath}]]`];
+                                    }
+                                }
                                 break;
                             default:
                                 throw new Error(`Unsupported groupBy: ${this.currentQuery.groupKey}`);
@@ -804,7 +844,14 @@ export class KanbanView extends ItemView {
         
         // Title line
         const title = this.formatColumnTitle(columnId, this.currentQuery.groupKey || 'none');
-        headerEl.createEl('div', { text: title, cls: 'kanban-view__column-title' });
+        const titleEl = headerEl.createEl('div', { cls: 'kanban-view__column-title' });
+        
+        // Make project paths clickable
+        if (this.currentQuery.groupKey === 'project' && columnId !== 'No Project') {
+            this.createClickableProjectTitle(titleEl, columnId, title);
+        } else {
+            titleEl.textContent = title;
+        }
         
         // Count line
         headerEl.createEl('div', { 
@@ -912,7 +959,8 @@ export class KanbanView extends ItemView {
      * Create task card element for reconciler
      */
     private createTaskCardElement(task: TaskInfo): HTMLElement {
-        const taskCard = createTaskCard(task, this.plugin, {
+        const visibleProperties = this.getCurrentVisibleProperties();
+        const taskCard = createTaskCard(task, this.plugin, visibleProperties, {
             showDueDate: true,
             showCheckbox: false,
             showTimeTracking: true
@@ -928,13 +976,22 @@ export class KanbanView extends ItemView {
      * Update task card element for reconciler
      */
     private updateTaskCardElement(element: HTMLElement, task: TaskInfo): void {
-        updateTaskCard(element, task, this.plugin, {
+        const visibleProperties = this.getCurrentVisibleProperties();
+        updateTaskCard(element, task, this.plugin, visibleProperties, {
             showDueDate: true,
             showCheckbox: false,
             showTimeTracking: true
         });
         // Ensure task elements tracking is updated
         this.taskElements.set(task.path, element);
+    }
+
+    /**
+     * Get current visible properties for task cards
+     */
+    private getCurrentVisibleProperties(): string[] | undefined {
+        // Use the FilterBar's method which handles temporary state
+        return this.filterBar?.getCurrentVisibleProperties();
     }
 
     // Debounced refresh to avoid multiple rapid refreshes
@@ -951,7 +1008,11 @@ export class KanbanView extends ItemView {
             case 'context':
                 return id === 'uncategorized' ? 'Uncategorized' : `@${id}`;
             case 'project':
-                return id === 'No Project' ? 'No Project' : `+${id}`;
+                if (id === 'No Project') {
+                    return 'No Project';
+                }
+                // For project paths, display the absolute path
+                return id;
             case 'due':
                 return id;
             case 'none':
@@ -960,6 +1021,97 @@ export class KanbanView extends ItemView {
         }
     }
 
+
+    /**
+     * Check if a project path represents a resolved file (vs plain text)
+     */
+    private isResolvedProjectPath(columnId: string): boolean {
+        // Try to resolve it back to see if it was originally a file reference
+        if (this.plugin?.app) {
+            const file = this.plugin.app.vault.getAbstractFileByPath(columnId + '.md');
+            if (file instanceof TFile) {
+                return true;
+            }
+            
+            // Also check if it resolves without adding .md
+            const fileWithoutExt = this.plugin.app.metadataCache.getFirstLinkpathDest(columnId, '');
+            return !!fileWithoutExt;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Find existing project format in task that resolves to the same absolute path
+     */
+    private findExistingProjectFormat(task: TaskInfo, targetAbsolutePath: string): string | null {
+        const filteredProjects = task.projects?.filter(p => p && typeof p === 'string' && p.trim() !== '') || [];
+        
+        for (const project of filteredProjects) {
+            const resolvedPath = this.plugin.filterService.resolveProjectToAbsolutePath(project);
+            if (resolvedPath === targetAbsolutePath) {
+                return project; // Return the original format
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Create a clickable project title for Kanban column headers
+     */
+    private createClickableProjectTitle(titleEl: HTMLElement, columnId: string, title: string): void {
+        // For project grouping, all resolved paths should be clickable (they represent files)
+        // Only plain text projects that don't resolve to files should be non-clickable
+        const couldBeFilePath = columnId.includes('/') || this.isResolvedProjectPath(columnId);
+        if (couldBeFilePath) {
+            // Create a clickable link for file paths
+            const linkEl = titleEl.createEl('a', {
+                cls: 'internal-link kanban-view__project-link',
+                text: title
+            });
+            
+            // Add click handler to open the file
+            linkEl.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                try {
+                    const file = this.plugin.app.vault.getAbstractFileByPath(columnId);
+                    if (file instanceof TFile) {
+                        // File exists, open it
+                        await this.plugin.app.workspace.getLeaf(false).openFile(file);
+                    } else {
+                        // File doesn't exist, try to resolve using metadata cache
+                        const resolvedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(columnId, '');
+                        if (resolvedFile) {
+                            await this.plugin.app.workspace.getLeaf(false).openFile(resolvedFile);
+                        } else {
+                            new Notice(`Project file not found: ${columnId}`);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error opening project file:', error);
+                    new Notice(`Error opening project: ${columnId}`);
+                }
+            });
+            
+            // Add hover preview
+            linkEl.addEventListener('mouseover', (event) => {
+                this.plugin.app.workspace.trigger('hover-link', {
+                    event,
+                    source: 'tasknotes-kanban',
+                    hoverParent: this,
+                    targetEl: linkEl,
+                    linktext: columnId,
+                    sourcePath: columnId
+                });
+            });
+        } else {
+            // For non-path projects, just show as text
+            titleEl.textContent = title;
+        }
+    }
 
     /**
      * Open task creation modal with pre-populated values based on column

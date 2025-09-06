@@ -1,5 +1,5 @@
 import { FieldMapping, StatusConfig, PriorityConfig } from '../types';
-import { TaskNotesSettings, TaskCreationDefaults, CalendarViewSettings, ICSIntegrationSettings } from '../types/settings';
+import { TaskNotesSettings, TaskCreationDefaults, CalendarViewSettings, ICSIntegrationSettings, ProjectAutosuggestSettings } from '../types/settings';
 
 // Default field mapping maintains backward compatibility
 export const DEFAULT_FIELD_MAPPING: FieldMapping = {
@@ -125,6 +125,8 @@ export const DEFAULT_CALENDAR_VIEW_SETTINGS: CalendarViewSettings = {
 	// Display preferences
 	timeFormat: '24', // 24-hour format
 	showWeekends: true,
+	// Locale settings
+	locale: '', // Empty string means auto-detect from browser
 	// Default event type visibility
 	defaultShowScheduled: true,
 	defaultShowDue: true,
@@ -145,7 +147,21 @@ export const DEFAULT_CALENDAR_VIEW_SETTINGS: CalendarViewSettings = {
 
 export const DEFAULT_ICS_INTEGRATION_SETTINGS: ICSIntegrationSettings = {
 	defaultNoteTemplate: '',
-	defaultNoteFolder: ''
+	defaultNoteFolder: '',
+	icsNoteFilenameFormat: 'title', // Default to using the event title for ICS notes
+	customICSNoteFilenameTemplate: '{title}' // Simple title template for ICS notes
+};
+
+export const DEFAULT_PROJECT_AUTOSUGGEST: ProjectAutosuggestSettings = {
+	enableFuzzy: false,
+	rows: [
+		'{title|n(Title)}',
+		'{aliases|n(Aliases)}',
+		'{file.path|n(Path)}'
+	],
+	showAdvanced: false,
+	requiredTags: [],
+	includeFolders: []
 };
 
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
@@ -185,12 +201,20 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	useDefaultsOnInstantConvert: true,
 	enableNaturalLanguageInput: true,
 	nlpDefaultToScheduled: true,
+		// NLP status suggestion trigger
+		statusSuggestionTrigger: '*',
+
 	singleClickAction: 'edit',
 	doubleClickAction: 'openNote',
+	// Autosuggest project card defaults
+	projectAutosuggest: DEFAULT_PROJECT_AUTOSUGGEST,
+
 	// Inline task conversion defaults
 	inlineTaskConvertFolder: '{{currentNotePath}}',
 	// Performance defaults
 	disableNoteIndexing: false,
+	// Suggestion performance defaults
+	suggestionDebounceMs: 0,
 	// Customization defaults
 	fieldMapping: DEFAULT_FIELD_MAPPING,
 	customStatuses: DEFAULT_STATUSES,
@@ -228,5 +252,17 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	// Webhook defaults
 	webhooks: [],
 	// User Fields defaults (multiple)
-	userFields: []
+	userFields: [],
+	// Default visible properties for task cards
+	defaultVisibleProperties: [
+		'status',      // Status dot
+		'priority',    // Priority dot
+		'due',         // Due date
+		'scheduled',   // Scheduled date
+		'projects',    // Projects
+		'contexts',    // Contexts
+		'tags'         // Tags
+	],
+	// Recurring task behavior defaults
+	maintainDueDateOffsetInRecurring: false
 };

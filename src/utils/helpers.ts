@@ -671,20 +671,56 @@ export function getNextUncompletedOccurrence(task: TaskInfo): Date | null {
 /**
  * Updates the scheduled date of a recurring task to its next uncompleted occurrence
  * Returns the updated scheduled date or null if no next occurrence
+ * @param task Task info object
+ * @param maintainDueOffset Whether to maintain the due date offset (from settings)
  */
-export function updateToNextScheduledOccurrence(task: TaskInfo): string | null {
+export function updateToNextScheduledOccurrence(task: TaskInfo, maintainDueOffset: boolean = true): { scheduled: string | null; due: string | null } {
 	const nextOccurrence = getNextUncompletedOccurrence(task);
-	if (!nextOccurrence) {
-		return null;
-	}
+	let nextScheduleStr: string | null = null;
+	let nextDueStr: string | null = null;
+	let nextDueDate: Date | null = null;
+
+	if (nextOccurrence) {
+		
+		// Calculate the offset between original scheduled and due dates (only if setting is enabled)
+		if (maintainDueOffset) {
+			try {
+				const originalScheduled = task.scheduled ? parseDateToUTC(task.scheduled) : null;
+				const originalDue = task.due ? parseDateToUTC(task.due): null;
+
+				if (originalScheduled && originalDue) {
+					// Calculate the time difference
+					const offsetMs = originalDue.getTime() - originalScheduled.getTime();
+					if(nextOccurrence) {
+						// Apply the same offset to get the new due date
+						nextDueDate = new Date(nextOccurrence.getTime() + offsetMs);
+					}
+				}
+			} catch (error) {
+				console.error('Error calculating next due date with offset:', error);
+			}
+		}
 	
-	// Preserve time component if original scheduled date had time
-	if (task.scheduled && task.scheduled.includes('T')) {
-		const timePart = task.scheduled.split('T')[1];
-		return `${formatDateForStorage(nextOccurrence)}T${timePart}`;
-	} else {
-		return formatDateForStorage(nextOccurrence);
+		// Preserve time component if original scheduled date had time
+		if (task.scheduled && task.scheduled.includes('T')) {
+			const timePart = task.scheduled.split('T')[1];
+			nextScheduleStr = `${formatDateForStorage(nextOccurrence)}T${timePart}`;
+		} else {
+			nextScheduleStr = formatDateForStorage(nextOccurrence);
+		}
+		if (nextDueDate && task.due && task.due.includes('T')) {
+			const timePart = task.due.split('T')[1];
+			nextDueStr = `${formatDateForStorage(nextDueDate)}T${timePart}`;
+		} else if (nextDueDate) {
+			nextDueStr = formatDateForStorage(nextDueDate);
+		}
 	}
+
+	return {
+		scheduled: nextScheduleStr,
+		due: nextDueStr
+	}
+
 }
 
 /**
@@ -783,7 +819,7 @@ export function getRecurrenceDisplayText(recurrence: string | any): string {
 /**
  * Extracts note information from a note file's content
  */
-export function extractNoteInfo(app: App, content: string, path: string, file?: TFile): {title: string, tags: string[], path: string, createdDate?: string, lastModified?: number} | null {
+export function extractNoteInfo(app: App, content: string, path: string, file?: TFile, fieldMapper?: FieldMapper): {title: string, tags: string[], path: string, createdDate?: string, lastModified?: number} | null {
 	let title = path.split('/').pop()?.replace('.md', '') || 'Untitled';
 	let tags: string[] = [];
 	let createdDate: string | undefined = undefined;
@@ -803,11 +839,19 @@ export function extractNoteInfo(app: App, content: string, path: string, file?: 
 				tags = frontmatter.tags;
 			}
 			
-			// Extract creation date from dateCreated or date field
-			if (frontmatter.dateCreated) {
-				createdDate = frontmatter.dateCreated;
-			} else if (frontmatter.date) {
-				createdDate = frontmatter.date;
+			// Extract creation date using field mapper if available
+			if (fieldMapper) {
+				const dateCreatedField = fieldMapper.toUserField('dateCreated');
+				if (frontmatter[dateCreatedField]) {
+					createdDate = frontmatter[dateCreatedField];
+				}
+			} else {
+				// Fallback to common field names when no field mapper provided
+				if (frontmatter.dateCreated) {
+					createdDate = frontmatter.dateCreated;
+				} else if (frontmatter.created) {
+					createdDate = frontmatter.created;
+				}
 			}
 		}
 	}
@@ -1329,3 +1373,24 @@ export function mergeObjects<T extends object>(fallback: T | undefined, override
 
   return merged as T;
 }
+
+/**
+ * Sanitizes tag input by removing # prefixes to prevent duplicate tags
+ * Handles both single tags and comma-separated lists
+ */
+export function sanitizeTags(tags: string): string {
+	if (!tags || typeof tags !== 'string') {
+		return '';
+	}
+	
+	return tags
+		.split(',')
+		.map(tag => {
+			const trimmed = tag.trim();
+			// Remove # prefix if it exists
+			return trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
+		})
+		.filter(tag => tag.length > 0) // Remove empty tags
+		.join(', ');
+}
+

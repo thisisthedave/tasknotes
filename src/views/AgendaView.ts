@@ -1,6 +1,7 @@
 import {
     AGENDA_VIEW_TYPE,
     EVENT_DATA_CHANGED,
+    EVENT_DATE_CHANGED,
     EVENT_DATE_SELECTED,
     EVENT_TASK_UPDATED,
     FilterQuery,
@@ -8,7 +9,7 @@ import {
     SavedView,
     TaskInfo
 } from '../types';
-import { EventRef, ItemView, Notice, Setting, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
+import { EventRef, ItemView, Notice, Setting, TFile, WorkspaceLeaf, setIcon, ButtonComponent } from 'obsidian';
 import { addDays, endOfWeek, format, isSameDay, startOfWeek } from 'date-fns';
 import { convertUTCToLocalCalendarDate, createUTCDateFromLocalCalendarDate, formatDateForStorage, getTodayLocal, isTodayUTC } from '../utils/dateUtils';
 import { createICSEventCard, updateICSEventCard } from '../ui/ICSCard';
@@ -87,6 +88,12 @@ export class AgendaView extends ItemView {
             }
         });
         this.listeners.push(dataListener);
+        
+        // Listen for date changes to refresh recurring task states
+        const dateChangeListener = this.plugin.emitter.on(EVENT_DATE_CHANGED, async () => {
+            this.refresh();
+        });
+        this.listeners.push(dateChangeListener);
         
         // Listen for date selection changes
         const dateListener = this.plugin.emitter.on(EVENT_DATE_SELECTED, (date: Date) => {
@@ -321,11 +328,12 @@ export class AgendaView extends ItemView {
         // Create new FilterBar
         this.filterBar = new FilterBar(
             this.app,
+            this.plugin,
             filterBarContainer,
             this.currentQuery,
             filterOptions,
             this.plugin.settings.viewsButtonAlignment || 'right',
-            { enableGroupExpandCollapse: true, forceShowExpandCollapse: true }
+            { enableGroupExpandCollapse: false, forceShowExpandCollapse: false, viewType: 'agenda' }
         );
 
         // Get saved views for the FilterBar
@@ -333,9 +341,10 @@ export class AgendaView extends ItemView {
         this.filterBar.updateSavedViews(savedViews);
         
         // Listen for saved view events
-        this.filterBar.on('saveView', ({ name, query, viewOptions }) => {
-            this.plugin.viewStateManager.saveView(name, query, viewOptions);
-            // Don't update here - the ViewStateManager event will handle it
+        this.filterBar.on('saveView', ({ name, query, viewOptions, visibleProperties }) => {
+            const savedView = this.plugin.viewStateManager.saveView(name, query, viewOptions, visibleProperties);
+            // Set the newly saved view as active to prevent incorrect view matching
+            this.filterBar!.setActiveSavedView(savedView);
         });
         
         this.filterBar.on('deleteView', (viewId: string) => {
@@ -376,6 +385,12 @@ export class AgendaView extends ItemView {
             this.updateFilterHeading();
         });
 
+        // Listen for properties changes
+        this.filterBar.on('propertiesChanged', (properties: string[]) => {
+            // Refresh the task display with new properties
+            this.refresh();
+        });
+
         // Wire expand/collapse all to day sections to match TaskListView behavior
         this.filterBar.on('expandAllGroups', () => {
             // Expand all visible day sections
@@ -413,13 +428,83 @@ export class AgendaView extends ItemView {
             this.plugin.viewStateManager.setViewPreferences(AGENDA_VIEW_TYPE, next);
         });
 
-        // Create filter heading (shows active view name and filtered completion count)
+        // Create filter heading with integrated controls
         this.filterHeading = new FilterHeading(container);
+        
+        // Add expand/collapse controls to the heading container  
+        const headingContainer = container.querySelector('.filter-heading') as HTMLElement;
+        if (headingContainer) {
+            const headingContent = headingContainer.querySelector('.filter-heading__content') as HTMLElement;
+            if (headingContent) {
+                // Add controls to the right side of the heading
+                const controlsContainer = headingContent.createDiv({ cls: 'filter-heading__controls' });
+                this.createExpandCollapseButtons(controlsContainer);
+            }
+        }
+        
         // Initialize heading immediately
         this.updateFilterHeading();
 
         // Set up view-specific options
         this.setupViewOptions();
+    }
+
+    /**
+     * Create expand/collapse buttons for day sections
+     */
+    private createExpandCollapseButtons(container: HTMLElement): void {
+        // Always show controls for agenda view (unlike task list which is conditional)
+        container.style.display = 'flex';
+        container.empty();
+        
+        // Expand all button
+        const expandAllBtn = new ButtonComponent(container)
+            .setIcon('list-tree')
+            .setTooltip('Expand All Days')
+            .setClass('agenda-view-control-button')
+            .onClick(() => {
+                // Expand all visible day sections
+                const sections = this.contentEl.querySelectorAll('.agenda-view__day-section.task-group');
+                sections.forEach(section => {
+                    const el = section as HTMLElement;
+                    el.classList.remove('is-collapsed');
+                    const items = el.querySelector('.agenda-view__day-items') as HTMLElement | null;
+                    if (items) items.style.display = '';
+                    const toggle = el.querySelector('.task-group-toggle') as HTMLElement | null;
+                    if (toggle) toggle.setAttr('aria-expanded', 'true');
+                });
+                // Persist: clear collapsedDays
+                const prefs = this.plugin.viewStateManager.getViewPreferences<any>(AGENDA_VIEW_TYPE) || {};
+                const next = { ...prefs, collapsedDays: {} };
+                this.plugin.viewStateManager.setViewPreferences(AGENDA_VIEW_TYPE, next);
+            });
+        expandAllBtn.buttonEl.addClass('clickable-icon');
+
+        // Collapse all button  
+        const collapseAllBtn = new ButtonComponent(container)
+            .setIcon('list-collapse')
+            .setTooltip('Collapse All Days')
+            .setClass('agenda-view-control-button')
+            .onClick(() => {
+                // Collapse all visible day sections
+                const collapsed: Record<string, boolean> = {};
+                const sections = this.contentEl.querySelectorAll('.agenda-view__day-section.task-group');
+                sections.forEach(section => {
+                    const el = section as HTMLElement;
+                    const dayKey = el.dataset.day;
+                    if (dayKey) collapsed[dayKey] = true;
+                    el.classList.add('is-collapsed');
+                    const items = el.querySelector('.agenda-view__day-items') as HTMLElement | null;
+                    if (items) items.style.display = 'none';
+                    const toggle = el.querySelector('.task-group-toggle') as HTMLElement | null;
+                    if (toggle) toggle.setAttr('aria-expanded', 'false');
+                });
+                // Persist: set all days collapsed
+                const prefs = this.plugin.viewStateManager.getViewPreferences<any>(AGENDA_VIEW_TYPE) || {};
+                const next = { ...prefs, collapsedDays: collapsed };
+                this.plugin.viewStateManager.setViewPreferences(AGENDA_VIEW_TYPE, next);
+            });
+        collapseAllBtn.buttonEl.addClass('clickable-icon');
     }
 
     /**
@@ -678,9 +763,20 @@ export class AgendaView extends ItemView {
                     dayItems.push({ type: 'note', item: note, date: dayData.date });
                 });
 
-                // Add ICS events
+                // Add ICS events (sorted chronologically)
                 if (this.showICSEvents) {
-                    dayData.ics.forEach(ics => {
+                    // Sort ICS events by start time before adding them
+                    const sortedIcsEvents = [...dayData.ics].sort((a, b) => {
+                        try {
+                            const timeA = new Date(a.start).getTime();
+                            const timeB = new Date(b.start).getTime();
+                            return timeA - timeB;
+                        } catch {
+                            return 0;
+                        }
+                    });
+                    
+                    sortedIcsEvents.forEach(ics => {
                         dayItems.push({ type: 'ics', item: ics, date: dayData.date });
                     });
                 }
@@ -730,9 +826,20 @@ export class AgendaView extends ItemView {
                 allItems.push({ type: 'note', item: note, date: dayData.date });
             });
 
-            // ICS events
+            // ICS events (sorted chronologically)
             if (this.showICSEvents) {
-                dayData.ics.forEach(ics => {
+                // Sort ICS events by start time before adding them
+                const sortedIcsEvents = [...dayData.ics].sort((a, b) => {
+                    try {
+                        const timeA = new Date(a.start).getTime();
+                        const timeB = new Date(b.start).getTime();
+                        return timeA - timeB;
+                    } catch {
+                        return 0;
+                    }
+                });
+                
+                sortedIcsEvents.forEach(ics => {
                     allItems.push({ type: 'ics', item: ics, date: dayData.date });
                 });
             }
@@ -780,7 +887,9 @@ export class AgendaView extends ItemView {
             });
             try {
                 setIcon(toggleBtn, 'chevron-right');
-            } catch (_) {}
+            } catch (_) {
+                // Ignore icon loading errors
+            }
             const svg = toggleBtn.querySelector('svg');
             if (svg) {
                 svg.classList.add('chevron');
@@ -856,7 +965,8 @@ export class AgendaView extends ItemView {
                 countBadge.textContent = countText;
             }
         } else if (item.type === 'task') {
-            updateTaskCard(element, item.item as TaskInfo, this.plugin, {
+            const visibleProperties = this.getCurrentVisibleProperties();
+            updateTaskCard(element, item.item as TaskInfo, this.plugin, visibleProperties, {
                 showDueDate: !this.groupByDate,
                 showCheckbox: false,
                 showTimeTracking: true,
@@ -884,7 +994,8 @@ export class AgendaView extends ItemView {
      */
     private updateFlatAgendaItemElement(element: HTMLElement, item: {type: 'task' | 'note' | 'ics', item: TaskInfo | NoteInfo | import('../types').ICSEvent, date: Date}): void {
         if (item.type === 'task') {
-            updateTaskCard(element, item.item as TaskInfo, this.plugin, {
+            const visibleProperties = this.getCurrentVisibleProperties();
+            updateTaskCard(element, item.item as TaskInfo, this.plugin, visibleProperties, {
                 showDueDate: !this.groupByDate,
                 showCheckbox: false,
                 showTimeTracking: true,
@@ -899,10 +1010,19 @@ export class AgendaView extends ItemView {
     }
     
     /**
+     * Get current visible properties for task cards
+     */
+    private getCurrentVisibleProperties(): string[] | undefined {
+        // Use the FilterBar's method which handles temporary state
+        return this.filterBar?.getCurrentVisibleProperties();
+    }
+    
+    /**
      * Create task item element
      */
     private createTaskItemElement(task: TaskInfo, date?: Date): HTMLElement {
-        const taskCard = createTaskCard(task, this.plugin, {
+        const visibleProperties = this.getCurrentVisibleProperties();
+        const taskCard = createTaskCard(task, this.plugin, visibleProperties, {
             showDueDate: !this.groupByDate,
             showCheckbox: false,
             showTimeTracking: true,
@@ -1149,7 +1269,9 @@ export class AgendaView extends ItemView {
         });
         try {
             setIcon(toggleBtn, 'chevron-right');
-        } catch (_) {}
+        } catch (_) {
+            // Ignore icon loading errors
+        }
         const svg = toggleBtn.querySelector('svg');
         if (svg) {
             svg.classList.add('chevron');
@@ -1248,7 +1370,8 @@ export class AgendaView extends ItemView {
      */
     private updateDayItemElement(element: HTMLElement, item: {type: 'task' | 'note' | 'ics', item: any, date: Date}): void {
         if (item.type === 'task') {
-            updateTaskCard(element, item.item as TaskInfo, this.plugin, {
+            const visibleProperties = this.getCurrentVisibleProperties();
+            updateTaskCard(element, item.item as TaskInfo, this.plugin, visibleProperties, {
                 showDueDate: !this.groupByDate,
                 showCheckbox: false,
                 showTimeTracking: true,

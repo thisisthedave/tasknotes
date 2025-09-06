@@ -7,8 +7,11 @@ import { FilterService } from '../services/FilterService';
 import { MinimalNativeCache } from '../utils/MinimalNativeCache';
 import { StatusManager } from '../services/StatusManager';
 import TaskNotesPlugin from '../main';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Get, Post, Put, Delete } from '../utils/OpenAPIDecorators';
+import { calculateDefaultDate } from '../utils/helpers';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface TaskQueryParams {
 	status?: string;
 	priority?: string;
@@ -124,6 +127,9 @@ export class TasksController extends BaseController {
 				this.sendResponse(res, 400, this.errorResponse('Title is required'));
 				return;
 			}
+
+			// Apply task creation defaults
+			await this.applyTaskCreationDefaults(taskData);
 
 			const result = await this.taskService.createTask(taskData);
 			
@@ -371,13 +377,60 @@ export class TasksController extends BaseController {
 					if (this.statusManager.isCompletedStatus(t.status) || t.archived) return false;
 					return t.due && new Date(t.due) < new Date();
 				}).length,
-				archived: allTasks.filter(t => t.archived === true).length,
+				archived: allTasks.filter(t => t.archived).length,
 				withTimeTracking: allTasks.filter(t => t.timeEntries && t.timeEntries.length > 0).length
 			};
 			
 			this.sendResponse(res, 200, this.successResponse(stats));
 		} catch (error: any) {
 			this.sendResponse(res, 500, this.errorResponse(error.message));
+		}
+	}
+
+	private async applyTaskCreationDefaults(taskData: TaskCreationData): Promise<void> {
+		const defaults = this.plugin.settings.taskCreationDefaults;
+
+		// Apply default scheduled date if not provided
+		if (!taskData.scheduled && defaults.defaultScheduledDate !== 'none') {
+			taskData.scheduled = calculateDefaultDate(defaults.defaultScheduledDate);
+		}
+
+		// Apply default due date if not provided  
+		if (!taskData.due && defaults.defaultDueDate !== 'none') {
+			taskData.due = calculateDefaultDate(defaults.defaultDueDate);
+		}
+
+		// Apply default contexts if not provided
+		if (!taskData.contexts && defaults.defaultContexts) {
+			taskData.contexts = defaults.defaultContexts.split(',').map(c => c.trim()).filter(c => c);
+		}
+
+		// Apply default projects if not provided
+		if (!taskData.projects && defaults.defaultProjects) {
+			taskData.projects = defaults.defaultProjects.split(',').map(p => p.trim()).filter(p => p);
+		}
+
+		// Apply default time estimate if not provided
+		if (!taskData.timeEstimate && defaults.defaultTimeEstimate > 0) {
+			taskData.timeEstimate = defaults.defaultTimeEstimate;
+		}
+
+		// Apply default tags if not provided
+		if (!taskData.tags && defaults.defaultTags) {
+			taskData.tags = defaults.defaultTags.split(',').map(t => t.trim()).filter(t => t);
+		}
+
+		// Apply default recurrence if not provided
+		if (!taskData.recurrence && defaults.defaultRecurrence && defaults.defaultRecurrence !== 'none') {
+			taskData.recurrence = {
+				frequency: defaults.defaultRecurrence
+			};
+		}
+
+		// Apply default reminders if not provided
+		if (!taskData.reminders && defaults.defaultReminders && defaults.defaultReminders.length > 0) {
+			const { convertDefaultRemindersToReminders } = await import('../utils/settingsUtils');
+			taskData.reminders = convertDefaultRemindersToReminders(defaults.defaultReminders);
 		}
 	}
 }

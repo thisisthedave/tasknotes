@@ -85,6 +85,43 @@ export class TaskService {
             // Handle title (sanitized for folder names)
             const title = taskData.title ? taskData.title.replace(/[<>:"/\\|?*]/g, '_') : '';
             processedPath = processedPath.replace(/\{\{title\}\}/g, title);
+            
+            // Handle due date and scheduled date
+            const dueDate = taskData.due || '';
+            processedPath = processedPath.replace(/\{\{dueDate\}\}/g, dueDate);
+            
+            const scheduledDate = taskData.scheduled || '';
+            processedPath = processedPath.replace(/\{\{scheduledDate\}\}/g, scheduledDate);
+            
+            // Priority and status variations
+            const priorityShort = priority ? priority.substring(0, 1).toUpperCase() : '';
+            processedPath = processedPath.replace(/\{\{priorityShort\}\}/g, priorityShort);
+            
+            const statusShort = status ? status.substring(0, 1).toUpperCase() : '';
+            processedPath = processedPath.replace(/\{\{statusShort\}\}/g, statusShort);
+            
+            // Title variations (all sanitized for folder names)
+            const titleLower = title ? title.toLowerCase() : '';
+            processedPath = processedPath.replace(/\{\{titleLower\}\}/g, titleLower);
+            
+            const titleUpper = title ? title.toUpperCase() : '';
+            processedPath = processedPath.replace(/\{\{titleUpper\}\}/g, titleUpper);
+            
+            const titleSnake = title ? title.toLowerCase().replace(/\s+/g, '_') : '';
+            processedPath = processedPath.replace(/\{\{titleSnake\}\}/g, titleSnake);
+            
+            const titleKebab = title ? title.toLowerCase().replace(/\s+/g, '-') : '';
+            processedPath = processedPath.replace(/\{\{titleKebab\}\}/g, titleKebab);
+            
+            const titleCamel = title ? title.replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => 
+                index === 0 ? word.toLowerCase() : word.toUpperCase()
+            ).replace(/\s+/g, '') : '';
+            processedPath = processedPath.replace(/\{\{titleCamel\}\}/g, titleCamel);
+            
+            const titlePascal = title ? title.replace(/(?:^\w|[A-Z]|\b\w)/g, word => 
+                word.toUpperCase()
+            ).replace(/\s+/g, '') : '';
+            processedPath = processedPath.replace(/\{\{titlePascal\}\}/g, titlePascal);
         }
         
         // Replace date variables with current date values
@@ -92,6 +129,57 @@ export class TaskService {
         processedPath = processedPath.replace(/\{\{month\}\}/g, format(date, 'MM'));
         processedPath = processedPath.replace(/\{\{day\}\}/g, format(date, 'dd'));
         processedPath = processedPath.replace(/\{\{date\}\}/g, format(date, 'yyyy-MM-dd'));
+        
+        // Time variables
+        processedPath = processedPath.replace(/\{\{time\}\}/g, format(date, 'HHmmss'));
+        processedPath = processedPath.replace(/\{\{timestamp\}\}/g, format(date, 'yyyy-MM-dd-HHmmss'));
+        processedPath = processedPath.replace(/\{\{dateTime\}\}/g, format(date, 'yyyy-MM-dd-HHmm'));
+        processedPath = processedPath.replace(/\{\{hour\}\}/g, format(date, 'HH'));
+        processedPath = processedPath.replace(/\{\{minute\}\}/g, format(date, 'mm'));
+        processedPath = processedPath.replace(/\{\{second\}\}/g, format(date, 'ss'));
+        
+        // New date format variations
+        processedPath = processedPath.replace(/\{\{shortDate\}\}/g, format(date, 'yyMMdd'));
+        processedPath = processedPath.replace(/\{\{monthName\}\}/g, format(date, 'MMMM'));
+        processedPath = processedPath.replace(/\{\{monthNameShort\}\}/g, format(date, 'MMM'));
+        processedPath = processedPath.replace(/\{\{dayName\}\}/g, format(date, 'EEEE'));
+        processedPath = processedPath.replace(/\{\{dayNameShort\}\}/g, format(date, 'EEE'));
+        processedPath = processedPath.replace(/\{\{week\}\}/g, format(date, 'ww'));
+        processedPath = processedPath.replace(/\{\{quarter\}\}/g, format(date, 'q'));
+        
+        // Time variations
+        processedPath = processedPath.replace(/\{\{time12\}\}/g, format(date, 'hh:mm a'));
+        processedPath = processedPath.replace(/\{\{time24\}\}/g, format(date, 'HH:mm'));
+        processedPath = processedPath.replace(/\{\{hourPadded\}\}/g, format(date, 'HH'));
+        processedPath = processedPath.replace(/\{\{hour12\}\}/g, format(date, 'hh'));
+        processedPath = processedPath.replace(/\{\{ampm\}\}/g, format(date, 'a'));
+        
+        // Unix timestamp and milliseconds
+        processedPath = processedPath.replace(/\{\{unix\}\}/g, Math.floor(date.getTime() / 1000).toString());
+        processedPath = processedPath.replace(/\{\{unixMs\}\}/g, date.getTime().toString());
+        processedPath = processedPath.replace(/\{\{milliseconds\}\}/g, format(date, 'SSS'));
+        processedPath = processedPath.replace(/\{\{ms\}\}/g, format(date, 'SSS'));
+        
+        // Timezone support
+        processedPath = processedPath.replace(/\{\{timezone\}\}/g, format(date, 'xxx'));
+        processedPath = processedPath.replace(/\{\{timezoneShort\}\}/g, format(date, 'xx'));
+        processedPath = processedPath.replace(/\{\{utcOffset\}\}/g, format(date, 'xxx'));
+        processedPath = processedPath.replace(/\{\{utcOffsetShort\}\}/g, format(date, 'xx'));
+        processedPath = processedPath.replace(/\{\{utcZ\}\}/g, 'Z');
+        
+        // Date-based identifiers
+        const zettelId = (() => {
+            const datePart = format(date, 'yyMMdd');
+            const midnight = new Date(date);
+            midnight.setHours(0, 0, 0, 0);
+            const secondsSinceMidnight = Math.floor((date.getTime() - midnight.getTime()) / 1000);
+            const randomPart = secondsSinceMidnight.toString(36);
+            return `${datePart}${randomPart}`;
+        })();
+        processedPath = processedPath.replace(/\{\{zettel\}\}/g, zettelId);
+        
+        const nanoId = Date.now().toString() + Math.random().toString(36).substring(2, 7);
+        processedPath = processedPath.replace(/\{\{nano\}\}/g, nanoId);
         
         return processedPath;
     }
@@ -107,9 +195,6 @@ export class TaskService {
                 throw new Error('Title is required');
             }
 
-            if (taskData.title.length > 200) {
-                throw new Error('Title is too long (max 200 characters)');
-            }
 
             // Apply defaults for missing fields
             const title = taskData.title.trim();
@@ -227,7 +312,12 @@ export class TaskService {
             
             // Merge template frontmatter with base frontmatter
             // User-defined values take precedence over template frontmatter
-            const finalFrontmatter = mergeTemplateFrontmatter(frontmatter, templateResult.frontmatter);
+            let finalFrontmatter = mergeTemplateFrontmatter(frontmatter, templateResult.frontmatter);
+
+            // Add custom frontmatter properties (including user fields)
+            if (taskData.customFrontmatter) {
+                finalFrontmatter = { ...finalFrontmatter, ...taskData.customFrontmatter };
+            }
             
             // Prepare file content
             const yamlHeader = stringifyYaml(finalFrontmatter);
@@ -868,9 +958,12 @@ export class TaskService {
             if (updates.recurrence !== undefined && updates.recurrence !== originalTask.recurrence) {
                 // Recurrence rule changed, calculate new scheduled date
                 const tempTask: TaskInfo = { ...originalTask, ...updates };
-                const nextScheduledDate = updateToNextScheduledOccurrence(tempTask);
-                if (nextScheduledDate) {
-                    recurrenceUpdates.scheduled = nextScheduledDate;
+                const nextDates = updateToNextScheduledOccurrence(tempTask, this.plugin.settings.maintainDueDateOffsetInRecurring);
+                if (nextDates.scheduled) {
+                    recurrenceUpdates.scheduled = nextDates.scheduled;
+                }
+                if (nextDates.due) {
+                    recurrenceUpdates.due = nextDates.due;
                 }
                 
                 // Add DTSTART to recurrence rule if it's missing (scenario 1: editing recurrence rule)
@@ -923,6 +1016,20 @@ export class TaskService {
                         frontmatter[key] = mappedFrontmatter[key];
                     }
                 });
+
+                // Handle custom frontmatter properties (including user fields)
+                if ((updates as any).customFrontmatter) {
+                    Object.keys((updates as any).customFrontmatter).forEach(key => {
+                        const value = (updates as any).customFrontmatter[key];
+                        if (value === null) {
+                            // Remove the property if value is null
+                            delete frontmatter[key];
+                        } else {
+                            // Set the property value
+                            frontmatter[key] = value;
+                        }
+                    });
+                }
 
                 if (updates.hasOwnProperty('due') && updates.due === undefined) delete frontmatter[this.plugin.fieldMapper.toUserField('due')];
                 if (updates.hasOwnProperty('scheduled') && updates.scheduled === undefined) delete frontmatter[this.plugin.fieldMapper.toUserField('scheduled')];
@@ -1136,9 +1243,12 @@ export class TaskService {
         }
 
         // Update scheduled date to next uncompleted occurrence
-        const nextScheduledDate = updateToNextScheduledOccurrence(updatedTask);
-        if (nextScheduledDate) {
-            updatedTask.scheduled = nextScheduledDate;
+        const nextDates = updateToNextScheduledOccurrence(updatedTask, this.plugin.settings.maintainDueDateOffsetInRecurring);
+        if (nextDates.scheduled) {
+            updatedTask.scheduled = nextDates.scheduled;
+        }
+        if (nextDates.due) {
+            updatedTask.due = nextDates.due;
         }
         
         // Step 2: Persist to file
@@ -1146,6 +1256,7 @@ export class TaskService {
             const completeInstancesField = this.plugin.fieldMapper.toUserField('completeInstances');
             const dateModifiedField = this.plugin.fieldMapper.toUserField('dateModified');
             const scheduledField = this.plugin.fieldMapper.toUserField('scheduled');
+            const dueField = this.plugin.fieldMapper.toUserField('due');
             const recurrenceField = this.plugin.fieldMapper.toUserField('recurrence');
             
             // Ensure complete_instances array exists
@@ -1174,6 +1285,12 @@ export class TaskService {
             if (updatedTask.scheduled) {
                 frontmatter[scheduledField] = updatedTask.scheduled;
             }
+
+            // Update due date if it changed
+            if (updatedTask.due) {
+                frontmatter[dueField] = updatedTask.due;
+            }
+
             
             frontmatter[dateModifiedField] = updatedTask.dateModified;
         });
@@ -1187,6 +1304,9 @@ export class TaskService {
                 };
                 if (updatedTask.scheduled !== freshTask.scheduled) {
                     expectedChanges.scheduled = updatedTask.scheduled;
+                }
+                if (updatedTask.due !== freshTask.due) {
+                    expectedChanges.due = updatedTask.due;
                 }
                 await this.plugin.cacheManager.waitForFreshTaskData(file, expectedChanges);
             }

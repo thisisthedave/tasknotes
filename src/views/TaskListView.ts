@@ -1,10 +1,11 @@
-import { TFile, ItemView, WorkspaceLeaf, EventRef, Notice, debounce, setIcon } from 'obsidian';
+import { TFile, ItemView, WorkspaceLeaf, EventRef, Notice, debounce, setIcon, ButtonComponent } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import {
     TASK_LIST_VIEW_TYPE,
     TaskInfo,
     EVENT_DATA_CHANGED,
     EVENT_TASK_UPDATED,
+    EVENT_DATE_CHANGED,
     FilterQuery,
     SavedView
 } from '../types';
@@ -168,6 +169,12 @@ export class TaskListView extends ItemView {
         });
         this.listeners.push(dataListener);
         
+        // Listen for date changes to refresh recurring task states
+        const dateChangeListener = this.plugin.emitter.on(EVENT_DATE_CHANGED, async () => {
+            this.refresh();
+        });
+        this.listeners.push(dateChangeListener);
+        
         // Listen for individual task updates
         const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, async ({ path, originalTask, updatedTask }) => {
             if (!path || !updatedTask) {
@@ -184,7 +191,8 @@ export class TaskListView extends ItemView {
                 // Task is visible - update it in place using TaskCard's update function
                 for (const taskElement of taskElements) {
                     try {
-                        updateTaskCard(taskElement, updatedTask, this.plugin, {
+	                const visibleProperties = this.getCurrentVisibleProperties();
+        	        updateTaskCard(taskElement, updatedTask, this.plugin, visibleProperties, {
                             showDueDate: true,
                             showCheckbox: false,
                             showArchiveButton: true,
@@ -269,7 +277,6 @@ export class TaskListView extends ItemView {
                 setTimeout(checkReady, 100);
             } else {
                 // Timeout - try to refresh anyway
-                console.warn('TaskListView: Cache initialization timeout, attempting to load anyway');
                 await this.refresh();
             }
         };
@@ -350,59 +357,33 @@ export class TaskListView extends ItemView {
         // Create new FilterBar with simplified constructor
         this.filterBar = new FilterBar(
             this.app,
+            this.plugin,
             filterBarContainer,
             this.currentQuery,
             filterOptions,
-            this.plugin.settings.viewsButtonAlignment || 'right'
+            this.plugin.settings.viewsButtonAlignment || 'right',
+            { enableGroupExpandCollapse: false, forceShowExpandCollapse: false, viewType: 'task-list' }
         );
 
-        // Wire expand/collapse all (as in preview-all)
-        this.filterBar.on('expandAllGroups', () => {
-            const key = this.currentQuery.groupKey || 'none';
-            GroupingUtils.expandAllGroups(TASK_LIST_VIEW_TYPE, key, this.plugin);
-            // Update DOM
-            this.contentEl.querySelectorAll('.task-group').forEach(section => {
-                section.classList.remove('is-collapsed');
-                const list = (section as HTMLElement).querySelector('.task-cards') as HTMLElement | null;
-                if (list) list.style.display = '';
-            });
-        });
-        this.filterBar.on('collapseAllGroups', () => {
-            const key = this.currentQuery.groupKey || 'none';
-            const groupNames: string[] = [];
-            this.contentEl.querySelectorAll('.task-group').forEach(section => {
-                const name = (section as HTMLElement).dataset.group;
-                if (name) {
-                    groupNames.push(name);
-                    section.classList.add('is-collapsed');
-                    const list = (section as HTMLElement).querySelector('.task-cards') as HTMLElement | null;
-                    if (list) list.style.display = 'none';
-                }
-            });
-            GroupingUtils.collapseAllGroups(TASK_LIST_VIEW_TYPE, key, groupNames, this.plugin);
-        });
 
         // Get saved views for the FilterBar
         const savedViews = this.plugin.viewStateManager.getSavedViews();
         this.filterBar.updateSavedViews(savedViews);
         
         // Listen for saved view events
-        this.filterBar.on('saveView', ({ name, query, viewOptions }) => {
-            console.log('TaskListView: Received saveView event:', name, query, viewOptions); // Debug
-            const savedView = this.plugin.viewStateManager.saveView(name, query, viewOptions);
-            console.log('TaskListView: Saved view result:', savedView); // Debug
-            // Don't update here - the ViewStateManager event will handle it
+        this.filterBar.on('saveView', ({ name, query, viewOptions, visibleProperties }) => {
+            const savedView = this.plugin.viewStateManager.saveView(name, query, viewOptions, visibleProperties);
+            // Set the newly saved view as active to prevent incorrect view matching
+            this.filterBar!.setActiveSavedView(savedView);
         });
         
         this.filterBar.on('deleteView', (viewId: string) => {
-            console.log('TaskListView: Received deleteView event:', viewId); // Debug
             this.plugin.viewStateManager.deleteView(viewId);
             // Don't update here - the ViewStateManager event will handle it
         });
 
         // Listen for global saved views changes
         this.plugin.viewStateManager.on('saved-views-changed', (updatedViews: readonly SavedView[]) => {
-            console.log('TaskListView: Received saved-views-changed event:', updatedViews); // Debug
             this.filterBar?.updateSavedViews(updatedViews);
         });
         
@@ -415,11 +396,33 @@ export class TaskListView extends ItemView {
             this.currentQuery = newQuery;
             // Save the filter state
             this.plugin.viewStateManager.setFilterState(TASK_LIST_VIEW_TYPE, newQuery);
+            // Update expand/collapse buttons visibility
+            const controlsContainer = this.contentEl.querySelector('.filter-heading__controls') as HTMLElement;
+            if (controlsContainer) {
+                this.createExpandCollapseButtons(controlsContainer);
+            }
             await this.refreshTasks();
         });
 
-        // Create filter heading
+        // Listen for properties changes
+        this.filterBar.on('propertiesChanged', (properties: string[]) => {
+            // Refresh the task display with new properties
+            this.refreshTaskDisplay();
+        });
+
+        // Create filter heading with integrated controls
         this.filterHeading = new FilterHeading(container);
+        
+        // Add expand/collapse controls to the heading container
+        const headingContainer = container.querySelector('.filter-heading') as HTMLElement;
+        if (headingContainer) {
+            const headingContent = headingContainer.querySelector('.filter-heading__content') as HTMLElement;
+            if (headingContent) {
+                // Add controls to the right side of the heading
+                const controlsContainer = headingContent.createDiv({ cls: 'filter-heading__controls' });
+                this.createExpandCollapseButtons(controlsContainer);
+            }
+        }
 
         // Task list container
         const taskList = container.createDiv({ cls: 'task-list' });
@@ -443,6 +446,64 @@ export class TaskListView extends ItemView {
         // Hide loading state when done
         this.isTasksLoading = false;
         this.updateLoadingState();
+        
+        // Update expand/collapse buttons after initial load
+        const controlsContainer = this.contentEl.querySelector('.filter-heading__controls') as HTMLElement;
+        if (controlsContainer) {
+            this.createExpandCollapseButtons(controlsContainer);
+        }
+    }
+
+    /**
+     * Create expand/collapse buttons for grouped views
+     */
+    private createExpandCollapseButtons(container: HTMLElement): void {
+        const isGrouped = (this.currentQuery.groupKey || 'none') !== 'none';
+        
+        if (!isGrouped) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'flex';
+        container.empty();
+        
+        // Expand all button
+        const expandAllBtn = new ButtonComponent(container)
+            .setIcon('list-tree')
+            .setTooltip('Expand All Groups')
+            .setClass('task-view-control-button')
+            .onClick(() => {
+                const key = this.currentQuery.groupKey || 'none';
+                this.contentEl.querySelectorAll('.task-group').forEach(section => {
+                    section.classList.remove('is-collapsed');
+                    const list = (section as HTMLElement).querySelector('.task-cards') as HTMLElement | null;
+                    if (list) list.style.display = '';
+                });
+                GroupingUtils.expandAllGroups(TASK_LIST_VIEW_TYPE, key, this.plugin);
+            });
+        expandAllBtn.buttonEl.addClass('clickable-icon');
+
+        // Collapse all button  
+        const collapseAllBtn = new ButtonComponent(container)
+            .setIcon('list-collapse')
+            .setTooltip('Collapse All Groups')
+            .setClass('task-view-control-button')
+            .onClick(() => {
+                const key = this.currentQuery.groupKey || 'none';
+                const groupNames: string[] = [];
+                this.contentEl.querySelectorAll('.task-group').forEach(section => {
+                    const name = (section as HTMLElement).dataset.group;
+                    if (name) {
+                        groupNames.push(name);
+                        section.classList.add('is-collapsed');
+                        const list = (section as HTMLElement).querySelector('.task-cards') as HTMLElement | null;
+                        if (list) list.style.display = 'none';
+                    }
+                });
+                GroupingUtils.collapseAllGroups(TASK_LIST_VIEW_TYPE, key, groupNames, this.plugin);
+            });
+        collapseAllBtn.buttonEl.addClass('clickable-icon');
     }
 
     /**
@@ -647,8 +708,11 @@ export class TaskListView extends ItemView {
                 error: errorMessage,
                 stack: error instanceof Error ? error.stack : undefined,
                 query: this.currentQuery,
-                cacheInitialized: this.plugin.cacheManager?.isInitialized() || false
+                cacheInitialized: this.plugin.cacheManager?.isInitialized() || false,
+                visibleProperties: this.getCurrentVisibleProperties(),
+                filterServiceQuery: JSON.stringify(this.currentQuery, null, 2)
             });
+            
             
             // Clear existing content and show error message
             this.taskListContainer.empty();
@@ -710,13 +774,36 @@ export class TaskListView extends ItemView {
      * Render a flat task list using DOMReconciler for optimal performance
      */
     private renderTaskListWithReconciler(container: HTMLElement, tasks: TaskInfo[]) {
-        this.plugin.domReconciler.updateList<TaskInfo>(
-            container,
-            tasks,
-            (task) => task.path, // Unique key
-            (task) => this.createTaskCardForReconciler(task), // Render new item
-            (element, task) => this.updateTaskCardForReconciler(element, task) // Update existing item
-        );
+        
+        // Clear any elements without proper keys to avoid DOMReconciler confusion
+        Array.from(container.children).forEach(child => {
+            const element = child as HTMLElement;
+            if (!element.dataset.key) {
+                element.remove();
+            }
+        });
+        
+        
+        try {
+            
+            this.plugin.domReconciler.updateList<TaskInfo>(
+                container,
+                tasks,
+                (task) => {
+                    return task.path;
+                }, // Unique key
+                (task) => {
+                    return this.createTaskCardForReconciler(task);
+                }, // Render new item
+                (element, task) => {
+                    return this.updateTaskCardForReconciler(element, task);
+                } // Update existing item
+            );
+            
+        } catch (error) {
+            console.error('TaskListView: Error in renderTaskListWithReconciler:', error);
+            throw error;
+        }
         
         // Update task elements tracking
         this.taskElements = [];
@@ -780,8 +867,8 @@ export class TaskListView extends ItemView {
                 // Calculate completion stats for this group
                 const groupStats = GroupCountUtils.calculateGroupStats(tasks, this.plugin);
 
-                // Label: project wikilink -> clickable, else plain text span
-                if (groupingKey === 'project' && this.isWikilinkProject(groupName)) {
+                // Label: project path -> clickable, else plain text span
+                if (groupingKey === 'project' && this.isClickableProject(groupName)) {
                     this.createClickableProjectHeader(headerElement, groupName, groupStats);
                 } else {
                     headerElement.createSpan({ text: this.formatGroupName(groupName) });
@@ -862,33 +949,71 @@ export class TaskListView extends ItemView {
     }
 
     /**
+     * Get current visible properties for task cards
+     */
+    private getCurrentVisibleProperties(): string[] | undefined {
+        // Use the FilterBar's method which handles temporary state
+        return this.filterBar?.getCurrentVisibleProperties();
+    }
+
+    /**
+     * Refresh task display with current properties (without refetching data)
+     */
+    private refreshTaskDisplay(): void {
+        if (!this.taskListContainer) return;
+        
+        // Get all existing task cards
+        const taskCards = this.taskListContainer.querySelectorAll('.task-card');
+        const visibleProperties = this.getCurrentVisibleProperties();
+        
+        taskCards.forEach(card => {
+            const taskPath = (card as HTMLElement).dataset.taskPath;
+            if (!taskPath) return;
+            
+            // Get task data from cache
+            this.plugin.cacheManager.getTaskInfo(taskPath).then(task => {
+                if (task) {
+                    updateTaskCard(card as HTMLElement, task, this.plugin, visibleProperties);
+                }
+            });
+        });
+    }
+
+    /**
      * Create a task card for use with DOMReconciler
      */
     private createTaskCardForReconciler(task: TaskInfo): HTMLElement {
-        const taskCard = createTaskCard(task, this.plugin, {
-            showDueDate: true,
-            showCheckbox: true,
-            showArchiveButton: true,
-            showTimeTracking: true,
-            showRecurringControls: true,
-            groupByDate: false,
-            draggable: this.isViewDraggable()
-        });
-        
-        // Ensure the key is set for reconciler
-        taskCard.dataset.key = task.path;
-        
-        // Add focus handling
-        this.addFocusHandler(taskCard, task);
-        
-        return taskCard;
+        try {
+            const visibleProperties = this.getCurrentVisibleProperties();
+            const taskCard = createTaskCard(task, this.plugin, visibleProperties, {
+                showDueDate: true,
+                showCheckbox: true,
+                showArchiveButton: true,
+                showTimeTracking: true,
+                showRecurringControls: true,
+                groupByDate: false,
+                draggable: this.isViewDraggable()
+            });
+            
+            // Ensure the key is set for reconciler
+            taskCard.dataset.key = task.path;
+            
+            // Add focus handling
+            this.addFocusHandler(taskCard, task);
+            
+            return taskCard;
+        } catch (error) {
+            console.error('TaskListView: Error creating task card for', task.path, ':', error);
+            throw error;
+        }
     }
 
     /**
      * Update an existing task card for use with DOMReconciler
      */
     private updateTaskCardForReconciler(element: HTMLElement, task: TaskInfo): void {
-        updateTaskCard(element, task, this.plugin, {
+        const visibleProperties = this.getCurrentVisibleProperties();
+        updateTaskCard(element, task, this.plugin, visibleProperties, {
             showDueDate: true,
             showCheckbox: true,
             showArchiveButton: true,
@@ -1053,22 +1178,6 @@ export class TaskListView extends ItemView {
         this.focusTaskElement(index);
     }
     
-    /**
-     * Create SVG icon element safely without innerHTML
-     */
-    private createSVGIcon(viewBox: string, width: number, height: number, pathData: string): SVGElement {
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', viewBox);
-        svg.setAttribute('width', width.toString());
-        svg.setAttribute('height', height.toString());
-        
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('fill', 'currentColor');
-        path.setAttribute('d', pathData);
-        
-        svg.appendChild(path);
-        return svg;
-    }
 
     /**
      * Format group name for display
@@ -1138,58 +1247,96 @@ export class TaskListView extends ItemView {
     }
 
     /**
-     * Check if a project string is in wikilink format [[Note Name]]
+     * Check if a project string is a file path that should be made clickable
      */
-    private isWikilinkProject(project: string): boolean {
-        return project.startsWith('[[') && project.endsWith(']]');
+    private isClickableProject(project: string): boolean {
+        if (!project || typeof project !== 'string') {
+            return false;
+        }
+        
+        // Wikilink format
+        if (project.startsWith('[[') && project.endsWith(']]')) {
+            return true;
+        }
+        
+        // File path (contains slash) or could be a resolved file
+        if (project.includes('/')) {
+            return true;
+        }
+        
+        // Check if it's a resolved file path by trying to find the file
+        if (this.plugin?.app) {
+            const file = this.plugin.app.vault.getAbstractFileByPath(project + '.md');
+            if (file instanceof TFile) {
+                return true;
+            }
+            
+            const resolvedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(project, '');
+            return !!resolvedFile;
+        }
+        
+        return false;
     }
 
     /**
-     * Create a clickable project header for wikilink projects
+     * Create a clickable project header for project file paths
      */
     private createClickableProjectHeader(headerElement: HTMLElement, projectName: string, groupStats?: { completed: number; total: number }): void {
-        if (this.isWikilinkProject(projectName)) {
-            // Extract the note name from [[Note Name]]
-            const noteName = projectName.slice(2, -2);
+        if (!projectName || typeof projectName !== 'string') {
+            return;
+        }
+        
+        let filePath = projectName;
+        let displayName = projectName;
+        
+        // Handle wikilink format
+        if (projectName.startsWith('[[') && projectName.endsWith(']]')) {
+            const linkContent = projectName.slice(2, -2);
+            filePath = linkContent;
+            displayName = linkContent;
+        }
+        
+        // Create a clickable link
+        const linkEl = headerElement.createEl('a', {
+            cls: 'internal-link task-list-view__project-link',
+            text: displayName
+        });
+        
+        // Add click handler to open the file
+        this.registerDomEvent(linkEl, 'click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             
-            // Create a clickable link
-            const linkEl = headerElement.createEl('a', {
-                cls: 'internal-link task-list-view__project-link',
-                text: noteName
-            });
-            
-            // Add click handler to open the note
-            this.registerDomEvent(linkEl, 'click', async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Resolve the link to get the actual file
-                const file = this.plugin.app.metadataCache.getFirstLinkpathDest(noteName, '');
+            try {
+                // First try to get file by direct path
+                const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
                 if (file instanceof TFile) {
-                    // Open the file in the current leaf
                     await this.plugin.app.workspace.getLeaf(false).openFile(file);
-                } else {
-                    // File not found, show notice
-                    new Notice(`Note "${noteName}" not found`);
+                    return;
                 }
-            });
-            
-            // Add hover preview functionality - resolve the file first
-            const file = this.plugin.app.metadataCache.getFirstLinkpathDest(noteName, '');
-            if (file instanceof TFile) {
-                this.addHoverPreview(linkEl, file.path);
+                
+                // If not found, try to resolve using metadata cache
+                const resolvedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(filePath, '');
+                if (resolvedFile) {
+                    await this.plugin.app.workspace.getLeaf(false).openFile(resolvedFile);
+                } else {
+                    new Notice(`Project file not found: ${displayName}`);
+                }
+            } catch (error) {
+                console.error('Error opening project file:', error);
+                new Notice(`Error opening project: ${displayName}`);
             }
+        });
+        
+        // Add hover preview functionality
+        this.addHoverPreview(linkEl, filePath);
 
-            // Add count with agenda-view__item-count styling if stats provided
-            if (groupStats) {
-                headerElement.createSpan({
-                    text: ` ${GroupCountUtils.formatGroupCount(groupStats.completed, groupStats.total).text}`,
-                    cls: 'agenda-view__item-count'
-                });
-            }
-        } else {
-            // Fallback to plain text
-            headerElement.textContent = this.formatGroupName(projectName);
+        // Add count with agenda-view__item-count styling if stats provided
+        if (groupStats) {
+            headerElement.createSpan({
+                text: ` ${GroupCountUtils.formatGroupCount(groupStats.completed, groupStats.total).text}`,
+                cls: 'agenda-view__item-count'
+            });
         }
     }
 

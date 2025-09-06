@@ -1,6 +1,6 @@
 import { Decoration, DecorationSet, EditorView, PluginSpec, PluginValue, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view';
-import { EVENT_DATA_CHANGED, EVENT_TASK_DELETED, EVENT_TASK_UPDATED, FilterQuery, SUBTASK_WIDGET_VIEW_TYPE, TaskInfo } from '../types';
-import { EventRef, TFile, editorInfoField, editorLivePreviewField, setIcon } from 'obsidian';
+import { EVENT_DATA_CHANGED, EVENT_TASK_DELETED, EVENT_TASK_UPDATED, EVENT_DATE_CHANGED, FilterQuery, SUBTASK_WIDGET_VIEW_TYPE, TaskInfo, SavedView } from '../types';
+import { EventRef, TFile, editorInfoField, editorLivePreviewField, setIcon, ButtonComponent } from 'obsidian';
 import { Extension, RangeSetBuilder, StateEffect } from '@codemirror/state';
 
 import { FilterBar } from '../ui/FilterBar';
@@ -15,7 +15,7 @@ import { createTaskCard } from '../ui/TaskCard';
 // Define a state effect for project subtasks updates
 const projectSubtasksUpdateEffect = StateEffect.define<{ forceUpdate?: boolean }>();
 
-class ProjectSubtasksWidget extends WidgetType {
+export class ProjectSubtasksWidget extends WidgetType {
     private groupedTasks: Map<string, TaskInfo[]> = new Map();
     private filterBar: FilterBar | null = null;
     private filterHeading: FilterHeading | null = null;
@@ -196,10 +196,12 @@ class ProjectSubtasksWidget extends WidgetType {
             
             this.filterBar = new FilterBar(
                 this.plugin.app,
+                this.plugin,
                 container,
                 this.currentQuery,
                 filterOptions,
-                this.plugin.settings.viewsButtonAlignment || 'right'
+                this.plugin.settings.viewsButtonAlignment || 'right',
+                { enableGroupExpandCollapse: false, forceShowExpandCollapse: false, viewType: 'subtask-widget' }
             );
             
             // Load saved views from the main ViewStateManager
@@ -211,6 +213,11 @@ class ProjectSubtasksWidget extends WidgetType {
                 this.currentQuery = query;
                 // Save the filter state to ViewStateManager for this specific note
                 this.plugin.viewStateManager.setFilterState(this.viewType, query);
+                // Update expand/collapse buttons visibility
+                const controlsContainer = container.querySelector('.filter-heading__controls') as HTMLElement;
+                if (controlsContainer) {
+                    this.createExpandCollapseButtons(controlsContainer);
+                }
                 if (this.taskListContainer) {
                     this.applyFiltersAndRender(this.taskListContainer);
                 }
@@ -225,8 +232,10 @@ class ProjectSubtasksWidget extends WidgetType {
             });
             
             // Listen for saved view operations
-            this.filterBar.on('saveView', (data: { name: string, query: FilterQuery, viewOptions?: {[key: string]: boolean} }) => {
-                this.plugin.viewStateManager.saveView(data.name, data.query, data.viewOptions);
+            this.filterBar.on('saveView', (data: { name: string, query: FilterQuery, viewOptions?: {[key: string]: boolean}, visibleProperties?: string[] }) => {
+                const savedView = this.plugin.viewStateManager.saveView(data.name, data.query, data.viewOptions, data.visibleProperties);
+                // Set the newly saved view as active to prevent incorrect view matching
+                this.filterBar!.setActiveSavedView(savedView);
             });
             
             this.filterBar.on('deleteView', (viewId: string) => {
@@ -275,14 +284,82 @@ class ProjectSubtasksWidget extends WidgetType {
                 GroupingUtils.collapseAllGroups(this.viewType, key, groupNames, this.plugin);
             });
 
-            // Create filter heading after FilterBar is fully initialized
+            // Create filter heading with integrated controls
             this.filterHeading = new FilterHeading(container);
+            
+            // Add expand/collapse controls to the heading container
+            const headingContainer = container.querySelector('.filter-heading') as HTMLElement;
+            if (headingContainer) {
+                const headingContent = headingContainer.querySelector('.filter-heading__content') as HTMLElement;
+                if (headingContent) {
+                    // Add controls to the right side of the heading
+                    const controlsContainer = headingContent.createDiv({ cls: 'filter-heading__controls' });
+                    this.createExpandCollapseButtons(controlsContainer);
+                }
+            }
+            
             // Initial update
             this.updateFilterHeading();
 
         } catch (error) {
             console.error('Error initializing filter bar for subtasks:', error);
         }
+    }
+
+    /**
+     * Create expand/collapse buttons for grouped subtasks
+     */
+    private createExpandCollapseButtons(container: HTMLElement): void {
+        const isGrouped = (this.currentQuery.groupKey || 'none') !== 'none';
+        
+        if (!isGrouped) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'flex';
+        container.empty();
+        
+        // Expand all button
+        const expandAllBtn = new ButtonComponent(container)
+            .setIcon('list-tree')
+            .setTooltip('Expand All Groups')
+            .setClass('task-view-control-button')
+            .onClick(() => {
+                const key = this.currentQuery.groupKey || 'none';
+                if (this.taskListContainer) {
+                    this.taskListContainer.querySelectorAll('.task-group').forEach(section => {
+                        section.classList.remove('is-collapsed');
+                        const list = (section as HTMLElement).querySelector('.task-cards') as HTMLElement | null;
+                        if (list) list.style.display = '';
+                    });
+                }
+                GroupingUtils.expandAllGroups(this.viewType, key, this.plugin);
+            });
+        expandAllBtn.buttonEl.addClass('clickable-icon');
+
+        // Collapse all button  
+        const collapseAllBtn = new ButtonComponent(container)
+            .setIcon('list-collapse')
+            .setTooltip('Collapse All Groups')
+            .setClass('task-view-control-button')
+            .onClick(() => {
+                const key = this.currentQuery.groupKey || 'none';
+                const groupNames: string[] = [];
+                if (this.taskListContainer) {
+                    this.taskListContainer.querySelectorAll('.task-group').forEach(section => {
+                        const name = (section as HTMLElement).dataset.group;
+                        if (name) {
+                            groupNames.push(name);
+                            section.classList.add('is-collapsed');
+                            const list = (section as HTMLElement).querySelector('.task-cards') as HTMLElement | null;
+                            if (list) list.style.display = 'none';
+                        }
+                    });
+                }
+                GroupingUtils.collapseAllGroups(this.viewType, key, groupNames, this.plugin);
+            });
+        collapseAllBtn.buttonEl.addClass('clickable-icon');
     }
 
     /**
@@ -343,15 +420,15 @@ class ProjectSubtasksWidget extends WidgetType {
         // Clear existing tasks
         taskListContainer.empty();
 
-        // Calculate total filtered tasks and completion stats
-        let totalFilteredTasks = 0;
-        let completedFilteredTasks = 0;
-        for (const tasks of this.groupedTasks.values()) {
-            totalFilteredTasks += tasks.length;
-            completedFilteredTasks += tasks.filter(task =>
-                this.plugin.statusManager.isCompletedStatus(task.status)
-            ).length;
-        }
+        // Calculate total filtered tasks and completion stats (for future use)
+        // let totalFilteredTasks = 0;
+        // let completedFilteredTasks = 0;
+        // for (const tasks of this.groupedTasks.values()) {
+        //     totalFilteredTasks += tasks.length;
+        //     completedFilteredTasks += tasks.filter(task =>
+        //         this.plugin.statusManager.isCompletedStatus(task.status)
+        //     ).length;
+        // }
         
         // Render groups
         if (this.currentQuery.groupKey === 'none' || this.groupedTasks.size <= 1) {
@@ -360,7 +437,7 @@ class ProjectSubtasksWidget extends WidgetType {
                 ? Array.from(this.groupedTasks.values())[0] 
                 : this.groupedTasks.get('all') || [];
             tasks.forEach(task => {
-                const taskCard = createTaskCard(task, this.plugin, {
+                const taskCard = createTaskCard(task, this.plugin, this.plugin.settings.defaultVisibleProperties, {
                     showDueDate: true,
                     showCheckbox: false,
                     showArchiveButton: false,
@@ -398,7 +475,9 @@ class ProjectSubtasksWidget extends WidgetType {
                 });
                 try {
                     setIcon(toggleBtn, 'chevron-right');
-                } catch (_) {}
+                } catch (_) {
+                    // Ignore icon loading errors
+                }
                 const svg = toggleBtn.querySelector('svg');
                 if (svg) {
                     svg.classList.add('chevron');
@@ -465,7 +544,7 @@ class ProjectSubtasksWidget extends WidgetType {
 
                 // Render tasks in this group
                 tasks.forEach(task => {
-                    const taskCard = createTaskCard(task, this.plugin, {
+                    const taskCard = createTaskCard(task, this.plugin, this.plugin.settings.defaultVisibleProperties, {
                         showDueDate: true,
                         showCheckbox: false,
                         showArchiveButton: false,
@@ -621,6 +700,11 @@ class ProjectNoteDecorationsPlugin implements PluginValue {
             this.loadTasksForCurrentFile(this.view);
         });
         
+        const dateChangeListener = this.plugin.emitter.on(EVENT_DATE_CHANGED, () => {
+            // Refresh tasks for current file when date changes (for recurring task states)
+            this.loadTasksForCurrentFile(this.view);
+        });
+        
         // Listen for settings changes that might affect project subtasks
         const settingsChangeListener = this.plugin.emitter.on('settings-changed', () => {
             // Refresh tasks when settings change (e.g., custom fields, statuses)
@@ -647,6 +731,7 @@ class ProjectNoteDecorationsPlugin implements PluginValue {
             dataChangeListener, 
             taskUpdateListener, 
             taskDeleteListener,
+            dateChangeListener,
             settingsChangeListener,
             fileUpdateListener,
             fileDeleteListener,

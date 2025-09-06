@@ -8,6 +8,7 @@ import { PriorityManager } from '../services/PriorityManager';
 import { showConfirmationModal } from '../modals/ConfirmationModal';
 import { showStorageLocationConfirmationModal } from '../modals/StorageLocationConfirmationModal';
 import { ProjectSelectModal } from '../modals/ProjectSelectModal';
+import { splitListPreservingLinksAndQuotes } from '../utils/stringSplit';
 
 
 
@@ -178,6 +179,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
 
 		new Setting(container)
 			.setName('Instant task convert')
@@ -435,6 +437,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
+
 
 		new Setting(container)
 			.setName('Default task status')
@@ -710,7 +714,100 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		// Add reminder form
 		this.renderAddDefaultReminderForm(reminderSection);
 
+		// Task display section
+		new Setting(container).setName('Task display defaults').setHeading();
 
+		this.renderDefaultVisiblePropertiesSettings(container);
+
+	}
+
+	private renderDefaultVisiblePropertiesSettings(container: HTMLElement): void {
+		// Get available properties 
+		const availableProperties = [
+			{ id: 'status', name: 'Status dot', category: 'core' },
+			{ id: 'priority', name: 'Priority dot', category: 'core' },
+			{ id: 'due', name: 'Due date', category: 'core' },
+			{ id: 'scheduled', name: 'Scheduled date', category: 'core' },
+			{ id: 'timeEstimate', name: 'Time estimate', category: 'core' },
+			{ id: 'recurrence', name: 'Recurrence', category: 'core' },
+			{ id: 'completedDate', name: 'Completed date', category: 'core' },
+			{ id: 'projects', name: 'Projects', category: 'organization' },
+			{ id: 'contexts', name: 'Contexts', category: 'organization' },
+			{ id: 'tags', name: 'Tags', category: 'organization' }
+		];
+
+		new Setting(container)
+			.setName('Default visible properties')
+			.setDesc('Choose which properties appear on task cards by default. You can temporarily change these in each view and save custom combinations to saved views.')
+			.setClass('setting-item-default-properties');
+
+		// Create container for property toggles
+		const propertiesContainer = container.createDiv('default-properties-container');
+		
+		// Group by category
+		const coreProperties = availableProperties.filter(p => p.category === 'core');
+		const orgProperties = availableProperties.filter(p => p.category === 'organization');
+		
+		// Create sections
+		this.createPropertiesSection(propertiesContainer, 'Core properties', coreProperties);
+		this.createPropertiesSection(propertiesContainer, 'Organization', orgProperties);
+		
+		// Add user-defined properties if any exist
+		const userFields = this.plugin.settings.userFields || [];
+		if (userFields.length > 0) {
+			const userProperties = userFields.map(field => ({
+				id: `user:${field.id}`,
+				name: field.displayName,
+				category: 'user' as const
+			}));
+			this.createPropertiesSection(propertiesContainer, 'Custom properties', userProperties);
+		}
+		
+		// Add note about backward compatibility
+		const note = container.createDiv({ cls: 'settings-help-note' });
+		note.textContent = 'Note: Status and priority dots are automatically included for backward compatibility with existing views.';
+	}
+
+	private createPropertiesSection(container: HTMLElement, title: string, properties: Array<{ id: string, name: string, category: string }>) {
+		const section = container.createDiv('properties-section');
+		const header = section.createDiv('properties-section-header');
+		header.textContent = title;
+		
+		const grid = section.createDiv('properties-grid');
+		
+		const currentDefaults = this.plugin.settings.defaultVisibleProperties || [];
+		
+		properties.forEach(property => {
+			const item = grid.createDiv('property-item');
+			
+			const checkbox = item.createEl('input', {
+				type: 'checkbox',
+				attr: { 'aria-label': `Show ${property.name}` }
+			}) as HTMLInputElement;
+			
+			checkbox.checked = currentDefaults.includes(property.id);
+			checkbox.addEventListener('change', async () => {
+				let updatedDefaults = [...currentDefaults];
+				
+				if (checkbox.checked) {
+					if (!updatedDefaults.includes(property.id)) {
+						updatedDefaults.push(property.id);
+					}
+				} else {
+					updatedDefaults = updatedDefaults.filter(id => id !== property.id);
+				}
+				
+				this.plugin.settings.defaultVisibleProperties = updatedDefaults;
+				await this.plugin.saveSettings();
+			});
+			
+			const label = item.createEl('label');
+			label.textContent = property.name;
+			label.addEventListener('click', () => {
+				checkbox.checked = !checkbox.checked;
+				checkbox.dispatchEvent(new Event('change'));
+			});
+		});
 	}
 
 	private renderCalendarTab(): void {
@@ -781,6 +878,20 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.calendarViewSettings.showWeekends)
 					.onChange(async (value) => {
 						this.plugin.settings.calendarViewSettings.showWeekends = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(container)
+			.setName('Calendar locale')
+			.setDesc('Calendar locale for date formatting and calendar system (e.g., "en", "fa" for Farsi/Persian, "de" for German). Leave empty to auto-detect from browser.')
+			.addText(text => {
+				text.inputEl.setAttribute('aria-label', 'Calendar locale');
+				return text
+					.setPlaceholder('Auto-detect')
+					.setValue(this.plugin.settings.calendarViewSettings.locale)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarViewSettings.locale = value;
 						await this.plugin.saveSettings();
 					});
 			});
@@ -1309,7 +1420,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					if (!this.plugin.settings.icsIntegration) {
 						this.plugin.settings.icsIntegration = {
 							defaultNoteTemplate: '',
-							defaultNoteFolder: ''
+							defaultNoteFolder: '',
+							icsNoteFilenameFormat: 'title',
+							customICSNoteFilenameTemplate: '{title}'
 						};
 					}
 					this.plugin.settings.icsIntegration.defaultNoteTemplate = value;
@@ -1326,12 +1439,66 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					if (!this.plugin.settings.icsIntegration) {
 						this.plugin.settings.icsIntegration = {
 							defaultNoteTemplate: '',
-							defaultNoteFolder: ''
+							defaultNoteFolder: '',
+							icsNoteFilenameFormat: 'title',
+							customICSNoteFilenameTemplate: '{title}'
 						};
 					}
 					this.plugin.settings.icsIntegration.defaultNoteFolder = value;
 					await this.plugin.saveSettings();
 				}));
+
+		// Filename settings for ICS event notes
+		new Setting(container).setName('Filename format for calendar event notes').setHeading();
+
+		new Setting(container)
+			.setName('Filename format')
+			.setDesc('How to name notes created from calendar events')
+			.addDropdown(dropdown => dropdown
+				.addOptions({
+					'title': 'Event title',
+					'zettel': 'Zettelkasten (YYMMDD + time)',
+					'timestamp': 'Timestamp (YYYY-MM-DD-HHMMSS)',
+					'custom': 'Custom template'
+				})
+				.setValue(this.plugin.settings.icsIntegration?.icsNoteFilenameFormat || 'title')
+				.onChange(async (value: 'title' | 'zettel' | 'timestamp' | 'custom') => {
+					if (!this.plugin.settings.icsIntegration) {
+						this.plugin.settings.icsIntegration = {
+							defaultNoteTemplate: '',
+							defaultNoteFolder: '',
+							icsNoteFilenameFormat: 'title',
+							customICSNoteFilenameTemplate: '{title}'
+						};
+					}
+					this.plugin.settings.icsIntegration.icsNoteFilenameFormat = value;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+		// Custom template setting (conditional)
+		if (this.plugin.settings.icsIntegration?.icsNoteFilenameFormat === 'custom') {
+			new Setting(container)
+				.setName('Custom filename template for ICS notes')
+				.setDesc('Template for custom filename format. Available variables: {title} (event title), {icsEventTitleWithDate} (event title + date), {icsEventLocation}, {icsEventDescription}, {date}, {time}, {timestamp}, etc.')
+				.addText(text => {
+					text.inputEl.setAttribute('aria-label', 'Custom ICS note filename template with variables');
+					return text
+						.setValue(this.plugin.settings.icsIntegration?.customICSNoteFilenameTemplate || '{title}')
+						.onChange(async (value) => {
+							if (!this.plugin.settings.icsIntegration) {
+								this.plugin.settings.icsIntegration = {
+									defaultNoteTemplate: '',
+									defaultNoteFolder: '',
+									icsNoteFilenameFormat: 'title',
+									customICSNoteFilenameTemplate: '{title}'
+								};
+							}
+							this.plugin.settings.icsIntegration.customICSNoteFilenameTemplate = value;
+							await this.plugin.saveSettings();
+						});
+				});
+		}
 	}
 
 	private renderNotificationsTab(): void {
@@ -1621,6 +1788,32 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				});
 
 		// Hide completed tasks from overdue
+
+			// Status suggestion trigger (NLP)
+			new Setting(container)
+				.setName('Status suggestion trigger')
+				.setDesc('Type this pattern before a status to see suggestions in the task creation input. Leave empty to disable. Avoid @, #, + which are reserved.')
+				.addText(text => {
+					text
+						.setPlaceholder('*')
+						.setValue(this.plugin.settings.statusSuggestionTrigger || '')
+						.onChange(async (value) => {
+							// Normalize and basic validation: keep small length, avoid reserved triggers
+							const trimmed = value.trim();
+							const reserved = ['@', '#', '+'];
+							if (reserved.includes(trimmed)) {
+								new Notice('This trigger conflicts with existing triggers (@, #, +). Please choose another.');
+								return;
+							}
+							if (trimmed.length > 3) {
+								new Notice('Please use a short trigger (max 3 characters).');
+								return;
+							}
+							this.plugin.settings.statusSuggestionTrigger = trimmed; // empty disables
+							await this.plugin.saveSettings();
+						});
+				});
+
 		new Setting(container)
 			.setName('Hide completed tasks from overdue')
 			.setDesc('When enabled, completed tasks will not appear as overdue in the agenda view, even if their due/scheduled date has passed')
@@ -1671,6 +1864,20 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					});
 			});
 
+		// Suggestion performance: optional debounce for inline file suggestions
+		new Setting(container)
+			.setName('Debounce inline suggestions (ms)')
+			.setDesc('Optional delay before running inline file suggestions (useful for large vaults). Set 0 to disable.')
+			.addText(text => text
+				.setPlaceholder('0 (disabled)')
+				.setValue(String(this.plugin.settings.suggestionDebounceMs ?? 0))
+				.onChange(async (value) => {
+					const n = parseInt(value, 10);
+					if (isNaN(n) || n < 0) return;
+					this.plugin.settings.suggestionDebounceMs = n;
+					await this.plugin.saveSettings();
+				}));
+
 		// Click behavior settings
 		new Setting(container)
 			.setName('Single-click action')
@@ -1681,6 +1888,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					.addOption('openNote', 'Open note')
 					.setValue(this.plugin.settings.singleClickAction)
 					.onChange(async (value: 'edit' | 'openNote') => {
+
 						this.plugin.settings.singleClickAction = value;
 						await this.plugin.saveSettings();
 					});
@@ -1697,6 +1905,20 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.doubleClickAction)
 					.onChange(async (value: 'edit' | 'openNote' | 'none') => {
 						this.plugin.settings.doubleClickAction = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		// Recurring task due date behavior
+		new Setting(container)
+			.setName('Maintain due date offset in recurring tasks')
+			.setDesc('When completing a recurring task, move the due date by the same offset as the scheduled date to preserve the time separation between them')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Maintain due date offset in recurring tasks');
+				return toggle
+					.setValue(this.plugin.settings.maintainDueDateOffsetInRecurring)
+					.onChange(async (value) => {
+						this.plugin.settings.maintainDueDateOffsetInRecurring = value;
 						await this.plugin.saveSettings();
 					});
 			});
@@ -1726,6 +1948,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		const header = table.createEl('tr');
 		header.createEl('th', { cls: 'settings-view__table-header', text: 'TaskNotes field' });
 		header.createEl('th', { cls: 'settings-view__table-header', text: 'Your property name' });
+
+
 
 		const fieldMappings: Array<[keyof FieldMapping, string]> = [
 			['title', 'Title'],
@@ -1793,7 +2017,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				.setName('User Fields (optional)')
 				.setHeading();
 			container.createEl('p', {
-				text: 'Define one or more custom frontmatter properties to appear as type-aware filter options across views. Each row: Property Name, Display Name, Type.',
+				text: 'Define one or more custom frontmatter properties to appear as type-aware filter options across views. Each row: Display Name, Property Name, Type.',
 				cls: 'settings-help-note'
 			});
 
@@ -1803,7 +2027,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			}
 			if (this.plugin.settings.userField && this.plugin.settings.userField.enabled) {
 				const legacy = this.plugin.settings.userField;
-				const id = (legacy.displayName || legacy.key || 'field').toLowerCase().replace(/[^a-z0-9_\-]/g, '-');
+				const id = (legacy.displayName || legacy.key || 'field').toLowerCase().replace(/[^a-z0-9_-]/g, '-');
 				if (!this.plugin.settings.userFields.find(f => (f.id === id) || (f.key === legacy.key))) {
 					this.plugin.settings.userFields.push({ id, displayName: legacy.displayName || '', key: legacy.key || '', type: legacy.type || 'text' });
 				}
@@ -1812,8 +2036,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 
 			// Column headers
 			const headersRow = container.createDiv('settings-headers-row settings-view__list-headers user-fields');
-			headersRow.createEl('span', { text: 'Property Name', cls: 'settings-column-header settings-view__column-header' });
 			headersRow.createEl('span', { text: 'Display Name', cls: 'settings-column-header settings-view__column-header' });
+			headersRow.createEl('span', { text: 'Property Name', cls: 'settings-column-header settings-view__column-header' });
 			headersRow.createEl('span', { text: 'Type', cls: 'settings-column-header settings-view__column-header' });
 			headersRow.createDiv('settings-header-spacer settings-view__header-spacer'); // For delete button space
 
@@ -1859,18 +2083,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		userFields.forEach((field, index) => {
 			const fieldRow = container.createDiv('settings-item-row settings-view__item-row user-fields');
 
-			// Property Name input
-			const keyInput = fieldRow.createEl('input', {
-				type: 'text',
-				value: field.key || '',
-				cls: 'settings-input key-input settings-view__input settings-view__input--value',
-				attr: {
-					'placeholder': 'effort',
-					'aria-label': `Property name for ${field.displayName || 'user field'}`,
-					'id': `user-field-key-${field.id}`
-				}
-			});
-
 			// Display Name input
 			const nameInput = fieldRow.createEl('input', {
 				type: 'text',
@@ -1880,6 +2092,18 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					'placeholder': 'Effort',
 					'aria-label': `Display name for ${field.displayName || 'user field'}`,
 					'id': `user-field-name-${field.id}`
+				}
+			});
+
+			// Property Name input
+			const keyInput = fieldRow.createEl('input', {
+				type: 'text',
+				value: field.key || '',
+				cls: 'settings-input key-input settings-view__input settings-view__input--value',
+				attr: {
+					'placeholder': 'effort',
+					'aria-label': `Property name for ${field.displayName || 'user field'}`,
+					'id': `user-field-key-${field.id}`
 				}
 			});
 
@@ -1924,7 +2148,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 					field.displayName = nameInput.value;
 					field.type = typeSelect.value as any;
 					if (!field.id) {
-						field.id = (field.displayName || field.key || 'field').toLowerCase().replace(/[^a-z0-9_\-]/g, '-');
+						field.id = (field.displayName || field.key || 'field').toLowerCase().replace(/[^a-z0-9_-]/g, '-');
 					}
 					await this.plugin.saveSettings();
 				} catch (error) {
@@ -2916,7 +3140,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		const projectStrings = defaultProjects.split(',').map(p => p.trim()).filter(p => p.length > 0);
+		const projectStrings = splitListPreservingLinksAndQuotes(defaultProjects);
 		this.selectedDefaultProjectFiles = [];
 
 		for (const projectString of projectStrings) {

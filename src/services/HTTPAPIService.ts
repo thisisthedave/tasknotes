@@ -7,6 +7,7 @@ import { MinimalNativeCache } from '../utils/MinimalNativeCache';
 import { NaturalLanguageParser } from './NaturalLanguageParser';
 import { StatusManager } from './StatusManager';
 import TaskNotesPlugin from '../main';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { OpenAPIController } from '../utils/OpenAPIDecorators';
 import { APIRouter } from '../api/APIRouter';
 import { TasksController } from '../api/TasksController';
@@ -17,6 +18,7 @@ import { WebhookController } from '../api/WebhookController';
 
 
 @OpenAPIController
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class HTTPAPIService implements IWebhookNotifier {
 	private server?: Server;
 	private plugin: TaskNotesPlugin;
@@ -62,6 +64,42 @@ export class HTTPAPIService implements IWebhookNotifier {
 		this.router.registerController(this.pomodoroController);
 		this.router.registerController(this.systemController);
 		this.router.registerController(this.webhookController);
+	}
+
+	/**
+	 * Generate OpenAPI spec from all registered controllers
+	 */
+	generateOpenAPISpec(): any {
+		const { generateOpenAPISpec } = require('../utils/OpenAPIDecorators');
+		
+		// Get base spec structure
+		const spec = generateOpenAPISpec(this.systemController);
+		
+		// Collect endpoints from all controllers
+		const allControllers = [
+			this.tasksController,
+			this.timeTrackingController, 
+			this.pomodoroController,
+			this.systemController,
+			this.webhookController
+		];
+		
+		// Merge paths from all controllers
+		spec.paths = {};
+		for (const controller of allControllers) {
+			const controllerSpec = generateOpenAPISpec(controller);
+			if (controllerSpec.paths) {
+				Object.assign(spec.paths, controllerSpec.paths);
+			}
+		}
+		
+		// Update server URL
+		spec.servers = [{
+			url: `http://localhost:${this.plugin.settings.apiPort}`,
+			description: 'TaskNotes API Server'
+		}];
+		
+		return spec;
 	}
 
 	private async handleCORSPreflight(req: IncomingMessage, res: ServerResponse): Promise<void> {

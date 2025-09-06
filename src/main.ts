@@ -9,7 +9,7 @@ import {
 } from 'obsidian-daily-notes-interface';
 import { TaskNotesSettings } from './types/settings';
 import { DEFAULT_SETTINGS } from './settings/defaults';
-import { TaskNotesSettingTab } from './settings/settings';
+import { TaskNotesSettingTab } from './settings/TaskNotesSettingTab';
 import {
 	MINI_CALENDAR_VIEW_TYPE,
 	ADVANCED_CALENDAR_VIEW_TYPE,
@@ -18,11 +18,13 @@ import {
 	AGENDA_VIEW_TYPE,
 	POMODORO_VIEW_TYPE,
 	POMODORO_STATS_VIEW_TYPE,
+	STATS_VIEW_TYPE,
 	KANBAN_VIEW_TYPE,
 	TaskInfo,
 	EVENT_DATE_SELECTED,
 	EVENT_DATA_CHANGED,
-	EVENT_TASK_UPDATED
+	EVENT_TASK_UPDATED,
+	EVENT_DATE_CHANGED
 } from './types';
 import { MiniCalendarView } from './views/MiniCalendarView';
 import { AdvancedCalendarView } from './views/AdvancedCalendarView';
@@ -31,6 +33,7 @@ import { NotesView } from './views/NotesView';
 import { AgendaView } from './views/AgendaView';
 import { PomodoroView } from './views/PomodoroView';
 import { PomodoroStatsView } from './views/PomodoroStatsView';
+import { StatsView } from './views/StatsView';
 import { KanbanView } from './views/KanbanView';
 import { JiraIssueModal } from './modals/JiraIssueModal';
 import { TaskCreationModal } from './modals/TaskCreationModal';
@@ -92,6 +95,11 @@ export default class TaskNotesPlugin extends Plugin {
 	private previousTimeTrackingSettings: {
 		autoStopTimeTrackingOnComplete: boolean;
 	} | null = null;
+
+	// Date change detection for refreshing task states at midnight
+	private lastKnownDate: string = new Date().toDateString();
+	private dateCheckInterval: number;
+	private midnightTimeout: number;
 
 	// Ready promise to signal when initialization is complete
 	private readyPromise: Promise<void>;
@@ -375,6 +383,10 @@ export default class TaskNotesPlugin extends Plugin {
 				(leaf) => new PomodoroStatsView(leaf, this)
 			);
 			this.registerView(
+				STATS_VIEW_TYPE,
+				(leaf) => new StatsView(leaf, this)
+			);
+			this.registerView(
 				KANBAN_VIEW_TYPE,
 				(leaf) => new KanbanView(leaf, this)
 			);
@@ -399,6 +411,9 @@ export default class TaskNotesPlugin extends Plugin {
 
 			// Initialize notification service
 			await this.notificationService.initialize();
+
+			// Initialize date change detection to refresh tasks at midnight
+			this.setupDateChangeDetection();
 
 			// Defer heavy service initialization until needed
 			this.initializeServicesLazily();
@@ -770,6 +785,59 @@ export default class TaskNotesPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Set up date change detection to refresh task states when the date rolls over
+	 */
+	private setupDateChangeDetection(): void {
+		// Check for date changes every minute
+		const checkDateChange = () => {
+			const currentDate = new Date().toDateString();
+			if (currentDate !== this.lastKnownDate) {
+				this.lastKnownDate = currentDate;
+				// Emit date change event to trigger UI refresh
+				this.emitter.trigger(EVENT_DATE_CHANGED);
+			}
+		};
+
+		// Set up regular interval to check for date changes
+		this.dateCheckInterval = window.setInterval(checkDateChange, 60000); // Check every minute
+		this.registerInterval(this.dateCheckInterval);
+
+		// Schedule precise check at next midnight for better timing
+		this.scheduleNextMidnightCheck();
+	}
+
+	/**
+	 * Schedule a precise check at the next midnight
+	 */
+	private scheduleNextMidnightCheck(): void {
+		const now = new Date();
+		const midnight = new Date(now);
+		midnight.setHours(24, 0, 0, 0); // Next midnight
+		
+		const msUntilMidnight = midnight.getTime() - now.getTime();
+		
+		// Clear any existing midnight timeout
+		if (this.midnightTimeout) {
+			window.clearTimeout(this.midnightTimeout);
+		}
+		
+		this.midnightTimeout = window.setTimeout(() => {
+			// Force immediate date change check at midnight
+			const currentDate = new Date().toDateString();
+			if (currentDate !== this.lastKnownDate) {
+				this.lastKnownDate = currentDate;
+				this.emitter.trigger(EVENT_DATE_CHANGED);
+			}
+			
+			// Schedule the next midnight check
+			this.scheduleNextMidnightCheck();
+		}, msUntilMidnight);
+		
+		// Register the timeout for cleanup
+		this.registerInterval(this.midnightTimeout);
+	}
+
 	onunload() {
 		// Clean up performance monitoring
 		const cacheStats = perfMonitor.getStats('cache-initialization');
@@ -1079,6 +1147,14 @@ export default class TaskNotesPlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'open-statistics',
+			name: 'Open task & project statistics',
+			callback: async () => {
+				await this.activateStatsView();
+			}
+		});
+
 		// Task commands
 		this.addCommand({
 			id: 'create-new-task',
@@ -1109,6 +1185,14 @@ export default class TaskNotesPlugin extends Plugin {
 			name: 'Insert tasknote link',
 			editorCallback: (editor: Editor) => {
 				this.insertTaskNoteLink(editor);
+			}
+		});
+
+		this.addCommand({
+			id: 'create-inline-task',
+			name: 'Create new inline task',
+			editorCallback: async (editor: Editor) => {
+				await this.createInlineTask(editor);
 			}
 		});
 
@@ -1230,6 +1314,10 @@ export default class TaskNotesPlugin extends Plugin {
 
 	async activatePomodoroStatsView() {
 		return this.activateView(POMODORO_STATS_VIEW_TYPE);
+	}
+
+	async activateStatsView() {
+		return this.activateView(STATS_VIEW_TYPE);
 	}
 
 	async activateKanbanView() {
@@ -1883,6 +1971,102 @@ private injectCustomStyles(): void {
 		} catch (error) {
 			console.error('Error opening quick actions:', error);
 			new Notice('Failed to open quick actions');
+		}
+	}
+
+	/**
+	 * Create a new inline task at cursor position
+	 * Opens the task creation modal, then inserts a link to the created task
+	 * Handles two scenarios:
+	 * 1. Cursor on blank line: add new inline task
+	 * 2. Cursor anywhere else: start new line then create inline task
+	 */
+	async createInlineTask(editor: Editor): Promise<void> {
+		try {
+			const cursor = editor.getCursor();
+			const currentLine = editor.getLine(cursor.line);
+			const lineContent = currentLine.trim();
+
+			// Determine insertion point
+			let insertionPoint: { line: number; ch: number };
+
+			// Scenario 1: Cursor on blank line
+			if (lineContent === '') {
+				insertionPoint = { line: cursor.line, ch: cursor.ch };
+			}
+			// Scenario 2: Cursor anywhere else - create new line
+			else {
+				// Insert a new line and position cursor there
+				const endOfLine = { line: cursor.line, ch: currentLine.length };
+				editor.replaceRange('\n', endOfLine);
+				insertionPoint = { line: cursor.line + 1, ch: 0 };
+			}
+
+			// Store the insertion context for the callback
+			const insertionContext = {
+				editor,
+				insertionPoint
+			};
+
+			// Open task creation modal with callback to insert link
+			const modal = new TaskCreationModal(this.app, this, {
+				onTaskCreated: (task: TaskInfo) => {
+					this.handleInlineTaskCreated(task, insertionContext);
+				}
+			});
+
+			modal.open();
+
+		} catch (error) {
+			console.error('Error creating inline task:', error);
+			new Notice('Failed to create inline task');
+		}
+	}
+
+	/**
+	 * Handle task creation completion - insert link at the determined position
+	 */
+	private handleInlineTaskCreated(
+		task: TaskInfo, 
+		context: {
+			editor: Editor;
+			insertionPoint: { line: number; ch: number };
+		}
+	): void {
+		try {
+			const { editor, insertionPoint } = context;
+
+			// Create link using Obsidian's generateMarkdownLink
+			const file = this.app.vault.getAbstractFileByPath(task.path);
+			if (!file) {
+				new Notice('Failed to create link - file not found');
+				return;
+			}
+
+			const currentFile = this.app.workspace.getActiveFile();
+			const sourcePath = currentFile?.path || '';
+			const properLink = this.app.fileManager.generateMarkdownLink(
+				file as TFile,
+				sourcePath,
+				'',
+				task.title  // Use task title as alias
+			);
+
+			// Insert the link at the determined insertion point
+			editor.replaceRange(properLink, insertionPoint);
+			
+			// Position cursor at end of inserted link
+			const newCursor = {
+				line: insertionPoint.line,
+				ch: insertionPoint.ch + properLink.length
+			};
+			editor.setCursor(newCursor);
+
+			new Notice(`Inline task "${task.title}" created and linked successfully`);
+
+		} catch (error) {
+			console.error('Error handling inline task creation:', error);
+			new Notice('Failed to insert task link');
 		}
 	}
 

@@ -15,6 +15,14 @@ export interface UserMappedField {
 	type: 'text' | 'number' | 'date' | 'boolean' | 'list';
 }
 
+export interface ProjectAutosuggestSettings {
+	enableFuzzy: boolean;
+	rows: string[]; // up to 3 rows; each uses {property|flags} format
+	showAdvanced?: boolean; // Show advanced configuration options
+	requiredTags?: string[]; // Show notes that have ANY of these tags
+	includeFolders?: string[]; // Only show notes in these folders (empty = all folders)
+}
+
 export interface TaskNotesSettings {
 	tasksFolder: string;  // Now just a default location for new tasks
 	moveArchivedTasks: boolean; // Whether to move tasks to archive folder when archived
@@ -52,12 +60,21 @@ export interface TaskNotesSettings {
 	useDefaultsOnInstantConvert: boolean;
 	enableNaturalLanguageInput: boolean;
 	nlpDefaultToScheduled: boolean;
+
+		// NLP status suggestion trigger (empty to disable)
+		statusSuggestionTrigger: string;
+
+	projectAutosuggest?: ProjectAutosuggestSettings; // Display config for project suggestions in NL input
+	// end of project autosuggest settings
+
 	singleClickAction: 'edit' | 'openNote';
 	doubleClickAction: 'edit' | 'openNote' | 'none';
 	// Inline task conversion settings
 	inlineTaskConvertFolder: string; // Folder for inline task conversion, supports {{currentNotePath}}
 	// Performance settings
 	disableNoteIndexing: boolean;
+	/** Optional debounce in milliseconds for inline file suggestions (0 = disabled) */
+	suggestionDebounceMs?: number;
 	// Customization settings
 	fieldMapping: FieldMapping;
 	customStatuses: StatusConfig[];
@@ -98,6 +115,10 @@ export interface TaskNotesSettings {
 	userFields?: UserMappedField[];
 	// Legacy single-field (for migration only)
 	userField?: UserFieldMapping;
+	// Default visible properties for task cards (when no saved view is active)
+	defaultVisibleProperties?: string[];
+	// Recurring task behavior
+	maintainDueDateOffsetInRecurring: boolean;
 }
 
 export interface DefaultReminder {
@@ -138,6 +159,9 @@ export interface ICSIntegrationSettings {
 	defaultNoteTemplate: string;     // Path to template file for notes created from ICS events
 	// Default folders
 	defaultNoteFolder: string;       // Folder for notes created from ICS events
+	// Filename settings for ICS event notes
+	icsNoteFilenameFormat: 'title' | 'zettel' | 'timestamp' | 'custom';
+	customICSNoteFilenameTemplate: string; // Template for custom format
 }
 
 export interface CalendarViewSettings {
@@ -155,6 +179,8 @@ export interface CalendarViewSettings {
 	// Display preferences
 	timeFormat: '12' | '24'; // 12-hour or 24-hour format
 	showWeekends: boolean;
+	// Locale settings
+	locale: string; // Calendar locale (e.g., 'en', 'fa', 'de', etc.) - empty string means auto-detect
 	// Default event type visibility
 	defaultShowScheduled: boolean;
 	defaultShowDue: boolean;

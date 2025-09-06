@@ -128,7 +128,7 @@ export class ViewStateManager extends EventEmitter {
     private loadFromStorage(): void {
         try {
             const stored = this.app.loadLocalStorage(this.storageKey);
-            if (stored) {
+            if (stored && typeof stored === 'string') {
                 this.filterState = JSON.parse(stored);
             }
         } catch (error) {
@@ -154,7 +154,7 @@ export class ViewStateManager extends EventEmitter {
     private loadPreferencesFromStorage(): void {
         try {
             const stored = this.app.loadLocalStorage(this.preferencesStorageKey);
-            if (stored) {
+            if (stored && typeof stored === 'string') {
                 this.viewPreferences = JSON.parse(stored);
             }
         } catch (error) {
@@ -199,12 +199,13 @@ export class ViewStateManager extends EventEmitter {
     /**
      * Save a new view
      */
-    saveView(name: string, query: FilterQuery, viewOptions?: {[key: string]: boolean}): SavedView {
+    saveView(name: string, query: FilterQuery, viewOptions?: {[key: string]: boolean}, visibleProperties?: string[]): SavedView {
         const view: SavedView = {
             id: this.generateId(),
             name,
             query: FilterUtils.deepCloneFilterQuery(query),
-            viewOptions: viewOptions ? { ...viewOptions } : undefined
+            viewOptions: viewOptions ? { ...viewOptions } : undefined,
+            visibleProperties: visibleProperties ? [...visibleProperties] : undefined
         };
 
         this.savedViews.push(view);
@@ -265,7 +266,8 @@ export class ViewStateManager extends EventEmitter {
         return {
             ...view,
             query: FilterUtils.deepCloneFilterQuery(view.query),
-            viewOptions: view.viewOptions ? { ...view.viewOptions } : undefined
+            viewOptions: view.viewOptions ? { ...view.viewOptions } : undefined,
+            visibleProperties: view.visibleProperties ? [...view.visibleProperties] : undefined
         };
     }
 
@@ -276,6 +278,26 @@ export class ViewStateManager extends EventEmitter {
         this.savedViews = [];
         this.saveSavedViewsToPluginData();
         this.emit('saved-views-changed', this.getSavedViews());
+    }
+
+    /**
+     * Update visible properties for a saved view
+     */
+    updateSavedViewProperties(viewId: string, properties: string[]): void {
+        const view = this.savedViews.find(v => v.id === viewId);
+        if (view) {
+            view.visibleProperties = properties;
+            this.saveSavedViewsToPluginData();
+            this.emit('saved-views-changed', this.getSavedViews());
+        }
+    }
+
+    /**
+     * Get visible properties for a saved view, falling back to defaults
+     */
+    getSavedViewProperties(viewId: string): string[] | undefined {
+        const view = this.savedViews.find(v => v.id === viewId);
+        return view?.visibleProperties;
     }
 
     /**
@@ -319,7 +341,7 @@ export class ViewStateManager extends EventEmitter {
             
             // Check if we need to migrate from localStorage
             const localStorageData = this.app.loadLocalStorage(this.savedViewsStorageKey);
-            if (localStorageData && this.savedViews.length === 0) {
+            if (localStorageData && typeof localStorageData === 'string' && this.savedViews.length === 0) {
                 console.log('TaskNotes: Migrating saved views from localStorage to plugin data...');
                 
                 // Parse localStorage data

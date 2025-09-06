@@ -120,7 +120,9 @@ export class FieldMapper {
         }
 
         if (frontmatter[this.mapping.timeEntries] !== undefined) {
-            mapped.timeEntries = frontmatter[this.mapping.timeEntries];
+            // Ensure timeEntries is always an array
+            const timeEntriesValue = frontmatter[this.mapping.timeEntries];
+            mapped.timeEntries = Array.isArray(timeEntriesValue) ? timeEntriesValue : [];
         }
 
         if (frontmatter[this.mapping.completeInstances] !== undefined) {
@@ -148,7 +150,8 @@ export class FieldMapper {
 
         // Handle time entries
         if (frontmatter.timeEntries !== undefined) {
-            mapped.timeEntries = frontmatter.timeEntries;
+            // Ensure timeEntries is always an array
+            mapped.timeEntries = Array.isArray(frontmatter.timeEntries) ? frontmatter.timeEntries : [];
         }
 
         if (frontmatter[this.mapping.sortOrder] !== undefined) {
