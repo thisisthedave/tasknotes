@@ -415,6 +415,11 @@ export class TasksController extends BaseController {
 			taskData.timeEstimate = defaults.defaultTimeEstimate;
 		}
 
+		// Apply default story points if not provided
+		if (!taskData.points && defaults.defaultPoints > 0) {
+			taskData.points = defaults.defaultPoints;
+		}
+
 		// Apply default tags if not provided
 		if (!taskData.tags && defaults.defaultTags) {
 			taskData.tags = defaults.defaultTags.split(',').map(t => t.trim()).filter(t => t);

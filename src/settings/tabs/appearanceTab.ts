@@ -35,6 +35,7 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
             { key: 'due', label: 'Due Date' },
             { key: 'scheduled', label: 'Scheduled Date' },
             { key: 'timeEstimate', label: 'Time Estimate' },
+            { key: 'points', label: 'Points Estimate' },
             { key: 'totalTrackedTime', label: 'Total Tracked Time' },
             { key: 'recurrence', label: 'Recurrence' },
             { key: 'completedDate', label: 'Completed Date' },
@@ -44,7 +45,8 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
         organization: [
             { key: 'projects', label: 'Projects' },
             { key: 'contexts', label: 'Contexts' },
-            { key: 'tags', label: 'Tags' }
+            { key: 'tags', label: 'Tags' },
+            { key: 'sortOrder', label: 'Sort Order' }
         ],
         user: []
     };

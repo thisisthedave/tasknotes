@@ -106,18 +106,20 @@ export class PropertyVisibilityDropdown {
             { id: 'due', name: 'Due Date', category: 'core' as const },
             { id: 'scheduled', name: 'Scheduled Date', category: 'core' as const },
             { id: 'timeEstimate', name: 'Time Estimate', category: 'core' as const },
+            { id: 'points', name: 'Points Estimate', category: 'core' as const },
             { id: 'totalTrackedTime', name: 'Total Tracked Time', category: 'core' as const },
             { id: 'recurrence', name: 'Recurrence', category: 'core' as const },
             { id: 'completedDate', name: 'Completed Date', category: 'core' as const },
             { id: 'file.ctime', name: 'Created Date', category: 'core' as const },
             { id: 'file.mtime', name: 'Modified Date', category: 'core' as const }
         ]);
-        
+
         // Organization properties
         properties.push(...[
             { id: 'projects', name: 'Projects', category: 'organization' as const },
             { id: 'contexts', name: 'Contexts', category: 'organization' as const },
-            { id: 'tags', name: 'Tags', category: 'organization' as const }
+            { id: 'tags', name: 'Tags', category: 'organization' as const },
+            { id: 'sortOrder', name: 'Sort Order', category: 'organization' as const }
         ]);
         
         // User-defined properties with error handling

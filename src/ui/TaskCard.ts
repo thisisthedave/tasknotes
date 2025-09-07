@@ -653,7 +653,7 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, visibleP
                 
                 // Update status dot border color
                 if (newStatusConfig) {
-                    statusDot.style.borderColor = newStatusConfig.color;
+                    statusDot!.style.borderColor = newStatusConfig.color;
                 }
                 
                 // Update the card's completion state and classes

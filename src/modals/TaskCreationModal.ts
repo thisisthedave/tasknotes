@@ -799,6 +799,11 @@ export class TaskCreationModal extends TaskModal {
             this.timeEstimate = defaults.defaultTimeEstimate;
         }
 
+        // Apply default story points estimate
+        if (defaults.defaultPoints && defaults.defaultPoints > 0) {
+            this.points = defaults.defaultPoints;
+        }
+
         // Apply default reminders
         if (defaults.defaultReminders && defaults.defaultReminders.length > 0) {
             // Import the conversion function

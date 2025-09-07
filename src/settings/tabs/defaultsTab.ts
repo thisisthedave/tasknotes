@@ -129,6 +129,16 @@ export function renderDefaultsTab(container: HTMLElement, plugin: TaskNotesPlugi
     renderDefaultProjectsList(defaultProjectsContainer, plugin, save, selectedDefaultProjectFiles);
 
     createToggleSetting(container, {
+        name: 'Add active note as project',
+        desc: 'Add the current note as a project when creating a new task',
+        getValue: () => plugin.settings.taskCreationDefaults.useActiveNoteAsProject,
+        setValue: async (value: boolean) => {
+            plugin.settings.taskCreationDefaults.useActiveNoteAsProject = value;
+            save();
+        }
+    });
+
+    createToggleSetting(container, {
         name: 'Use parent note as project during instant conversion',
         desc: 'Automatically link the parent note as a project when using instant task conversion',
         getValue: () => plugin.settings.taskCreationDefaults.useParentNoteAsProject,
@@ -149,6 +159,18 @@ export function renderDefaultsTab(container: HTMLElement, plugin: TaskNotesPlugi
             save();
         }
     });
+
+    createNumberSetting(container, {
+        name: 'Default story points',
+        desc: 'Default story points (0 = no default)',
+        placeholder: '3',
+        min: 0,
+        getValue: () => plugin.settings.taskCreationDefaults.defaultPoints,
+        setValue: async (value: number) => {
+            plugin.settings.taskCreationDefaults.defaultPoints = value;
+            save();
+        }
+    });    
 
     createDropdownSetting(container, {
         name: 'Default recurrence',

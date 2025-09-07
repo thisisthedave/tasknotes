@@ -729,11 +729,13 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			{ id: 'due', name: 'Due date', category: 'core' },
 			{ id: 'scheduled', name: 'Scheduled date', category: 'core' },
 			{ id: 'timeEstimate', name: 'Time estimate', category: 'core' },
+			{ id: 'points', name: 'Points estimate', category: 'core' },
 			{ id: 'recurrence', name: 'Recurrence', category: 'core' },
 			{ id: 'completedDate', name: 'Completed date', category: 'core' },
 			{ id: 'projects', name: 'Projects', category: 'organization' },
 			{ id: 'contexts', name: 'Contexts', category: 'organization' },
-			{ id: 'tags', name: 'Tags', category: 'organization' }
+			{ id: 'tags', name: 'Tags', category: 'organization' },
+			{ id: 'sortOrder', name: 'Sort Order', category: 'organization' }
 		];
 
 		new Setting(container)

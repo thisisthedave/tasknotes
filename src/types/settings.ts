@@ -140,6 +140,7 @@ export interface TaskCreationDefaults {
 	defaultContexts: string;  // Comma-separated list
 	defaultTags: string;      // Comma-separated list
 	defaultProjects: string;  // Comma-separated list of project links
+	useActiveNoteAsProject: boolean; // Use current note as project when creating a task
 	useParentNoteAsProject: boolean; // Use the parent note as a project during instant conversion
 	defaultTimeEstimate: number; // minutes, 0 = no default
 	defaultPoints: number; // story points, 0 = no default

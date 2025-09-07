@@ -24,7 +24,7 @@ export const DEFAULT_FIELD_MAPPING: FieldMapping = {
 	icsEventId: 'icsEventId',
 	icsEventTag: 'ics_event',
 	reminders: 'reminders',
-	sortOrder: 'sort_order'
+	sortOrder: 'sortOrder'
 };
 
 // Default status configuration matches current hardcoded behavior

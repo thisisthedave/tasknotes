@@ -520,6 +520,7 @@ function renderFieldMappingTable(container: HTMLElement, plugin: TaskNotesPlugin
         ['contexts', 'Contexts'],
         ['projects', 'Projects'],
         ['timeEstimate', 'Time estimate'],
+        ['points', 'Points estimate'],
         ['recurrence', 'Recurrence'],
         ['dateCreated', 'Created date'],
         ['completedDate', 'Completed date'],
@@ -530,7 +531,8 @@ function renderFieldMappingTable(container: HTMLElement, plugin: TaskNotesPlugin
         ['pomodoros', 'Pomodoros'],
         ['icsEventId', 'ICS Event ID'],
         ['icsEventTag', 'ICS Event Tag'],
-        ['reminders', 'Reminders']
+        ['reminders', 'Reminders'],
+        ['sortOrder', 'Sort order']
     ];
 
     fieldMappings.forEach(([field, label]) => {
