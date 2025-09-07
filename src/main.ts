@@ -329,7 +329,7 @@ export default class TaskNotesPlugin extends Plugin {
 	 * @returns partial task possibly populated with the current note file as the project.
 	 */
 	private getPrepopulatedTaskValues(): Partial<TaskInfo> | undefined {
-		if (this.settings.useActiveNoteAsProject) {
+		if (this.settings.taskCreationDefaults.useParentNoteAsProject) {
 			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 			const currentFile = view?.file
 			const projectDefault = currentFile instanceof TFile ? { projects: [ `[[${currentFile.basename}]]` ] } : undefined;

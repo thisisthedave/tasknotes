@@ -127,17 +127,7 @@ export function renderDefaultsTab(container: HTMLElement, plugin: TaskNotesPlugi
     }
 
     renderDefaultProjectsList(defaultProjectsContainer, plugin, save, selectedDefaultProjectFiles);
-
-    createToggleSetting(container, {
-        name: 'Add active note as project',
-        desc: 'Add the current note as a project when creating a new task',
-        getValue: () => plugin.settings.taskCreationDefaults.useActiveNoteAsProject,
-        setValue: async (value: boolean) => {
-            plugin.settings.taskCreationDefaults.useActiveNoteAsProject = value;
-            save();
-        }
-    });
-
+[]
     createToggleSetting(container, {
         name: 'Use parent note as project during instant conversion',
         desc: 'Automatically link the parent note as a project when using instant task conversion',

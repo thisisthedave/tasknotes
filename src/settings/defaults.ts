@@ -243,8 +243,6 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	// Notification defaults
 	enableNotifications: true,
 	notificationType: 'system',
-	// Use current note as project by default
-	useActiveNoteAsProject: false,
 	// HTTP API defaults
 	enableAPI: false,
 	apiPort: 8080,

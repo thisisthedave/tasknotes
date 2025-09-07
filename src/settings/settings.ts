@@ -531,22 +531,10 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		// Initial render
 		this.renderDefaultProjectsList(projectsList);
 		
-		new Setting(container)
-			.setName('Add active note as project')
-			.setDesc('Add the current note as a project when creating a new task')
-			.addToggle(toggle => {
-				toggle.toggleEl.setAttribute('aria-label', 'Add active note as project');
-				return toggle
-					.setValue(this.plugin.settings.useActiveNoteAsProject)
-					.onChange(async (value) => {
-						this.plugin.settings.useActiveNoteAsProject = value;
-						await this.plugin.saveSettings();
-					});
-			});
-			
+		// Use parent note as project
 		new Setting(container)
 			.setName('Use parent note as project')
-			.setDesc('During instant task conversion, automatically add the parent note as a project')
+			.setDesc('Automatically add the active parent note as a project when creating new tasks or converting inline tasks')
 			.addToggle(toggle => {
 				toggle.toggleEl.setAttribute('aria-label', 'Use parent note as project for instant conversion');
 				return toggle
