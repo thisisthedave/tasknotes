@@ -273,10 +273,13 @@ export class FieldMapper {
     mapFromJiraIssue(issue: IJiraIssue): Partial<TaskInfo> {
         const fields = issue.fields;
         const points = parseInt(fields.customfield_10090); // Assuming this is the field for story points
-        const title = sanitizeNoteTitle(`${issue.key} ${fields.summary}\n${fields.description ?? ""}`);
+        const issueKey = issue.key;
+        const title = sanitizeNoteTitle(`${issueKey} ${fields.summary}`);
+        const description = `JIRA:${issueKey}\n${fields.description ?? ""}`;
+        const nlpTitle = `${title}\n${description}`; // Task modal parsing will extract description from title
 
         return {
-            title: title,
+            title: nlpTitle,
             status: fields.status?.name,
             priority: fields.priority?.name?.toLowerCase(),
             dateCreated: fields.created,
