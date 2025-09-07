@@ -1342,36 +1342,47 @@ export function addDTSTARTToRecurrenceRuleWithDraggedTime(task: TaskInfo, dragge
 }
 
 export function getTopmostVisibleElement(elements: HTMLElement[]): HTMLElement | null {
-  const visibleElements = elements
-    .map(el => ({
-      el,
-      rect: el.getBoundingClientRect()
-    }))
-    .filter(({ rect }) =>
-      rect.bottom > 0 &&
-      rect.top < window.innerHeight &&
-      rect.right > 0 &&
-      rect.left < window.innerWidth
-    );
+	const visibleElements = elements
+		.map(el => ({
+			el,
+			rect: el.getBoundingClientRect()
+		}))
+		.filter(({ rect }) =>
+			rect.bottom > 0 &&
+			rect.top < window.innerHeight &&
+			rect.right > 0 &&
+			rect.left < window.innerWidth
+		);
 
-  if (visibleElements.length === 0) return null;
+	if (visibleElements.length === 0) return null;
 
-  // Sort by top coordinate to find the topmost one
-  visibleElements.sort((a, b) => a.rect.top - b.rect.top);
+	// Sort by top coordinate to find the topmost one
+	visibleElements.sort((a, b) => a.rect.top - b.rect.top);
 
-  return visibleElements[0].el;
+	return visibleElements[0].el;
 }
 
 export function mergeObjects<T extends object>(fallback: T | undefined, overrides: Partial<T>): T {
-  const merged: any = { ...fallback };
+	const merged: any = { ...fallback };
 
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value !== null && value !== undefined) {
-      merged[key] = value;
-    }
-  }
+	for (const [key, value] of Object.entries(overrides)) {
+		if (value !== null && value !== undefined) {
+			merged[key] = value;
+		}
+	}
 
-  return merged as T;
+	return merged as T;
+}
+
+/**
+ * Sanitizes note title input by removing invalid characters like brackets and shortening
+ * to 255 characters.
+ */
+export function sanitizeNoteTitle(title: string): string {
+	return title
+		.replace(/[\[\]!@#$%^&\(\)\+\{\}\\/:*?"<>|\.]/g, "_") // replace forbidden characters
+		.trim() // trim leading/trailing whitespace
+		.substring(0, 255);            // keep under OS filename limits
 }
 
 /**

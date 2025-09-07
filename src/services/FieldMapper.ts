@@ -1,6 +1,7 @@
 import { IJiraIssue } from 'src/types/obsidian-jira-issue';
 import { FieldMapping, TaskInfo } from '../types';
 import { validateCompleteInstances } from '../utils/dateUtils';
+import { sanitizeNoteTitle } from 'src/utils/helpers';
 
 /**
  * Service for mapping between internal field names and user-configured property names
@@ -272,9 +273,10 @@ export class FieldMapper {
     mapFromJiraIssue(issue: IJiraIssue): Partial<TaskInfo> {
         const fields = issue.fields;
         const points = parseInt(fields.customfield_10090); // Assuming this is the field for story points
+        const title = sanitizeNoteTitle(`${issue.key} ${fields.summary}\n${fields.description ?? ""}`);
 
         return {
-            title: `${issue.key} ${fields.summary}\n${fields.description ?? ""}`,
+            title: title,
             status: fields.status?.name,
             priority: fields.priority?.name?.toLowerCase(),
             dateCreated: fields.created,
