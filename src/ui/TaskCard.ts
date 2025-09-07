@@ -164,10 +164,12 @@ const PROPERTY_EXTRACTORS: Record<string, (task: TaskInfo) => any> = {
     'tags': (task) => task.tags,
     'timeEstimate': (task) => task.timeEstimate,
     'totalTrackedTime': (task) => task.totalTrackedTime,
+    'points': (task) => task.points,
     'recurrence': (task) => task.recurrence,
     'completedDate': (task) => task.completedDate,
+    'sortOrder': (task) => task.sortOrder,
     'file.ctime': (task) => task.dateCreated,
-    'file.mtime': (task) => task.dateModified
+    'file.mtime': (task) => task.dateModified,
 };
 
 /**
@@ -278,6 +280,11 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
             element.textContent = `${plugin.formatTime(value)} tracked`;
         }
     },
+    'points': (element, value) => {
+        if (typeof value === 'number' && value > 0) {
+            element.textContent = `${value} pts`;
+        }
+    },
     'recurrence': (element, value) => {
         if (typeof value === 'string') {
             element.textContent = `Recurring: ${getRecurrenceDisplayText(value)}`;
@@ -288,6 +295,11 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
             element.textContent = `Completed: ${formatDateTimeForDisplay(value, {
                 dateFormat: 'MMM d', timeFormat: 'h:mm a', showTime: false
             })}`;
+        }
+    },
+    'sortOrder': (element, value) => {
+        if (typeof value === 'number') {
+            element.textContent = `${value}`;
         }
     },
     'file.ctime': (element, value) => {
@@ -600,31 +612,13 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, visibleP
         });
     }
     
-    // Completion checkbox (if enabled)
+    // Selection checkbox (if enabled)
     if (opts.showCheckbox) {
         const checkbox = mainRow.createEl('input', { 
             type: 'checkbox',
             cls: 'task-card__checkbox'
         });
-        // checkbox.checked = plugin.statusManager.isCompletedStatus(effectiveStatus);
-        
-        checkbox.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            // try {
-            //     if (task.recurrence) {
-            //         await plugin.toggleRecurringTaskComplete(task, targetDate);
-            //     } else {
-            //         await plugin.toggleTaskStatus(task);
-            //     }
-            // } catch (error) {
-            //     const errorMessage = error instanceof Error ? error.message : String(error);
-            //     console.error('Error in task checkbox handler:', {
-            //         error: errorMessage,
-            //         taskPath: task.path
-            //     });
-            //     new Notice(`Failed to toggle task status: ${errorMessage}`);
-            // }
-        });
+
     }
     
     // Status indicator dot (conditional based on visible properties)
@@ -896,14 +890,6 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, visibleP
     // Second line: Metadata (dynamic based on visible properties)
     const metadataLine = contentContainer.createEl('div', { cls: 'task-card__metadata' });
     const metadataElements: HTMLElement[] = [];
-    
-    // TODO this should be a visible property now or something?
-    // Story points (if has story points)
-    if (task.points && task.points > 0) {
-        const pointsSpan = metadataLine.createEl('span');
-        pointsSpan.textContent = `${task.points} pts`;
-        metadataElements.push(pointsSpan);
-    }
 
     // Get properties to display
     const propertiesToShow = visibleProperties || 
@@ -1418,14 +1404,6 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         metadataLine.innerHTML = '';
         const metadataElements: HTMLElement[] = [];
 
-	// TODO should be visibleProperties now?        
-        // Story points (if has story points)
-        if (task.points && task.points > 0) {
-            const pointsSpan = metadataLine.createEl('span');
-            pointsSpan.textContent = `${task.points} pts`;
-            metadataElements.push(pointsSpan);
-        }
-        
         // Get properties to display
         const propertiesToShow = visibleProperties || 
                                 plugin.settings.defaultVisibleProperties || 

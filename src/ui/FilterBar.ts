@@ -1714,9 +1714,11 @@ export class FilterBar extends EventEmitter {
                 'due': 'Due Date',
                 'scheduled': 'Scheduled Date',
                 'priority': 'Priority',
+                'points': 'Points',
                 'title': 'Title',
                 'dateCreated': 'Created Date',
-                'tags': 'Tags'
+                'tags': 'Tags',
+                'sortOrder': 'Manual'
             };
             const sortOptions: Record<string, string> = { ...builtInSortOptions };
             const sortUserProps = this.filterOptions.userProperties || [];
