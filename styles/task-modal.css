@@ -684,6 +684,7 @@
     border-radius: var(--radius-s);
     max-height: 150px;
     overflow-y: auto;
+    flex: 0 0 auto;
 }
 
 .tasknotes-plugin .task-projects-empty {

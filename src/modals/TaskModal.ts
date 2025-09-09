@@ -6,8 +6,8 @@ import { StatusContextMenu } from '../components/StatusContextMenu';
 import { RecurrenceContextMenu } from '../components/RecurrenceContextMenu';
 import { ReminderContextMenu } from '../components/ReminderContextMenu';
 import { getDatePart, getTimePart, combineDateAndTime } from '../utils/dateUtils';
-import { sanitizeTags } from '../utils/helpers';
-import { ProjectSelectModal } from './ProjectSelectModal';
+import { getProjectFiles, projectLinkToFile, sanitizeTags } from '../utils/helpers';
+import { ProjectSelectModal, renderProjectItem } from './ProjectSelectModal';
 import { TaskInfo, Reminder } from '../types';
 
 export abstract class TaskModal extends Modal {
@@ -236,6 +236,8 @@ export abstract class TaskModal extends Modal {
                     .onClick(() => {
                         const modal = new ProjectSelectModal(this.app, this.plugin, (file) => {
                             this.addProject(file);
+                        }, (file) => {
+                            this.removeProject(file);
                         });
                         modal.open();
                     });
@@ -846,36 +848,8 @@ export abstract class TaskModal extends Modal {
 
     protected initializeProjectsFromStrings(projects: string[]): void {
         // Convert project strings to files
-        // This handles both old plain string projects and new [[link]] format
-        this.selectedProjectFiles = [];
-        
-        for (const projectString of projects) {
-            // Skip null, undefined, or empty strings
-            if (!projectString || typeof projectString !== 'string' || projectString.trim() === '') {
-                continue;
-            }
-            
-            // Check if it's a wiki link format
-            const linkMatch = projectString.match(/^\[\[([^\]]+)\]\]$/);
-            if (linkMatch) {
-                const linkPath = linkMatch[1];
-                const file = this.app.metadataCache.getFirstLinkpathDest(linkPath, '');
-                if (file) {
-                    this.selectedProjectFiles.push(file);
-                }
-            } else {
-                // For backwards compatibility, try to find a file with this name
-                const files = this.app.vault.getMarkdownFiles();
-                const matchingFile = files.find(f => 
-                    f.basename === projectString || 
-                    f.name === projectString + '.md'
-                );
-                if (matchingFile) {
-                    this.selectedProjectFiles.push(matchingFile);
-                }
-            }
-        }
-        
+        this.selectedProjectFiles = getProjectFiles(projects, this.app);
+
         this.updateProjectsFromFiles();
         // Don't render immediately - let the caller decide when to render
     }
@@ -890,28 +864,7 @@ export abstract class TaskModal extends Modal {
         }
 
         this.selectedProjectFiles.forEach(file => {
-            const projectItem = this.projectsList.createDiv({ cls: 'task-project-item' });
-            
-            // Info container
-            const infoEl = projectItem.createDiv({ cls: 'task-project-info' });
-            
-            // File name
-            const nameEl = infoEl.createSpan({ cls: 'task-project-name' });
-            nameEl.textContent = file.name;
-            
-            // File path (if different from name)
-            if (file.path !== file.name) {
-                const pathEl = infoEl.createDiv({ cls: 'task-project-path' });
-                pathEl.textContent = file.path;
-            }
-            
-            // Remove button
-            const removeBtn = projectItem.createEl('button', { 
-                cls: 'task-project-remove',
-                text: '×'
-            });
-            setTooltip(removeBtn, 'Remove project', { placement: 'top' });
-            removeBtn.addEventListener('click', () => {
+            renderProjectItem(this.projectsList, file, (file, evt) => {
                 this.removeProject(file);
             });
         });

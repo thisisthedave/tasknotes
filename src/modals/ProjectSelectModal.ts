@@ -1,8 +1,9 @@
-import { App, FuzzySuggestModal, TAbstractFile, TFile, SearchResult, parseFrontMatterAliases, Notice } from 'obsidian';
+import { App, FuzzySuggestModal, TAbstractFile, TFile, SearchResult, parseFrontMatterAliases, Notice, setTooltip } from 'obsidian';
 import type TaskNotesPlugin from '../main';
 import { TaskInfo } from 'src/types';
 import { ProjectMetadataResolver } from '../utils/projectMetadataResolver';
 import { parseDisplayFieldsRow } from '../utils/projectAutosuggestDisplayFieldsParser';
+import { getProjectFiles } from 'src/utils/helpers';
 
 /**
  * Modal for selecting project notes using fuzzy search
@@ -10,12 +11,25 @@ import { parseDisplayFieldsRow } from '../utils/projectAutosuggestDisplayFieldsP
  */
 export class ProjectSelectModal extends FuzzySuggestModal<TAbstractFile> {
     private onChoose: (file: TAbstractFile) => void;
+    private onRemove: (file: TAbstractFile) => void;
     private plugin: TaskNotesPlugin;
+    private removalEl: HTMLDivElement;
+    selectedProjectFiles: TAbstractFile[];
 
-    constructor(app: App, plugin: TaskNotesPlugin, onChoose: (file: TAbstractFile) => void) {
+    constructor(
+        app: App, 
+        plugin: TaskNotesPlugin, 
+        onChoose: (file: TAbstractFile) => void, 
+        onRemove: (file: TAbstractFile) => void = () => {}, 
+        selectedProjectFiles: TAbstractFile[] = []) 
+    {
         super(app);
         this.plugin = plugin;
         this.onChoose = onChoose;
+        this.onRemove = onRemove;
+        this.selectedProjectFiles = selectedProjectFiles;
+
+        this.setTitle('Select Project Note');
         this.setPlaceholder('Type to search for project notes...');
         this.setInstructions([
             { command: '↑↓', purpose: 'to navigate' },
@@ -23,6 +37,23 @@ export class ProjectSelectModal extends FuzzySuggestModal<TAbstractFile> {
             { command: 'esc', purpose: 'to cancel' }
         ]);
     }
+
+    // --- inject custom content above the suggestion list ---
+    onOpen() {
+        super.onOpen();
+        
+        this.containerEl.addClass('tasknotes-plugin', 'minimalist-task-modal');
+
+        const resultsContainer = this.modalEl.querySelector(".prompt-results");
+        if (!resultsContainer) return;
+
+        // Create (or reuse) a container for top content
+        this.removalEl = createDiv({ cls: 'task-projects-list' });
+        // Insert it just above the suggestions
+        this.modalEl.insertBefore(this.removalEl, resultsContainer);
+
+        this.renderRemovals();
+    }    
 
     getItems(): TAbstractFile[] {
         const allFiles = this.app.vault.getAllLoadedFiles().filter(file => 
@@ -243,6 +274,27 @@ export class ProjectSelectModal extends FuzzySuggestModal<TAbstractFile> {
     onChooseItem(file: TAbstractFile, evt: MouseEvent | KeyboardEvent) {
         this.onChoose(file);
     }
+
+    onRemoveItem(file: TAbstractFile, evt: MouseEvent | KeyboardEvent) {
+        this.onRemove(file);
+    }
+
+    private renderRemovals() {
+        if (!this.removalEl) return;
+        
+        this.removalEl.empty();
+
+        if (this.selectedProjectFiles.length === 0) {
+            return;
+        }
+
+        this.selectedProjectFiles.forEach(file => {
+            const projectEl = renderProjectItem(this.removalEl, file, (file, evt) => {
+                this.onRemoveItem(file, evt);
+                projectEl.remove();
+            });
+        });
+    }
 }
 
 export function showProjectModal(
@@ -250,6 +302,8 @@ export function showProjectModal(
     tasks: TaskInfo[]
 ): void {
     if (tasks && tasks.length > 0) {
+        const projectStrings = [...new Set(tasks.flatMap(t => t.projects).filter(p => p !== undefined))] as string[];
+        const currentProjects = getProjectFiles(projectStrings, this.app)
         const modal = new ProjectSelectModal(plugin.app, plugin, async (file) => {
             try {
                 // fileToLinktext expects TFile, so cast safely since we know these are markdown files
@@ -268,10 +322,68 @@ export function showProjectModal(
                 // Wait for all updates to complete
                 await Promise.all(updates);
             } catch (error) {
-                console.error('Error updating recurrence:', error);
-                new Notice('Failed to update recurrence');
+                console.error('Error updating projects:', error);
+                new Notice('Failed to update projects');
             }
-        });
+        },
+        async (file) => {
+            try {
+                // fileToLinktext expects TFile, so cast safely since we know these are markdown files
+                const removals = tasks.map(task => {
+                    const linkText = plugin.app.metadataCache.fileToLinktext(file as TFile, task.path || '', true);
+                    const projectLink = `[[${linkText}]]`;
+                    
+                    if (task.projects) {
+                        const updatedProjects = (task.projects).filter(p => p !== projectLink);
+                        // remove the project link from the task's projects
+                        if (updatedProjects.length !== task.projects.length) {
+                            return plugin.updateTaskProperty(task, 'projects', updatedProjects);
+                        }
+                    }
+
+                    return Promise.resolve(); // Task doesn't have this project, skip
+                });
+
+                // Wait for all updates to complete
+                await Promise.all(removals);
+            } catch (error) {
+                console.error('Error removing project:', error);
+                new Notice('Failed to remove project');
+            }
+        }, currentProjects as TAbstractFile[]);
         modal.open();
     }
+}
+
+export function renderProjectItem(
+    projectsList: HTMLElement, 
+    file: TAbstractFile, 
+    onRemove: (file: TAbstractFile, evt: MouseEvent | KeyboardEvent) => void
+): HTMLElement {
+    const projectItem = projectsList.createDiv({ cls: 'task-project-item' });
+    
+    // Info container
+    const infoEl = projectItem.createDiv({ cls: 'task-project-info' });
+    
+    // File name
+    const nameEl = infoEl.createSpan({ cls: 'task-project-name' });
+    nameEl.textContent = file.name;
+    
+    // File path (if different from name)
+    if (file.path !== file.name) {
+        const pathEl = infoEl.createDiv({ cls: 'task-project-path' });
+        pathEl.textContent = file.path;
+    }
+    
+    // Remove button
+    const removeBtn = projectItem.createEl('button', { 
+        cls: 'task-project-remove',
+        text: '×'
+    });
+    setTooltip(removeBtn, 'Remove project', { placement: 'top' });
+    removeBtn.addEventListener('click', (evt) => {
+        onRemove(file, evt);
+    });
+
+    return projectItem;
 }

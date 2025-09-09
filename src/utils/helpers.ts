@@ -1,4 +1,4 @@
-import { normalizePath, TFile, Vault, App, parseYaml, stringifyYaml } from 'obsidian';
+import { normalizePath, TFile, Vault, App, parseYaml, stringifyYaml, TAbstractFile } from 'obsidian';
 import { format, isBefore, startOfDay } from 'date-fns';
 import { RRule } from 'rrule';
 import { TimeInfo, TaskInfo, TimeEntry, TimeBlock, DailyNoteFrontmatter } from '../types';
@@ -1224,6 +1224,49 @@ export function filterEmptyProjects(projects: string[]): string[] {
 		
 		return true;
 	});
+}
+
+export function getProjectFiles(projectStrings: string[], app: App): TAbstractFile[] {
+	const projects = projectStrings
+				.sort()
+				.map(p => projectLinkToFile(p as string, app))
+				.filter(f => f !== null);
+	return projects as TAbstractFile[];
+}
+
+/**
+ * Resolves a project string to a file object. This handles both old plain string projects and new [[link]] format
+ * @param projectString A project string, which may be a plain name or a wiki link like [[Project Name]]
+ * @param app Obsidian app instance for accessing vault and metadata
+ * @returns The resolved file object or null if not found
+ */
+export function projectLinkToFile(projectString: string, app: App): TFile | null {
+	// Skip null, undefined, or empty strings
+	if (!projectString || typeof projectString !== 'string' || projectString.trim() === '') {
+		return null;
+	}
+
+	// Check if it's a wiki link format
+	const linkMatch = projectString.match(/^\[\[([^\]]+)\]\]$/);
+	if (linkMatch) {
+		const linkPath = linkMatch[1];
+		const file = app.metadataCache.getFirstLinkpathDest(linkPath, '');
+		if (file) {
+			return file;
+		}
+	} else {
+		// For backwards compatibility, try to find a file with this name
+		const files = app.vault.getMarkdownFiles();
+		const matchingFile = files.find(f =>
+			f.basename === projectString ||
+			f.name === projectString + '.md'
+		);
+		if (matchingFile) {
+			return matchingFile;
+		}
+	}
+
+	return null;
 }
 
 /**
