@@ -436,8 +436,9 @@ export class ProjectSubtasksWidget extends WidgetType {
             const tasks = this.groupedTasks.size === 1 
                 ? Array.from(this.groupedTasks.values())[0] 
                 : this.groupedTasks.get('all') || [];
+            const visibleProperties = this.filterBar?.getCurrentVisibleProperties() || this.plugin.settings.defaultVisibleProperties;
             tasks.forEach(task => {
-                const taskCard = createTaskCard(task, this.plugin, this.plugin.settings.defaultVisibleProperties, {
+                const taskCard = createTaskCard(task, this.plugin, visibleProperties, {
                     showDueDate: true,
                     showCheckbox: false,
                     showArchiveButton: false,
@@ -543,8 +544,9 @@ export class ProjectSubtasksWidget extends WidgetType {
                 toggleBtn.setAttribute('aria-expanded', String(!collapsedInitially));
 
                 // Render tasks in this group
+                const visibleProperties = this.filterBar?.getCurrentVisibleProperties() || this.plugin.settings.defaultVisibleProperties;
                 tasks.forEach(task => {
-                    const taskCard = createTaskCard(task, this.plugin, this.plugin.settings.defaultVisibleProperties, {
+                    const taskCard = createTaskCard(task, this.plugin, visibleProperties, {
                         showDueDate: true,
                         showCheckbox: false,
                         showArchiveButton: false,
