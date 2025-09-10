@@ -24,6 +24,7 @@ import { showProjectModal } from 'src/modals/ProjectSelectModal';
 import { showContextModal } from 'src/modals/ContextsModal';
 import { showPriorityContextMenu } from 'src/components/PriorityContextMenu';
 import { showRecurrenceContextMenu } from 'src/components/RecurrenceContextMenu';
+import { KeyboardShortcutsMap } from 'src/types/settings';
 
 export class TaskListView extends ItemView {
     plugin: TaskNotesPlugin;
@@ -53,6 +54,7 @@ export class TaskListView extends ItemView {
     
     // Debounce timer for refreshTasks
     private refreshTasksDebounceTimer: number | null = null;
+    private keyboardShortcuts: KeyboardShortcutsMap
 
     constructor(leaf: WorkspaceLeaf, plugin: TaskNotesPlugin) {
         super(leaf);
@@ -230,6 +232,13 @@ export class TaskListView extends ItemView {
             this.refreshTasks();
         });
         this.functionListeners.push(filterDataListener);
+
+        // Listen for settings changes to update today highlight and custom view
+        const settingsListener = this.plugin.emitter.on('settings-changed', () => {
+            this.initializeKeyboardShortcuts();
+        });
+        this.listeners.push(settingsListener);
+
     }
     
     async onOpen() {
@@ -250,6 +259,7 @@ export class TaskListView extends ItemView {
             }
 
             // Add keyboard navigation.
+            this.initializeKeyboardShortcuts();
             this.addKeyboardHandlers();
 
             await this.refresh();
@@ -1060,107 +1070,165 @@ export class TaskListView extends ItemView {
         }
     }
 
+    private initializeKeyboardShortcuts(): void {
+        // Normalizes shortcut strings like "Ctrl+Shift+K" or "j" for comparison.
+        const normalize = (s: string): string => {
+            const raw = s.trim();
+            if (!raw) return '';
+            const parts = raw.split('+').map(p => p.trim().toLowerCase());
+            // Separate modifiers from key
+            const mods = new Set<string>();
+            let key = '';
+            for (const p of parts) {
+                if (p === 'ctrl' || p === 'control') mods.add('ctrl');
+                else if (p === 'cmd' || p === 'meta' || p === 'command') mods.add('meta');
+                else if (p === 'alt' || p === 'option') mods.add('alt');
+                else if (p === 'shift') mods.add('shift');
+                else key = p; // last non-modifier wins
+            }
+            // Keep order stable for comparison
+            const ordered = ['ctrl', 'meta', 'alt', 'shift'].filter(m => mods.has(m));
+            return (ordered.length ? ordered.join('+') + '+' : '') + key;
+        };
+
+        const ks = this.plugin.settings.keyboardShortcuts ?? {};
+        // Fallbacks so missing settings still work
+        const fallback = (action: string, defaults: string[]) => (ks as any)[action] ?? defaults;
+
+        // Expand and normalize list-of-shortcuts
+        const normList = (list: string[]) => list.map(normalize).filter(Boolean);
+
+        this.keyboardShortcuts = {
+            navigateDown: normList(fallback('navigateDown', ['j', 'ArrowDown'])),
+            navigateUp: normList(fallback('navigateUp', ['k', 'ArrowUp'])),
+            copyTaskTitles: normList(fallback('copyTaskTitles', ['ctrl+c', 'meta+c'])),
+            newTask: normList(fallback('newTask', ['c'])),
+            focusFilter: normList(fallback('focusFilter', ['/'])),
+            toggleSelect: normList(fallback('toggleSelect', ['x'])),
+            selectAll: normList(fallback('selectAll', ['ctrl+a', 'meta+a'])),
+            clearFocusAndSelection: normList(fallback('clearFocusAndSelection', ['Escape', 'Backspace'])),
+            openInNewPane: normList(fallback('openInNewPane', ['shift+Enter'])),
+            openEdit: normList(fallback('openEdit', ['Enter'])),
+            editDueDates: normList(fallback('editDueDates', ['D'])),
+            editScheduleDates: normList(fallback('editScheduleDates', ['S'])),
+            editPoints: normList(fallback('editPoints', ['^'])),
+            editTags: normList(fallback('editTags', ['#'])),
+            editProjects: normList(fallback('editProjects', ['+'])),
+            editContexts: normList(fallback('editContexts', ['@'])),
+            editPriorities: normList(fallback('editPriorities', ['p'])),
+            editRecurrence: normList(fallback('editRecurrence', ['r'])),
+            editStatuses: normList(fallback('editStatuses', ['s'])),
+            deleteTasks: normList(fallback('deleteTasks', ['ctrl+Delete', 'meta+Delete'])),
+            toggleArchive: normList(fallback('toggleArchive', ['y'])),
+        } as const;    
+    }
+    
     private addKeyboardHandlers(): void {
+        const eventSig = (e: KeyboardEvent): string => {
+            const mods: string[] = [];
+            if (e.ctrlKey) mods.push('ctrl');
+            if (e.metaKey) mods.push('meta');
+            if (e.altKey) mods.push('alt');
+            if (e.shiftKey) mods.push('shift');
+
+            // Prefer event.key; keep case for single letters only to allow exacts like '^' or '#'
+            // Normalize to lower for matching, but let punctuation and names (ArrowDown) pass through.
+            const k = e.key.toLowerCase();
+            return (mods.length ? mods.join('+') + '+' : '') + k;
+        };
+
+        const matchesAny = (eventSig: string, shortcuts: readonly string[]) => {
+            return shortcuts.includes(eventSig);
+        };
+
         this.registerDomEvent(document, 'keydown', async (event: KeyboardEvent) => {
             const shouldHandleInput = this.plugin.inputObserver.shouldHandleKeyboardInput(TaskListView);
-            // console.log("Key in plugin view:", event.key, " should handle input:", shouldHandleInput);
-            if (shouldHandleInput) {
-                let handled = false;
-                if (event.key === 'j' || event.key === 'ArrowDown') {
-                    // Navigate down
-                    handled = true;
-                    if (this.focusTaskElementIndex < this.taskElements.length - 1) {
-                        this.focusTaskElement(this.focusTaskElementIndex + 1);
-                    }
-                } else if (event.key === 'k' || event.key === 'ArrowUp') {
-                    // Navigate up
-                    if (this.focusTaskElementIndex > 0) {
-                        this.focusTaskElement(this.focusTaskElementIndex - 1);
-                    }
-                } else if (event.key == 'c' && (event.ctrlKey || event.metaKey)) {
-                    this.copyTaskTitles();
-                    handled = true;
-                } else if (event.key === 'c') {
-                    this.plugin.openTaskCreationModal();
-                    handled = true;
-                } else if (event.key === '/') {
-                    this.filterBar?.focus();
-                    handled = true;
-                } else if (event.key === 'x') {
-                    const focusedElement = this.getFocusedTaskElement();
-                    if (focusedElement) {
-                        // const matchingCards = this.taskElements.filter(card => card.dataset.key === focusedElement.dataset.key);
-                        toggleTaskCardSelection([focusedElement]);
-                    }
-                    handled = true;
-                } else if (event.key === 'a' && (event.ctrlKey || event.metaKey)) {
-                    // Ctrl+A: select all task cards
-                    this.taskElements.forEach((taskCard) => {
-                        setTaskCardSelected(taskCard, true);
-                    });
-                    handled = true;
-                } else if (event.key === 'Escape' || event.key === 'Backspace') {
-                    // Escape: clear focus and selection
-                    this.focusTaskElementIndex = -1; // Reset focus index
-                    this.taskElements.forEach((taskCard) => {
-                        setTaskCardSelected(taskCard, false);
-                    });
-                    this.filterBar?.closeMainFilterBox();
-                    this.filterBar?.closeViewSelectorDropdown();
-                    handled = true;
-                } else if (event.key === 'Enter' && event.shiftKey) {
-                    // Ctrl+Enter: open focused task in new pane
-                    this.openTasks();
-                    handled = true;
-                } else if (event.key === 'Enter') {
-                    // Enter: open focused task
-                    const focusedElement = this.getFocusedTaskElement();
-                    if (focusedElement && focusedElement.dataset.key) {
-                        const taskInfo = await this.plugin.cacheManager.getTaskInfo(focusedElement.dataset.key!);
-                        if (taskInfo) {
-                            await this.plugin.openTaskEditModal(taskInfo);
-                        }
-                    }
-                    handled = true;
-                } else if (event.key == 'D') {
-                    this.editDueDates();
-                    handled = true;
-                } else if (event.key == 'S') {
-                    this.editScheduleDates();
-                    handled = true;
-                } else if (event.key == '^') {
-                    this.editPoints();
-                    handled = true;
-                } else if (event.key == '#') {
-                    this.editTags();
-                    handled = true;
-                } else if (event.key == '+') {
-                    this.editProjects();
-                    handled = true;
-                } else if (event.key == '@') {
-                    this.editContexts();
-                    handled = true;
-                } else if (event.key == 'p') {
-                    this.editPriorities();
-                    handled = true;
-                } else if (event.key == 'r') {
-                    this.editRecurrence();
-                    handled = true;
-                } else if (event.key == 's') {
-                    this.editStatuses();
-                    handled = true;
-                } else if (event.key == 'Delete' && (event.ctrlKey || event.metaKey)) {
-                    this.deleteTasks();
-                    handled = true;
-                } else if (event.key == 'y') {
-                    this.toggleArchive();
-                    handled = true;
-                }
+            if (!shouldHandleInput) return;
 
-                if (handled) {
-                    event.preventDefault();
-                    event.stopPropagation();
+            let handled = false;
+            const sig = eventSig(event);
+            if (matchesAny(sig, this.keyboardShortcuts.navigateDown)) {
+                handled = true;
+                if (this.focusTaskElementIndex < this.taskElements.length - 1) {
+                    this.focusTaskElement(this.focusTaskElementIndex + 1);
                 }
+            } else if (matchesAny(sig, this.keyboardShortcuts.navigateUp)) {
+                handled = true;
+                if (this.focusTaskElementIndex > 0) {
+                    this.focusTaskElement(this.focusTaskElementIndex - 1);
+                }
+            } else if (matchesAny(sig, this.keyboardShortcuts.copyTaskTitles)) {
+                handled = true;
+                await this.copyTaskTitles();
+            } else if (matchesAny(sig, this.keyboardShortcuts.newTask)) {
+                handled = true;
+                this.plugin.openTaskCreationModal();
+            } else if (matchesAny(sig, this.keyboardShortcuts.focusFilter)) {
+                handled = true;
+                this.filterBar?.focus();
+            } else if (matchesAny(sig, this.keyboardShortcuts.toggleSelect)) {
+                handled = true;
+                const focusedElement = this.getFocusedTaskElement();
+                if (focusedElement) {
+                    toggleTaskCardSelection([focusedElement]);
+                }
+            } else if (matchesAny(sig, this.keyboardShortcuts.selectAll)) {
+                handled = true;
+                this.taskElements.forEach((taskCard) => setTaskCardSelected(taskCard, true));
+            } else if (matchesAny(sig, this.keyboardShortcuts.clearFocusAndSelection)) {
+                handled = true;
+                this.focusTaskElementIndex = -1;
+                this.taskElements.forEach((taskCard) => setTaskCardSelected(taskCard, false));
+                this.filterBar?.closeMainFilterBox();
+                this.filterBar?.closeViewSelectorDropdown();
+            } else if (matchesAny(sig, this.keyboardShortcuts.openInNewPane)) {
+                handled = true;
+                this.openTasks();
+            } else if (matchesAny(sig, this.keyboardShortcuts.openEdit)) {
+                handled = true;
+                const focusedElement = this.getFocusedTaskElement();
+                if (focusedElement?.dataset.key) {
+                    const taskInfo = await this.plugin.cacheManager.getTaskInfo(focusedElement.dataset.key!);
+                    if (taskInfo) await this.plugin.openTaskEditModal(taskInfo);
+                }
+            } else if (matchesAny(sig, this.keyboardShortcuts.editDueDates)) {
+                handled = true;
+                await this.editDueDates();
+            } else if (matchesAny(sig, this.keyboardShortcuts.editScheduleDates)) {
+                handled = true;
+                await this.editScheduleDates();
+            } else if (matchesAny(sig, this.keyboardShortcuts.editPoints)) {
+                handled = true;
+                await this.editPoints();
+            } else if (matchesAny(sig, this.keyboardShortcuts.editTags)) {
+                handled = true;
+                await this.editTags();
+            } else if (matchesAny(sig, this.keyboardShortcuts.editProjects)) {
+                handled = true;
+                await this.editProjects();
+            } else if (matchesAny(sig, this.keyboardShortcuts.editContexts)) {
+                handled = true;
+                await this.editContexts();
+            } else if (matchesAny(sig, this.keyboardShortcuts.editPriorities)) {
+                handled = true;
+                await this.editPriorities();
+            } else if (matchesAny(sig, this.keyboardShortcuts.editRecurrence)) {
+                handled = true;
+                await this.editRecurrence();
+            } else if (matchesAny(sig, this.keyboardShortcuts.editStatuses)) {
+                handled = true;
+                await this.editStatuses();
+            } else if (matchesAny(sig, this.keyboardShortcuts.deleteTasks)) {
+                handled = true;
+                await this.deleteTasks();
+            } else if (matchesAny(sig, this.keyboardShortcuts.toggleArchive)) {
+                handled = true;
+                await this.toggleArchive();
+            }
+
+            if (handled) {
+                event.preventDefault();
+                event.stopPropagation();
             }
         });
     }

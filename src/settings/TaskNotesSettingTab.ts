@@ -7,6 +7,7 @@ import { renderDefaultsTab } from './tabs/defaultsTab';
 import { renderAppearanceTab } from './tabs/appearanceTab';
 import { renderFeaturesTab } from './tabs/featuresTab';
 import { renderIntegrationsTab } from './tabs/integrationsTab';
+import { renderKeyboardShortcutTab } from './tabs/keyboardShortcutTab';
 
 interface TabConfig {
     id: string;
@@ -61,6 +62,11 @@ export class TaskNotesSettingTab extends PluginSettingTab {
                 id: 'features', 
                 name: 'Features',
                 renderFn: renderFeaturesTab
+            },
+            {
+                id: 'keyboard-shortcuts',
+                name: 'Keyboard',
+                renderFn: renderKeyboardShortcutTab
             },
             { 
                 id: 'integrations', 
@@ -200,6 +206,11 @@ export class TaskNotesSettingTab extends PluginSettingTab {
                 id: 'features', 
                 name: 'Features',
                 renderFn: renderFeaturesTab
+            },
+            {
+                id: 'keyboard-shortcuts',
+                name: 'Keyboard',
+                renderFn: renderKeyboardShortcutTab
             },
             { 
                 id: 'integrations', 

@@ -1,4 +1,4 @@
-import { FieldMapping, StatusConfig, PriorityConfig, SavedView, WebhookConfig } from '../types';
+import { FieldMapping, PriorityConfig, SavedView, StatusConfig, WebhookConfig } from '../types';
 
 export interface UserFieldMapping {
 	enabled: boolean;
@@ -115,6 +115,8 @@ export interface TaskNotesSettings {
 	userField?: UserFieldMapping;
 	// Default visible properties for task cards (when no saved view is active)
 	defaultVisibleProperties?: string[];
+	// Keyboard shortcuts
+	keyboardShortcuts?: KeyboardShortcutsMap;
 	// Recurring task behavior
 	maintainDueDateOffsetInRecurring: boolean;
 }
@@ -151,6 +153,31 @@ export interface TaskCreationDefaults {
 	// Reminder defaults
 	defaultReminders: DefaultReminder[];
 }
+
+export type KeyboardShortcutAction =
+  | 'navigateDown'
+  | 'navigateUp'
+  | 'copyTaskTitles'
+  | 'newTask'
+  | 'focusFilter'
+  | 'toggleSelect'
+  | 'selectAll'
+  | 'clearFocusAndSelection'
+  | 'openInNewPane'
+  | 'openEdit'
+  | 'editDueDates'
+  | 'editScheduleDates'
+  | 'editPoints'
+  | 'editTags'
+  | 'editProjects'
+  | 'editContexts'
+  | 'editPriorities'
+  | 'editRecurrence'
+  | 'editStatuses'
+  | 'deleteTasks'
+  | 'toggleArchive';
+
+export type KeyboardShortcutsMap = Record<KeyboardShortcutAction, string[]>;
 
 export interface ICSIntegrationSettings {
 	// Default templates for creating content from ICS events
