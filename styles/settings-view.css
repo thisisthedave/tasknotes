@@ -870,6 +870,61 @@ select.tasknotes-settings__card-input {
     transition: all 0.2s ease;
 }
 
+
+/* ================================================
+   KEYBOARD SHORTCUTS
+   ================================================ */
+.tasknotes-settings__ts-hotkey-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.tasknotes-settings__chip {
+}
+
+.tasknotes-settings__ts-hotkey-pill {
+    border: 1px solid var(--background-modifier-border);
+    user-select: none;
+}
+
+.tasknotes-settings__ts-hotkey-pill button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: .7;
+}
+
+.tasknotes-settings__ts-hotkey-pill button.clickable-icon {
+    height: var(--icon-size);
+}
+
+
+.tasknotes-settings__ts-hotkey-pill button:hover {
+    opacity: 1;
+}
+
+.tasknotes-settings__ts-conflict {
+    background: var(--background-modifier-error);
+    color: var(--text-on-accent);
+    border-color: var(--background-modifier-error-hover);
+}
+
+.tasknotes-settings__ts-conflict-note {
+    color: var(--text-error);
+    font-size: var(--font-ui-smaller);
+    margin-left: 6px;
+}
+
+.tasknotes-settings__ts-capture-btn.mod-capturing {
+    outline: 2px solid var(--interactive-accent);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
 /* ================================================
    ACCESSIBILITY & REDUCED MOTION
    ================================================ */

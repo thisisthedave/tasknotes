@@ -1,247 +1,301 @@
-import { Setting, ButtonComponent, Platform, setIcon } from 'obsidian';
+import { ButtonComponent, Platform, Scope, setIcon, Setting } from 'obsidian';
 import TaskNotesPlugin from '../../main';
-import { createSectionHeader, createHelpText } from '../components/settingHelpers';
-import { DEFAULT_KEYBOARD_SHORTCUTS } from '../defaults';
 import { KeyboardShortcutAction, KeyboardShortcutsMap } from 'src/types/settings';
+import { DEFAULT_KEYBOARD_SHORTCUTS } from '../defaults';
 
 const ACTION_LABELS: Record<KeyboardShortcutAction, string> = {
-  navigateDown: 'Navigate down',
-  navigateUp: 'Navigate up',
-  copyTaskTitles: 'Copy selected task titles',
-  newTask: 'Create new task',
-  focusFilter: 'Focus filter box',
-  toggleSelect: 'Toggle selection on focused task',
-  selectAll: 'Select all',
-  clearFocusAndSelection: 'Clear focus & selection',
-  openInNewPane: 'Open selected/focused (new pane)',
-  openEdit: 'Open focused editor',
-  editDueDates: 'Edit Due date',
-  editScheduleDates: 'Edit Scheduled date',
-  editPoints: 'Edit Points',
-  editTags: 'Edit Tags',
-  editProjects: 'Edit Projects',
-  editContexts: 'Edit Contexts',
-  editPriorities: 'Edit Priority',
-  editRecurrence: 'Edit Recurrence',
-  editStatuses: 'Edit Status',
-  deleteTasks: 'Delete selected/focused',
-  toggleArchive: 'Toggle Archive',
+    navigateDown: 'Navigate down',
+    navigateUp: 'Navigate up',
+    copyTaskTitles: 'Copy selected task titles',
+    newTask: 'Create new task',
+    focusFilter: 'Focus filter box',
+    toggleSelect: 'Toggle selection on focused task',
+    selectAll: 'Select all',
+    clearFocusAndSelection: 'Clear focus & selection (and close filter popups)',
+    openInNewPane: 'Open selected/focused tasks (new pane)',
+    openEdit: 'Open focused task editor',
+    editDueDates: 'Edit Due date',
+    editScheduleDates: 'Edit Scheduled date',
+    editPoints: 'Edit Points',
+    editTags: 'Edit Tags',
+    editProjects: 'Edit Projects',
+    editContexts: 'Edit Contexts',
+    editPriorities: 'Edit Priority',
+    editRecurrence: 'Edit Recurrence',
+    editStatuses: 'Edit Status',
+    deleteTasks: 'Delete selected/focused tasks',
+    toggleArchive: 'Toggle Archive',
 };
 
-type Sig = string;
+// ---- Normalization & display helpers ---------------------------------------
 
-function normalizeSig(s: string): Sig {
-  const raw = (s ?? '').trim();
-  if (!raw) return '';
-  const parts = raw.split('+').map(p => p.trim().toLowerCase());
+/** Normalize a string like "Ctrl+Shift+K" or "J" into "ctrl+shift+k" or "j". */
+const normalizeShortcutString = (raw: string): string => {
+    const parts = raw.split('+').map((p) => p.trim().toLowerCase()).filter(Boolean);
+    const mods = new Set<string>();
+    let key = '';
 
-  const mods = new Set<string>();
-  let key = '';
-  for (const p of parts) {
-    if (p === 'ctrl' || p === 'control') mods.add('ctrl');
-    else if (p === 'cmd' || p === 'meta' || p === 'command') mods.add('meta');
-    else if (p === 'alt' || p === 'option') mods.add('alt');
-    else if (p === 'shift') mods.add('shift');
-    else key = p;
-  }
-  const ordered = ['ctrl','meta','alt','shift'].filter(m => mods.has(m));
-  const alias: Record<string,string> = { esc: 'escape' };
-  const kk = alias[key] ?? key;
-  return (ordered.length ? ordered.join('+') + '+' : '') + kk;
-}
-
-function sigFromEvent(e: KeyboardEvent): Sig {
-  const mods: string[] = [];
-  if (e.ctrlKey) mods.push('ctrl');
-  if (e.metaKey) mods.push('meta');
-  if (e.altKey)  mods.push('alt');
-  if (e.shiftKey)mods.push('shift');
-  const k = String(e.key).toLowerCase();
-  return (mods.length ? mods.join('+') + '+' : '') + k;
-}
-
-function prettyLabel(sig: Sig): string {
-  const parts = sig.split('+').filter(Boolean);
-  const label = parts.map(p => {
-    if (p === 'ctrl') return 'Ctrl';
-    if (p === 'meta') return Platform.isMacOS ? 'Cmd' : 'Meta';
-    if (p === 'alt')  return Platform.isMacOS ? 'Option' : 'Alt';
-    if (p === 'shift')return 'Shift';
-    if (p.startsWith('arrow')) return 'Arrow ' + p.slice(5);
-    if (p === 'escape') return 'Esc';
-    if (p.length === 1) return p.toUpperCase();
-    return p.charAt(0).toUpperCase() + p.slice(1);
-  });
-  return label.join(' + ');
-}
-
-function ensureNormalizedSettings(settings: TaskNotesPlugin['settings']) {
-  const src = settings.keyboardShortcuts ?? DEFAULT_KEYBOARD_SHORTCUTS;
-  const out: KeyboardShortcutsMap = {} as any;
-  (Object.keys(DEFAULT_KEYBOARD_SHORTCUTS) as KeyboardShortcutAction[]).forEach(k => {
-    const list = (src as any)[k] ?? DEFAULT_KEYBOARD_SHORTCUTS[k];
-    (out as any)[k] = Array.from(new Set(list.map(normalizeSig).filter(Boolean)));
-  });
-  settings.keyboardShortcuts = out;
-}
-
-function computeConflicts(map: KeyboardShortcutsMap): Map<Sig, KeyboardShortcutAction[]> {
-  const m = new Map<Sig, KeyboardShortcutAction[]>();
-  (Object.keys(map) as KeyboardShortcutAction[]).forEach(action => {
-    for (const sig of map[action]) {
-      const arr = m.get(sig) ?? [];
-      arr.push(action);
-      m.set(sig, arr);
+    for (const p of parts) {
+        if (p === 'ctrl' || p === 'control') mods.add('ctrl');
+        else if (p === 'cmd' || p === 'meta' || p === 'command') mods.add('meta');
+        else if (p === 'alt' || p === 'option') mods.add('alt');
+        else if (p === 'shift') mods.add('shift');
+        else key = p;
     }
-  });
-  return m;
-}
 
-// ---------- UI ----------
+    const ordered = ['ctrl', 'meta', 'alt', 'shift'].filter((m) => mods.has(m));
+    return (ordered.length ? ordered.join('+') + '+' : '') + key;
+};
+
+/** Convert KeyboardEvent -> normalized signature (ctrl+meta+alt+shift+key). */
+const eventToSig = (e: KeyboardEvent): string => {
+    // ignore pure-modifier presses (wait for a real key)
+    const k = String(e.key).toLowerCase();
+    if (k === 'shift' || k === 'control' || k === 'alt' || k === 'meta') return '';
+
+    const mods: string[] = [];
+    if (e.ctrlKey) mods.push('ctrl');
+    if (e.metaKey) mods.push('meta');
+    if (e.altKey) mods.push('alt');
+    if (e.shiftKey) mods.push('shift');
+
+    return (mods.length ? mods.join('+') + '+' : '') + k;
+};
+
+/** Render a normalized signature in human-friendly form (Ctrl + Shift + K). */
+const formatSig = (sig: string): string => {
+    const parts = sig.split('+').filter(Boolean);
+    const mods: string[] = [];
+    let key = '';
+
+    const nice = (s: string) =>
+        s.length <= 1 ? s.toUpperCase()
+            : s.startsWith('arrow') ? 'Arrow ' + s.slice(5)
+                : s === 'meta' ? (Platform.isMacOS ? 'Cmd' : 'Meta')
+                    : s === 'ctrl' ? 'Ctrl'
+                        : s === 'alt' ? 'Alt'
+                            : s === 'shift' ? 'Shift'
+                                : s.charAt(0).toUpperCase() + s.slice(1);
+
+    for (const p of parts) {
+        if (p === 'ctrl' || p === 'meta' || p === 'alt' || p === 'shift') mods.push(nice(p));
+        else key = nice(p);
+    }
+
+    return (mods.length ? mods.join(' + ') + (key ? ' + ' : '') : '') + key;
+};
+
+// ---- Rendering --------------------------------------------------------------
 
 export function renderKeyboardShortcutTab(
-  container: HTMLElement,
-  plugin: TaskNotesPlugin,
-  save: () => void
+    container: HTMLElement,
+    plugin: TaskNotesPlugin,
+    save: () => void
 ): void {
-  container.empty();
+    container.empty();
 
-  createSectionHeader(container, 'Keyboard Shortcuts');
-  createHelpText(
-    container,
-    'Click + to add a binding, then press a key or combo. Bindings render as chips. Click × to remove. Conflicts are highlighted.'
-  );
+    // Ensure settings exist & are mutable copies (we mutate arrays when adding/removing)
+    const ks = plugin.settings.keyboardShortcuts
+        ? cloneMutable(plugin.settings.keyboardShortcuts)
+        : cloneMutable(DEFAULT_KEYBOARD_SHORTCUTS);
 
-  ensureNormalizedSettings(plugin.settings);
-
-  new Setting(container)
-    .setName('Reset all to defaults')
-    .setDesc('Restore default bindings for the Task List view.')
-    .addButton((b) =>
-      (b as ButtonComponent).setButtonText('Reset').setCta().onClick(() => {
-        plugin.settings.keyboardShortcuts = JSON.parse(JSON.stringify(DEFAULT_KEYBOARD_SHORTCUTS));
-        ensureNormalizedSettings(plugin.settings);
-        save();
-        renderKeyboardShortcutTab(container, plugin, save);
-      })
-    );
-
-  const rows = container.createDiv({ cls: 'tasknotes-kb__rows' });
-  let conflictMap = computeConflicts(plugin.settings.keyboardShortcuts!);
-
-  const rerenderConflicts = () => {
-    conflictMap = computeConflicts(plugin.settings.keyboardShortcuts!);
-    const chips = rows.querySelectorAll<HTMLElement>('.tasknotes-kb__chip');
-    chips.forEach(chip => {
-      const sig = chip.dataset.sig!;
-      const conflict = (conflictMap.get(sig)?.length ?? 0) > 1;
-      chip.toggleClass('is-conflict', conflict);
-      if (conflict) {
-        const others = conflictMap.get(sig)!.join(', ');
-        chip.setAttr('title', `Conflicts with: ${others}`);
-        chip.setAttr('aria-label', `Conflicts with: ${others}`);
-      } else {
-        chip.removeAttribute('title');
-        chip.removeAttribute('aria-label');
-      }
-    });
-  };
-
-  const removeSig = (action: KeyboardShortcutAction, sig: Sig) => {
-    const list = plugin.settings.keyboardShortcuts![action];
-    const idx = list.indexOf(sig);
-    if (idx >= 0) list.splice(idx, 1);
+    plugin.settings.keyboardShortcuts = ks;
     save();
-    rerender();
-  };
 
-  let capturingFor: KeyboardShortcutAction | null = null;
-  let cancelCapture: (() => void) | null = null;
+    // Header & reset
+    const header = container.createEl('h3', { text: 'Keyboard Shortcuts' });
+    header.style.marginBottom = '0';
 
-  const beginCapture = (forAction: KeyboardShortcutAction, btn: ButtonComponent) => {
-    if (capturingFor) endCapture();
-    capturingFor = forAction;
+    const help = container.createEl('div', {
+        text:
+            'Click ＋ and press a key (or combo) to add a binding. Press Esc to cancel. ' +
+            'Bindings shown in red conflict with other actions.',
+    });
+    help.style.opacity = '0.8';
+    help.style.margin = '6px 0 12px';
 
-    const original = btn.buttonEl.textContent;
-    btn.setButtonText('Press hotkey...');
-    btn.buttonEl.addClass('is-capturing');
+    new Setting(container)
+        .setName('Reset all to defaults')
+        .setDesc('Restore default key bindings for the Task List view.')
+        .addButton((b) =>
+            (b as ButtonComponent)
+                .setButtonText('Reset')
+                .setCta()
+                .onClick(() => {
+                    plugin.settings.keyboardShortcuts = cloneMutable(DEFAULT_KEYBOARD_SHORTCUTS);
+                    save();
+                    renderKeyboardShortcutTab(container, plugin, save);
+                })
+        );
 
-    const handler = (ev: KeyboardEvent) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      if (ev.key === 'Escape') { endCapture(); return; }
+    // Build rows
+    const ACTIONS: KeyboardShortcutAction[] = Object.keys(ACTION_LABELS) as KeyboardShortcutAction[];
 
-      const sig = normalizeSig(sigFromEvent(ev));
-      if (!sig) return;
+    // single source of truth in this tab
+    const getMap = (): KeyboardShortcutsMap => plugin.settings.keyboardShortcuts ?? DEFAULT_KEYBOARD_SHORTCUTS;
 
-      const list = plugin.settings.keyboardShortcuts![forAction];
-      if (!list.includes(sig)) {
-        list.push(sig);
-        ensureNormalizedSettings(plugin.settings);
-        save();
-        rerender();
-      }
-      endCapture();
+    const refreshConflicts = () => {
+        const reverse = new Map<string, KeyboardShortcutAction[]>();
+        const map = getMap();
+
+        for (const action of ACTIONS) {
+            for (const sig of map[action]) {
+                const list = reverse.get(sig) ?? [];
+                list.push(action);
+                reverse.set(sig, list);
+            }
+        }
+        return reverse; // sig -> actions[]
     };
 
-    document.addEventListener('keydown', handler, { capture: true });
-    cancelCapture = () => {
-      btn.setButtonText(original ?? '+');
-      btn.buttonEl.removeClass('is-capturing');
-      document.removeEventListener('keydown', handler, { capture: true } as any);
-      capturingFor = null;
-      cancelCapture = null;
+    const reverseIndex = () => refreshConflicts();
+
+    // render an action row (chips + add button)
+    const renderRow = (parent: HTMLElement, action: KeyboardShortcutAction) => {
+        const setting = new Setting(parent).setName(ACTION_LABELS[action]);
+        // right-side container we fully control
+        const row = setting.controlEl.createDiv({ cls: 'tasknotes-settings__ts-hotkey-row setting-command-hotkeys' });
+
+        const paint = () => {
+            row.empty();
+            const map = getMap();
+            const conflicts = reverseIndex();
+
+            // render each chip
+            for (const sig of map[action]) {
+                const chip = row.createDiv({ cls: 'tasknotes-settings__chip tasknotes-settings__ts-hotkey-pill setting-hotkey' });
+                const offenders = conflicts.get(sig) ?? [];
+                if (offenders.length > 1) chip.addClass('tasknotes-settings__ts-conflict');
+
+                chip.createSpan({ text: formatSig(sig) });
+
+                const remove = chip.createEl('button', { text: '', attr: { 'aria-label': 'Remove shortcut' } });
+                setIcon(remove, 'x');
+                remove.addClass('setting-delete-hotkey', 'setting-hotkey-icon');
+                remove.addEventListener('click', () => {
+                    map[action] = map[action].filter((s) => s !== sig);
+                    save();
+                    paint();
+                });
+
+                if (offenders.length > 1) {
+                    const others = offenders.filter((a) => a !== action).map((a) => ACTION_LABELS[a]);
+                    if (others.length) {
+                        row.createSpan({ cls: 'tasknotes-settings__ts-conflict-note', text: `Conflicts with ${others.join(', ')}` });
+                    }
+                }
+            }
+
+            // add button (capture)
+            const addBtn = new ButtonComponent(row);
+            addBtn.setIcon('circle-plus').setTooltip('Add hotkey').setClass('tasknotes-settings__ts-capture-btn');
+            addBtn.buttonEl.classList.add('clickable-icon');
+
+            // swallow Esc (and optionally Enter) while capturing
+            const bindHotkeyScope: Scope | null = new Scope(plugin.app.scope);
+            bindHotkeyScope.register([], 'Escape', (ev) => {
+                stopCapture();
+                ev.preventDefault();
+                ev.stopPropagation();
+            });
+
+            const onKey = (ev: KeyboardEvent) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                if (ev.key.toLowerCase() === 'escape') {
+                    stopCapture();
+                    return;
+                }
+
+                const sig = eventToSig(ev);
+                if (!sig) return; // ignore pure modifiers
+
+                const normalized = normalizeShortcutString(sig);
+                const hotkeys = map[action];
+
+                // ignore duplicate in the same action
+                if (!hotkeys.includes(normalized)) {
+                    hotkeys.push(normalized);
+                    save();
+                }
+                stopCapture();
+            };
+
+            const startCapture = () => {
+                addBtn.setButtonText('Press hotkey...').setCta().setClass('mod-capturing');
+                plugin.app.keymap.pushScope(bindHotkeyScope);
+                document.addEventListener('keydown', onKey, { capture: true });
+            };
+
+            const stopCapture = () => {
+                plugin.app.keymap.popScope(bindHotkeyScope);
+                document.removeEventListener('keydown', onKey, { capture: true });
+
+                addBtn.removeCta();
+                addBtn.setClass('tasknotes-settings__ts-capture-btn');
+                addBtn.setButtonText('');
+                paint();
+            };
+
+            addBtn.onClick(startCapture);
+        };
+
+        paint();
     };
-  };
 
-  const endCapture = () => { if (cancelCapture) cancelCapture(); };
+    // Render groups
+    const group = (title: string) => {
+        const el = container.createDiv();
+        el.createEl('h4', { text: title });
+        return el;
+    };
 
-  const makeChip = (label: string, action: KeyboardShortcutAction, sig: Sig) => {
-    const chip = document.createElement('span');
-    chip.addClass('tasknotes-kb__chip');
-    chip.dataset.sig = sig;
-    chip.textContent = label;
+    const nav = group('Navigation & Selection');
+    const open = group('Open & Focus');
+    const edit = group('Quick-Edit Menus');
+    const other = group('Other');
 
-    const del = document.createElement('button');
-    del.addClass('tasknotes-kb__chip-x');
-    del.setAttr('aria-label', 'Remove binding');
-    setIcon(del, 'x');
-    del.onclick = (e) => { e.preventDefault(); e.stopPropagation(); removeSig(action, sig); };
-    chip.appendChild(del);
+    const attach = (parent: HTMLElement, action: KeyboardShortcutAction) => renderRow(parent, action);
 
-    return chip;
-  };
+    // Navigation
+    attach(nav, 'navigateDown');
+    attach(nav, 'navigateUp');
+    // Selection & bulk
+    attach(nav, 'toggleSelect');
+    attach(nav, 'selectAll');
+    attach(nav, 'clearFocusAndSelection');
 
-  const renderRow = (parent: HTMLElement, action: KeyboardShortcutAction) => {
-    const setting = new Setting(parent).setName(ACTION_LABELS[action]);
+    // Open/focus
+    attach(open, 'newTask');
+    attach(open, 'openEdit');
+    attach(open, 'openInNewPane');
+    attach(open, 'focusFilter');
 
-    const chipWrap = setting.controlEl.createDiv({ cls: 'tasknotes-kb__chipwrap' });
-    for (const sig of plugin.settings.keyboardShortcuts![action]) {
-      chipWrap.appendChild(makeChip(prettyLabel(sig), action, sig));
+    // Quick edit menus
+    attach(edit, 'editDueDates');
+    attach(edit, 'editScheduleDates');
+    attach(edit, 'editPoints');
+    attach(edit, 'editTags');
+    attach(edit, 'editProjects');
+    attach(edit, 'editContexts');
+    attach(edit, 'editPriorities');
+    attach(edit, 'editRecurrence');
+    attach(edit, 'editStatuses');
+
+    // Other
+    attach(other, 'deleteTasks');
+    attach(other, 'toggleArchive');
+    attach(other, 'copyTaskTitles');
+
+}
+
+// ---- utils ------------------------------------------------------------------
+
+function cloneMutable(map: KeyboardShortcutsMap): Record<KeyboardShortcutAction, string[]> {
+    const out: any = {};
+    for (const k of Object.keys(map) as KeyboardShortcutAction[]) {
+        out[k] = [...map[k]];
     }
-
-    setting.addButton((b) => {
-      b.setButtonText('+').setTooltip('Add binding').onClick(() => beginCapture(action, b));
-    });
-
-    setting.addExtraButton((btn) => {
-      btn.setIcon('rotate-ccw').setTooltip('Reset to default').onClick(() => {
-        plugin.settings.keyboardShortcuts![action] =
-          [...DEFAULT_KEYBOARD_SHORTCUTS[action]].map(normalizeSig);
-        ensureNormalizedSettings(plugin.settings);
-        save();
-        rerender();
-      });
-    });
-  };
-
-  const rerender = () => {
-    rows.empty();
-    ensureNormalizedSettings(plugin.settings);
-    (Object.keys(ACTION_LABELS) as KeyboardShortcutAction[]).forEach((a) => renderRow(rows, a));
-    rerenderConflicts();
-  };
-
-  rerender();
-  container.onNodeRemoved(() => endCapture());
+    return out;
 }

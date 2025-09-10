@@ -167,18 +167,18 @@ export const DEFAULT_PROJECT_AUTOSUGGEST: ProjectAutosuggestSettings = {
 
 /** Defaults are duplicated here for reset, must stay in sync with plugin defaults */
 export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutsMap = {
-  navigateDown: ['j', 'ArrowDown'],
-  navigateUp: ['k', 'ArrowUp'],
-  copyTaskTitles: ['Ctrl+c', 'Cmd+c'],
+  navigateDown: ['j', 'arrow down'],
+  navigateUp: ['k', 'arrow up'],
+  copyTaskTitles: ['ctrl+c', 'meta+c'],
   newTask: ['c'],
   focusFilter: ['/'],
   toggleSelect: ['x'],
-  selectAll: ['Ctrl+a', 'Cmd+a'],
-  clearFocusAndSelection: ['Escape', 'Backspace'],
-  openInNewPane: ['Shift+Enter'],
-  openEdit: ['Enter'],
-  editDueDates: ['D'],
-  editScheduleDates: ['S'],
+  selectAll: ['ctrl+a', 'meta+a'],
+  clearFocusAndSelection: ['escape', 'backspace'],
+  openInNewPane: ['shift+enter'],
+  openEdit: ['enter'],
+  editDueDates: ['d'],
+  editScheduleDates: ['shift+s'],
   editPoints: ['^'],
   editTags: ['#'],
   editProjects: ['+'],
@@ -186,7 +186,7 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutsMap = {
   editPriorities: ['p'],
   editRecurrence: ['r'],
   editStatuses: ['s'],
-  deleteTasks: ['Ctrl+Delete', 'Cmd+Delete'],
+  deleteTasks: ['ctrl+delete', 'meta+delete'],
   toggleArchive: ['y'],
 };
 
