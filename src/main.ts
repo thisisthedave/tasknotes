@@ -1071,8 +1071,8 @@ export default class TaskNotesPlugin extends Plugin {
 			this.statusBarService.updateVisibility();
 		}
 
-			// Invalidate filter options cache so new settings (e.g., user fields) appear immediately in FilterBar
-			this.filterService?.refreshFilterOptions();
+		// Invalidate filter options cache so new settings (e.g., user fields) appear immediately in FilterBar
+		this.filterService?.refreshFilterOptions();
 
 		// If settings have changed, notify views to refresh their data
 		this.notifyDataChanged();
