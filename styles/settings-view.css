@@ -896,12 +896,8 @@ select.tasknotes-settings__card-input {
     padding: 0;
     line-height: 1;
     opacity: .7;
-}
-
-.tasknotes-settings__ts-hotkey-pill button.clickable-icon {
     height: var(--icon-size);
 }
-
 
 .tasknotes-settings__ts-hotkey-pill button:hover {
     opacity: 1;
