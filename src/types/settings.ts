@@ -61,8 +61,8 @@ export interface TaskNotesSettings {
 	enableNaturalLanguageInput: boolean;
 	nlpDefaultToScheduled: boolean;
 
-		// NLP status suggestion trigger (empty to disable)
-		statusSuggestionTrigger: string;
+	// NLP status suggestion trigger (empty to disable)
+	statusSuggestionTrigger: string;
 
 	projectAutosuggest?: ProjectAutosuggestSettings; // Display config for project suggestions in NL input
 	// end of project autosuggest settings
@@ -116,7 +116,7 @@ export interface TaskNotesSettings {
 	// Default visible properties for task cards (when no saved view is active)
 	defaultVisibleProperties?: string[];
 	// Keyboard shortcuts
-	keyboardShortcuts?: KeyboardShortcutsMap;
+	keyboardShortcuts?: Record<KeyboardShortcutAction, readonly string[]>;
 	// Recurring task behavior
 	maintainDueDateOffsetInRecurring: boolean;
 }
@@ -155,29 +155,34 @@ export interface TaskCreationDefaults {
 }
 
 export type KeyboardShortcutAction =
-  | 'navigateDown'
-  | 'navigateUp'
-  | 'copyTaskTitles'
-  | 'newTask'
-  | 'focusFilter'
-  | 'toggleSelect'
-  | 'selectAll'
-  | 'clearFocusAndSelection'
-  | 'openInNewPane'
-  | 'openEdit'
-  | 'editDueDates'
-  | 'editScheduleDates'
-  | 'editPoints'
-  | 'editTags'
-  | 'editProjects'
-  | 'editContexts'
-  | 'editPriorities'
-  | 'editRecurrence'
-  | 'editStatuses'
-  | 'deleteTasks'
-  | 'toggleArchive';
+	| 'navigateDown'
+	| 'navigateUp'
+	| 'copyTaskTitles'
+	| 'newTask'
+	| 'focusFilter'
+	| 'toggleSelect'
+	| 'selectAll'
+	| 'clearFocusAndSelection'
+	| 'openInNewPane'
+	| 'openEdit'
+	| 'editDueDates'
+	| 'editScheduleDates'
+	| 'editPoints'
+	| 'editTags'
+	| 'editProjects'
+	| 'editContexts'
+	| 'editPriorities'
+	| 'editRecurrence'
+	| 'editStatuses'
+	| 'deleteTasks'
+	| 'toggleArchive';
 
-export type KeyboardShortcutsMap = Record<KeyboardShortcutAction, string[]>;
+export interface KeyboardShortcuts {
+	getAction(e: KeyboardEvent): KeyboardShortcutAction | null;
+	getShortcuts(action: KeyboardShortcutAction): string[];
+	addShortcut(action: KeyboardShortcutAction, e: KeyboardEvent): boolean;
+	removeShortcut(action: KeyboardShortcutAction, shortcut: string): boolean;
+}
 
 export interface ICSIntegrationSettings {
 	// Default templates for creating content from ICS events

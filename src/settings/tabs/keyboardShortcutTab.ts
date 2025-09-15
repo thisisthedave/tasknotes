@@ -1,7 +1,8 @@
 import { ButtonComponent, Platform, Scope, setIcon, Setting } from 'obsidian';
 import TaskNotesPlugin from '../../main';
-import { KeyboardShortcutAction, KeyboardShortcutsMap } from 'src/types/settings';
+import { KeyboardShortcutAction, KeyboardShortcuts } from 'src/types/settings';
 import { DEFAULT_KEYBOARD_SHORTCUTS } from '../defaults';
+import { KeyboardShortcutsMap } from '../KeyboardShortcutsMap';
 
 const ACTION_LABELS: Record<KeyboardShortcutAction, string> = {
     navigateDown: 'Navigate down',
@@ -29,42 +30,9 @@ const ACTION_LABELS: Record<KeyboardShortcutAction, string> = {
 
 // ---- Normalization & display helpers ---------------------------------------
 
-/** Normalize a string like "Ctrl+Shift+K" or "J" into "ctrl+shift+k" or "j". */
-const normalizeShortcutString = (raw: string): string => {
-    const parts = raw.split('+').map((p) => p.trim().toLowerCase()).filter(Boolean);
-    const mods = new Set<string>();
-    let key = '';
-
-    for (const p of parts) {
-        if (p === 'ctrl' || p === 'control') mods.add('ctrl');
-        else if (p === 'cmd' || p === 'meta' || p === 'command') mods.add('meta');
-        else if (p === 'alt' || p === 'option') mods.add('alt');
-        else if (p === 'shift') mods.add('shift');
-        else key = p;
-    }
-
-    const ordered = ['ctrl', 'meta', 'alt', 'shift'].filter((m) => mods.has(m));
-    return (ordered.length ? ordered.join('+') + '+' : '') + key;
-};
-
-/** Convert KeyboardEvent -> normalized signature (ctrl+meta+alt+shift+key). */
-const eventToSig = (e: KeyboardEvent): string => {
-    // ignore pure-modifier presses (wait for a real key)
-    const k = String(e.key).toLowerCase();
-    if (k === 'shift' || k === 'control' || k === 'alt' || k === 'meta') return '';
-
-    const mods: string[] = [];
-    if (e.ctrlKey) mods.push('ctrl');
-    if (e.metaKey) mods.push('meta');
-    if (e.altKey) mods.push('alt');
-    if (e.shiftKey) mods.push('shift');
-
-    return (mods.length ? mods.join('+') + '+' : '') + k;
-};
-
 /** Render a normalized signature in human-friendly form (Ctrl + Shift + K). */
 const formatSig = (sig: string): string => {
-    const parts = sig.split('+').filter(Boolean);
+    const parts = KeyboardShortcutsMap.splitShortcut(sig);
     const mods: string[] = [];
     let key = '';
 
@@ -95,12 +63,10 @@ export function renderKeyboardShortcutTab(
     container.empty();
 
     // Ensure settings exist & are mutable copies (we mutate arrays when adding/removing)
-    const ks = plugin.settings.keyboardShortcuts
-        ? cloneMutable(plugin.settings.keyboardShortcuts)
-        : cloneMutable(DEFAULT_KEYBOARD_SHORTCUTS);
-
-    plugin.settings.keyboardShortcuts = ks;
-    save();
+    if (!plugin.settings.keyboardShortcuts) {
+        plugin.settings.keyboardShortcuts = DEFAULT_KEYBOARD_SHORTCUTS;
+        save();
+    }
 
     // Header & reset
     const header = container.createEl('h3', { text: 'Keyboard Shortcuts' });
@@ -122,7 +88,7 @@ export function renderKeyboardShortcutTab(
                 .setButtonText('Reset')
                 .setCta()
                 .onClick(() => {
-                    plugin.settings.keyboardShortcuts = cloneMutable(DEFAULT_KEYBOARD_SHORTCUTS);
+                    plugin.settings.keyboardShortcuts = DEFAULT_KEYBOARD_SHORTCUTS;
                     save();
                     renderKeyboardShortcutTab(container, plugin, save);
                 })
@@ -132,14 +98,14 @@ export function renderKeyboardShortcutTab(
     const ACTIONS: KeyboardShortcutAction[] = Object.keys(ACTION_LABELS) as KeyboardShortcutAction[];
 
     // single source of truth in this tab
-    const getMap = (): KeyboardShortcutsMap => plugin.settings.keyboardShortcuts ?? DEFAULT_KEYBOARD_SHORTCUTS;
+    const getMap = (): KeyboardShortcuts => new KeyboardShortcutsMap(plugin.settings.keyboardShortcuts!);
 
     const refreshConflicts = () => {
         const reverse = new Map<string, KeyboardShortcutAction[]>();
         const map = getMap();
 
         for (const action of ACTIONS) {
-            for (const sig of map[action]) {
+            for (const sig of map.getShortcuts(action) ?? []) {
                 const list = reverse.get(sig) ?? [];
                 list.push(action);
                 reverse.set(sig, list);
@@ -162,7 +128,7 @@ export function renderKeyboardShortcutTab(
             const conflicts = reverseIndex();
 
             // render each chip
-            for (const sig of map[action]) {
+            for (const sig of map.getShortcuts(action)) {
                 const chip = row.createDiv({ cls: 'tasknotes-settings__chip tasknotes-settings__ts-hotkey-pill setting-hotkey' });
                 const offenders = conflicts.get(sig) ?? [];
                 if (offenders.length > 1) chip.addClass('tasknotes-settings__ts-conflict');
@@ -173,9 +139,10 @@ export function renderKeyboardShortcutTab(
                 setIcon(remove, 'x');
                 remove.addClass('setting-delete-hotkey', 'setting-hotkey-icon');
                 remove.addEventListener('click', () => {
-                    map[action] = map[action].filter((s) => s !== sig);
-                    save();
-                    paint();
+                    if (map.removeShortcut(action, sig)) {
+                        save();
+                        paint();
+                    }
                 });
 
                 if (offenders.length > 1) {
@@ -208,15 +175,10 @@ export function renderKeyboardShortcutTab(
                     return;
                 }
 
-                const sig = eventToSig(ev);
-                if (!sig) return; // ignore pure modifiers
-
-                const normalized = normalizeShortcutString(sig);
-                const hotkeys = map[action];
+                if (KeyboardShortcutsMap.isPureModifier(ev)) return; // ignore pure modifiers
 
                 // ignore duplicate in the same action
-                if (!hotkeys.includes(normalized)) {
-                    hotkeys.push(normalized);
+                if (map.addShortcut(action, ev)) {
                     save();
                 }
                 stopCapture();
@@ -288,14 +250,4 @@ export function renderKeyboardShortcutTab(
     attach(other, 'toggleArchive');
     attach(other, 'copyTaskTitles');
 
-}
-
-// ---- utils ------------------------------------------------------------------
-
-function cloneMutable(map: KeyboardShortcutsMap): Record<KeyboardShortcutAction, string[]> {
-    const out: any = {};
-    for (const k of Object.keys(map) as KeyboardShortcutAction[]) {
-        out[k] = [...map[k]];
-    }
-    return out;
 }

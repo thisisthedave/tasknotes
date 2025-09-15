@@ -228,7 +228,7 @@ export default class TaskNotesPlugin extends Plugin {
 		this.migrationService = new MigrationService(this.app);
 		this.statusBarService = new StatusBarService(this);
 		this.notificationService = new NotificationService(this);
-		this.inputObserver = new InputObserver(this.app);
+		this.inputObserver = new InputObserver(this);
 
 		// Note: View registration and heavy operations moved to onLayoutReady
 

@@ -1,5 +1,5 @@
 import { FieldMapping, StatusConfig, PriorityConfig } from '../types';
-import { TaskNotesSettings, TaskCreationDefaults, CalendarViewSettings, ICSIntegrationSettings, ProjectAutosuggestSettings, KeyboardShortcutsMap } from '../types/settings';
+import { TaskNotesSettings, TaskCreationDefaults, CalendarViewSettings, ICSIntegrationSettings, ProjectAutosuggestSettings, KeyboardShortcutAction } from '../types/settings';
 
 // Default field mapping maintains backward compatibility
 export const DEFAULT_FIELD_MAPPING: FieldMapping = {
@@ -166,7 +166,7 @@ export const DEFAULT_PROJECT_AUTOSUGGEST: ProjectAutosuggestSettings = {
 
 
 /** Defaults are duplicated here for reset, must stay in sync with plugin defaults */
-export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutsMap = {
+export const DEFAULT_KEYBOARD_SHORTCUTS: Record<KeyboardShortcutAction, readonly string[]> = {
   navigateDown: ['j', 'arrow down'],
   navigateUp: ['k', 'arrow up'],
   copyTaskTitles: ['ctrl+c', 'meta+c'],
@@ -181,14 +181,14 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: KeyboardShortcutsMap = {
   editScheduleDates: ['shift+s'],
   editPoints: ['^'],
   editTags: ['#'],
-  editProjects: ['+'],
+  editProjects: ['shift++'],
   editContexts: ['@'],
   editPriorities: ['p'],
   editRecurrence: ['r'],
   editStatuses: ['s'],
   deleteTasks: ['ctrl+delete', 'meta+delete'],
   toggleArchive: ['y'],
-};
+} as const;
 
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	tasksFolder: 'TaskNotes/Tasks',
@@ -287,7 +287,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 		'contexts',    // Contexts
 		'tags'         // Tags
 	],
-	keyboardShortcuts: { ...DEFAULT_KEYBOARD_SHORTCUTS },
+	keyboardShortcuts: DEFAULT_KEYBOARD_SHORTCUTS,
 	// Recurring task behavior defaults
 	maintainDueDateOffsetInRecurring: false
 };
