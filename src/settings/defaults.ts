@@ -199,7 +199,7 @@ export const DEFAULT_JIRA_FIELD_MAPPING: JiraFieldMappingSettings = {
   due:      { mode: 'path',     value: 'fields.duedate' },
   scheduled:{ mode: 'off',      value: '' },
   timeEstimate: { mode: 'path', value: 'fields.timeestimate' }, // seconds → minutes
-  points:   { mode: 'path',     value: 'fields.customfield_10090' }, // common default; configurable
+  points:   { mode: 'path',     value: '' }, // common default; configurable
   dateCreated:  { mode: 'path', value: 'fields.created' },
   dateModified: { mode: 'path', value: 'fields.updated' },
   completedDate:{ mode: 'path', value: 'fields.resolutiondate' },

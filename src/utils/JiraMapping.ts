@@ -53,19 +53,77 @@ export function getByPath(root: Json, path: string): unknown {
 	return cur;
 }
 
+// sanitize display names into token-safe identifiers: "Story Points" -> "Story_Points"
+export function sanitizeJiraFieldName(s: string): string { return s.replace(/[^a-zA-Z0-9._\[\]]+/g, '_'); }
+
+export function resolveTokenToPath(token: string, issue: IJiraIssue): string {
+  const aliases = buildAliasMap(issue);
+  // exact or lowercase match; also allow raw customfield_* and fields.*
+  return (
+    aliases[token] ??
+    aliases[token.toLowerCase()] ??
+    (token.startsWith('fields.') ? token : token.startsWith('customfield_') ? `fields.${token}` : token)
+  );
+}
+
+// Build an alias map once per render from issue metadata
+function buildAliasMap(ctx: IJiraIssue): Record<string, string> {
+  const map: Record<string, string> = {
+    key: 'key',
+    id: 'id',
+    summary: 'fields.summary',
+    description: 'fields.description',
+  };
+
+  // prefer metadata on the issue; fall back to plugin API cache if you want (optional)
+  const cfMap =
+    (ctx as any)?.customFieldsNameToId ||
+    (ctx as any)?.fields?.customFieldsNameToId; // tolerate either location if present
+
+  if (cfMap && typeof cfMap === 'object') {
+    for (const [name, id] of Object.entries<string>(cfMap as Record<string, string>)) {
+      const token = sanitizeJiraFieldName(String(name));
+      const path = `fields.customfield_${id}`;
+      // support case-insensitive tokens by adding lowercased alias too
+      map[token] = path;
+      map[token.toLowerCase()] = path;
+    }
+  }
+
+  return map;
+}
+
 export function renderTemplate(tpl: string, ctx: IJiraIssue): string {
-	// Replace $tokens greedily; token = $ followed by [a-zA-Z0-9._\[\]]+
-	return tpl.replace(/\$[a-zA-Z0-9._\[\]]+/g, (m) => {
-			const key = m.slice(1);
-			const value = getByPath(ctx, key === 'summary' ? 'fields.summary'
-				: key === 'description' ? 'fields.description'
-					: key === 'key' ? 'key'
-						: key.startsWith('fields.') ? key : key);
-			if (Array.isArray(value)) return value.map(v => String(v)).join(', ');
-			if (value == null) return '';
-			return String(value);
-		}).replace(/\\n/g, '\n')
-		.trim();
+  const aliases = buildAliasMap(ctx);
+
+  // $token = $[a-zA-Z0-9._[]]+  (underscores are already allowed)
+  return tpl
+    .replace(/\$[a-zA-Z0-9._\[\]]+/g, (m) => {
+      const raw = m.slice(1);
+
+      // 1) alias by exact or lowercased token (handles $Design and $Story_Points)
+      const aliased =
+        aliases[raw] ??
+        aliases[raw.toLowerCase()] ??
+        // 2) allow $customfield_12345 as shorthand for fields.customfield_12345
+        (/^customfield_\d+(\..*)?$/i.test(raw) ? `fields.${raw}` : undefined);
+
+      // 3) built-ins and passthroughs
+      const keyPath =
+        aliased ??
+        (raw === 'summary' ? 'fields.summary'
+          : raw === 'description' ? 'fields.description'
+          : raw === 'key' ? 'key'
+          : raw.startsWith('fields.') ? raw
+          : raw);
+
+      const value = getByPath(ctx, keyPath);
+      if (Array.isArray(value)) return value.map((v) => String(v)).join(', ');
+      if (value == null) return '';
+      return String(value);
+    })
+    .replace(/\\n/g, '\n')
+    .trim();
 }
 
 

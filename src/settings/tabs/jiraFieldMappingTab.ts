@@ -2,42 +2,60 @@ import { Setting, TextComponent, AbstractInputSuggest, setIcon, Notice, App, Ext
 import TaskNotesPlugin from '../../main';
 import { createSectionHeader, createHelpText } from '../components/settingHelpers';
 import type { IJiraIssue } from 'src/types/obsidian-jira-issue';
-import { getByPath, renderTemplate } from 'src/utils/JiraMapping';
+import { getByPath, renderTemplate, resolveTokenToPath, sanitizeJiraFieldName } from 'src/utils/JiraMapping';
 import { EnumRemapPair, JiraArraySource, JiraFieldMappingSettings, JiraValueSource } from 'src/types/settings';
 import { DEFAULT_JIRA_FIELD_MAPPING } from '../defaults';
 import { TaskInfo } from 'src/types';
 
-class TokenSuggest extends AbstractInputSuggest<{ token: string, preview?: string }> {
-	private tokens: { token: string, preview?: string }[] = [];
+type TokenItem = { token: string; preview?: string };
+type PreviewResolver = (token: string) => string | undefined;
+
+export class TokenSuggest extends AbstractInputSuggest<TokenItem> {
+	private tokens: TokenItem[] = [];
 	private inputEl: HTMLInputElement | HTMLDivElement;
+	private previewOf?: PreviewResolver;
 
 	constructor(app: App, textInputEl: HTMLInputElement | HTMLDivElement) {
 		super(app, textInputEl);
 		this.inputEl = textInputEl;
 	}
 
-	setTokens(tokens: { token: string, preview?: string }[]) { this.tokens = tokens; }
+	/** Provide tokens (you can omit preview; it will be computed if a resolver is set) */
+	setTokens(tokens: TokenItem[]) { this.tokens = tokens; }
+
+	/** Inject a resolver that returns the current sample-value for a token */
+	setPreviewResolver(resolver: PreviewResolver | undefined) { this.previewOf = resolver; }
 
 	override getSuggestions(q: string) {
+		// Suggest based on the segment after the last '$'
 		const afterDollar = q.split('$').pop() ?? '';
-		return this.tokens.filter(t => t.token.toLowerCase().contains(afterDollar.toLowerCase()));
+		const lc = afterDollar.toLowerCase();
+
+		// Filter + compute previews lazily
+		return this.tokens
+			.filter(t => t.token.toLowerCase().includes(lc))
+			.map(t => ({
+				token: t.token,
+				preview: this.previewOf?.(t.token) ?? t.preview,
+			}));
 	}
 
-	override renderSuggestion(value: { token: string, preview?: string }, el: HTMLElement) {
+	override renderSuggestion(value: TokenItem, el: HTMLElement) {
 		el.addClass('mod-complex');
 		const left = el.createDiv({ text: '$' + value.token });
 		const right = el.createDiv({ text: value.preview ?? '', cls: 'mod-muted' });
 		right.style.marginLeft = '8px';
 	}
 
-	override selectSuggestion(value: { token: string, preview?: string }, evt: MouseEvent | KeyboardEvent): void {
+	override selectSuggestion(value: TokenItem): void {
 		const input = this.inputEl as HTMLInputElement;
 		const before = input.value.slice(0, input.selectionStart ?? 0);
 		const after = input.value.slice(input.selectionEnd ?? input.value.length);
 		const prefix = before.lastIndexOf('$');
 		const preText = prefix >= 0 ? before.slice(0, prefix) : before;
 		input.value = preText + '$' + value.token + after;
-		input.setSelectionRange(preText.length + value.token.length + 1, preText.length + value.token.length + 1);
+		const caret = preText.length + value.token.length + 1;
+		input.setSelectionRange(caret, caret);
 		input.dispatchEvent(new Event('input'));
 		this.close();
 	}
@@ -107,33 +125,82 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 
 
 	// helper: build tokens from sampleIssue
-	const collectTokens = (): { token: string, preview?: string }[] => {
+	const collectTokens = (): { token: string; preview?: string }[] => {
 		const base = [
 			{ token: 'key', preview: sampleIssue?.key },
 			{ token: 'id', preview: sampleIssue?.id },
-			{ token: 'summary', preview: sampleIssue ? String(getByPath(sampleIssue, 'fields.summary') ?? '') : undefined },
-			{ token: 'description', preview: sampleIssue ? String(getByPath(sampleIssue, 'fields.description') ?? '') : undefined },
+			{
+				token: 'summary',
+				preview: sampleIssue ? String(getByPath(sampleIssue, 'fields.summary') ?? '') : undefined,
+			},
+			{
+				token: 'description',
+				preview: sampleIssue ? String(getByPath(sampleIssue, 'fields.description') ?? '') : undefined,
+			},
 		];
-		// flatten fields.* shallow + a few popular arrays
-		const extra: { token: string, preview?: string }[] = [];
+
+		const extra: { token: string; preview?: string }[] = [];
+
+		// Include custom-field shortcuts derived from metadata
+		const customFieldIndex =
+			(sampleIssue as any)?.account?.cache?.customFieldsNameToId ||
+			(sampleIssue as any)?.customFieldsNameToId ||
+			(sampleIssue as any)?.fields?.customFieldsNameToId;
+
+		if (customFieldIndex && typeof customFieldIndex === 'object') {
+			for (const [name, id] of Object.entries<string>(customFieldIndex as Record<string, string>)) {
+				const token = sanitizeJiraFieldName(String(name)); // e.g., "Story Points" -> "Story_Points"
+				const path = `fields.customfield_${id}`;
+				const preview = sampleIssue ? String(getByPath(sampleIssue, path) ?? '') : '';
+				extra.push({ token, preview });
+			}
+		}
+
+		// flatten fields.* shallow + a few popular arrays (as before)
 		if (sampleIssue?.fields) {
 			for (const k of Object.keys(sampleIssue.fields)) {
 				if (typeof (sampleIssue.fields as any)[k] !== 'object') {
 					extra.push({ token: `fields.${k}`, preview: String((sampleIssue.fields as any)[k]) });
 				}
 			}
-			// common arrays
 			const arrays = ['labels', 'components[]', 'fixVersions[]', 'issueLinks[]', 'worklog.worklogs[]'];
-			arrays.forEach(a => extra.push({ token: `fields.${a}`, preview: '' }));
-			// nested names shown as hints
-			extra.push({ token: 'fields.project.key', preview: String(getByPath(sampleIssue, 'fields.project.key') ?? '') });
-			extra.push({ token: 'fields.priority.name', preview: String(getByPath(sampleIssue, 'fields.priority.name') ?? '') });
-			extra.push({ token: 'fields.status.name', preview: String(getByPath(sampleIssue, 'fields.status.name') ?? '') });
-			extra.push({ token: 'fields.parent.key', preview: String(getByPath(sampleIssue, 'fields.parent.key') ?? '') });
+			arrays.forEach((a) => extra.push({ token: `fields.${a}`, preview: '' }));
+
+			// nested helpful hints
+			extra.push({
+				token: 'fields.project.key',
+				preview: String(getByPath(sampleIssue, 'fields.project.key') ?? ''),
+			});
+			extra.push({
+				token: 'fields.priority.name',
+				preview: String(getByPath(sampleIssue, 'fields.priority.name') ?? ''),
+			});
+			extra.push({
+				token: 'fields.status.name',
+				preview: String(getByPath(sampleIssue, 'fields.status.name') ?? ''),
+			});
+			extra.push({
+				token: 'fields.parent.key',
+				preview: String(getByPath(sampleIssue, 'fields.parent.key') ?? ''),
+			});
+
+			// also advertise raw customfield_* tokens for power users
+			// (no preview unless you want to iterate all fields.* and pick those that match)
+			// If you want: scan keys that look like customfield_\d+ and add them here.
 		}
+
 		return [...base, ...extra];
 	};
+
 	tokens = collectTokens();
+
+	const previewResolver: (token: string) => string | undefined = (token) => {
+		if (!sampleIssue) return undefined;
+		const path = resolveTokenToPath(token, sampleIssue);
+		const val = getByPath(sampleIssue, path);
+		if (Array.isArray(val)) return val.map(v => String(v)).join(', ');
+		return val == null ? '' : String(val);
+	}
 
 	// --- Two-column grid
 	// const container = container.createDiv({ cls: 'tasknotes-settings__jira-grid' });
@@ -141,13 +208,13 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	const fieldRows: Array<() => void> = [];
 
 	x: Setting;
-	const updateSettingValue = (): { value: string, preview: string} => {
+	const updateSettingValue = (): { value: string, preview: string } => {
 		return { value: '', preview: '' };
 	};
 	const refreshSetting = (
-		src: JiraValueSource | undefined, 
-		setting: Setting, 
-		preview: boolean, 
+		src: JiraValueSource | undefined,
+		setting: Setting,
+		preview: boolean,
 		suggest: TokenSuggest | null
 	) => {
 		const jiraSrc = normalizeSource(src, { mode: 'off', value: '' });
@@ -174,8 +241,8 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	const addScalarRow = (
 		label: string,
 		property: keyof JiraFieldMappingSettings,
-		getSrc: () => JiraValueSource | undefined, 
-		setSrc: (scalarSource: JiraValueSource) => void, 
+		getSrc: () => JiraValueSource | undefined,
+		setSrc: (scalarSource: JiraValueSource) => void,
 		opts?: { template?: boolean, preview?: boolean }
 	) => {
 		const setAndSave = (scalarSource: JiraValueSource) => {
@@ -202,6 +269,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 				// Value input with $-autocomplete (when template/path)
 				input.setPlaceholder('e.g., $key or fields.summary');
 				suggest = new TokenSuggest(plugin.app, input.inputEl);
+				suggest.setPreviewResolver(previewResolver)
 				suggest.setTokens(collectTokens());
 
 				input.onChange(v => {
@@ -224,9 +292,9 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	};
 
 	const addArrayRow = (
-		label: string, 
+		label: string,
 		property: keyof JiraFieldMappingSettings,
-		getList: () => JiraArraySource[] | undefined, 
+		getList: () => JiraArraySource[] | undefined,
 		setList: (arraySources: JiraArraySource[]) => void
 	) => {
 		const setAndSave = (arraySources: JiraArraySource[], render: () => void) => {
@@ -237,7 +305,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 
 		const arraySetting = new Setting(container).setName(label);
 		const mappingArrayEl = arraySetting.controlEl.createDiv({ cls: 'tasknotes-settings__jira-arr' });
-		
+
 		const renderArraySetting = () => {
 			mappingArrayEl.empty();
 			const arraySources = getList() ?? [];
@@ -251,28 +319,28 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 						.addOption('path', 'Field path')
 						.addOption('fixed', 'Fixed')
 						.setValue(src.mode)
-						.onChange(value => { 
-							const cp = [...arraySources]; 
-							cp[idx] = { ...src, mode: value as any }; 
+						.onChange(value => {
+							const cp = [...arraySources];
+							cp[idx] = { ...src, mode: value as any };
 							setAndSave(cp, () => refreshSetting(cp[idx], arrayRowSetting, true, suggest));
 						});
 				}).addText(input => {
 					input
 						.setValue(src.value)
-						.onChange(v => { 
-							const cp = [...arraySources]; 
-							cp[idx] = { ...src, value: v }; 
+						.onChange(v => {
+							const cp = [...arraySources];
+							cp[idx] = { ...src, value: v };
 							setAndSave(cp, () => refreshSetting(cp[idx], arrayRowSetting, true, suggest));
 						});
-					suggest = new TokenSuggest(plugin.app, input.inputEl); 
+					suggest = new TokenSuggest(plugin.app, input.inputEl);
 					suggest.setTokens(tokens);
 				}).addExtraButton(deleteBtn => {
 					deleteBtn
 						.setIcon('x')
 						.setTooltip('Remove source')
-						.onClick(() => { 
-							const cp = [...arraySources]; 
-							cp.splice(idx, 1); 
+						.onClick(() => {
+							const cp = [...arraySources];
+							cp.splice(idx, 1);
 							setAndSave(cp, () => rerenderFields());
 						});
 				}).setDesc('Load a sample issue to preview'); // may be updated below
@@ -282,8 +350,8 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 
 			const add = new Setting(mappingArrayEl).addExtraButton(b => {
 				b.setIcon('circle-plus').setTooltip('Add source').onClick(() => {
-					const cp = [...(getList() ?? [])]; 
-					cp.push({ mode: 'path', value: '' }); 
+					const cp = [...(getList() ?? [])];
+					cp.push({ mode: 'path', value: '' });
 					setAndSave(cp, () => rerenderFields());
 				});
 			});
@@ -320,10 +388,10 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 
 	// --- Enum remaps (status/priority/contexts)
 	const addEnumEditor = (
-		title: string, 
+		title: string,
 		property: keyof JiraFieldMappingSettings,
-		getPairs: () => EnumRemapPair[] | undefined, 
-		setPairs: (xs: EnumRemapPair[]) => void, 
+		getPairs: () => EnumRemapPair[] | undefined,
+		setPairs: (xs: EnumRemapPair[]) => void,
 		leftValues: string[]
 	) => {
 		const box = new Setting(container).setName(`${title} remapping`).setDesc('Convert incoming JIRA values to your TaskNotes values.');
@@ -336,35 +404,35 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 				const row = host.createDiv({ cls: 'tasknotes-settings__jira-enum' });
 				// left: TaskNotes value (dropdown from your configured values)
 				new Setting(row)
-				.addText(t => {
-					// right: CSV of JIRA values mapping to that TaskNotes value
-					t.setPlaceholder('JIRA values (comma separated)');
-					t.setValue((p.jiraValues ?? []).join(', '));
-					t.onChange(v => { 
-						const cp = [...pairs]; 
-						cp[i] = { ...p, jiraValues: v.split(',').map(s => s.trim()).filter(Boolean) }; 
-						setPairs(cp); 
-						save(); 
-					});
-				}).addDropdown(d => {
-					leftValues.forEach(v => d.addOption(v, v));
-					d.setValue(p.taskValue ?? '');
-					d.onChange(v => { 
-						const cp = [...pairs]; 
-						cp[i] = { ...p, taskValue: v }; 
-						setPairs(cp); 
-						save(); 
-					});
-				}).addExtraButton(b => 
-					b.setIcon('x')
-					.setTooltip('Remove')
-					.onClick(() => {
-						const cp = [...pairs]; 
-						cp.splice(i, 1); 
-						setPairs(cp); 
-						save(); 
-						renderEnumSetting();
-					}));
+					.addText(t => {
+						// right: CSV of JIRA values mapping to that TaskNotes value
+						t.setPlaceholder('JIRA values (comma separated)');
+						t.setValue((p.jiraValues ?? []).join(', '));
+						t.onChange(v => {
+							const cp = [...pairs];
+							cp[i] = { ...p, jiraValues: v.split(',').map(s => s.trim()).filter(Boolean) };
+							setPairs(cp);
+							save();
+						});
+					}).addDropdown(d => {
+						leftValues.forEach(v => d.addOption(v, v));
+						d.setValue(p.taskValue ?? '');
+						d.onChange(v => {
+							const cp = [...pairs];
+							cp[i] = { ...p, taskValue: v };
+							setPairs(cp);
+							save();
+						});
+					}).addExtraButton(b =>
+						b.setIcon('x')
+							.setTooltip('Remove')
+							.onClick(() => {
+								const cp = [...pairs];
+								cp.splice(i, 1);
+								setPairs(cp);
+								save();
+								renderEnumSetting();
+							}));
 			});
 
 			new Setting(host).addExtraButton(b => {
