@@ -444,7 +444,7 @@ export const PluginFactory = {
         on: jest.fn(),
         off: jest.fn()
       },
-      fieldMapper: new FieldMapper(DEFAULT_FIELD_MAPPING),
+      fieldMapper: new FieldMapper(DEFAULT_FIELD_MAPPING, DEFAULT_FIELD_MAPPING),
       cacheManager: mockCache,
       taskService: {
         createTask: jest.fn().mockImplementation(async (taskData) => {

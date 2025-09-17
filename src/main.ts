@@ -155,7 +155,7 @@ export default class TaskNotesPlugin extends Plugin {
 
 	// Notification service
 	notificationService: NotificationService;
-	
+
 	// Track input focus state for keyboard shortcuts
 	inputObserver: InputObserver;
 
@@ -193,7 +193,7 @@ export default class TaskNotesPlugin extends Plugin {
 		</g>`);
 
 		// Initialize only essential services that are needed for app registration
-		this.fieldMapper = new FieldMapper(this.settings.fieldMapping);
+		this.fieldMapper = new FieldMapper(this.settings.fieldMapping, this.settings.jiraMapping);
 		this.statusManager = new StatusManager(this.settings.customStatuses);
 		this.priorityManager = new PriorityManager(this.settings.customPriorities);
 
@@ -264,7 +264,7 @@ export default class TaskNotesPlugin extends Plugin {
 		this.addRibbonIcon('bar-chart-3', 'Open pomodoro stats', async () => {
 			await this.activatePomodoroStatsView();
 		});
-		
+
 		this.addRibbonIcon('tasknotes-simple', 'Create new task', () => {
 			// Create a subtask with the current task as the project reference			
 			this.openTaskCreationModal(this.getPrepopulatedTaskValues());
@@ -332,7 +332,7 @@ export default class TaskNotesPlugin extends Plugin {
 		if (this.settings.taskCreationDefaults.useParentNoteAsProject) {
 			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 			const currentFile = view?.file
-			const projectDefault = currentFile instanceof TFile ? { projects: [ `[[${currentFile.basename}]]` ] } : undefined;
+			const projectDefault = currentFile instanceof TFile ? { projects: [`[[${currentFile.basename}]]`] } : undefined;
 			return projectDefault;
 		} else {
 			return undefined;
@@ -741,6 +741,25 @@ export default class TaskNotesPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Wait for cache to be ready with actual data
+	 */
+	async waitForCacheReady(): Promise<void> {
+		// First check if cache is already initialized
+		if (this.cacheManager.isInitialized()) {
+			return;
+		}
+
+		// If not initialized, wait for the cache-initialized event
+		return new Promise((resolve) => {
+			const unsubscribe = this.cacheManager.subscribe('cache-initialized', () => {
+				unsubscribe();
+				resolve();
+			});
+		});
+	}
+
+
 	// Methods for updating shared state and emitting events
 
 	/**
@@ -814,14 +833,14 @@ export default class TaskNotesPlugin extends Plugin {
 		const now = new Date();
 		const midnight = new Date(now);
 		midnight.setHours(24, 0, 0, 0); // Next midnight
-		
+
 		const msUntilMidnight = midnight.getTime() - now.getTime();
-		
+
 		// Clear any existing midnight timeout
 		if (this.midnightTimeout) {
 			window.clearTimeout(this.midnightTimeout);
 		}
-		
+
 		this.midnightTimeout = window.setTimeout(() => {
 			// Force immediate date change check at midnight
 			const currentDate = new Date().toDateString();
@@ -829,11 +848,11 @@ export default class TaskNotesPlugin extends Plugin {
 				this.lastKnownDate = currentDate;
 				this.emitter.trigger(EVENT_DATE_CHANGED);
 			}
-			
+
 			// Schedule the next midnight check
 			this.scheduleNextMidnightCheck();
 		}, msUntilMidnight);
-		
+
 		// Register the timeout for cleanup
 		this.registerInterval(this.midnightTimeout);
 	}
@@ -890,12 +909,12 @@ export default class TaskNotesPlugin extends Plugin {
 		if (this.notificationService) {
 			this.notificationService.destroy();
 		}
-		
+
 		// Clean up input observer
 		if (this.inputObserver) {
 			this.inputObserver.disconnect();
 		}
-		
+
 		// Clean up native cache manager
 		if (this.cacheManager) {
 			this.cacheManager.destroy();
@@ -1259,7 +1278,7 @@ export default class TaskNotesPlugin extends Plugin {
 			callback: async () => {
 				await this.importJiraIssue();
 			},
-		});		
+		});
 	}
 
 	// Helper method to create or activate a view of specific type
@@ -1396,31 +1415,31 @@ export default class TaskNotesPlugin extends Plugin {
 	}
 
 
-/**
- * Inject dynamic CSS for custom statuses and priorities
- */
-private injectCustomStyles(): void {
-	// Remove existing custom styles
-	const existingStyle = document.getElementById('tasknotes-custom-styles');
-	if (existingStyle) {
-		existingStyle.remove();
-	}
+	/**
+	 * Inject dynamic CSS for custom statuses and priorities
+	 */
+	private injectCustomStyles(): void {
+		// Remove existing custom styles
+		const existingStyle = document.getElementById('tasknotes-custom-styles');
+		if (existingStyle) {
+			existingStyle.remove();
+		}
 
-	// Generate new styles
-	const statusStyles = this.statusManager.getStatusStyles();
-	const priorityStyles = this.priorityManager.getPriorityStyles();
+		// Generate new styles
+		const statusStyles = this.statusManager.getStatusStyles();
+		const priorityStyles = this.priorityManager.getPriorityStyles();
 
-	// Create style element
-	const styleEl = document.createElement('style');
-	styleEl.id = 'tasknotes-custom-styles';
-	styleEl.textContent = `
+		// Create style element
+		const styleEl = document.createElement('style');
+		styleEl.id = 'tasknotes-custom-styles';
+		styleEl.textContent = `
 		${statusStyles}
 		${priorityStyles}
 	`;
 
-	// Inject into document head
-	document.head.appendChild(styleEl);
-}
+		// Inject into document head
+		document.head.appendChild(styleEl);
+	}
 
 	async updateTaskProperty(task: TaskInfo, property: keyof TaskInfo, value: TaskInfo[keyof TaskInfo], options: { silent?: boolean } = {}): Promise<TaskInfo> {
 		try {
@@ -1448,7 +1467,7 @@ private injectCustomStyles(): void {
 	async batchUpdateTasksProperty(tasks: TaskInfo[], property: keyof TaskInfo, value: TaskInfo[keyof TaskInfo], options: { silent?: boolean } = {}): Promise<TaskInfo[]> {
 		try {
 			const updatedTasks = await this.taskService.batchUpdateProperty(tasks, property, value, options);
-			
+
 			// Provide user feedback unless silent
 			if (!options.silent) {
 				if (property === 'status') {
@@ -1459,7 +1478,7 @@ private injectCustomStyles(): void {
 					new Notice(`${tasks.length} Tasks ${property} updated`);
 				}
 			}
-			
+
 			return updatedTasks;
 		} catch (error) {
 			console.error(`Failed to update ${tasks.length} tasks ${property}:`, error);
@@ -1467,7 +1486,7 @@ private injectCustomStyles(): void {
 			throw error;
 		}
 	}
-	
+
 	/**
 	 * Toggles a recurring task's completion status for the selected date
 	 */
@@ -1593,9 +1612,9 @@ private injectCustomStyles(): void {
 		// Get existing non-project filters
 		const existingFilters = filterBar.currentQuery.children.filter((child: any) => {
 			return !(child.type === 'condition' &&
-					child.property === 'projects' &&
-					child.operator === 'contains' &&
-					child.id.startsWith('project_'));
+				child.property === 'projects' &&
+				child.operator === 'contains' &&
+				child.id.startsWith('project_'));
 		});
 
 		if (existingFilters.length === 0) {
@@ -1632,7 +1651,7 @@ private injectCustomStyles(): void {
 		filterBar.currentQuery.children = filterBar.currentQuery.children.filter((child: any) => {
 			if (child.type === 'condition') {
 				return !(child.property === 'projects' && child.operator === 'contains' &&
-						child.id.startsWith('project_'));
+					child.id.startsWith('project_'));
 			}
 			return true;
 		});
@@ -1784,7 +1803,7 @@ private injectCustomStyles(): void {
 	async promptForIssueKey(): Promise<string | null> {
 		return new Promise((resolve) => {
 			new JiraIssueModal(this.app, (result) => resolve(result)).open();
-		});		
+		});
 	}
 
 	/**
@@ -2027,7 +2046,7 @@ private injectCustomStyles(): void {
 	 * Handle task creation completion - insert link at the determined position
 	 */
 	private handleInlineTaskCreated(
-		task: TaskInfo, 
+		task: TaskInfo,
 		context: {
 			editor: Editor;
 			insertionPoint: { line: number; ch: number };
@@ -2054,7 +2073,7 @@ private injectCustomStyles(): void {
 
 			// Insert the link at the determined insertion point
 			editor.replaceRange(properLink, insertionPoint);
-			
+
 			// Position cursor at end of inserted link
 			const newCursor = {
 				line: insertionPoint.line,

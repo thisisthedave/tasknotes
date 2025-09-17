@@ -1,5 +1,5 @@
 import { FieldMapping, StatusConfig, PriorityConfig } from '../types';
-import { TaskNotesSettings, TaskCreationDefaults, CalendarViewSettings, ICSIntegrationSettings, ProjectAutosuggestSettings, KeyboardShortcutAction } from '../types/settings';
+import { TaskNotesSettings, TaskCreationDefaults, CalendarViewSettings, ICSIntegrationSettings, ProjectAutosuggestSettings, KeyboardShortcutAction, JiraFieldMappingSettings } from '../types/settings';
 
 // Default field mapping maintains backward compatibility
 export const DEFAULT_FIELD_MAPPING: FieldMapping = {
@@ -164,7 +164,6 @@ export const DEFAULT_PROJECT_AUTOSUGGEST: ProjectAutosuggestSettings = {
 	includeFolders: []
 };
 
-
 /** Defaults are duplicated here for reset, must stay in sync with plugin defaults */
 export const DEFAULT_KEYBOARD_SHORTCUTS: Record<KeyboardShortcutAction, readonly string[]> = {
   navigateDown: ['j', 'arrow down'],
@@ -189,6 +188,35 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: Record<KeyboardShortcutAction, readonly
   deleteTasks: ['ctrl+delete', 'meta+delete'],
   toggleArchive: ['y'],
 } as const;
+
+// Reasonable defaults title/desc/duedate, no defaults for projects/contexts
+export const DEFAULT_JIRA_FIELD_MAPPING: JiraFieldMappingSettings = {
+  id:       { mode: 'template', value: '$key' },
+  title:    { mode: 'template', value: '$key\n$fields.summary' },
+  details:  { mode: 'template', value: 'JIRA:$key\n$fields.description' },
+  status:   { mode: 'path',     value: 'fields.status.name' },
+  priority: { mode: 'path',     value: 'fields.priority.name' },
+  due:      { mode: 'path',     value: 'fields.duedate' },
+  scheduled:{ mode: 'off',      value: '' },
+  timeEstimate: { mode: 'path', value: 'fields.timeestimate' }, // seconds → minutes
+  points:   { mode: 'path',     value: 'fields.customfield_10090' }, // common default; configurable
+  dateCreated:  { mode: 'path', value: 'fields.created' },
+  dateModified: { mode: 'path', value: 'fields.updated' },
+  completedDate:{ mode: 'path', value: 'fields.resolutiondate' },
+  recurrence:   { mode: 'off',  value: '' },
+
+  tags:     [{ mode: 'path', value: 'fields.labels' }],        // array already
+  projects: [],                                                // you’ll likely add epic/parent via UI
+  contexts: [],
+
+  timeEntries:      { mode: 'path', value: 'fields.worklog.worklogs' },
+  totalTrackedTime: { mode: 'path', value: 'fields.aggregatetimespent' },
+
+  statusMap:   [], // user fills
+  priorityMap: [],
+  contextsMap: [],
+  localizeTimes: false,
+};
 
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	tasksFolder: 'TaskNotes/Tasks',
@@ -288,6 +316,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 		'tags'         // Tags
 	],
 	keyboardShortcuts: DEFAULT_KEYBOARD_SHORTCUTS,
+	jiraMapping: DEFAULT_JIRA_FIELD_MAPPING,
 	// Recurring task behavior defaults
 	maintainDueDateOffsetInRecurring: false
 };

@@ -8,6 +8,7 @@ import { renderAppearanceTab } from './tabs/appearanceTab';
 import { renderFeaturesTab } from './tabs/featuresTab';
 import { renderIntegrationsTab } from './tabs/integrationsTab';
 import { renderKeyboardShortcutTab } from './tabs/keyboardShortcutTab';
+import { renderJiraFieldMappingTab } from './tabs/jiraFieldMappingTab';
 
 interface TabConfig {
     id: string;
@@ -72,6 +73,11 @@ export class TaskNotesSettingTab extends PluginSettingTab {
                 id: 'integrations', 
                 name: 'Integrations',
                 renderFn: renderIntegrationsTab
+            },
+            {
+                id: 'jira-field-mapping',
+                name: 'Jira',
+                renderFn: renderJiraFieldMappingTab,
             }
         ];
 
@@ -216,6 +222,11 @@ export class TaskNotesSettingTab extends PluginSettingTab {
                 id: 'integrations', 
                 name: 'Integrations',
                 renderFn: renderIntegrationsTab
+            },
+            {
+                id: 'jira-field-mapping',
+                name: 'Jira',
+                renderFn: renderJiraFieldMappingTab,
             }
         ];
     }

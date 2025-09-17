@@ -117,6 +117,8 @@ export interface TaskNotesSettings {
 	defaultVisibleProperties?: string[];
 	// Keyboard shortcuts
 	keyboardShortcuts?: Record<KeyboardShortcutAction, readonly string[]>;
+	// JIRA integration field mapping (optional)
+	jiraMapping?: JiraFieldMappingSettings;
 	// Recurring task behavior
 	maintainDueDateOffsetInRecurring: boolean;
 }
@@ -227,4 +229,55 @@ export interface CalendarViewSettings {
 	weekNumbers: boolean;
 	// Today highlighting
 	showTodayHighlight: boolean;
+}
+
+// src/types/jiraMapping.ts
+import type { IJiraIssue } from 'src/types/obsidian-jira-issue'; // or your path
+
+export type JiraValueSourceMode = 'path' | 'template' | 'fixed' | 'off';
+
+export interface JiraValueSource {
+  mode: JiraValueSourceMode;
+  value: string;   // path (e.g. "fields.summary"), template (e.g. "JIRA:$key\n$fields.description"), or fixed value
+}
+
+export interface JiraArraySource extends JiraValueSource {} // same shape; multiple entries allowed
+
+export interface EnumRemapPair {
+  taskValue: string;       // TaskNotes configured value (left side in UI)
+  jiraValues: string[];    // 1..n JIRA incoming values that should map to that task value
+}
+
+export interface JiraFieldMappingSettings {
+  // Scalar fields
+  id?: JiraValueSource;            // optional; template OK
+  title: JiraValueSource;          // required; template OK
+  details?: JiraValueSource;       // template OK; becomes note body (file content)
+  status?: JiraValueSource;        // typically a path, then enum remap
+  priority?: JiraValueSource;      // typically a path, then enum remap
+  due?: JiraValueSource;           // ISO date
+  scheduled?: JiraValueSource;     // ISO date
+  timeEstimate?: JiraValueSource;  // minutes
+  points?: JiraValueSource;        // number
+  dateCreated?: JiraValueSource;   // ISO datetime
+  dateModified?: JiraValueSource;  // ISO datetime
+  completedDate?: JiraValueSource; // ISO date
+  recurrence?: JiraValueSource;    // string rr rule
+
+  // Array fields (merge sources; flatten+dedupe)
+  tags?: JiraArraySource[];
+  projects?: JiraArraySource[];    // no default
+  contexts?: JiraArraySource[];    // no default
+
+  // Worklog
+  timeEntries?: JiraValueSource;   // structured extraction
+  totalTrackedTime?: JiraValueSource;
+
+  // Enum remaps
+  statusMap?: EnumRemapPair[];     // JIRA→TaskNotes
+  priorityMap?: EnumRemapPair[];
+  contextsMap?: EnumRemapPair[];   // optional; allows mapping component/team names -> your contexts
+
+  // Options
+  localizeTimes?: boolean;         // future-proof toggle
 }

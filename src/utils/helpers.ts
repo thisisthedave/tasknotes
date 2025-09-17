@@ -3,7 +3,7 @@ import { format, isBefore, startOfDay } from 'date-fns';
 import { RRule } from 'rrule';
 import { TimeInfo, TaskInfo, TimeEntry, TimeBlock, DailyNoteFrontmatter } from '../types';
 import { FieldMapper } from '../services/FieldMapper';
-import { DEFAULT_FIELD_MAPPING } from '../settings/defaults';
+import { DEFAULT_FIELD_MAPPING, DEFAULT_JIRA_FIELD_MAPPING } from '../settings/defaults';
 import { isBeforeDateSafe, getTodayString, parseDateToLocal, parseDateToUTC, createUTCDateForRRule, formatDateForStorage, getTodayLocal, formatDateAsUTCString, hasTimeComponent } from './dateUtils';
 // import { RegexOptimizer } from './RegexOptimizer'; // Temporarily disabled
 
@@ -255,7 +255,7 @@ export function extractTaskInfo(
 			return taskInfo;
 		} else {
 			// Fallback to default field mapping
-			const defaultMapper = new FieldMapper(DEFAULT_FIELD_MAPPING);
+			const defaultMapper = new FieldMapper(DEFAULT_FIELD_MAPPING, DEFAULT_JIRA_FIELD_MAPPING);
 			const mappedTask = defaultMapper.mapFromFrontmatter(yaml, path, storeTitleInFilename);
 			
 			return {

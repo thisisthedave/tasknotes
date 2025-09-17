@@ -337,7 +337,7 @@ export class TaskListView extends ItemView {
         const filterBarContainer = container.createDiv({ cls: 'filter-bar-container' });
         
         // Wait for cache to be initialized with actual data
-        await this.waitForCacheReady();
+        await this.plugin.waitForCacheReady();
         
         // Initialize with default query from FilterService
         this.currentQuery = this.plugin.filterService.createDefaultQuery();
@@ -1180,24 +1180,6 @@ export class TaskListView extends ItemView {
         }
     }
     
-    /**
-     * Wait for cache to be ready with actual data
-     */
-    private async waitForCacheReady(): Promise<void> {
-        // First check if cache is already initialized
-        if (this.plugin.cacheManager.isInitialized()) {
-            return;
-        }
-        
-        // If not initialized, wait for the cache-initialized event
-        return new Promise((resolve) => {
-            const unsubscribe = this.plugin.cacheManager.subscribe('cache-initialized', () => {
-                unsubscribe();
-                resolve();
-            });
-        });
-    }
-
     /**
      * Check if a project string is a file path that should be made clickable
      */

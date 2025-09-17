@@ -922,6 +922,47 @@ select.tasknotes-settings__card-input {
 }
 
 /* ================================================
+   JIRA FIELD MAPPING
+   ================================================ */
+.tasknotes-settings__jira-grid {
+}
+
+.tasknotes-settings__jira-grid .setting-item {
+  align-items: flex-start;
+}
+
+/* Left column (field name) – fixed basis and no shrinking */
+.tasknotes-settings__jira-grid .setting-item .setting-item-info {
+  flex: 0 0 clamp(180px, 28%, 260px); /* pick a size you like */
+}
+
+/* Let the field name wrap (no ellipsis) */
+.tasknotes-settings__jira-grid .setting-item .setting-item-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Right column can shrink and wrap content */
+.tasknotes-settings__jira-grid .setting-item .setting-item-control {
+  flex: 1 1 auto;
+  min-width: 0;                 /* critical so long content can wrap instead of forcing overflow */
+}
+
+/* Make previews and long tokens wrap nicely */
+.tasknotes-settings__jira-grid .tasknotes-settings__jira-preview {
+  white-space: normal;
+  overflow-wrap: anywhere;      /* or word-break: break-word; */
+}
+
+.tasknotes-settings__inline {}
+.tasknotes-settings__jira-arr {}
+.tasknotes-settings__jira-arr-line {}
+.tasknotes-settings__jira-enum {}
+.tasknotes-settings__jira-preview {}
+.tasknotes-settings__jira-row {}
+
+/* ================================================
    ACCESSIBILITY & REDUCED MOTION
    ================================================ */
 

@@ -2,12 +2,16 @@ import { IJiraIssue } from 'src/types/obsidian-jira-issue';
 import { FieldMapping, TaskInfo } from '../types';
 import { validateCompleteInstances } from '../utils/dateUtils';
 import { sanitizeNoteTitle } from 'src/utils/helpers';
+import { map } from 'yaml/dist/schema/common/map';
+import { mapFromJiraIssueWithConfig } from 'src/utils/JiraMapping';
+import { JiraFieldMappingSettings } from 'src/types/settings';
+import { DEFAULT_JIRA_FIELD_MAPPING } from 'src/settings/defaults';
 
 /**
  * Service for mapping between internal field names and user-configured property names
  */
 export class FieldMapper {
-    constructor(private mapping: FieldMapping) {}
+    constructor(private mapping: FieldMapping, private jiraMapping: JiraFieldMappingSettings | undefined = undefined) {}
 
     /**
      * Convert internal field name to user's property name
@@ -271,27 +275,7 @@ export class FieldMapper {
     }
 
     mapFromJiraIssue(issue: IJiraIssue): Partial<TaskInfo> {
-        const fields = issue.fields;
-        const points = parseInt(fields.customfield_10090); // Assuming this is the field for story points
-        const issueKey = issue.key;
-        const title = sanitizeNoteTitle(`${issueKey} ${fields.summary}`);
-        const description = `JIRA:${issueKey}\n${fields.description ?? ""}`;
-        const nlpTitle = `${title}\n${description}`; // Task modal parsing will extract description from title
-
-        return {
-            title: nlpTitle,
-            status: fields.status?.name,
-            priority: fields.priority?.name?.toLowerCase(),
-            dateCreated: fields.created,
-            due: fields.duedate,
-            timeEstimate: fields.timeestimate ? Math.floor(fields.timeestimate / 60) : undefined,
-            tags: fields.labels,
-            points: isNaN(points) ? undefined : points,
-            // projects: fields.project ? [fields.project.key] : undefined,
-            // contexts: fields.customfield_10077?.value ? [fields.customfield_10077.value] : undefined,
-            // details: fields.description ?? "",
-            // creationContext: "import"
-        };
+        return mapFromJiraIssueWithConfig(issue, this.jiraMapping || DEFAULT_JIRA_FIELD_MAPPING);
     }
 
     /**
