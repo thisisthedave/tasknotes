@@ -81,9 +81,133 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	let issueFetchButton: ExtraButtonComponent;
 	let tokens: { token: string, preview?: string }[] = [];
 
+	// --- Sample issue fetcher
+	const fetchRow = new Setting(container)
+		.setName('Sample issue (for autocomplete & preview)')
+		.setDesc('Enter a JIRA issue key like JIRA-123.')
+		.addText((t) => {
+			issueKeyInput = t;
+			t.setPlaceholder('JIRA-123');
+			t.inputEl.addEventListener('keydown', (ev) => {
+				if (ev.key === 'Enter') fetchIssue();
+			});
+		})
+		.addExtraButton((btn) => {
+			issueFetchButton = btn;
+			btn.setIcon('search').setTooltip('Fetch issue');
+			btn.onClick(fetchIssue);
+		});
+
+	/* =========================
+	 * Raw Data (collapsible + searchable)
+	 * ========================= */
+	let rawExpanded = false;
+	let rawToggleBtn: ExtraButtonComponent;
+	let rawHost: HTMLDivElement;
+	let rawTextArea: HTMLTextAreaElement;
+	let rawSearch: TextComponent;
+
+	const rawRow = new Setting(container)
+		.setName('Raw Data')
+		.setDesc('JSON for the loaded issue (collapsed by default).')
+		.addExtraButton((b) => {
+			rawToggleBtn = b;
+			b.setIcon('chevron-right').setTooltip('Expand');
+			b.onClick(() => {
+				rawExpanded = !rawExpanded;
+				updateRawPanel();
+			});
+		});
+
+	rawRow.settingEl.addClass('tasknotes-settings__raw-row');       // scope for CSS
+	rawHost = rawRow.settingEl.createDiv({ cls: 'tasknotes-settings__raw is-collapsed' });
+
+	const rawToolbar = rawHost.createDiv({ cls: 'tasknotes-settings__raw-toolbar' });
+	rawToolbar.createSpan({ text: 'Search:' });
+	rawSearch = new TextComponent(rawToolbar);
+	rawSearch.inputEl.placeholder = 'Find text…';
+	rawSearch.inputEl.addEventListener('keydown', (ev) => {
+		if (ev.key === 'Enter') {
+			performRawSearch(ev.shiftKey ? -1 : +1);
+			ev.preventDefault();
+			ev.stopPropagation();
+		}
+	});
+	const rawFindPrev = rawToolbar.createEl('button', { text: 'Prev', cls: 'clickable-icon' });
+	rawFindPrev.onclick = (e) => { e.preventDefault(); performRawSearch(-1); };
+	const rawFindNext = rawToolbar.createEl('button', { text: 'Next', cls: 'clickable-icon' });
+	rawFindNext.onclick = (e) => { e.preventDefault(); performRawSearch(+1); };
+
+	rawTextArea = rawHost.createEl('textarea', { cls: 'tasknotes-settings__raw-text' });
+	rawTextArea.readOnly = true;
+
+	function updateRawPanel() {
+		// toggle visibility + icon
+		rawHost.classList.toggle('is-collapsed', !rawExpanded);
+		rawToggleBtn.setIcon(rawExpanded ? 'chevron-down' : 'chevron-right');
+		rawToggleBtn.setTooltip(rawExpanded ? 'Collapse' : 'Expand');
+
+		// refresh content from current sample
+		if (sampleIssue && rawExpanded) {
+			rawTextArea.value = JSON.stringify(sampleIssue, null, 2);
+		} else if (!sampleIssue) {
+			rawTextArea.value = '';
+		}
+	}
+
+	function performRawSearch(direction: 1 | -1) {
+		function setSelectionRange(textarea: HTMLTextAreaElement, selectionStart: number, selectionEnd: number) {
+			// First scroll selection region to view
+			const fullText = textarea.value;
+			textarea.value = fullText.substring(0, selectionEnd);
+			// For some unknown reason, you must store the scollHeight to a variable
+			// before setting the textarea value. Otherwise it won't work for long strings
+			const scrollHeight = textarea.scrollHeight
+			textarea.value = fullText;
+			let scrollTop = scrollHeight;
+			const textareaHeight = textarea.clientHeight;
+			if (scrollTop > textareaHeight){
+				// scroll selection to center of textarea
+				scrollTop -= textareaHeight / 2;
+			} else{
+				scrollTop = 0;
+			}
+			textarea.scrollTop = scrollTop;
+
+			// Continue to set selection range
+			textarea.setSelectionRange(selectionStart, selectionEnd);
+		}
+
+		const needle = rawSearch.getValue().toLowerCase();
+		if (!needle) return;
+
+		const hay = rawTextArea.value.toLowerCase();
+
+		// Use current caret depending on direction
+		const startPos =
+			direction > 0
+				? Math.min(rawTextArea.selectionEnd ?? 0, hay.length)
+				: Math.max((rawTextArea.selectionStart ?? hay.length) - 1, 0);
+
+		let idx = -1;
+		if (direction > 0) {
+			idx = hay.indexOf(needle, startPos);
+			if (idx === -1) idx = hay.indexOf(needle); // wrap to start
+		} else {
+			idx = hay.lastIndexOf(needle, startPos);
+			if (idx === -1) idx = hay.lastIndexOf(needle); // wrap to end
+		}
+		if (idx === -1) return;
+
+		// Focus and select; let the browser scroll it into view.
+		rawTextArea.focus();
+		setSelectionRange(rawTextArea, idx, idx + needle.length);
+	}
+
+	// call after attempting to fetch an issue
 	async function fetchIssue() {
 		const key = issueKeyInput.getValue().trim();
-		if (!key) { sampleIssue = null; new Notice('Enter an issue key'); return; }
+		if (!key) { sampleIssue = null; new Notice('Enter an issue key'); updateRawPanel(); return; }
 
 		const jira = plugin.app.plugins.getPlugin('obsidian-jira-issue');
 		if (!jira?.api?.base?.getIssue) {
@@ -91,7 +215,6 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 			return;
 		}
 
-		// simple loading state
 		issueFetchButton.setDisabled(true);
 		try {
 			sampleIssue = await jira.api.base.getIssue(key);
@@ -102,26 +225,14 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 		} finally {
 			issueFetchButton.setDisabled(false);
 			tokens = collectTokens();
+			updateRawPanel();         // <— refresh Raw Data section here
 			rerenderFields();
 		}
 	}
-	const fetchRow = new Setting(container)
-		.setName('Sample issue (for autocomplete & preview)')
-		.setDesc('Enter a JIRA issue key like JIRA-123.')
-		.addText((t) => {
-			issueKeyInput = t;
-			t.setPlaceholder('JIRA-123');
 
-			// Press Enter to fetch (optional but nice)
-			t.inputEl.addEventListener('keydown', (ev) => {
-				if (ev.key === 'Enter') fetchIssue();
-			});
-		})
-		.addExtraButton((btn) => {
-			issueFetchButton = btn;
-			btn.setIcon('search').setTooltip('Fetch issue');
-			btn.onClick(fetchIssue);
-		});
+	// initialize panel collapsed
+	updateRawPanel();
+
 
 
 	// helper: build tokens from sampleIssue
