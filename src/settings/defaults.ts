@@ -191,15 +191,15 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: Record<KeyboardShortcutAction, readonly
 
 // Reasonable defaults title/desc/duedate, no defaults for projects/contexts
 export const DEFAULT_JIRA_FIELD_MAPPING: JiraFieldMappingSettings = {
-  id:       { mode: 'template', value: '$key' },
-  title:    { mode: 'template', value: '$key\n$fields.summary' },
-  details:  { mode: 'template', value: 'JIRA:$key\n$fields.description' },
+  id:       { mode: 'path', value: 'key' },
+  title:    { mode: 'template', value: '$key $fields.summary' },
+  details:  { mode: 'path',     value: 'fields.description' },
   status:   { mode: 'path',     value: 'fields.status.name' },
   priority: { mode: 'path',     value: 'fields.priority.name' },
   due:      { mode: 'path',     value: 'fields.duedate' },
   scheduled:{ mode: 'off',      value: '' },
   timeEstimate: { mode: 'path', value: 'fields.timeestimate' }, // seconds → minutes
-  points:   { mode: 'path',     value: '' }, // common default; configurable
+  points:   { mode: 'path',     value: '' }, 
   dateCreated:  { mode: 'path', value: 'fields.created' },
   dateModified: { mode: 'path', value: 'fields.updated' },
   completedDate:{ mode: 'path', value: 'fields.resolutiondate' },
