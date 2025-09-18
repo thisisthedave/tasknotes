@@ -1,11 +1,10 @@
-import { Setting, TextComponent, AbstractInputSuggest, setIcon, Notice, App, ExtraButtonComponent } from 'obsidian';
+import { Setting, TextComponent, AbstractInputSuggest, Notice, App, ExtraButtonComponent, DropdownComponent } from 'obsidian';
 import TaskNotesPlugin from '../../main';
 import { createSectionHeader, createHelpText } from '../components/settingHelpers';
 import type { IJiraIssue } from 'src/types/obsidian-jira-issue';
 import { getByPath, renderTemplate, resolveTokenToPath, sanitizeJiraFieldName } from 'src/utils/JiraMapping';
 import { EnumRemapPair, JiraArraySource, JiraFieldMappingSettings, JiraValueSource } from 'src/types/settings';
 import { DEFAULT_JIRA_FIELD_MAPPING } from '../defaults';
-import { TaskInfo } from 'src/types';
 
 type TokenItem = { token: string; preview?: string };
 type PreviewResolver = (token: string) => string | undefined;
@@ -166,10 +165,10 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 			textarea.value = fullText;
 			let scrollTop = scrollHeight;
 			const textareaHeight = textarea.clientHeight;
-			if (scrollTop > textareaHeight){
+			if (scrollTop > textareaHeight) {
 				// scroll selection to center of textarea
 				scrollTop -= textareaHeight / 2;
-			} else{
+			} else {
 				scrollTop = 0;
 			}
 			textarea.scrollTop = scrollTop;
@@ -338,6 +337,12 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 		}
 		if (suggest) suggest.setTokens(tokens);
 
+		const typeDropdown = setting.components.find(c => c instanceof DropdownComponent) as DropdownComponent;
+		if (typeDropdown) {
+			// set input mapping type
+			typeDropdown.setValue(jiraSrc.mode);
+		}
+
 		if (sampleIssue && preview) {
 			let val: any = undefined;
 			if (jiraSrc.mode === 'template') val = renderTemplate(jiraSrc.value, sampleIssue);
@@ -502,35 +507,40 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 		title: string,
 		property: keyof JiraFieldMappingSettings,
 		getPairs: () => EnumRemapPair[] | undefined,
-		setPairs: (xs: EnumRemapPair[]) => void,
+		setPairs: (enumPairs: EnumRemapPair[]) => void,
 		leftValues: string[]
 	) => {
+		const setAndSave = (idx: number, taskValue: string, jiraValues: string[]) => {
+			const updatedPairs = [...getPairs() ?? []];
+			updatedPairs[idx] = { taskValue: taskValue, jiraValues: jiraValues };
+			setPairs(updatedPairs);
+			save();
+		};
+
 		const box = new Setting(container).setName(`${title} remapping`).setDesc('Convert incoming JIRA values to your TaskNotes values.');
 		const host = box.controlEl.createDiv();
 
 		const renderEnumSetting = () => {
 			host.empty();
 			const pairs = getPairs() ?? [];
-			pairs.forEach((p, i) => {
+			pairs.forEach((enumPair, idx) => {
 				const row = host.createDiv({ cls: 'tasknotes-settings__jira-enum' });
 				// left: TaskNotes value (dropdown from your configured values)
 				new Setting(row)
 					.addText(t => {
 						// right: CSV of JIRA values mapping to that TaskNotes value
 						t.setPlaceholder('JIRA values (comma separated)');
-						t.setValue((p.jiraValues ?? []).join(', '));
+						t.setValue((enumPair.jiraValues ?? []).join(', '));
 						t.onChange(v => {
-							const cp = [...pairs];
-							cp[i] = { ...p, jiraValues: v.split(',').map(s => s.trim()).filter(Boolean) };
-							setPairs(cp);
-							save();
+							setAndSave(idx, enumPair.taskValue, v.split(',').map(s => s.trim()).filter(Boolean));
 						});
-					}).addDropdown(d => {
-						leftValues.forEach(v => d.addOption(v, v));
-						d.setValue(p.taskValue ?? '');
-						d.onChange(v => {
-							const cp = [...pairs];
-							cp[i] = { ...p, taskValue: v };
+					}).addDropdown(statusDropdown => {
+						leftValues.forEach(v => statusDropdown.addOption(v, v));
+						statusDropdown.setValue(enumPair.taskValue ?? '');
+						statusDropdown.onChange(value => {
+							setAndSave(idx, value, enumPair.jiraValues);
+							const cp = [...getPairs() ?? []];
+							cp[idx] = { ...enumPair, taskValue: value };
 							setPairs(cp);
 							save();
 						});
@@ -538,16 +548,25 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 						b.setIcon('x')
 							.setTooltip('Remove')
 							.onClick(() => {
-								const cp = [...pairs];
-								cp.splice(i, 1);
+								const cp = [...getPairs() ?? []];
+								cp.splice(idx, 1);
 								setPairs(cp);
 								save();
 								renderEnumSetting();
 							}));
 			});
 
-			new Setting(host).addExtraButton(b => {
-				b.setIcon('circle-plus').setTooltip('Add mapping').onClick(() => { const cp = [...(getPairs() ?? [])]; cp.push({ taskValue: leftValues[0] ?? '', jiraValues: [] }); setPairs(cp); save(); renderEnumSetting(); });
+			new Setting(host).addExtraButton(addMappingBtn => {
+				addMappingBtn
+					.setIcon('circle-plus')
+					.setTooltip('Add mapping')
+					.onClick(() => {
+						const cp = [...(getPairs() ?? [])];
+						cp.push({ taskValue: leftValues[0] ?? '', jiraValues: [] });
+						setPairs(cp);
+						save();
+						renderEnumSetting();
+					});
 			});
 		};
 
