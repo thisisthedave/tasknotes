@@ -576,9 +576,9 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	// pull configured TaskNotes values for status/priority/contexts
 	const statuses = (plugin.settings.customStatuses ?? []).map((s: any) => s.value) as string[];	   // from your Task Properties tab UI :contentReference[oaicite:6]{index=6}
 	const priorities = (plugin.settings.customPriorities ?? []).map((p: any) => p.value) as string[];   // analogous list
-	await plugin.waitForCacheReady();
-	const contexts = plugin.cacheManager.getAllContexts();
-	const contextVals = (contexts ?? []).map((c: any) => c.value) as string[];	// if you expose contexts similarly
+	// await plugin.waitForCacheReady();
+	// const contexts = plugin.cacheManager.getAllContexts();
+	// const contextVals = (contexts ?? []).map((c: any) => c.value) as string[];	// if you expose contexts similarly
 
 	addEnumEditor('Status', 'status', () => settings.statusMap, xs => settings.statusMap = xs, statuses);
 	addEnumEditor('Priority', 'priority', () => settings.priorityMap, xs => settings.priorityMap = xs, priorities);
