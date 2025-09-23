@@ -30,7 +30,11 @@ export class TaskEditModal extends TaskModal {
 
 
     getModalTitle(): string {
-        return 'Edit task';
+        return this.t('modals.taskEdit.title');
+    }
+
+    protected isEditMode(): boolean {
+        return true;
     }
 
     async initializeFormData(): Promise<void> {
@@ -259,7 +263,7 @@ export class TaskEditModal extends TaskModal {
             const calendarContainer = container.createDiv('completions-calendar-container');
             
             const calendarLabel = calendarContainer.createDiv('detail-label');
-            calendarLabel.textContent = 'Completions';
+            calendarLabel.textContent = this.t('modals.taskEdit.sections.completions');
             
             const calendarContent = calendarContainer.createDiv('completions-calendar-content');
             this.createRecurringCalendar(calendarContent);
@@ -270,7 +274,7 @@ export class TaskEditModal extends TaskModal {
         this.metadataContainer = container.createDiv('metadata-container');
         
         const metadataLabel = this.metadataContainer.createDiv('detail-label');
-        metadataLabel.textContent = 'Task Information';
+        metadataLabel.textContent = this.t('modals.taskEdit.sections.taskInfo');
         
         const metadataContent = this.metadataContainer.createDiv('metadata-content');
         
@@ -278,28 +282,28 @@ export class TaskEditModal extends TaskModal {
         const totalTimeSpent = calculateTotalTimeSpent(this.task.timeEntries || []);
         if (totalTimeSpent > 0) {
             const timeDiv = metadataContent.createDiv('metadata-item');
-            timeDiv.createSpan('metadata-key').textContent = 'Total tracked time: ';
+            timeDiv.createSpan('metadata-key').textContent = this.t('modals.taskEdit.metadata.totalTrackedTime') + ' ';
             timeDiv.createSpan('metadata-value').textContent = formatTime(totalTimeSpent);
         }
         
         // Created date
         if (this.task.dateCreated) {
             const createdDiv = metadataContent.createDiv('metadata-item');
-            createdDiv.createSpan('metadata-key').textContent = 'Created: ';
+            createdDiv.createSpan('metadata-key').textContent = this.t('modals.taskEdit.metadata.created') + ' ';
             createdDiv.createSpan('metadata-value').textContent = formatTimestampForDisplay(this.task.dateCreated);
         }
         
         // Modified date
         if (this.task.dateModified) {
             const modifiedDiv = metadataContent.createDiv('metadata-item');
-            modifiedDiv.createSpan('metadata-key').textContent = 'Modified: ';
+            modifiedDiv.createSpan('metadata-key').textContent = this.t('modals.taskEdit.metadata.modified') + ' ';
             modifiedDiv.createSpan('metadata-value').textContent = formatTimestampForDisplay(this.task.dateModified);
         }
         
         // File path (if available)
         if (this.task.path) {
             const pathDiv = metadataContent.createDiv('metadata-item');
-            pathDiv.createSpan('metadata-key').textContent = 'File: ';
+            pathDiv.createSpan('metadata-key').textContent = this.t('modals.taskEdit.metadata.file') + ' ';
             pathDiv.createSpan('metadata-value').textContent = this.task.path;
         }
     }
@@ -337,7 +341,9 @@ export class TaskEditModal extends TaskModal {
             text: '‹'
         });
         const monthLabel = header.createSpan('recurring-calendar__month');
-        monthLabel.textContent = format(displayDate, 'MMM yyyy');
+        const locale = this.plugin.i18n.getCurrentLocale() || 'en';
+        const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' });
+        monthLabel.textContent = monthFormatter.format(displayDate);
         const nextButton = header.createEl('button', { 
             cls: 'recurring-calendar__nav',
             text: '›'
@@ -439,7 +445,7 @@ export class TaskEditModal extends TaskModal {
 
     async handleSave(): Promise<void> {
         if (!this.validateForm()) {
-            new Notice('Please enter a task title');
+            new Notice(this.t('modals.taskEdit.notices.titleRequired'));
             return;
         }
 
@@ -447,14 +453,14 @@ export class TaskEditModal extends TaskModal {
             const changes = this.getChanges();
             
             if (Object.keys(changes).length === 0) {
-                new Notice('No changes to save');
+                new Notice(this.t('modals.taskEdit.notices.noChanges'));
                 this.close();
                 return;
             }
 
             const updatedTask = await this.plugin.taskService.updateTask(this.task, changes);
 
-            new Notice(`Task "${updatedTask.title}" updated successfully`);
+            new Notice(this.t('modals.taskEdit.notices.updateSuccess', { title: updatedTask.title }));
             
             if (this.options.onTaskUpdated) {
                 this.options.onTaskUpdated(updatedTask);
@@ -462,7 +468,8 @@ export class TaskEditModal extends TaskModal {
 
         } catch (error) {
             console.error('Failed to update task:', error);
-            new Notice('Failed to update task: ' + error.message);
+            const message = error instanceof Error && error.message ? error.message : String(error);
+            new Notice(this.t('modals.taskEdit.notices.updateFailure', { message }));
         }
     }
 
@@ -660,7 +667,7 @@ export class TaskEditModal extends TaskModal {
             const file = this.app.vault.getAbstractFileByPath(this.task.path);
             
             if (!file) {
-                new Notice(`Could not find task file: ${this.task.path}`);
+                new Notice(this.t('modals.taskEdit.notices.fileMissing', { path: this.task.path }));
                 return;
             }
 
@@ -673,7 +680,7 @@ export class TaskEditModal extends TaskModal {
             
         } catch (error) {
             console.error('Failed to open task note:', error);
-            new Notice('Failed to open task note');
+            new Notice(this.t('modals.taskEdit.notices.openNoteFailure'));
         }
     }
 
@@ -691,15 +698,18 @@ export class TaskEditModal extends TaskModal {
             }
             
             // Show success message
-            const actionText = updatedTask.archived ? 'archived' : 'unarchived';
-            new Notice(`Task ${actionText} successfully`);
+            const actionKey = updatedTask.archived
+                ? 'modals.taskEdit.archiveAction.archived'
+                : 'modals.taskEdit.archiveAction.unarchived';
+            const actionText = this.t(actionKey);
+            new Notice(this.t('modals.taskEdit.notices.archiveSuccess', { action: actionText }));
             
             // Close the modal
             this.close();
             
         } catch (error) {
             console.error('Failed to archive task:', error);
-            new Notice('Failed to archive task');
+            new Notice(this.t('modals.taskEdit.notices.archiveFailure'));
         }
     }
 
@@ -709,7 +719,7 @@ export class TaskEditModal extends TaskModal {
         // Add "Open note" button
         const openNoteButton = buttonContainer.createEl('button', {
             cls: 'open-note-button',
-            text: 'Open note'
+            text: this.t('modals.task.buttons.openNote')
         });
         
         openNoteButton.addEventListener('click', async () => {
@@ -719,7 +729,9 @@ export class TaskEditModal extends TaskModal {
         // Add "Archive" button
         const archiveButton = buttonContainer.createEl('button', {
             cls: 'archive-button',
-            text: this.task.archived ? 'Unarchive' : 'Archive'
+            text: this.task.archived
+                ? this.t('modals.taskEdit.buttons.unarchive')
+                : this.t('modals.taskEdit.buttons.archive')
         });
         
         archiveButton.addEventListener('click', async () => {
@@ -732,7 +744,7 @@ export class TaskEditModal extends TaskModal {
         // Save button
         const saveButton = buttonContainer.createEl('button', {
             cls: 'save-button',
-            text: 'Save'
+            text: this.t('modals.task.buttons.save')
         });
         
         saveButton.addEventListener('click', async () => {
@@ -743,7 +755,7 @@ export class TaskEditModal extends TaskModal {
         // Cancel button
         const cancelButton = buttonContainer.createEl('button', {
             cls: 'cancel-button',
-            text: 'Cancel'
+            text: this.t('common.cancel')
         });
         
         cancelButton.addEventListener('click', () => {
@@ -790,7 +802,7 @@ export class TaskEditModal extends TaskModal {
                 cls: 'task-project-remove',
                 text: '×'
             });
-            setTooltip(removeBtn, 'Remove project', { placement: 'top' });
+            setTooltip(removeBtn, this.t('modals.task.projectsRemoveTooltip'), { placement: 'top' });
             removeBtn.addEventListener('click', () => {
                 this.removeProject(file);
             });

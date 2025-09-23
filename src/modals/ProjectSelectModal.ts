@@ -298,7 +298,7 @@ export class ProjectSelectModal extends FuzzySuggestModal<TAbstractFile> {
         }
 
         this.selectedProjectFiles.forEach(file => {
-            const projectEl = renderProjectItem(this.removalEl, file, (file, evt) => {
+            const projectEl = renderProjectItem(this.removalEl, file, this.plugin.i18n.translate('modals.task.projectsRemoveTooltip'), (file, evt) => {
                 this.onRemoveItem(file, evt);
                 projectEl.remove();
             });
@@ -366,7 +366,8 @@ export function showProjectModal(
 
 export function renderProjectItem(
     projectsList: HTMLElement, 
-    file: TAbstractFile, 
+    file: TAbstractFile,
+    removeTooltip: string,
     onRemove: (file: TAbstractFile, evt: MouseEvent | KeyboardEvent) => void
 ): HTMLElement {
     const projectItem = projectsList.createDiv({ cls: 'task-project-item' });
@@ -389,7 +390,7 @@ export function renderProjectItem(
         cls: 'task-project-remove',
         text: '×'
     });
-    setTooltip(removeBtn, 'Remove project', { placement: 'top' });
+    setTooltip(removeBtn, removeTooltip, { placement: 'top' });
     removeBtn.addEventListener('click', (evt) => {
         onRemove(file, evt);
     });

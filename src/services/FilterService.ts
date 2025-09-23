@@ -21,12 +21,14 @@ import {
     parseDateToUTC,
     isTodayUTC
 } from '../utils/dateUtils';
+import { TranslationKey } from '../i18n';
 
 /**
  * Unified filtering, sorting, and grouping service for all task views.
  * Provides performance-optimized data retrieval using CacheManager indexes.
  */
 export class FilterService extends EventEmitter {
+    private static lastInstance: FilterService | null = null;
     private cacheManager: MinimalNativeCache;
     private statusManager: StatusManager;
     private priorityManager: PriorityManager;
@@ -55,6 +57,90 @@ export class FilterService extends EventEmitter {
         this.cacheManager = cacheManager;
         this.statusManager = statusManager;
         this.priorityManager = priorityManager;
+        FilterService.lastInstance = this;
+    }
+
+    private translate(key: TranslationKey, fallback: string, vars?: Record<string, string | number>): string {
+        try {
+            if (this.plugin?.i18n) {
+                return this.plugin.i18n.translate(key, vars);
+            }
+        } catch (error) {
+            console.error('FilterService translation error:', error);
+        }
+        return fallback;
+    }
+
+    private static translateStatic(key: TranslationKey, fallback: string): string {
+        const instance = FilterService.lastInstance;
+        if (instance) {
+            return instance.translate(key, fallback);
+        }
+        return fallback;
+    }
+
+    private getLocale(): string {
+        try {
+            const locale = this.plugin?.i18n?.getCurrentLocale?.();
+            if (locale) {
+                return locale;
+            }
+        } catch (error) {
+            console.error('FilterService locale error:', error);
+        }
+        return 'en';
+    }
+
+    private getDueGroupLabel(code: 'overdue' | 'today' | 'tomorrow' | 'nextSevenDays' | 'later' | 'none' | 'invalid'): string {
+        switch (code) {
+            case 'overdue':
+                return this.translate('services.filter.groupLabels.due.overdue', 'Overdue');
+            case 'today':
+                return this.translate('services.filter.groupLabels.due.today', 'Today');
+            case 'tomorrow':
+                return this.translate('services.filter.groupLabels.due.tomorrow', 'Tomorrow');
+            case 'nextSevenDays':
+                return this.translate('services.filter.groupLabels.due.nextSevenDays', 'Next seven days');
+            case 'later':
+                return this.translate('services.filter.groupLabels.due.later', 'Later');
+            case 'none':
+                return this.translate('services.filter.groupLabels.due.none', 'No due date');
+            case 'invalid':
+            default:
+                return this.translate('services.filter.groupLabels.invalidDate', 'Invalid date');
+        }
+    }
+
+    private getScheduledGroupLabel(code: 'past' | 'today' | 'tomorrow' | 'nextSevenDays' | 'later' | 'none' | 'invalid'): string {
+        switch (code) {
+            case 'past':
+                return this.translate('services.filter.groupLabels.scheduled.past', 'Past scheduled');
+            case 'today':
+                return this.translate('services.filter.groupLabels.scheduled.today', 'Today');
+            case 'tomorrow':
+                return this.translate('services.filter.groupLabels.scheduled.tomorrow', 'Tomorrow');
+            case 'nextSevenDays':
+                return this.translate('services.filter.groupLabels.scheduled.nextSevenDays', 'Next seven days');
+            case 'later':
+                return this.translate('services.filter.groupLabels.scheduled.later', 'Later');
+            case 'none':
+                return this.translate('services.filter.groupLabels.scheduled.none', 'No scheduled date');
+            case 'invalid':
+            default:
+                return this.translate('services.filter.groupLabels.invalidDate', 'Invalid date');
+        }
+    }
+
+    private getNoProjectLabel(): string {
+        return this.translate('services.filter.groupLabels.noProject', 'No project');
+    }
+
+    private getNoTagsLabel(): string {
+        return this.translate('services.filter.groupLabels.noTags', 'No tags');
+    }
+
+    private getInvalidDateLabel(): string {
+        return this.translate('services.filter.groupLabels.invalidDate', 'Invalid date');
     }
 
     /**
@@ -94,6 +180,123 @@ export class FilterService extends EventEmitter {
             throw error;
         }
     }
+
+    /**
+     * Additive API: returns standard groups and optional hierarchicalGroups when subgroupKey is set
+     */
+    async getHierarchicalGroupedTasks(query: FilterQuery, targetDate?: Date): Promise<{
+        groups: Map<string, TaskInfo[]>;
+        hierarchicalGroups?: Map<string, Map<string, TaskInfo[]>>;
+    }> {
+        try {
+            // Allow incomplete filters while building
+            FilterUtils.validateFilterNode(query, false);
+
+            // Reuse the same pipeline as getGroupedTasks to avoid behavior drift
+            let candidateTaskPaths = this.getIndexOptimizedTaskPaths(query);
+            const candidateTasks = await this.pathsToTaskInfos(Array.from(candidateTaskPaths));
+            const filteredTasks = candidateTasks.filter(task => this.evaluateFilterNode(query, task, targetDate));
+
+            const sortedTasks = this.sortTasks(
+                filteredTasks,
+                query.sortKey || 'due',
+                query.sortDirection || 'asc'
+            );
+
+            // Preserve current sort for group ordering
+            this.currentSortKey = (query.sortKey || 'due');
+            this.currentSortDirection = (query.sortDirection || 'asc');
+
+            const groups = this.groupTasks(sortedTasks, query.groupKey || 'none', targetDate);
+
+            // Compute hierarchical grouping only when both keys are active
+            const subgroupKey = (query as any).subgroupKey as TaskGroupKey | undefined;
+            if (subgroupKey && subgroupKey !== 'none' && (query.groupKey && query.groupKey !== 'none')) {
+                // Lazy import to avoid circular deps at module load
+                const { HierarchicalGroupingService } = await import('./HierarchicalGroupingService');
+
+                // Resolver that mirrors user-field extraction logic used elsewhere in this service
+                const resolver = (task: TaskInfo, fieldIdOrKey: string): string[] => {
+                    const userFields = this.plugin?.settings?.userFields || [];
+                    const field = userFields.find((f: any) => (f.id || f.key) === fieldIdOrKey || f.key === fieldIdOrKey);
+                    const missingLabel = `No ${field?.displayName || field?.key || fieldIdOrKey}`;
+                    if (!field) return [missingLabel];
+                    try {
+                        const app = this.cacheManager.getApp();
+                        const file = app.vault.getAbstractFileByPath(task.path);
+                        if (!file) return [missingLabel];
+                        const fm = app.metadataCache.getFileCache(file as any)?.frontmatter;
+                        const raw = fm ? fm[field.key] : undefined;
+                        switch (field.type) {
+                            case 'boolean': {
+                                if (typeof raw === 'boolean') return [raw ? 'true' : 'false'];
+                                if (raw == null) return [missingLabel];
+                                const s = String(raw).trim().toLowerCase();
+                                if (s === 'true' || s === 'false') return [s];
+                                return [missingLabel];
+                            }
+                            case 'number': {
+                                if (typeof raw === 'number') return [String(raw)];
+                                if (typeof raw === 'string') {
+                                    const match = raw.match(/^(\d+(?:\.\d+)?)/);
+                                    return match ? [match[1]] : [missingLabel];
+                                }
+                                return [missingLabel];
+                            }
+                            case 'date': {
+                                return raw ? [String(raw)] : [missingLabel];
+                            }
+                            case 'list': {
+                                // For grouping: use display tokens only (exclude raw wikilink tokens)
+                                const tokens = this.normalizeUserListValue(raw).filter(t => !/^\[\[/.test(t));
+                                return tokens.length > 0 ? tokens : [missingLabel];
+                            }
+                            case 'text':
+                            default: {
+                                const s = String(raw ?? '').trim();
+                                return s ? [s] : [missingLabel];
+                            }
+                        }
+                    } catch {
+                        return [missingLabel];
+                    }
+                };
+
+                const svc = new HierarchicalGroupingService(resolver);
+                const hierarchicalGroups = svc.group(
+                    sortedTasks,
+                    query.groupKey as TaskGroupKey,
+                    subgroupKey,
+                    this.currentSortDirection,
+                    this.plugin?.settings?.userFields || []
+                );
+
+                // Ensure primary group order matches the same order used for flat groups
+                // (e.g., status order) instead of insertion order influenced by the current task sort.
+                const orderedPrimaryKeys = Array.from(groups.keys()); // already sorted via sortGroups()
+                const orderedHierarchical = new Map<string, Map<string, TaskInfo[]>>();
+                for (const key of orderedPrimaryKeys) {
+                    const sub = hierarchicalGroups.get(key);
+                    if (sub) orderedHierarchical.set(key, sub);
+                }
+                // Safety: include any primaries that might exist only in hierarchicalGroups
+                for (const [key, sub] of hierarchicalGroups) {
+                    if (!orderedHierarchical.has(key)) orderedHierarchical.set(key, sub);
+                }
+
+                return { groups, hierarchicalGroups: orderedHierarchical };
+            }
+
+            return { groups };
+        } catch (error) {
+            if (error instanceof FilterValidationError || error instanceof FilterEvaluationError) {
+                console.error('Filter error (hierarchical):', error.message, { nodeId: (error as any).nodeId });
+                return { groups: new Map<string, TaskInfo[]>() };
+            }
+            throw error;
+        }
+    }
+
 
     /**
      * Get optimized task paths using index-backed filtering
@@ -614,7 +817,7 @@ export class FilterService extends EventEmitter {
             if (!taskProject || typeof taskProject !== 'string') {
                 return false;
             }
-            
+
             const taskProjectName = this.extractProjectName(taskProject);
             if (!taskProjectName) {
                 return false;
@@ -712,22 +915,22 @@ export class FilterService extends EventEmitter {
         // For wikilink format, resolve to actual file path
         if (projectValue.startsWith('[[') && projectValue.endsWith(']]')) {
             const linkContent = projectValue.slice(2, -2);
-            
+
             // Parse the wikilink manually since Obsidian's parseLinktext seems unreliable
             let linkPath = linkContent;
-            
+
             const pipeIndex = linkContent.indexOf('|');
             if (pipeIndex !== -1) {
                 linkPath = linkContent.substring(0, pipeIndex).trim();
             }
-            
+
             // Always try to resolve using Obsidian's API - this handles relative paths correctly
             const resolvedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(linkPath, '');
             if (resolvedFile) {
                 // Return the absolute file path (vault-relative) without .md extension
                 return resolvedFile.path.replace(/\.md$/, '');
             }
-            
+
             // If file doesn't exist, clean up the link path (ignore alias part)
             return linkPath.replace(/\.md$/, '');
         }
@@ -736,13 +939,13 @@ export class FilterService extends EventEmitter {
         if (projectValue.includes('|')) {
             const parts = projectValue.split('|');
             const pathPart = parts[0].trim();
-            
+
             // Try to resolve the path part using Obsidian's API
             const resolvedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(pathPart, '');
             if (resolvedFile) {
                 return resolvedFile.path.replace(/\.md$/, '');
             }
-            
+
             return pathPart.replace(/\.md$/, '');
         }
 
@@ -752,7 +955,7 @@ export class FilterService extends EventEmitter {
             if (resolvedFile) {
                 return resolvedFile.path.replace(/\.md$/, '');
             }
-            
+
             return projectValue.replace(/\.md$/, '');
         }
 
@@ -771,15 +974,16 @@ export class FilterService extends EventEmitter {
      * Converts an absolute path back to a proper wikilink format.
      */
     getPreferredProjectFormat(absolutePathOrName: string): string {
-        if (!absolutePathOrName || absolutePathOrName === 'No Project') {
+        const noProjectLabel = this.getNoProjectLabel();
+        if (!absolutePathOrName || absolutePathOrName === noProjectLabel) {
             return absolutePathOrName;
         }
-        
+
         // If it's already an absolute path, return as wikilink
         if (absolutePathOrName.includes('/') || absolutePathOrName.endsWith('.md')) {
             return `[[${absolutePathOrName}]]`;
         }
-        
+
         // For non-path values (plain text projects), return as simple wikilink
         return `[[${absolutePathOrName}]]`;
     }
@@ -1012,7 +1216,7 @@ export class FilterService extends EventEmitter {
         // Sort by the first tag alphabetically (case-insensitive)
         const firstTagA = normalizedTagsA[0].toLowerCase();
         const firstTagB = normalizedTagsB[0].toLowerCase();
-        
+
         return firstTagA.localeCompare(firstTagB);
     }
 
@@ -1177,7 +1381,7 @@ export class FilterService extends EventEmitter {
                     }
                 } else {
                     // Task has no projects - add to "No Project" group
-                    const noProjectGroup = 'No Project';
+                    const noProjectGroup = this.getNoProjectLabel();
                     if (!groups.has(noProjectGroup)) {
                         groups.set(noProjectGroup, []);
                     }
@@ -1195,7 +1399,7 @@ export class FilterService extends EventEmitter {
                     }
                 } else {
                     // Task has no tags - add to "No Tags" group
-                    const noTagsGroup = 'No Tags';
+                    const noTagsGroup = this.getNoTagsLabel();
                     if (!groups.has(noTagsGroup)) {
                         groups.set(noTagsGroup, []);
                     }
@@ -1326,12 +1530,12 @@ export class FilterService extends EventEmitter {
                 if (task.due) {
                     return this.getDateGroupFromDateStringWithTask(task.due, isCompleted, hideCompletedFromOverdue);
                 }
-                return 'No due date';
+                return this.getDueGroupLabel('none');
             }
         }
 
         // Non-recurring task - use completion-aware logic
-        if (!task.due) return 'No due date';
+        if (!task.due) return this.getDueGroupLabel('none');
         return this.getDateGroupFromDateStringWithTask(task.due, isCompleted, hideCompletedFromOverdue);
     }
 
@@ -1345,27 +1549,27 @@ export class FilterService extends EventEmitter {
         // Use time-aware overdue detection with completion-aware logic
         // For categorization purposes, we need the task to determine completion status
         // This call is for categorization only, specific task overdue checks happen elsewhere
-        if (isOverdueTimeAware(dateString)) return 'Overdue';
+        if (isOverdueTimeAware(dateString)) return this.getDueGroupLabel('overdue');
 
         // Extract date part for day-level comparisons
         const datePart = getDatePart(dateString);
-        if (isSameDateSafe(datePart, todayStr)) return 'Today';
+        if (isSameDateSafe(datePart, todayStr)) return this.getDueGroupLabel('today');
 
         try {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-            if (isSameDateSafe(datePart, tomorrowStr)) return 'Tomorrow';
+            if (isSameDateSafe(datePart, tomorrowStr)) return this.getDueGroupLabel('tomorrow');
 
             const thisWeek = new Date();
             thisWeek.setDate(thisWeek.getDate() + 7);
             const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
-            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return 'Next seven days';
+            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return this.getDueGroupLabel('nextSevenDays');
 
-            return 'Later';
+            return this.getDueGroupLabel('later');
         } catch (error) {
             console.error(`Error categorizing date ${dateString}:`, error);
-            return 'Invalid Date';
+            return this.getInvalidDateLabel();
         }
     }
 
@@ -1395,32 +1599,32 @@ export class FilterService extends EventEmitter {
         const todayStr = getTodayString();
 
         // Use completion-aware overdue detection
-        if (isOverdueTimeAware(dateString, isCompleted, hideCompletedFromOverdue)) return 'Overdue';
+        if (isOverdueTimeAware(dateString, isCompleted, hideCompletedFromOverdue)) return this.getDueGroupLabel('overdue');
 
         // Extract date part for day-level comparisons
         const datePart = getDatePart(dateString);
-        if (isSameDateSafe(datePart, todayStr)) return 'Today';
+        if (isSameDateSafe(datePart, todayStr)) return this.getDueGroupLabel('today');
 
         try {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-            if (isSameDateSafe(datePart, tomorrowStr)) return 'Tomorrow';
+            if (isSameDateSafe(datePart, tomorrowStr)) return this.getDueGroupLabel('tomorrow');
 
             const thisWeek = new Date();
             thisWeek.setDate(thisWeek.getDate() + 7);
             const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
-            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return 'Next seven days';
+            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return this.getDueGroupLabel('nextSevenDays');
 
-            return 'Later';
+            return this.getDueGroupLabel('later');
         } catch (error) {
             console.error(`Error categorizing date ${dateString}:`, error);
-            return 'Invalid Date';
+            return this.getInvalidDateLabel();
         }
     }
 
     private getScheduledDateGroup(task: TaskInfo, targetDate?: Date): string {
-        if (!task.scheduled) return 'No scheduled date';
+        if (!task.scheduled) return this.getScheduledGroupLabel('none');
 
         const isCompleted = this.statusManager.isCompletedStatus(task.status);
         const hideCompletedFromOverdue = this.plugin?.settings?.hideCompletedFromOverdue ?? true;
@@ -1435,27 +1639,27 @@ export class FilterService extends EventEmitter {
         const todayStr = getTodayString();
 
         // Use completion-aware overdue detection for past scheduled
-        if (isOverdueTimeAware(scheduledDate, isCompleted, hideCompletedFromOverdue)) return 'Past scheduled';
+        if (isOverdueTimeAware(scheduledDate, isCompleted, hideCompletedFromOverdue)) return this.getScheduledGroupLabel('past');
 
         // Extract date part for day-level comparisons
         const datePart = getDatePart(scheduledDate);
-        if (isSameDateSafe(datePart, todayStr)) return 'Today';
+        if (isSameDateSafe(datePart, todayStr)) return this.getScheduledGroupLabel('today');
 
         try {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-            if (isSameDateSafe(datePart, tomorrowStr)) return 'Tomorrow';
+            if (isSameDateSafe(datePart, tomorrowStr)) return this.getScheduledGroupLabel('tomorrow');
 
             const thisWeek = new Date();
             thisWeek.setDate(thisWeek.getDate() + 7);
             const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
-            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return 'Next seven days';
+            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return this.getScheduledGroupLabel('nextSevenDays');
 
-            return 'Later';
+            return this.getScheduledGroupLabel('later');
         } catch (error) {
             console.error(`Error categorizing scheduled date ${scheduledDate}:`, error);
-            return 'Invalid Date';
+            return this.getInvalidDateLabel();
         }
     }
 
@@ -1467,27 +1671,27 @@ export class FilterService extends EventEmitter {
         const todayStr = getTodayString();
 
         // Use time-aware overdue detection for past scheduled
-        if (isOverdueTimeAware(scheduledDate)) return 'Past scheduled';
+        if (isOverdueTimeAware(scheduledDate)) return this.getScheduledGroupLabel('past');
 
         // Extract date part for day-level comparisons
         const datePart = getDatePart(scheduledDate);
-        if (isSameDateSafe(datePart, todayStr)) return 'Today';
+        if (isSameDateSafe(datePart, todayStr)) return this.getScheduledGroupLabel('today');
 
         try {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-            if (isSameDateSafe(datePart, tomorrowStr)) return 'Tomorrow';
+            if (isSameDateSafe(datePart, tomorrowStr)) return this.getScheduledGroupLabel('tomorrow');
 
             const thisWeek = new Date();
             thisWeek.setDate(thisWeek.getDate() + 7);
             const thisWeekStr = format(thisWeek, 'yyyy-MM-dd');
-            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return 'Next seven days';
+            if (isBeforeDateSafe(datePart, thisWeekStr) || isSameDateSafe(datePart, thisWeekStr)) return this.getScheduledGroupLabel('nextSevenDays');
 
-            return 'Later';
+            return this.getScheduledGroupLabel('later');
         } catch (error) {
             console.error(`Error categorizing scheduled date ${scheduledDate}:`, error);
-            return 'Invalid Date';
+            return this.getInvalidDateLabel();
         }
     }
 
@@ -1528,10 +1732,11 @@ export class FilterService extends EventEmitter {
 
                 case 'due': {
                     // Sort by logical due date order
-                    const dueDateOrder = ['Overdue', 'Today', 'Tomorrow', 'Next seven days', 'Later', 'No due date'];
+                    const dueOrderKeys: Array<'overdue' | 'today' | 'tomorrow' | 'nextSevenDays' | 'later' | 'none'> = ['overdue', 'today', 'tomorrow', 'nextSevenDays', 'later', 'none'];
+                    const dueOrderMap = new Map(dueOrderKeys.map((key, index) => [this.getDueGroupLabel(key), index]));
                     sortedKeys = Array.from(groups.keys()).sort((a, b) => {
-                        const indexA = dueDateOrder.indexOf(a);
-                        const indexB = dueDateOrder.indexOf(b);
+                        const indexA = dueOrderMap.get(a) ?? dueOrderKeys.length;
+                        const indexB = dueOrderMap.get(b) ?? dueOrderKeys.length;
                         return indexA - indexB;
                     });
                     break;
@@ -1539,10 +1744,11 @@ export class FilterService extends EventEmitter {
 
                 case 'scheduled': {
                     // Sort by logical scheduled date order
-                    const scheduledDateOrder = ['Past scheduled', 'Today', 'Tomorrow', 'Next seven days', 'Later', 'No scheduled date'];
+                    const scheduledOrderKeys: Array<'past' | 'today' | 'tomorrow' | 'nextSevenDays' | 'later' | 'none'> = ['past', 'today', 'tomorrow', 'nextSevenDays', 'later', 'none'];
+                    const scheduledOrderMap = new Map(scheduledOrderKeys.map((key, index) => [this.getScheduledGroupLabel(key), index]));
                     sortedKeys = Array.from(groups.keys()).sort((a, b) => {
-                        const indexA = scheduledDateOrder.indexOf(a);
-                        const indexB = scheduledDateOrder.indexOf(b);
+                        const indexA = scheduledOrderMap.get(a) ?? scheduledOrderKeys.length;
+                        const indexB = scheduledOrderMap.get(b) ?? scheduledOrderKeys.length;
                         return indexA - indexB;
                     });
                     break;
@@ -1551,24 +1757,26 @@ export class FilterService extends EventEmitter {
                 case 'project':
                     // Sort projects alphabetically with "No Project" at the end
                     sortedKeys = Array.from(groups.keys()).sort((a, b) => {
-                        if (a === 'No Project') return 1;
-                        if (b === 'No Project') return -1;
-                        return a.localeCompare(b);
+                        const noProjectLabel = this.getNoProjectLabel();
+                        if (a === noProjectLabel) return 1;
+                        if (b === noProjectLabel) return -1;
+                        return a.localeCompare(b, this.getLocale());
                     });
                     break;
 
                 case 'tags':
                     // Sort tags alphabetically with "No Tags" at the end
                     sortedKeys = Array.from(groups.keys()).sort((a, b) => {
-                        if (a === 'No Tags') return 1;
-                        if (b === 'No Tags') return -1;
-                        return a.localeCompare(b);
+                        const noTagsLabel = this.getNoTagsLabel();
+                        if (a === noTagsLabel) return 1;
+                        if (b === noTagsLabel) return -1;
+                        return a.localeCompare(b, this.getLocale());
                     });
                     break;
 
                 default:
                     // Alphabetical sort for contexts and others
-                    sortedKeys = Array.from(groups.keys()).sort();
+                    sortedKeys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b, this.getLocale()));
             }
         }
 
@@ -1943,7 +2151,7 @@ export class FilterService extends EventEmitter {
      * Generate date range for agenda views from array of dates
      */
     static createDateRangeFromDates(dates: Date[]): { start: string; end: string } {
-        if (dates.length === 0) throw new Error('No dates provided');
+        if (dates.length === 0) throw new Error(FilterService.translateStatic('services.filter.errors.noDatesProvided', 'No dates provided'));
         const startDate = dates[0];
         const endDate = dates[dates.length - 1];
 
@@ -2114,7 +2322,8 @@ export class FilterService extends EventEmitter {
         const folders = Array.from(folderSet).sort();
 
         // Replace empty string with a user-friendly label for root folder
-        return folders.map(folder => folder === '' ? '(Root)' : folder);
+        const rootLabel = this.translate('services.filter.folders.root', '(Root)');
+        return folders.map(folder => folder === '' ? rootLabel : folder);
     }
 
     /**

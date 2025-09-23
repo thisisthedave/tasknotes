@@ -8,12 +8,17 @@ import { formatDateForStorage, getCurrentDateString, getCurrentTimestamp, getTod
 import { format } from 'date-fns';
 
 import TaskNotesPlugin from '../main';
+import { TranslationKey } from '../i18n';
 
 export class TaskService {
     private webhookNotifier?: IWebhookNotifier;
     private autoArchiveService?: AutoArchiveService;
-    
+
     constructor(private plugin: TaskNotesPlugin) {}
+
+    private translate(key: TranslationKey, variables?: Record<string, any>): string {
+        return this.plugin.i18n.translate(key, variables);
+    }
     
     /**
      * Set webhook notifier for triggering webhook events
@@ -454,7 +459,7 @@ export class TaskService {
             } else {
                 // Template file not found, log error and return details as-is
                 console.warn(`Task body template not found: ${templatePath}`);
-                new Notice(`Task body template not found: ${templatePath}`);
+                new Notice(this.translate('services.task.notices.templateNotFound', { path: templatePath }));
                 return {
                     frontmatter: {},
                     body: taskData.details?.trim() || ''
@@ -463,7 +468,7 @@ export class TaskService {
         } catch (error) {
             // Error reading template, log error and return details as-is
             console.error('Error reading task body template:', error);
-            new Notice(`Error reading task body template: ${defaults.bodyTemplate}`);
+            new Notice(this.translate('services.task.notices.templateReadError', { template: defaults.bodyTemplate }));
             return {
                 frontmatter: {},
                 body: taskData.details?.trim() || ''
@@ -774,7 +779,7 @@ export class TaskService {
                 const errorMessage = moveError instanceof Error ? moveError.message : String(moveError);
                 const operation = isCurrentlyArchived ? 'unarchiving' : 'archiving';
                 console.error(`Error moving ${operation} task:`, errorMessage);
-                new Notice(`Failed to move ${operation} task: ${errorMessage}`);
+                new Notice(this.translate('services.task.notices.moveTaskFailed', { operation, error: errorMessage }));
                 // Continue with archive operation without moving the file
             }
         }

@@ -9,10 +9,11 @@ import { renderFeaturesTab } from './tabs/featuresTab';
 import { renderIntegrationsTab } from './tabs/integrationsTab';
 import { renderKeyboardShortcutTab } from './tabs/keyboardShortcutTab';
 import { renderJiraFieldMappingTab } from './tabs/jiraFieldMappingTab';
+import type { TranslationKey } from '../i18n';
 
 interface TabConfig {
     id: string;
-    name: string;
+    nameKey: TranslationKey;
     renderFn: (container: HTMLElement, plugin: TaskNotesPlugin, save: () => void) => void;
 }
 
@@ -25,6 +26,12 @@ export class TaskNotesSettingTab extends PluginSettingTab {
     constructor(app: App, plugin: TaskNotesPlugin) {
         super(app, plugin);
         this.plugin = plugin;
+
+        this.plugin.registerEvent(this.plugin.i18n.on('locale-changed', () => {
+            if (this.containerEl.isConnected) {
+                this.display();
+            }
+        }));
     }
 
     display(): void {
@@ -34,6 +41,8 @@ export class TaskNotesSettingTab extends PluginSettingTab {
         containerEl.addClass('tasknotes-plugin');
         containerEl.addClass('settings-view');
 
+        const translate = (key: TranslationKey) => this.plugin.i18n.translate(key);
+
         // Create tab navigation
         const tabNav = containerEl.createDiv('settings-tab-nav settings-view__tab-nav');
 
@@ -41,42 +50,42 @@ export class TaskNotesSettingTab extends PluginSettingTab {
         const allTabs: TabConfig[] = [
             { 
                 id: 'general', 
-                name: 'General',
+                nameKey: 'settings.tabs.general',
                 renderFn: renderGeneralTab
             },
             { 
                 id: 'task-properties', 
-                name: 'Task Properties',
+                nameKey: 'settings.tabs.taskProperties',
                 renderFn: renderTaskPropertiesTab
             },
             { 
                 id: 'defaults', 
-                name: 'Defaults & Templates',
+                nameKey: 'settings.tabs.defaults',
                 renderFn: renderDefaultsTab
             },
             { 
                 id: 'appearance', 
-                name: 'Appearance & UI',
+                nameKey: 'settings.tabs.appearance',
                 renderFn: renderAppearanceTab
             },
             { 
                 id: 'features', 
-                name: 'Features',
+                nameKey: 'settings.tabs.features',
                 renderFn: renderFeaturesTab
             },
             {
                 id: 'keyboard-shortcuts',
-                name: 'Keyboard',
+                nameKey: 'settings.tabs.keyboardShortcuts', // TODO i18n: Keyboard
                 renderFn: renderKeyboardShortcutTab
             },
             { 
                 id: 'integrations', 
-                name: 'Integrations',
+                nameKey: 'settings.tabs.integrations',
                 renderFn: renderIntegrationsTab
             },
             {
                 id: 'jira-field-mapping',
-                name: 'Jira',
+                nameKey: 'settings.tabs.jira', // TODO i18n: Jira
                 renderFn: renderJiraFieldMappingTab,
             }
         ];
@@ -94,8 +103,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
         // Create tab buttons
         tabs.forEach(tab => {
             const isActive = this.activeTab === tab.id;
+            const label = translate(tab.nameKey);
             const tabButton = tabNav.createEl('button', {
-                text: tab.name,
+                text: label,
                 cls: isActive ? 
                     'settings-tab-button settings-view__tab-button active settings-view__tab-button--active' : 
                     'settings-tab-button settings-view__tab-button',
@@ -190,42 +200,42 @@ export class TaskNotesSettingTab extends PluginSettingTab {
         return [
             { 
                 id: 'general', 
-                name: 'General',
+                nameKey: 'settings.tabs.general',
                 renderFn: renderGeneralTab
             },
             { 
                 id: 'task-properties', 
-                name: 'Task Properties',
+                nameKey: 'settings.tabs.taskProperties',
                 renderFn: renderTaskPropertiesTab
             },
             { 
                 id: 'defaults', 
-                name: 'Defaults & Templates',
+                nameKey: 'settings.tabs.defaults',
                 renderFn: renderDefaultsTab
             },
             { 
                 id: 'appearance', 
-                name: 'Appearance & UI',
+                nameKey: 'settings.tabs.appearance',
                 renderFn: renderAppearanceTab
             },
             { 
                 id: 'features', 
-                name: 'Features',
+                nameKey: 'settings.tabs.features',
                 renderFn: renderFeaturesTab
             },
             {
                 id: 'keyboard-shortcuts',
-                name: 'Keyboard',
+                nameKey: 'settings.tabs.keyboardShortcuts', // TODO i18n: Keyboard
                 renderFn: renderKeyboardShortcutTab
             },
             { 
                 id: 'integrations', 
-                name: 'Integrations',
+                nameKey: 'settings.tabs.integrations',
                 renderFn: renderIntegrationsTab
             },
             {
                 id: 'jira-field-mapping',
-                name: 'Jira',
+                nameKey: 'settings.tabs.jira', // TODO i18n: Jira
                 renderFn: renderJiraFieldMappingTab,
             }
         ];
