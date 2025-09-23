@@ -43,6 +43,10 @@ export class KeyboardShortcutsMap implements KeyboardShortcuts {
         return this.map[action] ?? [];
     }
 
+    getAllShortcuts(): Record<KeyboardShortcutAction, readonly string[]> {
+        return this.map;
+    }
+
     addShortcut(action: KeyboardShortcutAction, e: KeyboardEvent): boolean {
         if (KeyboardShortcutsMap.isPureModifier(e)) return false; // ignore pure modifiers
 

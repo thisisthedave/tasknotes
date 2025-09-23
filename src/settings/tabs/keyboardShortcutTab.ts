@@ -74,7 +74,7 @@ export function renderKeyboardShortcutTab(
 
     const help = container.createEl('div', {
         text:
-            'Click ＋ and press a key (or combo) to add a binding. Press Esc to cancel. ' +
+            'Click + and press a key (or combo) to add a binding. Press Esc to cancel. ' +
             'Bindings shown in red conflict with other actions.',
     });
     help.style.opacity = '0.8';
@@ -98,7 +98,12 @@ export function renderKeyboardShortcutTab(
     const ACTIONS: KeyboardShortcutAction[] = Object.keys(ACTION_LABELS) as KeyboardShortcutAction[];
 
     // single source of truth in this tab
-    const getMap = (): KeyboardShortcuts => new KeyboardShortcutsMap(plugin.settings.keyboardShortcuts!);
+    const getMap = (): KeyboardShortcutsMap => new KeyboardShortcutsMap(plugin.settings.keyboardShortcuts!);
+
+    const saveMap = (shortcuts: KeyboardShortcutsMap): void => {
+        plugin.settings.keyboardShortcuts = shortcuts.getAllShortcuts();
+        save();
+    }
 
     const refreshConflicts = () => {
         const reverse = new Map<string, KeyboardShortcutAction[]>();
@@ -140,7 +145,7 @@ export function renderKeyboardShortcutTab(
                 remove.addClass('setting-delete-hotkey', 'setting-hotkey-icon');
                 remove.addEventListener('click', () => {
                     if (map.removeShortcut(action, sig)) {
-                        save();
+                        saveMap(map);
                         paint();
                     }
                 });
@@ -179,7 +184,7 @@ export function renderKeyboardShortcutTab(
 
                 // ignore duplicate in the same action
                 if (map.addShortcut(action, ev)) {
-                    save();
+                    saveMap(map);
                 }
                 stopCapture();
             };
