@@ -1,4 +1,4 @@
-import { EventRef, View } from "obsidian";
+import { EventRef, KeymapEventHandler, Scope, View } from "obsidian";
 import TaskNotesPlugin from "src/main";
 import { DEFAULT_KEYBOARD_SHORTCUTS } from "src/settings/defaults";
 import { KeyboardShortcutsMap } from "src/settings/KeyboardShortcutsMap";
@@ -12,6 +12,8 @@ export class InputObserver {
     // Event listeners
     private eventListeners: EventRef[] = [];
     private inputListeners: Map<View, (action: KeyboardShortcutAction) => Promise<void>> = new Map();
+    private cancelEscapeScope: Scope | null = null;
+    private cancelEscapeHandler: KeymapEventHandler | null = null;
 
     constructor(plugin: TaskNotesPlugin) {
         this.plugin = plugin;
@@ -24,6 +26,9 @@ export class InputObserver {
                 for (const node of mutation.addedNodes) {
                     if (node.nodeType === 1 && (node as Element).matches(".menu, .modal-container:not(.modals-hidden)")) {
                         this.isMenuOpen = true;
+                        // swallow Esc (and optionally Enter) while capturing
+                        this.cancelEscapeScope = new Scope(plugin.app.scope);
+                        this.cancelEscapeHandler = this.cancelEscapeScope.register([], 'Escape', this.handleKeyDown.bind(this));
                     }
                 }
                 for (const node of mutation.removedNodes) {
@@ -32,6 +37,11 @@ export class InputObserver {
                         setTimeout(() => {
                             if (!document.querySelector(".menu, .modal-container:not(.modals-hidden)")) {
                                 this.isMenuOpen = false;
+                                if (this.cancelEscapeScope) {
+                                    this.cancelEscapeScope.unregister(this.cancelEscapeHandler!);
+                                    this.cancelEscapeScope = null;
+                                    this.cancelEscapeHandler = null;
+                                }
                             }
                         }, 0);
                     }
@@ -64,7 +74,7 @@ export class InputObserver {
         this.eventListeners.push(settingsListener);
     }
 
-    private initializeKeyboardShortcuts(): void {        
+    private initializeKeyboardShortcuts(): void {
         this.keyboardShortcuts = new KeyboardShortcutsMap(this.plugin.settings.keyboardShortcuts ?? DEFAULT_KEYBOARD_SHORTCUTS);
     }
 
