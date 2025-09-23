@@ -65,7 +65,7 @@ export class InputObserver {
     }
 
     private initializeKeyboardShortcuts(): void {        
-        this.keyboardShortcuts = new KeyboardShortcutsMap(DEFAULT_KEYBOARD_SHORTCUTS);
+        this.keyboardShortcuts = new KeyboardShortcutsMap(this.plugin.settings.keyboardShortcuts ?? DEFAULT_KEYBOARD_SHORTCUTS);
     }
 
     isActiveView(view: View): boolean {
