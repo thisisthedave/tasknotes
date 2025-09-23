@@ -653,7 +653,13 @@ export function getCurrentTimestamp(): string {
  * Get current date in YYYY-MM-DD format for completion dates
  */
 export function getCurrentDateString(): string {
-    return formatDateForStorage(new Date());
+    // For user actions (task completion), use local date extraction
+    // This ensures completion is recorded as user's local calendar day
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 /**
@@ -679,16 +685,21 @@ export function parseTimestamp(timestampString: string): Date {
 
 /**
  * Format timestamp for display in user's timezone
+ * @param timestampString - The timestamp string to format
+ * @param formatString - Optional custom format string (if not provided, uses user's time format preference)
+ * @param timeFormat - The user's time format preference ('12' or '24')
  */
-export function formatTimestampForDisplay(timestampString: string, formatString = 'MMM d, yyyy h:mm a'): string {
+export function formatTimestampForDisplay(timestampString: string, formatString?: string, timeFormat: '12' | '24' = '24'): string {
     if (!timestampString) {
         return timestampString;
     }
-    
+
     try {
         const parsed = parseTimestamp(timestampString);
         if (isValid(parsed)) {
-            return format(parsed, formatString);
+            // Use custom format if provided, otherwise use time format preference
+            const finalFormat = formatString || (timeFormat === '12' ? 'MMM d, yyyy h:mm a' : 'MMM d, yyyy HH:mm');
+            return format(parsed, finalFormat);
         }
         return timestampString;
     } catch (error) {
@@ -755,6 +766,76 @@ export function getTimePart(dateString: string): string | null {
 }
 
 /**
+ * Format a Date object with time in the user's preferred format (12h or 24h)
+ * @param date - The Date object to format
+ * @param timeFormat - The user's time format preference ('12' or '24')
+ * @returns Formatted time string
+ */
+export function formatTime(date: Date, timeFormat: '12' | '24' = '24'): string {
+    if (!isValid(date)) {
+        console.warn('Invalid date provided to formatTime:', date);
+        return '';
+    }
+    
+    return format(date, timeFormat === '12' ? 'h:mm a' : 'HH:mm');
+}
+
+/**
+ * Format a Date object with both date and time in the user's preferred format
+ * @param date - The Date object to format
+ * @param timeFormat - The user's time format preference ('12' or '24')
+ * @returns Formatted date and time string
+ */
+export function formatDateTime(date: Date, timeFormat: '12' | '24' = '24'): string {
+    if (!isValid(date)) {
+        console.warn('Invalid date provided to formatDateTime:', date);
+        return '';
+    }
+    
+    return format(date, timeFormat === '12' ? 'MMM d, yyyy h:mm a' : 'MMM d, yyyy HH:mm');
+}
+
+/**
+ * Format a date string with time in the user's preferred format
+ * @param dateString - The date string to format
+ * @param timeFormat - The user's time format preference ('12' or '24')
+ * @returns Formatted time string, or original if no time component
+ */
+export function formatDateStringTime(dateString: string, timeFormat: '12' | '24' = '24'): string {
+    if (!dateString || !hasTimeComponent(dateString)) {
+        return dateString;
+    }
+    
+    try {
+        const parsed = parseDateToLocal(dateString);
+        return formatTime(parsed, timeFormat);
+    } catch (error) {
+        console.error('Error formatting date string time:', { dateString, error });
+        return dateString;
+    }
+}
+
+/**
+ * Helper function to create formatDateTimeForDisplay calls with user's time format preference
+ * Use this in UI components that have access to the plugin instance
+ */
+export function createTimeFormatHelper(userTimeFormat: '12' | '24') {
+    return {
+        formatDateTimeForDisplay: (dateString: string, options: {
+            dateFormat?: string;
+            timeFormat?: string;
+            showTime?: boolean;
+        } = {}) => formatDateTimeForDisplay(dateString, { ...options, userTimeFormat }),
+        
+        formatTime: (date: Date) => formatTime(date, userTimeFormat),
+        
+        formatDateTime: (date: Date) => formatDateTime(date, userTimeFormat),
+        
+        formatDateStringTime: (dateString: string) => formatDateStringTime(dateString, userTimeFormat)
+    };
+}
+
+/**
  * Combine a date and time into a datetime string
  */
 export function combineDateAndTime(dateString: string, timeString: string): string {
@@ -803,14 +884,19 @@ export function formatDateTimeForDisplay(dateString: string, options: {
     dateFormat?: string;
     timeFormat?: string;
     showTime?: boolean;
+    userTimeFormat?: '12' | '24'; // User's time format preference
 } = {}): string {
     if (!dateString) return '';
     
     const {
         dateFormat = 'MMM d, yyyy',
-        timeFormat = 'h:mm a',
-        showTime = true
+        timeFormat,
+        showTime = true,
+        userTimeFormat = '24'
     } = options;
+    
+    // Use userTimeFormat if no specific timeFormat is provided
+    const finalTimeFormat = timeFormat || (userTimeFormat === '12' ? 'h:mm a' : 'HH:mm');
     
     try {
         const parsed = parseDate(dateString);
@@ -819,9 +905,9 @@ export function formatDateTimeForDisplay(dateString: string, options: {
         if (hasTime && showTime) {
             // Handle empty dateFormat case (e.g., for "Today at" scenarios)
             if (!dateFormat || dateFormat.trim() === '') {
-                return format(parsed, timeFormat);
+                return format(parsed, finalTimeFormat);
             } else {
-                return format(parsed, `${dateFormat} ${timeFormat}`);
+                return format(parsed, `${dateFormat} ${finalTimeFormat}`);
             }
         } else {
             // For date-only, return the dateFormat or fallback
@@ -910,10 +996,10 @@ export function isOverdueTimeAware(dateString: string, isCompleted?: boolean, hi
             // Task has a specific time; it's overdue if that moment has passed
             return isBefore(taskDateUTC, now);
         } else {
-            // Task is date-only. It's overdue if the UTC anchor is before
-            // the start of the user's current local day
-            const todayLocalStart = startOfDay(new Date()); // User's midnight
-            return isBefore(taskDateUTC, todayLocalStart);
+            // Task is date-only. Compare using UTC anchors for both the task date
+            // and "today" to avoid timezone drift (UTC Anchor principle).
+            const todayUTCAnchor = parseDateToUTC(getTodayString());
+            return isBefore(taskDateUTC, todayUTCAnchor);
         }
     } catch (error) {
         console.error('Error checking overdue status:', { dateString, error });

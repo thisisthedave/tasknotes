@@ -43,6 +43,7 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			{ id: 'pomodoro', name: 'Pomodoro' },
 			{ id: 'notifications', name: 'Notifications' },
 			{ id: 'api', name: 'HTTP API' },
+			{ id: 'integrations', name: 'Integrations' },
 			{ id: 'misc', name: 'Misc' }
 		];
 
@@ -149,6 +150,9 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 				break;
 			case 'api':
 				this.renderAPITab();
+				break;
+			case 'integrations':
+				this.renderIntegrationsTab();
 				break;
 			case 'misc':
 				this.renderMiscTab();
@@ -726,10 +730,12 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 			{ id: 'sortOrder', name: 'Sort Order', category: 'organization' }
 		];
 
-		new Setting(container)
+		const defaultPropertiesSetting = new Setting(container)
 			.setName('Default visible properties')
-			.setDesc('Choose which properties appear on task cards by default. You can temporarily change these in each view and save custom combinations to saved views.')
-			.setClass('setting-item-default-properties');
+			.setDesc('Choose which properties appear on task cards by default. You can temporarily change these in each view and save custom combinations to saved views.');
+		
+		// Add CSS class to the setting container
+		defaultPropertiesSetting.settingEl.addClass('setting-item-default-properties');
 
 		// Create container for property toggles
 		const propertiesContainer = container.createDiv('default-properties-container');
@@ -901,21 +907,6 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 
 		// Time settings section
 		new Setting(container).setName('Time settings').setHeading();
-
-		new Setting(container)
-			.setName('Time format')
-			.setDesc('Display times in 12-hour or 24-hour format')
-			.addDropdown(dropdown => {
-				dropdown.selectEl.setAttribute('aria-label', 'Time format');
-				return dropdown
-					.addOption('12', '12-hour (9:00 AM)')
-					.addOption('24', '24-hour (09:00)')
-					.setValue(this.plugin.settings.calendarViewSettings.timeFormat)
-					.onChange(async (value: any) => {
-						this.plugin.settings.calendarViewSettings.timeFormat = value;
-						await this.plugin.saveSettings();
-					});
-			});
 
 		new Setting(container)
 			.setName('Time slot duration')
@@ -1412,7 +1403,10 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 							defaultNoteTemplate: '',
 							defaultNoteFolder: '',
 							icsNoteFilenameFormat: 'title',
-							customICSNoteFilenameTemplate: '{title}'
+							customICSNoteFilenameTemplate: '{title}',
+							enableAutoExport: false,
+							autoExportPath: 'tasknotes-calendar.ics',
+							autoExportInterval: 60
 						};
 					}
 					this.plugin.settings.icsIntegration.defaultNoteTemplate = value;
@@ -1431,7 +1425,10 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 							defaultNoteTemplate: '',
 							defaultNoteFolder: '',
 							icsNoteFilenameFormat: 'title',
-							customICSNoteFilenameTemplate: '{title}'
+							customICSNoteFilenameTemplate: '{title}',
+							enableAutoExport: false,
+							autoExportPath: 'tasknotes-calendar.ics',
+							autoExportInterval: 60
 						};
 					}
 					this.plugin.settings.icsIntegration.defaultNoteFolder = value;
@@ -1458,7 +1455,10 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 							defaultNoteTemplate: '',
 							defaultNoteFolder: '',
 							icsNoteFilenameFormat: 'title',
-							customICSNoteFilenameTemplate: '{title}'
+							customICSNoteFilenameTemplate: '{title}',
+							enableAutoExport: false,
+							autoExportPath: 'tasknotes-calendar.ics',
+							autoExportInterval: 60
 						};
 					}
 					this.plugin.settings.icsIntegration.icsNoteFilenameFormat = value;
@@ -1481,7 +1481,10 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 									defaultNoteTemplate: '',
 									defaultNoteFolder: '',
 									icsNoteFilenameFormat: 'title',
-									customICSNoteFilenameTemplate: '{title}'
+									customICSNoteFilenameTemplate: '{title}',
+									enableAutoExport: false,
+									autoExportPath: 'tasknotes-calendar.ics',
+									autoExportInterval: 60
 								};
 							}
 							this.plugin.settings.icsIntegration.customICSNoteFilenameTemplate = value;
@@ -3789,6 +3792,39 @@ export class TaskNotesSettingTab extends PluginSettingTab {
 		return Array.from(crypto.getRandomValues(new Uint8Array(32)))
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
+	}
+
+	private renderIntegrationsTab(): void {
+		const container = this.tabContents['integrations'];
+
+		// Integrations settings
+		new Setting(container).setName('Plugin integrations').setHeading();
+
+		container.createEl('p', {
+			text: 'Configure integration with other Obsidian plugins.',
+			cls: 'settings-help-note'
+		});
+
+		// Bases POC toggle
+		new Setting(container)
+			.setName('Bases integration (Proof of Concept)')
+			.setDesc('Enable TaskNotes views to be used within Obsidian Bases plugin. This is experimental and requires the Bases plugin to be installed.')
+			.addToggle(toggle => {
+				toggle.toggleEl.setAttribute('aria-label', 'Enable Bases integration proof of concept');
+				return toggle
+					.setValue(this.plugin.settings.enableBases)
+					.onChange(async (value) => {
+						this.plugin.settings.enableBases = value;
+						await this.plugin.saveSettings();
+						
+						// Show notice about restart requirement
+						if (value) {
+							new Notice('Bases integration enabled. Please restart Obsidian to complete the setup.');
+						} else {
+							new Notice('Bases integration disabled. Please restart Obsidian to complete the removal.');
+						}
+					});
+			});
 	}
 }
 

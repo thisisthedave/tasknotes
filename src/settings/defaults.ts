@@ -35,7 +35,9 @@ export const DEFAULT_STATUSES: StatusConfig[] = [
 		label: 'None',
 		color: '#cccccc',
 		isCompleted: false,
-		order: 0
+		order: 0,
+		autoArchive: false,
+		autoArchiveDelay: 5
 	},
 	{
 		id: 'open',
@@ -43,7 +45,9 @@ export const DEFAULT_STATUSES: StatusConfig[] = [
 		label: 'Open',
 		color: '#808080',
 		isCompleted: false,
-		order: 1
+		order: 1,
+		autoArchive: false,
+		autoArchiveDelay: 5
 	},
 	{
 		id: 'in-progress',
@@ -51,7 +55,9 @@ export const DEFAULT_STATUSES: StatusConfig[] = [
 		label: 'In progress',
 		color: '#0066cc',
 		isCompleted: false,
-		order: 2
+		order: 2,
+		autoArchive: false,
+		autoArchiveDelay: 5
 	},
 	{
 		id: 'done',
@@ -59,7 +65,9 @@ export const DEFAULT_STATUSES: StatusConfig[] = [
 		label: 'Done',
 		color: '#00aa00',
 		isCompleted: true,
-		order: 3
+		order: 3,
+		autoArchive: false,
+		autoArchiveDelay: 5
 	}
 ];
 
@@ -149,7 +157,11 @@ export const DEFAULT_ICS_INTEGRATION_SETTINGS: ICSIntegrationSettings = {
 	defaultNoteTemplate: '',
 	defaultNoteFolder: '',
 	icsNoteFilenameFormat: 'title', // Default to using the event title for ICS notes
-	customICSNoteFilenameTemplate: '{title}' // Simple title template for ICS notes
+	customICSNoteFilenameTemplate: '{title}', // Simple title template for ICS notes
+	// Automatic export defaults
+	enableAutoExport: false,
+	autoExportPath: 'tasknotes-calendar.ics',
+	autoExportInterval: 60 // 60 minutes by default
 };
 
 export const DEFAULT_PROJECT_AUTOSUGGEST: ProjectAutosuggestSettings = {
@@ -161,7 +173,9 @@ export const DEFAULT_PROJECT_AUTOSUGGEST: ProjectAutosuggestSettings = {
 	],
 	showAdvanced: false,
 	requiredTags: [],
-	includeFolders: []
+	includeFolders: [],
+	propertyKey: '',
+	propertyValue: ''
 };
 
 /** Defaults are duplicated here for reset, must stay in sync with plugin defaults */
@@ -255,8 +269,9 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	useDefaultsOnInstantConvert: true,
 	enableNaturalLanguageInput: true,
 	nlpDefaultToScheduled: true,
-		// NLP status suggestion trigger
-		statusSuggestionTrigger: '*',
+	nlpLanguage: 'en', // Default to English
+	// NLP status suggestion trigger
+	statusSuggestionTrigger: '*',
 
 	singleClickAction: 'edit',
 	doubleClickAction: 'openNote',
@@ -317,6 +332,8 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	],
 	keyboardShortcuts: DEFAULT_KEYBOARD_SHORTCUTS,
 	jiraMapping: DEFAULT_JIRA_FIELD_MAPPING,
+	// Bases integration defaults
+	enableBases: true,
 	// Recurring task behavior defaults
 	maintainDueDateOffsetInRecurring: false
 };

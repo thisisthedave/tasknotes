@@ -21,6 +21,8 @@ export interface ProjectAutosuggestSettings {
 	showAdvanced?: boolean; // Show advanced configuration options
 	requiredTags?: string[]; // Show notes that have ANY of these tags
 	includeFolders?: string[]; // Only show notes in these folders (empty = all folders)
+	propertyKey?: string; // Frontmatter property name to match
+	propertyValue?: string; // Expected value for the property (empty = property must exist)
 }
 
 export interface TaskNotesSettings {
@@ -60,6 +62,7 @@ export interface TaskNotesSettings {
 	useDefaultsOnInstantConvert: boolean;
 	enableNaturalLanguageInput: boolean;
 	nlpDefaultToScheduled: boolean;
+	nlpLanguage: string; // Language code for natural language processing (e.g., 'en', 'es', 'fr')
 
 	// NLP status suggestion trigger (empty to disable)
 	statusSuggestionTrigger: string;
@@ -119,6 +122,8 @@ export interface TaskNotesSettings {
 	keyboardShortcuts?: Record<KeyboardShortcutAction, readonly string[]>;
 	// JIRA integration field mapping (optional)
 	jiraMapping?: JiraFieldMappingSettings;
+	// Bases integration settings
+	enableBases: boolean;
 	// Recurring task behavior
 	maintainDueDateOffsetInRecurring: boolean;
 }
@@ -194,6 +199,10 @@ export interface ICSIntegrationSettings {
 	// Filename settings for ICS event notes
 	icsNoteFilenameFormat: 'title' | 'zettel' | 'timestamp' | 'custom';
 	customICSNoteFilenameTemplate: string; // Template for custom format
+	// Automatic export settings
+	enableAutoExport: boolean;       // Whether to automatically export tasks to ICS file
+	autoExportPath: string;          // Path where the ICS file should be saved
+	autoExportInterval: number;      // Export interval in minutes (default: 60)
 }
 
 export interface CalendarViewSettings {

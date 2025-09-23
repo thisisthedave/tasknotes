@@ -56,7 +56,7 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
         plugin.settings.userFields.forEach(field => {
             if (field.displayName && field.key) {
                 propertyGroups.user.push({
-                    key: field.key,
+                    key: `user:${field.id}`,
                     label: field.displayName
                 });
             }
@@ -170,6 +170,24 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
         }
     }
 
+    // Display Formatting Section
+    createSectionHeader(container, 'Display Formatting');
+    createHelpText(container, 'Configure how dates, times, and other data are displayed across the plugin.');
+
+    createDropdownSetting(container, {
+        name: 'Time format',
+        desc: 'Display time in 12-hour or 24-hour format throughout the plugin',
+        options: [
+            { value: '12', label: '12-hour (AM/PM)' },
+            { value: '24', label: '24-hour' }
+        ],
+        getValue: () => plugin.settings.calendarViewSettings.timeFormat,
+        setValue: async (value: string) => {
+            plugin.settings.calendarViewSettings.timeFormat = value as '12' | '24';
+            save();
+        }
+    });
+
     // Calendar View Section
     createSectionHeader(container, 'Calendar View');
     createHelpText(container, 'Customize the appearance and behavior of the calendar view.');
@@ -227,19 +245,6 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
         }
     });
 
-    createDropdownSetting(container, {
-        name: 'Time format',
-        desc: 'Display time in 12-hour or 24-hour format',
-        options: [
-            { value: '12', label: '12-hour (AM/PM)' },
-            { value: '24', label: '24-hour' }
-        ],
-        getValue: () => plugin.settings.calendarViewSettings.timeFormat,
-        setValue: async (value: string) => {
-            plugin.settings.calendarViewSettings.timeFormat = value as '12' | '24';
-            save();
-        }
-    });
 
     createToggleSetting(container, {
         name: 'Show weekends',
@@ -366,33 +371,6 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
         }
     });
 
-    // Timeblocking section
-    createSectionHeader(container, 'Timeblocking');
-    createHelpText(container, 'Configure timeblock functionality for lightweight scheduling in daily notes.');
-
-    createToggleSetting(container, {
-        name: 'Enable timeblocking',
-        desc: 'Enable timeblock functionality for lightweight scheduling in daily notes',
-        getValue: () => plugin.settings.calendarViewSettings.enableTimeblocking,
-        setValue: async (value: boolean) => {
-            plugin.settings.calendarViewSettings.enableTimeblocking = value;
-            save();
-            // Re-render to show/hide timeblocks visibility setting
-            renderAppearanceTab(container, plugin, save);
-        }
-    });
-
-    if (plugin.settings.calendarViewSettings.enableTimeblocking) {
-        createToggleSetting(container, {
-            name: 'Show timeblocks',
-            desc: 'Display timeblocks from daily notes by default',
-            getValue: () => plugin.settings.calendarViewSettings.defaultShowTimeblocks,
-            setValue: async (value: boolean) => {
-                plugin.settings.calendarViewSettings.defaultShowTimeblocks = value;
-                save();
-            }
-        });
-    }
 
     // Time Settings
     createSectionHeader(container, 'Time Settings');
@@ -542,7 +520,7 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
         getValue: () => plugin.settings.projectAutosuggest?.requiredTags?.join(', ') ?? '',
         setValue: async (value: string) => {
             if (!plugin.settings.projectAutosuggest) {
-                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false, requiredTags: [], includeFolders: [] };
+                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false, requiredTags: [], includeFolders: [], propertyKey: '', propertyValue: '' };
             }
             plugin.settings.projectAutosuggest.requiredTags = value
                 .split(',')
@@ -561,7 +539,7 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
         getValue: () => plugin.settings.projectAutosuggest?.includeFolders?.join(', ') ?? '',
         setValue: async (value: string) => {
             if (!plugin.settings.projectAutosuggest) {
-                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false, requiredTags: [], includeFolders: [] };
+                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false, requiredTags: [], includeFolders: [], propertyKey: '', propertyValue: '' };
             }
             plugin.settings.projectAutosuggest.includeFolders = value
                 .split(',')
@@ -572,13 +550,44 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
         ariaLabel: 'Include folders for project suggestions'
     });
 
+    // Property filtering
+    createTextSetting(container, {
+        name: 'Required property key',
+        desc: 'Show only notes where this frontmatter property matches the value below. Leave empty to ignore.',
+        placeholder: 'type',
+        getValue: () => plugin.settings.projectAutosuggest?.propertyKey ?? '',
+        setValue: async (value: string) => {
+            if (!plugin.settings.projectAutosuggest) {
+                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false, requiredTags: [], includeFolders: [], propertyKey: '', propertyValue: '' };
+            }
+            plugin.settings.projectAutosuggest.propertyKey = value.trim();
+            save();
+        },
+        ariaLabel: 'Required frontmatter property key for project suggestions'
+    });
+
+    createTextSetting(container, {
+        name: 'Required property value',
+        desc: 'Only notes where the property equals this value are suggested. Leave empty to require the property to exist.',
+        placeholder: 'project',
+        getValue: () => plugin.settings.projectAutosuggest?.propertyValue ?? '',
+        setValue: async (value: string) => {
+            if (!plugin.settings.projectAutosuggest) {
+                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false, requiredTags: [], includeFolders: [], propertyKey: '', propertyValue: '' };
+            }
+            plugin.settings.projectAutosuggest.propertyValue = value.trim();
+            save();
+        },
+        ariaLabel: 'Required frontmatter property value for project suggestions'
+    });
+
     createToggleSetting(container, {
         name: 'Customize suggestion display',
         desc: 'Show advanced options to configure how project suggestions appear and what information they display.',
         getValue: () => plugin.settings.projectAutosuggest?.showAdvanced ?? false,
         setValue: async (value: boolean) => {
             if (!plugin.settings.projectAutosuggest) {
-                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false };
+                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false, requiredTags: [], includeFolders: [], propertyKey: '', propertyValue: '' };
             }
             plugin.settings.projectAutosuggest.showAdvanced = value;
             save();
@@ -593,14 +602,14 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
             name: 'Enable fuzzy matching',
             desc: 'Allow typos and partial matches in project search. May be slower in large vaults.',
             getValue: () => plugin.settings.projectAutosuggest?.enableFuzzy ?? false,
-            setValue: async (value: boolean) => {
-                if (!plugin.settings.projectAutosuggest) {
-                    plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false };
-                }
-                plugin.settings.projectAutosuggest.enableFuzzy = value;
-                save();
+        setValue: async (value: boolean) => {
+            if (!plugin.settings.projectAutosuggest) {
+                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false, requiredTags: [], includeFolders: [], propertyKey: '', propertyValue: '' };
             }
-        });
+            plugin.settings.projectAutosuggest.enableFuzzy = value;
+            save();
+        }
+    });
 
         // Display rows configuration
         createHelpText(container, 'Configure up to 3 lines of information to show for each project suggestion.');
@@ -609,7 +618,7 @@ export function renderAppearanceTab(container: HTMLElement, plugin: TaskNotesPlu
         
         const setRow = async (idx: number, value: string) => {
             if (!plugin.settings.projectAutosuggest) {
-                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false };
+                plugin.settings.projectAutosuggest = { enableFuzzy: false, rows: [], showAdvanced: false, requiredTags: [], includeFolders: [], propertyKey: '', propertyValue: '' };
             }
             const current = plugin.settings.projectAutosuggest.rows ?? [];
             const next = [...current];

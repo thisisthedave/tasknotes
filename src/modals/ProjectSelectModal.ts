@@ -4,6 +4,7 @@ import { TaskInfo } from 'src/types';
 import { ProjectMetadataResolver } from '../utils/projectMetadataResolver';
 import { parseDisplayFieldsRow } from '../utils/projectAutosuggestDisplayFieldsParser';
 import { getProjectFiles } from 'src/utils/helpers';
+import { getProjectPropertyFilter, matchesProjectProperty } from '../utils/projectFilterUtils';
 
 /**
  * Modal for selecting project notes using fuzzy search
@@ -63,9 +64,10 @@ export class ProjectSelectModal extends FuzzySuggestModal<TAbstractFile> {
         // Get filtering settings
         const requiredTags = this.plugin.settings?.projectAutosuggest?.requiredTags ?? [];
         const includeFolders = this.plugin.settings?.projectAutosuggest?.includeFolders ?? [];
+        const propertyFilter = getProjectPropertyFilter(this.plugin.settings?.projectAutosuggest);
 
         // Apply filtering if any filters are configured
-        if (requiredTags.length === 0 && includeFolders.length === 0) {
+        if (requiredTags.length === 0 && includeFolders.length === 0 && !propertyFilter.enabled) {
             return allFiles; // No filtering needed
         }
 
@@ -98,6 +100,13 @@ export class ProjectSelectModal extends FuzzySuggestModal<TAbstractFile> {
                 );
                 if (!isInIncludedFolder) {
                     return false; // Skip this file
+                }
+            }
+
+            if (propertyFilter.enabled) {
+                const frontmatter = cache?.frontmatter;
+                if (!matchesProjectProperty(frontmatter, propertyFilter)) {
+                    return false;
                 }
             }
 

@@ -12,6 +12,7 @@ import {
 // No helper functions needed from helpers
 import { perfMonitor } from '../utils/PerformanceMonitor';
 import { createTaskCard, updateTaskCard, refreshParentTaskSubtasks, isTaskCardSelected, showDateContextMenu, showStatusContextMenu, showDeleteConfirmationModal, copyTaskTitleToClipboard, toggleTaskCardSelection, setTaskCardSelected } from '../ui/TaskCard';
+import { initializeViewPerformance, cleanupViewPerformance, OptimizedView, selectiveUpdateForListView, selectiveMultiUpdateForListView } from '../utils/viewOptimizations';
 import { FilterBar } from '../ui/FilterBar';
 import { GroupingUtils } from '../utils/GroupingUtils';
 import { FilterHeading } from '../ui/FilterHeading';
@@ -25,10 +26,15 @@ import { showContextModal } from 'src/modals/ContextsModal';
 import { showPriorityContextMenu } from 'src/components/PriorityContextMenu';
 import { showRecurrenceContextMenu } from 'src/components/RecurrenceContextMenu';
 import { KeyboardShortcutAction } from 'src/types/settings';
+import { MultiMap } from 'src/utils/MultiMap';
 
-export class TaskListView extends ItemView {
+export class TaskListView extends ItemView implements OptimizedView {
     plugin: TaskNotesPlugin;
-    
+
+    // Performance optimization properties
+    viewPerformanceService?: import('../services/ViewPerformanceService').ViewPerformanceService;
+    performanceConfig?: import('../services/ViewPerformanceService').ViewPerformanceConfig;
+
     // UI elements
     private taskListContainer: HTMLElement | null = null;
     private loadingIndicator: HTMLElement | null = null;
@@ -45,8 +51,8 @@ export class TaskListView extends ItemView {
     private currentQuery: FilterQuery;
     
     // Task item tracking for dynamic updates
-    private taskElements: HTMLElement[] = [];
-    private focusTaskElementIndex: number = -1; // Track focused task for keyboard navigation
+    taskElements: MultiMap<string, HTMLElement> = new MultiMap();
+    private focusedTaskElement: { taskPath: string, index:number } | null = null; // Track focused task for keyboard navigation
     
     // Event listeners
     private listeners: EventRef[] = [];
@@ -95,7 +101,7 @@ export class TaskListView extends ItemView {
                 // Find the affected range of tasks to update.
                 fromIndex = indicesToMove[0]
                 const affectedStart = Math.max(0, fromIndex > toIndex ? toIndex - 1 : fromIndex - 1);
-                const affectedEnd = Math.min(this.taskElements.length, Math.max(toIndex, indicesToMove.at(-1)!) + 2); // +2 because end is exclusive for slice
+                const affectedEnd = Math.min(this.taskElements.sizeValues, Math.max(toIndex, indicesToMove.at(-1)!) + 2); // +2 because end is exclusive for slice
                 const affectedTaskElements = this.taskElements.slice(affectedStart, affectedEnd); // returns a copy
                 const affectedIndices = indicesToMove.map(idx => idx - affectedStart);
                 if (affectedTaskElements.length > 0) {
@@ -172,55 +178,8 @@ export class TaskListView extends ItemView {
         });
         this.listeners.push(dateChangeListener);
         
-        // Listen for individual task updates
-        const taskUpdateListener = this.plugin.emitter.on(EVENT_TASK_UPDATED, async ({ path, originalTask, updatedTask }) => {
-            if (!path || !updatedTask) {
-                console.error('EVENT_TASK_UPDATED received invalid data:', { path, originalTask, updatedTask });
-                return;
-            }
-            
-            // Check if any parent task cards need their subtasks refreshed
-            await refreshParentTaskSubtasks(updatedTask, this.plugin, this.contentEl);
-            
-            // Check if this task is currently visible in our view
-            const taskElements = this.taskElements.filter(element => element.dataset.key === path);
-            if (taskElements.length > 0) {
-                // Task is visible - update it in place using TaskCard's update function
-                for (const taskElement of taskElements) {
-                    try {
-	                const visibleProperties = this.getCurrentVisibleProperties();
-        	        updateTaskCard(taskElement, updatedTask, this.plugin, visibleProperties, {
-                            showDueDate: true,
-                            showCheckbox: false,
-                            showArchiveButton: true,
-                            showTimeTracking: true,
-                            showRecurringControls: true,
-                            groupByDate: false
-                        });
-                        
-                        // Add update animation for real user updates
-                        taskElement.classList.add('task-updated');
-                        setTimeout(() => {
-                            taskElement.classList.remove('task-updated');
-                        }, 1000);
-                    } catch (error) {
-                        console.error('Error updating task card:', error);
-                        // Fallback to refresh if update fails
-                        this.debouncedRefreshTasks();
-                    }
-                }
-            } else {
-                // Task not currently visible - it might now match our filters, so refresh
-                this.debouncedRefreshTasks();
-            }
-            
-            // Update FilterBar options when tasks are updated (may have new properties, contexts, etc.)
-            if (this.filterBar) {
-                const updatedFilterOptions = await this.plugin.filterService.getFilterOptions();
-                this.filterBar.updateFilterOptions(updatedFilterOptions);
-            }
-        });
-        this.listeners.push(taskUpdateListener);
+        // Performance optimization: Use ViewPerformanceService instead of direct task listeners
+        // The service will handle debouncing and selective updates
         
         // Listen for filter service data changes
         const filterDataListener = this.plugin.filterService.on('data-changed', () => {
@@ -250,6 +209,14 @@ export class TaskListView extends ItemView {
             this.plugin.inputObserver.addInputListener(this, this.handleKeyboardShortcut.bind(this));
 
             await this.refresh();
+
+            // Initialize performance optimizations
+            initializeViewPerformance(this, {
+                viewId: TASK_LIST_VIEW_TYPE,
+                debounceDelay: 100,
+                maxBatchSize: 8,
+                changeDetectionEnabled: true
+            });
         } catch (error) {
             console.error('TaskListView: Error during onOpen:', error);
             // Fall back to the old polling approach if onReady fails
@@ -281,10 +248,13 @@ export class TaskListView extends ItemView {
     }
     
     async onClose() {
+        // Clean up performance optimizations
+        cleanupViewPerformance(this);
+
         // Remove event listeners
         this.listeners.forEach(listener => this.plugin.emitter.offref(listener));
         this.functionListeners.forEach(unsubscribe => unsubscribe());
-        
+
         // Clean up FilterBar
         if (this.filterBar) {
             this.filterBar.destroy();
@@ -296,7 +266,7 @@ export class TaskListView extends ItemView {
             this.filterHeading.destroy();
             this.filterHeading = null;
         }
-        
+
         this.contentEl.empty();
     }
     
@@ -304,12 +274,17 @@ export class TaskListView extends ItemView {
         return perfMonitor.measure('task-list-refresh', async () => {
             // Clear and prepare the content element for full refresh
             this.contentEl.empty();
-            this.taskElements = [];
+            this.taskElements.clear();
             await this.render();
         });
     }
-    
-    
+
+    // OptimizedView interface implementation
+    async updateForTask(taskPath: string, operation: 'update' | 'delete' | 'create'): Promise<void> {
+        // Use the generic list view selective update implementation
+        await selectiveMultiUpdateForListView(this, taskPath, operation);
+    }
+
     async render() {
         const container = this.contentEl.createDiv({ cls: 'tasknotes-plugin tasknotes-container task-list-view-container' });
         
@@ -532,7 +507,7 @@ export class TaskListView extends ItemView {
         var elements = this.getSelectedTaskElements();
         if (elements.length === 0) {
             const focusElement = this.getFocusedTaskElement();
-            elements = focusElement ? [focusElement] : this.taskElements;
+            elements = focusElement ? [focusElement] : this.taskElements.flatten();
         }
         const topmost = getTopmostVisibleElement(elements);
         return topmost || this.contentEl; // Fallback to container if no visible element found
@@ -743,7 +718,7 @@ export class TaskListView extends ItemView {
         if (totalTasks === 0) {
             // Clear everything and show placeholder
             container.empty();
-            this.taskElements = [];
+            this.taskElements.clear();
             container.createEl('p', { text: 'No tasks found for the selected filters.' });
             return;
         }
@@ -758,10 +733,10 @@ export class TaskListView extends ItemView {
             this.renderGroupedTasksWithReconciler(container, groupedTasks);
         }
 
-        for (let i = 0; i < this.taskElements.length; i++) {
+        this.taskElements.forEach((taskElement, taskPath, i) => {
             // Add drag and drop event handlers
-            this.dragDropHandler.setupDragAndDrop(this.taskElements[i], i);
-        }
+            this.dragDropHandler.setupDragAndDrop(taskElement, i);
+        });
 
         // Add global handlers to ensure drop events work reliably
         this.dragDropHandler.setupGlobalHandlers(container, this.findAllTaskElements.bind(this));
@@ -771,7 +746,7 @@ export class TaskListView extends ItemView {
      * Render a flat task list using DOMReconciler for optimal performance
      */
     private renderTaskListWithReconciler(container: HTMLElement, tasks: TaskInfo[]) {
-        
+
         // Clear any elements without proper keys to avoid DOMReconciler confusion
         Array.from(container.children).forEach(child => {
             const element = child as HTMLElement;
@@ -779,10 +754,9 @@ export class TaskListView extends ItemView {
                 element.remove();
             }
         });
-        
-        
+
         try {
-            
+
             this.plugin.domReconciler.updateList<TaskInfo>(
                 container,
                 tasks,
@@ -803,14 +777,14 @@ export class TaskListView extends ItemView {
         }
         
         // Update task elements tracking
-        this.taskElements = [];
+        this.taskElements.clear();
         Array.from(container.children).forEach(child => {
             const childElement = child as HTMLElement;
             const taskPath = childElement.dataset.key;
             if (taskPath) {
-                this.taskElements.push(childElement);
+                this.taskElements.add(taskPath, childElement);
             }
-            childElement.addClass('filter-bar__view-item-container'); // TODO remove
+            childElement.addClass('filter-bar__view-item-container'); // TODO remove. I think I added this for proper drag styling?
         });
     }
     
@@ -834,7 +808,7 @@ export class TaskListView extends ItemView {
         
         // Clear container
         container.empty();
-        this.taskElements = [];
+        this.taskElements.clear();
         
         // Render each group
         groupedTasks.forEach((tasks, groupName) => {
@@ -926,9 +900,9 @@ export class TaskListView extends ItemView {
                 const childElement = child as HTMLElement;
                 const taskPath = childElement.dataset.key;
                 if (taskPath) {
-                    this.taskElements.push(childElement);
+                    this.taskElements.add(taskPath, childElement);
                 }
-                childElement.addClass('filter-bar__view-item-container'); // TODO remove
+                childElement.addClass('filter-bar__view-item-container'); // TODO remove. I think I added this for proper drag styling?
             });
         });
 
@@ -991,7 +965,7 @@ export class TaskListView extends ItemView {
                 groupByDate: false,
                 draggable: this.isViewDraggable()
             });
-            
+
             // Ensure the key is set for reconciler
             taskCard.dataset.key = task.path;
             
@@ -1035,37 +1009,43 @@ export class TaskListView extends ItemView {
     }
 
     private getFocusedTaskElement(): HTMLElement | null {
-        if (0 <= this.focusTaskElementIndex && this.focusTaskElementIndex < this.taskElements.length) {
-            return this.taskElements[this.focusTaskElementIndex];
+        if (this.focusedTaskElement) {
+            const elements = this.taskElements.get(this.focusedTaskElement.taskPath);
+            return elements[this.focusedTaskElement.index] || null;
         }
         return null;
     }
 
-    private focusTaskElement(elementIndex: number): void {
+    private incrementTaskElementFocus(forward: boolean): void {
         // Blur the previous focused element if it exists
-        const prevFocusElement = this.getFocusedTaskElement();
-        if (prevFocusElement) {
-            prevFocusElement.blur();
+        const oldFocus = this.getFocusedTaskElement();
+        if (oldFocus) {
+            oldFocus.blur();
         }
 
-        this.focusTaskElementIndex = elementIndex;
-        const focusedElement = this.getFocusedTaskElement();
-        if (focusedElement) {
-            focusedElement.focus();
-        } else {
-            this.focusTaskElementIndex = -1; // Reset if no valid element
+        // Move focus forward or backward
+        if (this.focusedTaskElement) {
+            const { taskPath, index } = this.focusedTaskElement;
+            const newFocusEntry = forward ? this.taskElements.nextAfter(taskPath, index) :  this.taskElements.prevBefore(taskPath, index);
+            this.focusedTaskElement = newFocusEntry ? { taskPath: newFocusEntry.key, index: newFocusEntry.indexInKey } : null;
+        } else if (forward) {
+            // no current focus - start at the beginning if moving forward
+            const firstTaskPath = this.taskElements.keys().next();
+            this.focusedTaskElement = firstTaskPath ? { taskPath: firstTaskPath.value, index: 0 } : null;
+        }
+
+        // Focus the new element if it exists
+        const newFocus = this.getFocusedTaskElement();
+        if (newFocus) {
+            newFocus.focus();
         }
     }
     
     private async handleKeyboardShortcut(action: KeyboardShortcutAction) {
         if (action == 'navigateDown') {
-            if (this.focusTaskElementIndex < this.taskElements.length - 1) {
-                this.focusTaskElement(this.focusTaskElementIndex + 1);
-            }
+            this.incrementTaskElementFocus(true);
         } else if (action == 'navigateUp') {
-            if (this.focusTaskElementIndex > 0) {
-                this.focusTaskElement(this.focusTaskElementIndex - 1);
-            }
+            this.incrementTaskElementFocus(false);
         } else if (action == 'copyTaskTitles') {
             await this.copyTaskTitles();
         } else if (action == 'newTask') {
@@ -1080,7 +1060,7 @@ export class TaskListView extends ItemView {
         } else if (action == 'selectAll') {
             this.taskElements.forEach((taskCard) => setTaskCardSelected(taskCard, true));
         } else if (action == 'clearFocusAndSelection') {
-            this.focusTaskElementIndex = -1;
+            this.focusedTaskElement = null;
             this.taskElements.forEach((taskCard) => setTaskCardSelected(taskCard, false));
             this.filterBar?.closeMainFilterBox();
             this.filterBar?.closeViewSelectorDropdown();
@@ -1126,8 +1106,14 @@ export class TaskListView extends ItemView {
 
     private onMouseEnterCard(event: Event): void {
         const hoveredCard = event.currentTarget as HTMLElement; // the element you attached to
-        const index = this.taskElements.indexOf(hoveredCard);
-        this.focusTaskElement(index);
+        const taskPath = hoveredCard.dataset.key;
+        if (taskPath) {
+            const elements = this.taskElements.get(taskPath);
+            const index = elements.indexOf(hoveredCard);
+            if (index !== -1) {
+                this.focusedTaskElement = { taskPath, index };
+            }
+        }
     }
     
 

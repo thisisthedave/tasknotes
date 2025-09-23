@@ -41,7 +41,8 @@ export class HTTPAPIService implements IWebhookNotifier {
 		const nlParser = new NaturalLanguageParser(
 			plugin.settings.customStatuses,
 			plugin.settings.customPriorities,
-			plugin.settings.nlpDefaultToScheduled
+			plugin.settings.nlpDefaultToScheduled,
+			plugin.settings.nlpLanguage
 		);
 		const statusManager = new StatusManager(plugin.settings.customStatuses);
 		
@@ -89,7 +90,7 @@ export class HTTPAPIService implements IWebhookNotifier {
 		for (const controller of allControllers) {
 			const controllerSpec = generateOpenAPISpec(controller);
 			if (controllerSpec.paths) {
-				Object.assign(spec.paths, controllerSpec.paths);
+				spec.paths = { ...spec.paths, ...controllerSpec.paths };
 			}
 		}
 		

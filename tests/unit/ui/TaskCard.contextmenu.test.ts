@@ -50,7 +50,8 @@ describe('TaskCard Context Menu Event Handling', () => {
             projectSubtasksService: {
                 getSubtasks: jest.fn().mockResolvedValue([]),
                 sortTasks: jest.fn().mockReturnValue([]),
-                isTaskUsedAsProject: jest.fn().mockResolvedValue(false)
+                isTaskUsedAsProject: jest.fn().mockResolvedValue(false),
+                isTaskUsedAsProjectSync: jest.fn().mockReturnValue(false)
             },
             domReconciler: {
                 updateList: jest.fn()
@@ -73,7 +74,7 @@ describe('TaskCard Context Menu Event Handling', () => {
     describe('Event Propagation Prevention', () => {
         it('should prevent context menu event bubbling from subtask to parent', async () => {
             // Create parent task card
-            const parentCard = createTaskCard(parentTask, mockPlugin, {
+            const parentCard = createTaskCard(parentTask, mockPlugin, undefined, {
                 showDueDate: true,
                 showCheckbox: true,
                 showArchiveButton: true,
@@ -84,7 +85,7 @@ describe('TaskCard Context Menu Event Handling', () => {
             container.appendChild(parentCard);
 
             // Create subtask card and append to parent
-            const subtaskCard = createTaskCard(subtask, mockPlugin, {
+            const subtaskCard = createTaskCard(subtask, mockPlugin, undefined, {
                 showDueDate: true,
                 showCheckbox: false,
                 showArchiveButton: false,
@@ -146,7 +147,7 @@ describe('TaskCard Context Menu Event Handling', () => {
 
         it('should handle context menu on parent task correctly', async () => {
             // Create parent task card
-            const parentCard = createTaskCard(parentTask, mockPlugin, {
+            const parentCard = createTaskCard(parentTask, mockPlugin, undefined, {
                 showDueDate: true,
                 showCheckbox: true,
                 showArchiveButton: true,
@@ -190,7 +191,7 @@ describe('TaskCard Context Menu Event Handling', () => {
     describe('Dataset Path Verification', () => {
         it('should set correct dataset.taskPath for both parent and subtask cards', () => {
             // Create parent task card
-            const parentCard = createTaskCard(parentTask, mockPlugin, {
+            const parentCard = createTaskCard(parentTask, mockPlugin, undefined, {
                 showDueDate: true,
                 showCheckbox: true,
                 showArchiveButton: true,
@@ -200,7 +201,7 @@ describe('TaskCard Context Menu Event Handling', () => {
             });
 
             // Create subtask card
-            const subtaskCard = createTaskCard(subtask, mockPlugin, {
+            const subtaskCard = createTaskCard(subtask, mockPlugin, undefined, {
                 showDueDate: true,
                 showCheckbox: false,
                 showArchiveButton: false,
@@ -218,7 +219,7 @@ describe('TaskCard Context Menu Event Handling', () => {
         });
 
         it('should prevent event bubbling with stopPropagation', () => {
-            const taskCard = createTaskCard(subtask, mockPlugin, {
+            const taskCard = createTaskCard(subtask, mockPlugin, undefined, {
                 showDueDate: true,
                 showCheckbox: false,
                 showArchiveButton: false,

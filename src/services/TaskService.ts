@@ -1,15 +1,17 @@
 import { EVENT_TASK_DELETED, EVENT_TASK_UPDATED, TaskCreationData, TaskInfo, TimeEntry, IWebhookNotifier } from '../types';
+import { AutoArchiveService } from './AutoArchiveService';
 import { FilenameContext, generateTaskFilename, generateUniqueFilename } from '../utils/filenameGenerator';
 import { Notice, TFile, normalizePath, stringifyYaml } from 'obsidian';
 import { TemplateData, mergeTemplateFrontmatter, processTemplate } from '../utils/templateProcessor';
 import { addDTSTARTToRecurrenceRule, ensureFolderExists, updateToNextScheduledOccurrence } from '../utils/helpers';
-import { formatDateForStorage, getCurrentDateString, getCurrentTimestamp } from '../utils/dateUtils';
+import { formatDateForStorage, getCurrentDateString, getCurrentTimestamp, getTodayLocal, createUTCDateFromLocalCalendarDate } from '../utils/dateUtils';
 import { format } from 'date-fns';
 
 import TaskNotesPlugin from '../main';
 
 export class TaskService {
     private webhookNotifier?: IWebhookNotifier;
+    private autoArchiveService?: AutoArchiveService;
     
     constructor(private plugin: TaskNotesPlugin) {}
     
@@ -22,6 +24,13 @@ export class TaskService {
     }
 
     /**
+     * Set auto-archive service for handling automatic archiving
+     */
+    setAutoArchiveService(service: AutoArchiveService): void {
+        this.autoArchiveService = service;
+    }
+
+    /**
      * Process a folder path template with task and date variables
      * 
      * This method enables dynamic folder creation by replacing template variables 
@@ -29,7 +38,9 @@ export class TaskService {
      * 
      * Supported task variables:
      * - {{context}} - First context from the task's contexts array
-     * - {{project}} - First project from the task's projects array  
+     * - {{project}} - First project from the task's projects array
+     * - {{contexts}} - All contexts joined by `/`
+     * - {{projects}} - All projects joined by `/`
      * - {{priority}} - Task priority (e.g., "high", "medium", "low")
      * - {{status}} - Task status (e.g., "todo", "in-progress", "done")
      * - {{title}} - Task title (sanitized for folder names)
@@ -70,9 +81,21 @@ export class TaskService {
             
             // Handle single project (first one if multiple) 
             const project = Array.isArray(taskData.projects) && taskData.projects.length > 0
-                ? taskData.projects[0]
+                ? taskData.projects[0].replace(/\[{2}(.*)]{2}/, '$1') //remove the brackets from links if presents
                 : '';
             processedPath = processedPath.replace(/\{\{project\}\}/g, project);
+            
+            //Handle multiple projects
+            const projects = Array.isArray(taskData.projects) && taskData.projects.length > 0
+                ? taskData.projects.map(project => project.replace(/\[{2}(.*)]{2}/, '$1')).join('/')
+                : '';
+            processedPath = processedPath.replace(/\{\{projects\}\}/g, projects);
+            
+            // Handle multiple contexts
+            const contexts = Array.isArray(taskData.contexts) && taskData.contexts.length > 0
+                ? taskData.contexts.join('/')
+                : '';
+            processedPath = processedPath.replace(/\{\{contexts\}\}/g, contexts);
             
             // Handle priority
             const priority = taskData.priority || '';
@@ -557,7 +580,7 @@ export class TaskService {
                     taskPath: task.path
                 });
             }
-            
+
             // Step 4: Notify system of change
             try {
                 this.plugin.emitter.trigger(EVENT_TASK_UPDATED, {
@@ -572,7 +595,7 @@ export class TaskService {
                 });
                 // Event emission errors shouldn't break the operation
             }
-            
+
             // Trigger webhooks for property updates
             if (this.webhookNotifier) {
                 try {
@@ -592,6 +615,24 @@ export class TaskService {
                     }
                 } catch (error) {
                     console.warn('Failed to trigger webhook for property update:', error);
+                }
+            }
+
+            // Handle auto-archive if status property changed
+            if (this.autoArchiveService && property === 'status' && value !== task.status) {
+                try {
+                    const statusConfig = this.plugin.statusManager.getStatusConfig(value as string);
+                    if (statusConfig) {
+                        if (statusConfig.autoArchive) {
+                            // Schedule for auto-archive
+                            await this.autoArchiveService.scheduleAutoArchive(updatedTask as TaskInfo, statusConfig);
+                        } else {
+                            // Cancel any pending auto-archive since new status doesn't have auto-archive
+                            await this.autoArchiveService.cancelAutoArchive((updatedTask as TaskInfo).path);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to handle auto-archive for status property change:', error);
                 }
             }
             
@@ -1137,6 +1178,24 @@ export class TaskService {
                 }
             }
 
+            // Handle auto-archive if status changed
+            if (this.autoArchiveService && updates.status !== undefined && updates.status !== originalTask.status) {
+                try {
+                    const statusConfig = this.plugin.statusManager.getStatusConfig(updatedTask.status);
+                    if (statusConfig) {
+                        if (statusConfig.autoArchive) {
+                            // Schedule for auto-archive
+                            await this.autoArchiveService.scheduleAutoArchive(updatedTask, statusConfig);
+                        } else {
+                            // Cancel any pending auto-archive since new status doesn't have auto-archive
+                            await this.autoArchiveService.cancelAutoArchive(updatedTask.path);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to handle auto-archive for status change:', error);
+                }
+            }
+
             return updatedTask;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1211,8 +1270,12 @@ export class TaskService {
             throw new Error('Task is not recurring');
         }
 
-        // Use the provided date or fall back to the currently selected date
-        const targetDate = date || this.plugin.selectedDate;
+        // Default to local today instead of selectedDate for recurring task completion
+        // This ensures completion is recorded for user's actual calendar day unless explicitly overridden
+        const targetDate = date || (() => {
+            const todayLocal = getTodayLocal();
+            return createUTCDateFromLocalCalendarDate(todayLocal);
+        })();
         const dateStr = formatDateForStorage(targetDate);
         
         // Check current completion status for this date using fresh data

@@ -1,4 +1,4 @@
-import { TFile } from 'obsidian';
+import { TFile, setIcon } from 'obsidian';
 import { NoteInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { formatDateForDisplay } from '../utils/dateUtils';
@@ -57,11 +57,19 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
         });
     }
     
-    // Main content container  
-    const contentContainer = item.createDiv({ cls: 'note-card__content' });
-    
+    // Main content container with icon
+    const mainRow = item.createDiv({ cls: 'note-card__main-row' });
+
+    // Left indicator area: note icon
+    const leftIconWrap = mainRow.createEl('span', { cls: 'note-card__icon' });
+    const leftIcon = leftIconWrap.createEl('span');
+    setIcon(leftIcon, 'file-text');
+
+    // Content container
+    const contentContainer = mainRow.createDiv({ cls: 'note-card__content' });
+
     // Title
-    contentContainer.createDiv({ 
+    contentContainer.createDiv({
         cls: 'note-card__title',
         text: note.title
     });
@@ -88,8 +96,10 @@ export function createNoteCard(note: NoteInfo, plugin: TaskNotesPlugin, options:
     
     // Other metadata (date, path) if needed
     if (opts.showCreatedDate && note.createdDate) {
+        const timeFormat = plugin.settings.calendarViewSettings.timeFormat;
+        const dateFormat = timeFormat === '12' ? 'MMM d, yyyy h:mm a' : 'MMM d, yyyy HH:mm';
         const dateStr = note.createdDate.indexOf('T') > 0 
-            ? formatDateForDisplay(note.createdDate, 'MMM d, yyyy h:mm a') 
+            ? formatDateForDisplay(note.createdDate, dateFormat) 
             : note.createdDate;
         contentContainer.createDiv({ 
             cls: 'note-card__metadata',
@@ -158,7 +168,22 @@ export function updateNoteCard(element: HTMLElement, note: NoteInfo, plugin: Tas
     
     
     element.className = cardClasses.join(' ');
-    
+
+    // Ensure icon exists (for cards created before this update)
+    let iconWrap = element.querySelector('.note-card__icon') as HTMLElement;
+    if (!iconWrap) {
+        const mainRow = element.querySelector('.note-card__main-row') || element.createDiv({ cls: 'note-card__main-row' });
+        iconWrap = mainRow.createEl('span', { cls: 'note-card__icon' });
+        const leftIcon = iconWrap.createEl('span');
+        setIcon(leftIcon, 'file-text');
+
+        // Move existing content into the main row structure if needed
+        const existingContent = element.querySelector('.note-card__content');
+        if (existingContent && !existingContent.parentElement?.classList.contains('note-card__main-row')) {
+            mainRow.appendChild(existingContent);
+        }
+    }
+
     // Update title
     const titleEl = element.querySelector('.note-card__title') as HTMLElement;
     if (titleEl) {
@@ -168,8 +193,10 @@ export function updateNoteCard(element: HTMLElement, note: NoteInfo, plugin: Tas
     // Update created date
     const dateEl = element.querySelector('.note-card__metadata') as HTMLElement;
     if (dateEl && opts.showCreatedDate && note.createdDate) {
+        const timeFormat = plugin.settings.calendarViewSettings.timeFormat;
+        const dateFormat = timeFormat === '12' ? 'MMM d, yyyy h:mm a' : 'MMM d, yyyy HH:mm';
         const dateStr = note.createdDate.indexOf('T') > 0 
-            ? formatDateForDisplay(note.createdDate, 'MMM d, yyyy h:mm a') 
+            ? formatDateForDisplay(note.createdDate, dateFormat) 
             : note.createdDate;
         dateEl.textContent = `Created: ${dateStr}`;
     }

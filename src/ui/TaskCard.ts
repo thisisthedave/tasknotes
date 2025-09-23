@@ -3,12 +3,14 @@ import { TaskInfo } from '../types';
 import TaskNotesPlugin from '../main';
 import { TaskContextMenu } from '../components/TaskContextMenu';
 import { calculateTotalTimeSpent, getEffectiveTaskStatus, getRecurrenceDisplayText, filterEmptyProjects } from '../utils/helpers';
-import { 
+import {
     formatDateTimeForDisplay,
     isTodayTimeAware,
     isOverdueTimeAware,
     getDatePart,
-    getTimePart
+    getTimePart,
+    createTimeFormatHelper,
+    formatDateForStorage
 } from '../utils/dateUtils';
 import { DateContextMenu } from '../components/DateContextMenu';
 import { createPriorityContextMenu, PriorityContextMenu } from '../components/PriorityContextMenu';
@@ -20,6 +22,17 @@ import { DEFAULT_POINT_SUGGESTIONS, StoryPointsModal } from '../modals/StoryPoin
 import { TagsModal } from '../modals/TagsModal';
 import { ContextsModal } from '../modals/ContextsModal';
 import { ReminderModal } from '../modals/ReminderModal';
+import { 
+    renderProjectLinks, 
+    renderTextWithLinks, 
+    renderValueWithLinks, 
+    type LinkServices 
+} from './renderers/linkRenderer';
+import { 
+    renderTagsValue, 
+    renderContextsValue, 
+    type TagServices 
+} from './renderers/tagRenderer';
 
 export interface TaskCardOptions {
     showDueDate: boolean;
@@ -187,6 +200,71 @@ function getPropertyValue(task: TaskInfo, propertyId: string, plugin: TaskNotesP
             return getUserPropertyValue(task, propertyId, plugin);
         }
         
+        // Check custom properties from Bases or other sources
+        if (task.customProperties && propertyId in task.customProperties) {
+            return task.customProperties[propertyId];
+        }
+        
+        // Handle Bases formula properties
+        if (propertyId.startsWith('formula.')) {
+            try {
+                const formulaName = propertyId.substring(8); // Remove 'formula.' prefix
+                const basesData = task.basesData;
+                
+                if (!basesData?.formulaResults) {
+                    return '';
+                }
+                // Access cached formula results from Bases
+                const formulaResults = basesData.formulaResults;
+                if (formulaResults?.cachedFormulaOutputs && formulaResults.cachedFormulaOutputs[formulaName] !== undefined) {
+                    const cached = formulaResults.cachedFormulaOutputs[formulaName];
+                    
+                    // Handle Bases formula result objects
+                    if (cached && typeof cached === 'object' && 'icon' in cached) {
+                        // Return data value if present (e.g., {icon: "lucide-binary", data: 11})
+                        if ('data' in cached && cached.data !== null && cached.data !== undefined) {
+                            return cached.data;
+                        }
+                        
+                        // Handle date results (e.g., {icon: "lucide-calendar", date: "2025-09-01"})
+                        if (cached.icon === 'lucide-calendar' && 'date' in cached) {
+                            return cached.date;
+                        }
+                        
+                        // Handle missing/empty data indicators
+                        if (cached.icon === 'lucide-file-question' || cached.icon === 'lucide-help-circle') {
+                            return ''; // Show empty cell but keep column visible
+                        }
+                        
+                        // Handle other icon-only results (status indicators, etc.)
+                        return cached.icon ? cached.icon.replace('lucide-', '') : '';
+                    }
+                    
+                    // Handle direct scalar values
+                    if (cached !== null && cached !== undefined && cached !== '') {
+                        return cached;
+                    }
+                    
+                    // Return empty string for null/undefined (maintains column visibility)
+                    return '';
+                }
+                
+                // No cached result available
+                return '';
+            } catch (error) {
+                console.debug(`[TaskNotes] Error computing formula ${propertyId}:`, error);
+                return '[Formula Error]';
+            }
+        }
+        
+        // Fallback: try to get arbitrary property from frontmatter
+        if (task.path) {
+            const value = getFrontmatterValue(task.path, propertyId, plugin);
+            if (value !== undefined) {
+                return value;
+            }
+        }
+        
         return null;
     } catch (error) {
         console.warn(`TaskCard: Error getting property ${propertyId}:`, error);
@@ -255,19 +333,41 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
     },
     'projects': (element, value, _, plugin) => {
         if (Array.isArray(value)) {
-            renderProjectLinks(element, value as string[], plugin);
+            const linkServices: LinkServices = {
+                metadataCache: plugin.app.metadataCache,
+                workspace: plugin.app.workspace
+            };
+            renderProjectLinks(element, value as string[], linkServices);
         }
     },
-    'contexts': (element, value) => {
+    'contexts': (element, value, _, plugin) => {
         if (Array.isArray(value)) {
-            const validContexts = flattenAndFilter(value);
-            element.textContent = `@${validContexts.join(', @')}`;
+            const tagServices: TagServices = {
+                onTagClick: async (context, _event) => {
+                    // Remove @ prefix if present for search
+                    const searchTag = context.startsWith('@') ? context.slice(1) : context;
+                    const success = await plugin.openTagsPane(`#${searchTag}`);
+                    if (!success) {
+                        console.log('Could not open search pane, context clicked:', context);
+                    }
+                }
+            };
+            renderContextsValue(element, value, tagServices);
         }
     },
-    'tags': (element, value) => {
+    'tags': (element, value, _, plugin) => {
         if (Array.isArray(value)) {
-            const validTags = flattenAndFilter(value);
-            element.textContent = `#${validTags.join(' #')}`;
+            const tagServices: TagServices = {
+                onTagClick: async (tag, _event) => {
+                    // Remove # prefix if present for search
+                    const searchTag = tag.startsWith('#') ? tag.slice(1) : tag;
+                    const success = await plugin.openTagsPane(`#${searchTag}`);
+                    if (!success) {
+                        console.log('Could not open search pane, tag clicked:', tag);
+                    }
+                }
+            };
+            renderTagsValue(element, value, tagServices);
         }
     },
     'timeEstimate': (element, value, _, plugin) => {
@@ -276,7 +376,7 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
         }
     },
     'totalTrackedTime': (element, value, _, plugin) => {
-        if (typeof value === 'number') {
+        if (typeof value === 'number' && value > 0) {
             element.textContent = `${plugin.formatTime(value)} tracked`;
         }
     },
@@ -290,10 +390,10 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
             element.textContent = `Recurring: ${getRecurrenceDisplayText(value)}`;
         }
     },
-    'completedDate': (element, value) => {
+    'completedDate': (element, value, task, plugin) => {
         if (typeof value === 'string') {
             element.textContent = `Completed: ${formatDateTimeForDisplay(value, {
-                dateFormat: 'MMM d', timeFormat: 'h:mm a', showTime: false
+                dateFormat: 'MMM d', showTime: false, userTimeFormat: plugin.settings.calendarViewSettings.timeFormat
             })}`;
         }
     },
@@ -302,17 +402,17 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
             element.textContent = `${value}`;
         }
     },
-    'file.ctime': (element, value) => {
+    'file.ctime': (element, value, task, plugin) => {
         if (typeof value === 'string') {
             element.textContent = `Created: ${formatDateTimeForDisplay(value, {
-                dateFormat: 'MMM d', timeFormat: 'h:mm a', showTime: false
+                dateFormat: 'MMM d', showTime: false, userTimeFormat: plugin.settings.calendarViewSettings.timeFormat
             })}`;
         }
     },
-    'file.mtime': (element, value) => {
+    'file.mtime': (element, value, task, plugin) => {
         if (typeof value === 'string') {
             element.textContent = `Modified: ${formatDateTimeForDisplay(value, {
-                dateFormat: 'MMM d', timeFormat: 'h:mm a', showTime: false
+                dateFormat: 'MMM d', showTime: false, userTimeFormat: plugin.settings.calendarViewSettings.timeFormat
             })}`;
         }
     }
@@ -342,6 +442,9 @@ function renderPropertyMetadata(
             PROPERTY_RENDERERS[propertyId](element, value, task, plugin);
         } else if (propertyId.startsWith('user:')) {
             renderUserProperty(element, propertyId, value, plugin);
+        } else {
+            // Fallback: render arbitrary property with generic format
+            renderGenericProperty(element, propertyId, value, plugin);
         }
         return element;
     } catch (error) {
@@ -372,7 +475,7 @@ function flattenAndFilter(value: any[]): string[] {
 }
 
 /**
- * Render user-defined property with type safety
+ * Render user-defined property with type safety and enhanced link/tag support
  */
 function renderUserProperty(element: HTMLElement, propertyId: string, value: unknown, plugin: TaskNotesPlugin): void {
     const fieldId = propertyId.slice(5);
@@ -383,12 +486,60 @@ function renderUserProperty(element: HTMLElement, propertyId: string, value: unk
         return;
     }
     
-    const displayValue = formatUserPropertyValue(value, userField);
     const fieldName = userField.displayName || fieldId;
     
-    element.textContent = displayValue.trim() !== '' 
-        ? `${fieldName}: ${displayValue}`
-        : `${fieldName}: (empty)`;
+    // Add field label
+    element.createEl('span', { text: `${fieldName}: ` });
+    
+    // Create value container
+    const valueContainer = element.createEl('span');
+    
+    // Create shared services to avoid redundant object creation
+    const linkServices: LinkServices = {
+        metadataCache: plugin.app.metadataCache,
+        workspace: plugin.app.workspace
+    };
+
+    // Check if the value might contain links or tags and render appropriately
+    if (typeof value === 'string' && value.trim() !== '') {
+        const stringValue = value.trim();
+        
+        // Check if string contains links or tags
+        if (stringValue.includes('[[') || stringValue.includes('](') || (stringValue.includes('#') && /\s#\w+|\#\w+/.test(stringValue))) {
+            renderTextWithLinks(valueContainer, stringValue, linkServices);
+        } else {
+            // Format according to field type
+            const displayValue = formatUserPropertyValue(value, userField);
+            valueContainer.textContent = displayValue;
+        }
+    } else if (userField.type === 'list' && Array.isArray(value)) {
+        // Handle list fields - avoid recursive renderPropertyValue call to prevent stack overflow
+        const validItems = value.filter(item => item !== null && item !== undefined);
+        validItems.forEach((item, idx) => {
+            if (idx > 0) valueContainer.appendChild(document.createTextNode(', '));
+            
+            // Render each list item directly instead of recursively calling renderPropertyValue
+            if (typeof item === 'string' && item.trim() !== '') {
+                const itemString = item.trim();
+                if (itemString.includes('[[') || itemString.includes('](') || (itemString.includes('#') && /\s#\w+|\#\w+/.test(itemString))) {
+                    const itemContainer = valueContainer.createEl('span');
+                    renderTextWithLinks(itemContainer, itemString, linkServices);
+                } else {
+                    valueContainer.appendChild(document.createTextNode(String(item)));
+                }
+            } else {
+                valueContainer.appendChild(document.createTextNode(String(item)));
+            }
+        });
+    } else {
+        // Use standard formatting for other types or empty values
+        const displayValue = formatUserPropertyValue(value, userField);
+        if (displayValue.trim() !== '') {
+            valueContainer.textContent = displayValue;
+        } else {
+            valueContainer.textContent = '(empty)';
+        }
+    }
 }
 
 /**
@@ -399,6 +550,113 @@ interface UserField {
     key: string;
     type: 'text' | 'number' | 'date' | 'boolean' | 'list';
     displayName?: string;
+}
+
+/**
+ * Render generic property with smart formatting and link detection
+ */
+function renderGenericProperty(element: HTMLElement, propertyId: string, value: unknown, plugin?: TaskNotesPlugin): void {
+    // Handle formula properties - show just the formula name, not "formula.TESTST"
+    let displayName: string;
+    if (propertyId.startsWith('formula.')) {
+        displayName = propertyId.substring(8); // Remove "formula." prefix
+    } else {
+        displayName = propertyId.charAt(0).toUpperCase() + propertyId.slice(1);
+    }
+    
+    // Add property label
+    element.createEl('span', { text: `${displayName}: ` });
+    
+    // Create value container
+    const valueContainer = element.createEl('span');
+    
+    if (Array.isArray(value)) {
+        // Handle arrays - render each item separately to detect links
+        const filtered = value.filter(v => v !== null && v !== undefined && v !== '');
+        filtered.forEach((item, idx) => {
+            if (idx > 0) valueContainer.appendChild(document.createTextNode(', '));
+            renderPropertyValue(valueContainer, item, plugin);
+        });
+    } else {
+        renderPropertyValue(valueContainer, value, plugin);
+    }
+}
+
+/**
+ * Render a single property value with link detection
+ */
+function renderPropertyValue(container: HTMLElement, value: unknown, plugin?: TaskNotesPlugin): void {
+    if (typeof value === 'string' && plugin) {
+        // Check if string contains links and render appropriately
+        const linkServices: LinkServices = {
+            metadataCache: plugin.app.metadataCache,
+            workspace: plugin.app.workspace
+        };
+        
+        // If the string contains wikilinks, markdown links, or tags, render with enhanced support
+        if (value.includes('[[') || (value.includes('[') && value.includes('](')) || (value.includes('#') && /\s#\w+|\#\w+/.test(value))) {
+            renderTextWithLinks(container, value, linkServices, {
+                onTagClick: async (tag, _event) => {
+                    // Remove # prefix if present for search
+                    const searchTag = tag.startsWith('#') ? tag.slice(1) : tag;
+                    const success = await plugin.openTagsPane(`#${searchTag}`);
+                    if (!success) {
+                        console.log('Could not open search pane, generic property tag clicked:', tag);
+                    }
+                }
+            });
+            return;
+        }
+        
+        // Plain string
+        container.appendChild(document.createTextNode(value));
+        return;
+    }
+    
+    let displayValue: string;
+    
+    if (typeof value === 'object' && value !== null) {
+        // Handle Date objects specially
+        if (value instanceof Date) {
+            displayValue = formatDateTimeForDisplay(value.toISOString(), {
+                dateFormat: 'MMM d, yyyy',
+                timeFormat: '',
+                showTime: false
+            });
+        }
+        // Handle objects with meaningful toString methods or simple key-value pairs
+        else if (typeof value.toString === 'function' && value.toString() !== '[object Object]') {
+            displayValue = value.toString();
+        }
+        // For simple objects with a few key-value pairs, show them nicely
+        else {
+            const entries = Object.entries(value as Record<string, any>);
+            if (entries.length <= 3) {
+                displayValue = entries
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(', ');
+            } else {
+                // Fallback to JSON for complex objects
+                displayValue = JSON.stringify(value);
+            }
+        }
+    } else if (typeof value === 'boolean') {
+        // Handle booleans with checkmark/x symbols for better visual
+        displayValue = value ? '✓' : '✗';
+    } else if (typeof value === 'number') {
+        // Format numbers with appropriate precision
+        displayValue = Number.isInteger(value) ? String(value) : value.toFixed(2);
+    } else {
+        // Handle strings and other primitive types
+        displayValue = String(value);
+    }
+    
+    // Truncate very long values to keep card readable
+    if (displayValue.length > 100) {
+        displayValue = displayValue.substring(0, 97) + '...';
+    }
+    
+    container.appendChild(document.createTextNode(displayValue));
 }
 
 /**
@@ -441,26 +699,27 @@ function renderDueDateProperty(element: HTMLElement, due: string, task: TaskInfo
     const isDueToday = isTodayTimeAware(due);
     const isDueOverdue = isOverdueTimeAware(due);
     
+    const userTimeFormat = plugin.settings.calendarViewSettings.timeFormat;
     let dueDateText = '';
     if (isDueToday) {
         const timeDisplay = formatDateTimeForDisplay(due, {
             dateFormat: '',
-            timeFormat: 'h:mm a',
-            showTime: true
+            showTime: true,
+            userTimeFormat
         });
         dueDateText = timeDisplay.trim() === '' ? 'Due: Today' : `Due: Today at ${timeDisplay}`;
     } else if (isDueOverdue) {
         const display = formatDateTimeForDisplay(due, {
             dateFormat: 'MMM d',
-            timeFormat: 'h:mm a',
-            showTime: true
+            showTime: true,
+            userTimeFormat
         });
         dueDateText = `Due: ${display} (overdue)`;
     } else {
         const display = formatDateTimeForDisplay(due, {
             dateFormat: 'MMM d',
-            timeFormat: 'h:mm a',
-            showTime: true
+            showTime: true,
+            userTimeFormat
         });
         dueDateText = `Due: ${display}`;
     }
@@ -477,26 +736,27 @@ function renderScheduledDateProperty(element: HTMLElement, scheduled: string, ta
     const isScheduledToday = isTodayTimeAware(scheduled);
     const isScheduledPast = isOverdueTimeAware(scheduled);
     
+    const userTimeFormat = plugin.settings.calendarViewSettings.timeFormat;
     let scheduledDateText = '';
     if (isScheduledToday) {
         const timeDisplay = formatDateTimeForDisplay(scheduled, {
             dateFormat: '',
-            timeFormat: 'h:mm a',
-            showTime: true
+            showTime: true,
+            userTimeFormat
         });
         scheduledDateText = timeDisplay.trim() === '' ? 'Scheduled: Today' : `Scheduled: Today at ${timeDisplay}`;
     } else if (isScheduledPast) {
         const display = formatDateTimeForDisplay(scheduled, {
             dateFormat: 'MMM d',
-            timeFormat: 'h:mm a',
-            showTime: true
+            showTime: true,
+            userTimeFormat
         });
         scheduledDateText = `Scheduled: ${display} (past)`;
     } else {
         const display = formatDateTimeForDisplay(scheduled, {
             dateFormat: 'MMM d',
-            timeFormat: 'h:mm a',
-            showTime: true
+            showTime: true,
+            userTimeFormat
         });
         scheduledDateText = `Scheduled: ${display}`;
     }
@@ -534,20 +794,22 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, visibleP
     const targetDate = opts.targetDate || plugin.selectedDate || new Date();
     
     // Determine effective status for recurring tasks
-    const effectiveStatus = task.recurrence 
+    const effectiveStatus = task.recurrence
         ? getEffectiveTaskStatus(task, targetDate)
         : task.status;
-    
+
     // Main container with BEM class structure
     const card = document.createElement('div');
-    
+
     // Store task path for circular reference detection
     (card as any)._taskPath = task.path;
-    
+
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
-    const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
+    const isCompleted = task.recurrence
+        ? (task.complete_instances?.includes(formatDateForStorage(targetDate)) || false)  // Direct check of complete_instances
+        : plugin.statusManager.isCompletedStatus(effectiveStatus);  // Regular tasks use status config
     const isRecurring = !!task.recurrence;
-    
+
     // Build BEM class names
     const cardClasses = ['task-card'];
     
@@ -780,82 +1042,79 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, visibleP
         attr: { style: 'display: none;' }
     });
     
-    plugin.projectSubtasksService.isTaskUsedAsProject(task.path).then((isProject: boolean) => {
-        if (isProject) {
-            projectIndicatorPlaceholder.className = 'task-card__project-indicator';
-            projectIndicatorPlaceholder.removeAttribute('style');
-            projectIndicatorPlaceholder.setAttribute('aria-label', 'This task is used as a project (click to filter subtasks)');
-            setTooltip(projectIndicatorPlaceholder, 'This task is used as a project (click to filter subtasks)', { placement: 'top' });
-            
-            // Use Obsidian's built-in folder icon for project tasks
-            setIcon(projectIndicatorPlaceholder, 'folder');
-            
-            // Add click handler to filter subtasks
-            projectIndicatorPlaceholder.addEventListener('click', async (e) => {
+    // Use synchronous project status check for better performance
+    const isProject = plugin.projectSubtasksService.isTaskUsedAsProjectSync(task.path);
+
+    if (isProject) {
+        projectIndicatorPlaceholder.className = 'task-card__project-indicator';
+        projectIndicatorPlaceholder.removeAttribute('style');
+        projectIndicatorPlaceholder.setAttribute('aria-label', 'This task is used as a project (click to filter subtasks)');
+        setTooltip(projectIndicatorPlaceholder, 'This task is used as a project (click to filter subtasks)', { placement: 'top' });
+
+        // Use Obsidian's built-in folder icon for project tasks
+        setIcon(projectIndicatorPlaceholder, 'folder');
+
+        // Add click handler to filter subtasks
+        projectIndicatorPlaceholder.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Don't trigger card click
+            try {
+                await plugin.applyProjectSubtaskFilter(task);
+            } catch (error) {
+                console.error('Error filtering project subtasks:', error);
+                new Notice('Failed to filter project subtasks');
+            }
+        });
+
+        // Add chevron for expandable subtasks if feature is enabled
+        if (plugin.settings?.showExpandableSubtasks) {
+            chevronPlaceholder.className = 'task-card__chevron';
+            chevronPlaceholder.removeAttribute('style');
+
+            const isExpanded = plugin.expandedProjectsService?.isExpanded(task.path) || false;
+            if (isExpanded) {
+                chevronPlaceholder.classList.add('task-card__chevron--expanded');
+            }
+
+            chevronPlaceholder.setAttribute('aria-label', isExpanded ? 'Collapse subtasks' : 'Expand subtasks');
+            setTooltip(chevronPlaceholder, isExpanded ? 'Collapse subtasks' : 'Expand subtasks', { placement: 'top' });
+
+            // Use Obsidian's built-in chevron-right icon
+            setIcon(chevronPlaceholder, 'chevron-right');
+
+            // Add click handler to toggle expansion
+            chevronPlaceholder.addEventListener('click', async (e) => {
                 e.stopPropagation(); // Don't trigger card click
                 try {
-                    await plugin.applyProjectSubtaskFilter(task);
+                    if (!plugin.expandedProjectsService) {
+                        console.error('ExpandedProjectsService not initialized');
+                        new Notice('Service not available. Please try reloading the plugin.');
+                        return;
+                    }
+
+                    const newExpanded = plugin.expandedProjectsService.toggle(task.path);
+                    chevronPlaceholder.classList.toggle('task-card__chevron--expanded', newExpanded);
+                    chevronPlaceholder.setAttribute('aria-label', newExpanded ? 'Collapse subtasks' : 'Expand subtasks');
+                    setTooltip(chevronPlaceholder, newExpanded ? 'Collapse subtasks' : 'Expand subtasks', { placement: 'top' });
+
+                    // Toggle subtasks display
+                    await toggleSubtasks(card, task, plugin, newExpanded);
                 } catch (error) {
-                    console.error('Error filtering project subtasks:', error);
-                    new Notice('Failed to filter project subtasks');
+                    console.error('Error toggling subtasks:', error);
+                    new Notice('Failed to toggle subtasks');
                 }
             });
-            
-            // Add chevron for expandable subtasks if feature is enabled
-            if (plugin.settings?.showExpandableSubtasks) {
-                chevronPlaceholder.className = 'task-card__chevron';
-                chevronPlaceholder.removeAttribute('style');
-                
-                const isExpanded = plugin.expandedProjectsService?.isExpanded(task.path) || false;
-                if (isExpanded) {
-                    chevronPlaceholder.classList.add('task-card__chevron--expanded');
-                }
-                
-                chevronPlaceholder.setAttribute('aria-label', isExpanded ? 'Collapse subtasks' : 'Expand subtasks');
-                setTooltip(chevronPlaceholder, isExpanded ? 'Collapse subtasks' : 'Expand subtasks', { placement: 'top' });
-                
-                // Use Obsidian's built-in chevron-right icon
-                setIcon(chevronPlaceholder, 'chevron-right');
-                
-                // Add click handler to toggle expansion
-                chevronPlaceholder.addEventListener('click', async (e) => {
-                    e.stopPropagation(); // Don't trigger card click
-                    try {
-                        if (!plugin.expandedProjectsService) {
-                            console.error('ExpandedProjectsService not initialized');
-                            new Notice('Service not available. Please try reloading the plugin.');
-                            return;
-                        }
-                        
-                        const newExpanded = plugin.expandedProjectsService.toggle(task.path);
-                        chevronPlaceholder.classList.toggle('task-card__chevron--expanded', newExpanded);
-                        chevronPlaceholder.setAttribute('aria-label', newExpanded ? 'Collapse subtasks' : 'Expand subtasks');
-                        setTooltip(chevronPlaceholder, newExpanded ? 'Collapse subtasks' : 'Expand subtasks', { placement: 'top' });
-                        
-                        // Toggle subtasks display
-                        await toggleSubtasks(card, task, plugin, newExpanded);
-                    } catch (error) {
-                        console.error('Error toggling subtasks:', error);
-                        new Notice('Failed to toggle subtasks');
-                    }
+
+            // If already expanded, show subtasks
+            if (isExpanded) {
+                toggleSubtasks(card, task, plugin, true).catch(error => {
+                    console.error('Error showing initial subtasks:', error);
                 });
-                
-                // If already expanded, show subtasks
-                if (isExpanded) {
-                    toggleSubtasks(card, task, plugin, true).catch(error => {
-                        console.error('Error showing initial subtasks:', error);
-                    });
-                }
             }
-        } else {
-            projectIndicatorPlaceholder.remove();
-            chevronPlaceholder.remove();
         }
-    }).catch((error: any) => {
-        console.error('Error checking if task is used as project:', error);
+    } else {
         projectIndicatorPlaceholder.remove();
         chevronPlaceholder.remove();
-    });
+    }
     
     // Main content container
     const contentContainer = mainRow.createEl('div', { cls: 'task-card__content' });
@@ -908,24 +1167,6 @@ export function createTaskCard(task: TaskInfo, plugin: TaskNotesPlugin, visibleP
     
     }
     
-    // Legacy: Add time spent information if timeEstimate or totalTrackedTime properties are not explicitly configured
-    const timeSpent = calculateTotalTimeSpent(task.timeEntries || []);
-    const hasTimeEstimate = propertiesToShow.includes('timeEstimate');
-    const hasTotalTrackedTime = propertiesToShow.includes('totalTrackedTime');
-    if (!hasTimeEstimate && !hasTotalTrackedTime && (task.timeEstimate || timeSpent > 0)) {
-        const timeInfo: string[] = [];
-        if (timeSpent > 0) {
-            timeInfo.push(`${plugin.formatTime(timeSpent)} spent`);
-        }
-        if (task.timeEstimate) {
-            timeInfo.push(`${plugin.formatTime(task.timeEstimate)} estimated`);
-        }
-        const timeSpan = metadataLine.createEl('span', {
-            cls: 'task-card__metadata-property task-card__metadata-property--time'
-        });
-        timeSpan.textContent = timeInfo.join(', ');
-        metadataElements.push(timeSpan);
-    }
     
     // Add separators between metadata elements
     addMetadataSeparators(metadataLine, metadataElements);
@@ -1009,7 +1250,9 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
     
     // Update main element classes using BEM structure
     const isActivelyTracked = plugin.getActiveTimeSession(task) !== null;
-    const isCompleted = plugin.statusManager.isCompletedStatus(effectiveStatus);
+    const isCompleted = task.recurrence
+        ? (task.complete_instances?.includes(formatDateForStorage(targetDate)) || false)  // Direct check of complete_instances
+        : plugin.statusManager.isCompletedStatus(effectiveStatus);  // Regular tasks use status config
     const isRecurring = !!task.recurrence;
     
     // Build BEM class names for update
@@ -1194,6 +1437,26 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
             // Update existing priority dot
             existingPriorityDot.style.borderColor = priorityConfig.color;
             existingPriorityDot.setAttribute('aria-label', `Priority: ${priorityConfig.label}`);
+
+            // Remove old event listener and add new one with updated task data
+            const newPriorityDot = existingPriorityDot.cloneNode(true) as HTMLElement;
+            newPriorityDot.addEventListener('click', (e) => {
+                e.stopPropagation(); // Don't trigger card click
+                const menu = new PriorityContextMenu({
+                    currentValue: task.priority,
+                    onSelect: async (newPriority) => {
+                        try {
+                            await plugin.updateTaskProperty(task, 'priority', newPriority);
+                        } catch (error) {
+                            console.error('Error updating priority:', error);
+                            new Notice('Failed to update priority');
+                        }
+                    },
+                    plugin: plugin
+                });
+                menu.show(e as MouseEvent);
+            });
+            existingPriorityDot.replaceWith(newPriorityDot);
         }
     } else if (existingPriorityDot) {
         // Remove priority dot if it shouldn't be visible or task no longer has priority
@@ -1218,6 +1481,7 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
         const frequencyDisplay = getRecurrenceDisplayText(task.recurrence);
         existingRecurringIndicator.setAttribute('aria-label', `Recurring: ${frequencyDisplay}`);
     }
+
 
     // Update reminder indicator
     const existingReminderIndicator = element.querySelector('.task-card__reminder-indicator');
@@ -1421,24 +1685,6 @@ export function updateTaskCard(element: HTMLElement, task: TaskInfo, plugin: Tas
             }
         }
         
-        // Legacy: Add time spent information if timeEstimate or totalTrackedTime properties are not explicitly configured
-        const timeSpent = calculateTotalTimeSpent(task.timeEntries || []);
-        const hasTimeEstimate = propertiesToShow.includes('timeEstimate');
-        const hasTotalTrackedTime = propertiesToShow.includes('totalTrackedTime');
-        if (!hasTimeEstimate && !hasTotalTrackedTime && (task.timeEstimate || timeSpent > 0)) {
-            const timeInfo: string[] = [];
-            if (timeSpent > 0) {
-                timeInfo.push(`${plugin.formatTime(timeSpent)} spent`);
-            }
-            if (task.timeEstimate) {
-                timeInfo.push(`${plugin.formatTime(task.timeEstimate)} estimated`);
-            }
-            const timeSpan = metadataLine.createEl('span', {
-                cls: 'task-card__metadata-property task-card__metadata-property--time'
-            });
-            timeSpan.textContent = timeInfo.join(', ');
-            metadataElements.push(timeSpan);
-        }
         
         // Add separators between metadata elements
         addMetadataSeparators(metadataLine, metadataElements);
@@ -1483,17 +1729,14 @@ export function isTaskCardSelected(taskCard: HTMLElement): boolean {
 class DeleteTaskConfirmationModal extends Modal {
     private tasks: TaskInfo[] | null = null;
     private customTitle: string | null = null;
-    private plugin: TaskNotesPlugin;
     private onConfirm: () => Promise<void>;
 
     constructor(
         app: App,
         target: TaskInfo | TaskInfo[] | string,
-        plugin: TaskNotesPlugin,
         onConfirm: () => Promise<void>
     ) {
         super(app);
-        this.plugin = plugin;
         this.onConfirm = onConfirm;
 
         if (typeof target === "string") {
@@ -1591,7 +1834,6 @@ export async function showDeleteConfirmationModal(
         const modal = new DeleteTaskConfirmationModal(
             plugin.app,
             taskArray,
-            plugin,
             async () => {
                 try {
                     // Delete tasks sequentially (to preserve order and handle errors)
@@ -1608,107 +1850,6 @@ export async function showDeleteConfirmationModal(
     });
 }
 
-/**
- * Check if a project string is in wikilink format [[Note Name]]
- */
-function isWikilinkProject(project: string): boolean {
-    return Boolean(project && project.startsWith('[[') && project.endsWith(']]'));
-}
-
-/**
- * Render project links in a container element, handling both plain text and wikilink projects
- */
-function renderProjectLinks(container: HTMLElement, projects: string[], plugin: TaskNotesPlugin): void {
-    container.innerHTML = '';
-    
-    // Flatten nested arrays and filter out null/undefined values before processing
-    const validProjects = projects
-        .flat(2) // Flatten up to 2 levels deep to handle nested arrays
-        .filter(project => project !== null && project !== undefined && typeof project === 'string');
-    
-    validProjects.forEach((project, index) => {
-        if (index > 0) {
-            const separator = document.createTextNode(', ');
-            container.appendChild(separator);
-        }
-        
-        const plusText = document.createTextNode('+');
-        container.appendChild(plusText);
-        
-        if (isWikilinkProject(project)) {
-            // Parse the wikilink to separate path and display text
-            const linkContent = project.slice(2, -2);
-            let filePath = linkContent;
-            let displayText = linkContent;
-            
-            // Handle alias syntax: [[path|alias]]
-            if (linkContent.includes('|')) {
-                const parts = linkContent.split('|');
-                filePath = parts[0];
-                displayText = parts[1];
-            }
-            
-            // Create a clickable link showing the display text (alias if available)
-            const linkEl = container.createEl('a', {
-                cls: 'task-card__project-link internal-link',
-                text: displayText,
-                attr: { 
-                    'data-href': filePath,
-                    'role': 'button',
-                    'tabindex': '0'
-                }
-            });
-            
-            // Add click handler to open the note
-            linkEl.addEventListener('click', async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                try {
-                    // Resolve the link to get the actual file
-                    const file = plugin.app.metadataCache.getFirstLinkpathDest(filePath, '');
-                    if (file instanceof TFile) {
-                        // Open the file in the current leaf
-                        await plugin.app.workspace.getLeaf(false).openFile(file);
-                    } else {
-                        // File not found, show notice
-                        new Notice(`Note "${displayText}" not found`);
-                    }
-                } catch (error) {
-                    console.error('Error opening project link:', error);
-                    new Notice(`Failed to open note "${displayText}"`);
-                }
-            });
-            
-            // Add keyboard support for accessibility
-            linkEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    linkEl.click();
-                }
-            });
-            
-            // Add hover preview for the project link
-            linkEl.addEventListener('mouseover', (event) => {
-                const file = plugin.app.metadataCache.getFirstLinkpathDest(filePath, '');
-                if (file instanceof TFile) {
-                    plugin.app.workspace.trigger('hover-link', {
-                        event,
-                        source: 'tasknotes-project-link',
-                        hoverParent: container,
-                        targetEl: linkEl,
-                        linktext: filePath,
-                        sourcePath: file.path
-                    });
-                }
-            });
-        } else {
-            // Plain text project
-            const textNode = document.createTextNode(project);
-            container.appendChild(textNode);
-        }
-    });
-}
 
 /**
  * Clean up event listeners and resources for a task card

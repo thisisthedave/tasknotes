@@ -54,12 +54,14 @@ import { StatusManager } from './services/StatusManager';
 import { PriorityManager } from './services/PriorityManager';
 import { TaskService } from './services/TaskService';
 import { FilterService } from './services/FilterService';
+import { ViewPerformanceService } from './services/ViewPerformanceService';
+import { AutoArchiveService } from './services/AutoArchiveService';
 import { ViewStateManager } from './services/ViewStateManager';
 import { createTaskLinkOverlay, dispatchTaskUpdate } from './editor/TaskLinkOverlay';
 import { createReadingModeTaskLinkProcessor } from './editor/ReadingModeTaskLinkProcessor';
 import { createProjectNoteDecorations, dispatchProjectSubtasksUpdate } from './editor/ProjectNoteDecorations';
 import { DragDropManager } from './utils/DragDropManager';
-import { formatDateForStorage, getTodayLocal, createUTCDateFromLocalCalendarDate } from './utils/dateUtils';
+import { formatDateForStorage, getTodayLocal, createUTCDateFromLocalCalendarDate, parseDateToLocal } from './utils/dateUtils';
 import { ICSSubscriptionService } from './services/ICSSubscriptionService';
 import { ICSNoteService } from './services/ICSNoteService';
 import { MigrationService } from './services/MigrationService';
@@ -69,6 +71,7 @@ import { ProjectSubtasksService } from './services/ProjectSubtasksService';
 import { ExpandedProjectsService } from './services/ExpandedProjectsService';
 import { NotificationService } from './services/NotificationService';
 import { InputObserver } from './utils/InputObserver';
+import { AutoExportService } from './services/AutoExportService';
 // Type-only import for HTTPAPIService (actual import is dynamic on desktop only)
 import type { HTTPAPIService } from './services/HTTPAPIService';
 
@@ -133,6 +136,8 @@ export default class TaskNotesPlugin extends Plugin {
 	viewStateManager: ViewStateManager;
 	projectSubtasksService: ProjectSubtasksService;
 	expandedProjectsService: ExpandedProjectsService;
+	autoArchiveService: AutoArchiveService;
+	viewPerformanceService: ViewPerformanceService;
 
 	// Editor services
 	taskLinkDetectionService?: import('./services/TaskLinkDetectionService').TaskLinkDetectionService;
@@ -146,6 +151,9 @@ export default class TaskNotesPlugin extends Plugin {
 
 	// ICS note service for creating notes/tasks from ICS events
 	icsNoteService: ICSNoteService;
+
+	// Auto export service for continuous ICS export
+	autoExportService: AutoExportService;
 
 	// Migration service
 	migrationService: MigrationService;
@@ -224,11 +232,16 @@ export default class TaskNotesPlugin extends Plugin {
 		this.viewStateManager = new ViewStateManager(this.app, this);
 		this.projectSubtasksService = new ProjectSubtasksService(this);
 		this.expandedProjectsService = new ExpandedProjectsService(this);
+		this.autoArchiveService = new AutoArchiveService(this);
 		this.dragDropManager = new DragDropManager(this);
 		this.migrationService = new MigrationService(this.app);
 		this.statusBarService = new StatusBarService(this);
 		this.notificationService = new NotificationService(this);
 		this.inputObserver = new InputObserver(this);
+		this.viewPerformanceService = new ViewPerformanceService(this);
+
+		// Connect AutoArchiveService to TaskService for status-based auto-archiving
+		this.taskService.setAutoArchiveService(this.autoArchiveService);
 
 		// Note: View registration and heavy operations moved to onLayoutReady
 
@@ -279,6 +292,17 @@ export default class TaskNotesPlugin extends Plugin {
 
 		// Start migration check early (before views can be opened)
 		this.migrationPromise = this.performEarlyMigrationCheck();
+
+		// Early registration attempt for Bases integration
+		if (this.settings?.enableBases) {
+			try {
+				const { registerBasesTaskList } = await import('./bases/registration');
+				await registerBasesTaskList(this);
+			} catch (e) {
+				console.debug('[TaskNotes][Bases] Early registration failed:', e);
+			}
+		}
+
 
 		// Defer expensive initialization until layout is ready
 		this.app.workspace.onLayoutReady(() => {
@@ -412,11 +436,30 @@ export default class TaskNotesPlugin extends Plugin {
 			// Initialize notification service
 			await this.notificationService.initialize();
 
+			// Build project status cache for better TaskCard performance
+			await this.projectSubtasksService.buildProjectStatusCache();
+
+			// Ensure MinimalNativeCache project indexes are warmed up
+			await this.warmupProjectIndexes();
+
+			// Initialize and start auto-archive service
+			await this.autoArchiveService.start();
+
 			// Initialize date change detection to refresh tasks at midnight
 			this.setupDateChangeDetection();
 
 			// Defer heavy service initialization until needed
 			this.initializeServicesLazily();
+
+			// Register TaskNotes views with Bases plugin (if enabled)
+			if (this.settings?.enableBases) {
+				try {
+					const { registerBasesTaskList } = await import('./bases/registration');
+					await registerBasesTaskList(this);
+				} catch (e) {
+					console.debug('[TaskNotes][Bases] Registration failed:', e);
+				}
+			}
 
 		} catch (error) {
 			console.error('Error during post-layout initialization:', error);
@@ -440,6 +483,10 @@ export default class TaskNotesPlugin extends Plugin {
 
 				// Initialize ICS note service
 				this.icsNoteService = new ICSNoteService(this);
+
+				// Initialize auto export service
+				this.autoExportService = new AutoExportService(this);
+				this.autoExportService.start();
 
 				// Initialize HTTP API service if enabled (desktop only)
 				await this.initializeHTTPAPI();
@@ -524,6 +571,29 @@ export default class TaskNotesPlugin extends Plugin {
 				console.error('Error during lazy service initialization:', error);
 			}
 		}, 10); // Small delay to ensure startup completes first
+	}
+
+	/**
+	 * Warmup project indexes in MinimalNativeCache for better performance
+	 */
+	private async warmupProjectIndexes(): Promise<void> {
+		try {
+			// Simple approach: just trigger the lazy index building once
+			// This is much more efficient than processing individual files
+			const warmupStartTime = Date.now();
+
+			// Trigger index building with a single call - this will process all files internally
+			this.cacheManager.getTasksForDate(new Date().toISOString().split('T')[0]);
+
+			const duration = Date.now() - warmupStartTime;
+			// Only log slow warmup for debugging large vaults
+			if (duration > 2000) {
+				console.log(`[TaskNotes] Project indexes warmed up in ${duration}ms`);
+			}
+
+		} catch (error) {
+			console.error('[TaskNotes] Error during project index warmup:', error);
+		}
 	}
 
 	/**
@@ -858,12 +928,21 @@ export default class TaskNotesPlugin extends Plugin {
 	}
 
 	onunload() {
+		// Unregister Bases views
+		if (this.settings?.enableBases) {
+			try {
+				const { unregisterBasesViews } = require('./bases/registration');
+				unregisterBasesViews(this);
+			} catch (e) {
+				console.debug('[TaskNotes][Bases] Unregistration failed:', e);
+			}
+		}
+
 		// Clean up performance monitoring
 		const cacheStats = perfMonitor.getStats('cache-initialization');
 		if (cacheStats && cacheStats.count > 0) {
 			perfMonitor.logSummary();
 		}
-
 
 		// Clean up Pomodoro service
 		if (this.pomodoroService) {
@@ -875,9 +954,24 @@ export default class TaskNotesPlugin extends Plugin {
 			this.filterService.cleanup();
 		}
 
+		// Clean up ViewPerformanceService
+		if (this.viewPerformanceService) {
+			this.viewPerformanceService.destroy();
+		}
+
+		// Clean up AutoArchiveService
+		if (this.autoArchiveService) {
+			this.autoArchiveService.stop();
+		}
+
 		// Clean up ICS subscription service
 		if (this.icsSubscriptionService) {
 			this.icsSubscriptionService.destroy();
+		}
+
+		// Clean up auto export service
+		if (this.autoExportService) {
+			this.autoExportService.destroy();
 		}
 
 		// Clean up TaskLinkDetectionService
@@ -1279,6 +1373,23 @@ export default class TaskNotesPlugin extends Plugin {
 				await this.importJiraIssue();
 			},
 		});
+		
+		// Export commands
+		this.addCommand({
+			id: 'export-all-tasks-ics',
+			name: 'Export all tasks as ICS file',
+			callback: async () => {
+				try {
+					const allTasks = await this.cacheManager.getAllTasks();
+					const { CalendarExportService } = await import('./services/CalendarExportService');
+					CalendarExportService.downloadAllTasksICSFile(allTasks);
+				} catch (error) {
+					console.error('Error exporting all tasks as ICS:', error);
+					new Notice('Failed to export tasks as ICS file');
+				}
+			}
+		});
+
 	}
 
 	// Helper method to create or activate a view of specific type
@@ -1341,6 +1452,80 @@ export default class TaskNotesPlugin extends Plugin {
 
 	async activateKanbanView() {
 		return this.activateView(KANBAN_VIEW_TYPE);
+	}
+
+	/**
+	 * Open and activate the search pane with a tag query
+	 * (Renamed from openSearchPaneWithTag for cleaner API)
+	 */
+	async openTagsPane(tag: string): Promise<boolean> {
+		const { workspace } = this.app;
+		
+		try {
+			// Try to find existing search view first
+			let searchLeaf = workspace.getLeavesOfType('search').first();
+			
+			if (!searchLeaf) {
+				// Try to create/activate the search view in left sidebar
+				const leftLeaf = workspace.getLeftLeaf(false);
+				
+				if (!leftLeaf) {
+					console.warn('Could not get left leaf for search pane');
+					return false;
+				}
+				
+				try {
+					await leftLeaf.setViewState({
+						type: 'search',
+						active: true
+					});
+					searchLeaf = leftLeaf;
+				} catch (error) {
+					console.warn('Failed to create search view:', error);
+					return false;
+				}
+			}
+			
+			// Ensure we have a valid search leaf
+			if (!searchLeaf || !searchLeaf.view) {
+				console.warn('No search leaf available');
+				return false;
+			}
+			
+			// Set the search query to "tag:#tagname"
+			const searchQuery = `tag:${tag}`;
+			const searchView = searchLeaf.view as any;
+			
+			// Try different methods to set the search query based on Obsidian version
+			if (typeof searchView.setQuery === 'function') {
+				// Newer Obsidian versions
+				searchView.setQuery(searchQuery);
+			} else if (typeof searchView.searchComponent?.setValue === 'function') {
+				// Alternative method
+				searchView.searchComponent.setValue(searchQuery);
+			} else if (searchView.searchInputEl) {
+				// Fallback: set the input value directly
+				searchView.searchInputEl.value = searchQuery;
+				// Trigger search if possible
+				if (typeof searchView.startSearch === 'function') {
+					searchView.startSearch();
+				}
+			} else {
+				console.warn('[TaskNotes] Could not find method to set search query');
+				new Notice('Search pane opened but could not set tag query');
+				return false;
+			}
+			
+			// Reveal and focus the search pane
+			workspace.revealLeaf(searchLeaf);
+			workspace.setActiveLeaf(searchLeaf, { focus: true });
+			
+			return true;
+		} catch (error) {
+			console.error('[TaskNotes] Error opening search pane with tag:', error);
+			new Notice(`Failed to open search pane for tag: ${tag}`);
+			return false;
+		}
 	}
 
 
@@ -1492,15 +1677,23 @@ export default class TaskNotesPlugin extends Plugin {
 	 */
 	async toggleRecurringTaskComplete(task: TaskInfo, date?: Date): Promise<TaskInfo> {
 		try {
-			const targetDate = date || this.selectedDate;
+			// Let TaskService handle the date logic (defaults to local today, not selectedDate)
 			const updatedTask = await this.taskService.toggleRecurringTaskComplete(task, date);
 
-			// Determine if task was completed or marked incomplete
+			// For notification, determine the actual completion date from the task
+			// Use local today if no explicit date provided
+			const targetDate = date || (() => {
+				const todayLocal = getTodayLocal();
+				return createUTCDateFromLocalCalendarDate(todayLocal);
+			})();
+			
 			const dateStr = formatDateForStorage(targetDate);
 			const wasCompleted = updatedTask.complete_instances?.includes(dateStr);
 			const action = wasCompleted ? 'completed' : 'marked incomplete';
 
-			new Notice(`Recurring task ${action} for ${format(targetDate, 'MMM d')}`);
+			// Format date for display: convert UTC-anchored date back to local display
+			const displayDate = parseDateToLocal(dateStr);
+			new Notice(`Recurring task ${action} for ${format(displayDate, 'MMM d')}`);
 			return updatedTask;
 		} catch (error) {
 			console.error('Failed to toggle recurring task completion:', error);

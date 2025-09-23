@@ -64,8 +64,30 @@ function getRelativeTime(date: Date): string {
 export function renderIntegrationsTab(container: HTMLElement, plugin: TaskNotesPlugin, save: () => void): void {
     container.empty();
 
+    // Bases Integration Section
+    createSectionHeader(container, 'Bases integration');
+    createHelpText(container, 'Configure integration with the Obsidian Bases plugin. This is an experimental feature, and currently relies on undocumented Obsidian APIs. Behaviour may change or break. ');
+
+    // Bases toggle
+    createToggleSetting(container, {
+        name: 'Enable Bases integration',
+        desc: 'Enable TaskNotes views to be used within Obsidian Bases plugin. Bases plugin must be enabled for this to work.',
+        getValue: () => plugin.settings.enableBases,
+        setValue: async (value: boolean) => {
+            plugin.settings.enableBases = value;
+            save();
+            
+            // Show notice about restart requirement
+            if (value) {
+                new Notice('Bases integration enabled. Please restart Obsidian to complete the setup.');
+            } else {
+                new Notice('Bases integration disabled. Please restart Obsidian to complete the removal.');
+            }
+        }
+    });
+
     // Calendar Subscriptions Section (ICS)
-    createSectionHeader(container, 'Calendar Subscriptions');
+    createSectionHeader(container, 'Calendar subscriptions');
     createHelpText(container, 'Subscribe to external calendars via ICS/iCal URLs to view events alongside your tasks.');
 
     // Default settings for ICS integration
@@ -123,7 +145,7 @@ export function renderIntegrationsTab(container: HTMLElement, plugin: TaskNotesP
     }
 
     // ICS Subscriptions List - Add proper section header
-    createSectionHeader(container, 'Calendar Subscriptions List');
+    createSectionHeader(container, 'Calendar subscriptions list');
     const icsContainer = container.createDiv('ics-subscriptions-container');
     renderICSSubscriptionsList(icsContainer, plugin, save);
 
@@ -177,6 +199,101 @@ export function renderIntegrationsTab(container: HTMLElement, plugin: TaskNotesP
             }
         }
     });
+
+    // Automatic ICS Export Section
+    createSectionHeader(container, 'Automatic ICS export');
+    createHelpText(container, 'Automatically export all your tasks to an ICS file.');
+
+    createToggleSetting(container, {
+        name: 'Enable automatic export',
+        desc: 'Automatically keep an ICS file updated with all your tasks',
+        getValue: () => plugin.settings.icsIntegration.enableAutoExport,
+        setValue: async (value: boolean) => {
+            plugin.settings.icsIntegration.enableAutoExport = value;
+            save();
+            new Notice('Please reload Obsidian for the automatic export changes to take effect.');
+            // Re-render to show/hide export settings
+            renderIntegrationsTab(container, plugin, save);
+        }
+    });
+
+    if (plugin.settings.icsIntegration.enableAutoExport) {
+        createTextSetting(container, {
+            name: 'Export file path',
+            desc: 'Path where the ICS file will be saved (relative to vault root)',
+            placeholder: 'tasknotes-calendar.ics',
+            getValue: () => plugin.settings.icsIntegration.autoExportPath,
+            setValue: async (value: string) => {
+                plugin.settings.icsIntegration.autoExportPath = value || 'tasknotes-calendar.ics';
+                save();
+            }
+        });
+
+        createNumberSetting(container, {
+            name: 'Update interval (between 5 and 1440 minutes)',
+            desc: 'How often to update the export file',
+            placeholder: '60',
+            min: 5,
+            max: 1440, // 24 hours max
+            getValue: () => plugin.settings.icsIntegration.autoExportInterval,
+            setValue: async (value: number) => {
+                plugin.settings.icsIntegration.autoExportInterval = Math.max(5, value || 60);
+                save();
+                // Restart the auto export service with new interval
+                if (plugin.autoExportService) {
+                    plugin.autoExportService.updateInterval(plugin.settings.icsIntegration.autoExportInterval);
+                }
+            }
+        });
+
+        // Show current export status
+        const statusContainer = container.createDiv('auto-export-status');
+        statusContainer.style.marginTop = '10px';
+        statusContainer.style.padding = '10px';
+        statusContainer.style.backgroundColor = 'var(--background-secondary)';
+        statusContainer.style.borderRadius = '4px';
+
+        if (plugin.autoExportService) {
+            const lastExport = plugin.autoExportService.getLastExportTime();
+            const nextExport = plugin.autoExportService.getNextExportTime();
+            
+            statusContainer.innerHTML = `
+                <div style="font-weight: 500; margin-bottom: 5px;">Export Status:</div>
+                <div style="font-size: 0.9em; opacity: 0.8;">
+                    ${lastExport ? `Last export: ${lastExport.toLocaleString()}` : 'No exports yet'}<br>
+                    ${nextExport ? `Next export: ${nextExport.toLocaleString()}` : 'Not scheduled'}
+                </div>
+            `;
+        } else {
+            statusContainer.innerHTML = `
+                <div style="font-weight: 500; color: var(--text-warning);">
+                    Auto export service not initialized - please restart Obsidian
+                </div>
+            `;
+        }
+
+        // Manual export trigger button
+        createButtonSetting(container, {
+            name: 'Export now',
+            desc: 'Manually trigger an immediate export',
+            buttonText: 'Export Now',
+            onClick: async () => {
+                if (plugin.autoExportService) {
+                    try {
+                        await plugin.autoExportService.exportNow();
+                        new Notice('Tasks exported successfully');
+                        // Re-render to update status
+                        renderIntegrationsTab(container, plugin, save);
+                    } catch (error) {
+                        console.error('Manual export failed:', error);
+                        new Notice('Export failed - check console for details');
+                    }
+                } else {
+                    new Notice('Auto export service not available');
+                }
+            }
+        });
+    }
 
     // HTTP API Section (Skip on mobile)
     if (!Platform.isMobile) {
@@ -294,31 +411,8 @@ export function renderIntegrationsTab(container: HTMLElement, plugin: TaskNotesP
     }
 
     // Other Integrations Section
-    createSectionHeader(container, 'Plugin Integrations');
+    createSectionHeader(container, 'Other plugin integrations');
     createHelpText(container, 'Configure integrations with other Obsidian plugins.');
-
-    // Bases integration (commented out for now due to type issues)
-    // const basesFiles = (plugin.app as any).plugins?.plugins?.['bases']?.settings?.files || [];
-    // if (basesFiles.length > 0) {
-    //     createDropdownSetting(container, {
-    //         name: 'Bases integration',
-    //         desc: 'Integrate with Bases plugin for enhanced data management',
-    //         options: [
-    //             { value: '', label: 'Disabled' },
-    //             ...basesFiles.map((file: any) => ({
-    //                 value: file.path,
-    //                 label: file.name || file.path
-    //             }))
-    //         ],
-    //         getValue: () => (plugin.settings.icsIntegration as any).basesIntegration || '',
-    //         setValue: async (value: string) => {
-    //             (plugin.settings.icsIntegration as any).basesIntegration = value;
-    //             save();
-    //         }
-    //     });
-    // } else {
-    //     createHelpText(container, 'Install the Bases plugin to enable enhanced data management features.');
-    // }
 }
 
 function renderICSSubscriptionsList(container: HTMLElement, plugin: TaskNotesPlugin, save: () => void): void {

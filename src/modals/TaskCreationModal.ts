@@ -177,7 +177,8 @@ class NLPSuggest extends AbstractInputSuggest<TagSuggestion | ContextSuggestion 
             const statusService = new StatusSuggestionService(
                 this.plugin.settings.customStatuses,
                 this.plugin.settings.customPriorities,
-                this.plugin.settings.nlpDefaultToScheduled
+                this.plugin.settings.nlpDefaultToScheduled,
+                this.plugin.settings.nlpLanguage
             );
             return statusService.getStatusSuggestions(
                 queryAfterTrigger,
@@ -510,14 +511,16 @@ export class TaskCreationModal extends TaskModal {
         this.nlParser = new NaturalLanguageParser(
             plugin.settings.customStatuses,
             plugin.settings.customPriorities,
-            plugin.settings.nlpDefaultToScheduled
+            plugin.settings.nlpDefaultToScheduled,
+            plugin.settings.nlpLanguage
         );
 
         // Use injected service or create default one
         this.statusSuggestionService = statusSuggestionService || new StatusSuggestionService(
             plugin.settings.customStatuses,
             plugin.settings.customPriorities,
-            plugin.settings.nlpDefaultToScheduled
+            plugin.settings.nlpDefaultToScheduled,
+            plugin.settings.nlpLanguage
         );
     }
 
@@ -737,6 +740,12 @@ export class TaskCreationModal extends TaskModal {
         if (parsed.tags && parsed.tags.length > 0) this.tags = sanitizeTags(parsed.tags.join(', '));
         if (parsed.details) this.details = parsed.details;
         if (parsed.recurrence) this.recurrenceRule = parsed.recurrence;
+        if (parsed.estimate !== undefined) {
+            this.timeEstimate = parsed.estimate > 0 ? parsed.estimate : 0;
+            if (this.timeEstimateInput) {
+                this.timeEstimateInput.value = this.timeEstimate > 0 ? this.timeEstimate.toString() : '';
+            }
+        }
         if (parsed.points) this.points = parsed.points;
 
         // Update form inputs if they exist

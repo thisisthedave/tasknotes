@@ -6,6 +6,8 @@ TaskNotes provides a system for managing tasks, which is built on the principle 
 
 You can create and edit tasks in a variety of ways. The primary method is through the **Task Creation Modal**, which can be accessed via the "Create new task" command or by clicking on dates or time slots in the calendar views. This modal provides an interface for setting all available task properties, including title, status, priority, and due dates.
 
+When creating a task, the title will be automatically sanitized to remove any characters that are forbidden in filenames.
+
 TaskNotes also supports **Natural Language Creation**, which allows you to create tasks by typing descriptions in plain English. The built-in parser can extract structured data from phrases like "Buy groceries tomorrow at 3pm @home #errands high priority."
 
 ### Auto-Suggestions in Natural Language Input
@@ -32,6 +34,7 @@ Project suggestions search across:
 - File names (basename without extension)
 - Frontmatter titles (using your configured field mapping)
 - Frontmatter aliases
+- Optional filtering by required tags, folders, and a specific frontmatter property/value defined in Settings → Appearance & UI → Project Autosuggest
 
 Selecting a project suggestion inserts it as `+[[filename]]`, creating a wikilink to the file while maintaining the `+` project marker that the natural language parser recognizes.
 
@@ -123,15 +126,22 @@ TaskCards display visual indicators when tasks are used as projects. These indic
 
 Tasks can have subtasks created directly from their context menu. When viewing a task that serves as a project, you can select "Create subtask" to create a new task automatically linked to the current project.
 
-### Template Integration
+## Automation
 
-Projects support template variables for automated workflows. The `{{parentNote}}` variable inserts the parent note as a properly formatted markdown link. For project organization, it's recommended to use it as a YAML list item (e.g., `project:\n  - {{parentNote}}`) to align with the projects system behavior when creating tasks from project notes through instant conversion.
+### Auto-Archiving
+
+TaskNotes can automatically archive tasks when they transition into a status that has auto-archiving enabled. This keeps completed work out of your active lists without requiring manual cleanup.
+
+Configure auto-archiving per status from **Settings → Task Properties → Task Statuses**. Each status card includes an **Auto-archive** toggle and a **Delay (minutes)** input (1–1440). When you turn the toggle on for a status, any task moved into that status is queued for archiving once the delay elapses. Moving the task to a different status before the timer expires cancels the pending archive automatically.
+
+The auto-archive queue runs in the background and persists across plugin restarts. If TaskNotes was closed while an archive was pending, the task will be archived shortly after the plugin loads again as long as it still matches the configured status.
 
 ## File Management and Templates
 
 TaskNotes provides a system for managing your task files. You can specify a **Default Tasks Folder** where all new tasks will be created, and you can choose from a variety of **Filename Generation** patterns, including title-based, timestamp-based, and Zettelkasten-style.
 
-TaskNotes also supports **Templates** for both the YAML frontmatter and the body of your task notes. You can use templates to pre-fill common values, add boilerplate text, and create a consistent structure for your tasks. Templates can also include variables, such as `{{title}}`, `{{date}}`, and `{{parentNote}}` (which inserts the parent note as a properly formatted markdown link), which will be automatically replaced with the appropriate values when a new task is created.
+TaskNotes also supports **Templates** for both the YAML frontmatter and the body of your task notes. You can use templates to pre-fill common values, add boilerplate text, and create a consistent structure for your tasks. Templates can also include variables, such as `{{title}}`, `{{date}}`, `{{contexts}}`, `{{projects}}`, and `{{parentNote}}` (which inserts the parent note as a properly formatted markdown link), which will be automatically replaced with the appropriate values when a new task is created. When you want project notes to receive an automatic link during task creation or instant conversion, place `{{parentNote}}` inside a YAML list (for example, `projects:
+  - {{parentNote}}`) so the generated frontmatter matches TaskNotes' project linking format.
 
 ## Recurring Tasks
 
@@ -167,6 +177,22 @@ Recurring tasks require:
 All recurrence rules now include DTSTART (start date and optionally time):
 - **Date-only**: `DTSTART:20250804;FREQ=DAILY` (pattern instances appear all-day)
 - **Date and time**: `DTSTART:20250804T090000Z;FREQ=DAILY` (pattern instances appear at 9:00 AM)
+
+### Recurring Task Due Date
+
+When a recurring task is completed, the scheduled date is advanced to the next occurrence. By default, the due date is not changed. However, you can enable the `Maintain due date offset in recurring tasks` setting to automatically update the due date as well.
+
+When this setting is enabled, the offset between the original scheduled date and due date is calculated. This offset is then applied to the new scheduled date to determine the new due date.
+
+For example, consider a task with the following properties:
+
+- **Scheduled Date**: 2025-01-01
+- **Due Date**: 2025-01-03
+- **Recurrence**: Every week
+
+In this case, the due date is 2 days after the scheduled date. When this task is completed, the new scheduled date will be 2025-01-08. If the `Maintain due date offset in recurring tasks` setting is enabled, the new due date will be set to 2025-01-10, preserving the 2-day offset.
+
+To enable this feature, go to the TaskNotes settings and select the "Features" tab. From there, you can enable the `Maintain due date offset in recurring tasks` option.
 
 ### Recurrence Pattern Examples
 
@@ -464,10 +490,10 @@ TaskNotes supports configuring default reminders that automatically apply to new
 
 #### Configuring Default Reminders
 
-Default reminders are configured in the TaskNotes settings under "Task Creation Defaults":
+Configure default reminders from TaskNotes settings:
 
-1. Navigate to Settings → TaskNotes → Task Defaults
-2. Scroll to the "Default Reminders" section
+1. Navigate to Settings → TaskNotes → Defaults & Templates
+2. Locate the **Default Reminders** section
 3. Use the form to add new default reminders
 4. Specify reminder type, timing, and optional descriptions
 
@@ -510,9 +536,8 @@ The task editing process provides full reminder management:
 
 Reminders work alongside calendar features:
 
-- Visual reminder indicators on task cards in calendar views
-- Quick reminder management through calendar context menus
-- Compatibility with drag-and-drop scheduling
+- Open reminder actions from calendar event context menus
+- Reminder schedules remain intact when you drag and drop tasks to new dates or times
 
 ### Field Mapping Support
 

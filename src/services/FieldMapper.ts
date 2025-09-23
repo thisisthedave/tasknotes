@@ -143,8 +143,15 @@ export class FieldMapper {
 
         if (frontmatter[this.mapping.reminders] !== undefined) {
             const reminders = frontmatter[this.mapping.reminders];
-            // Ensure reminders is always an array
-            mapped.reminders = Array.isArray(reminders) ? reminders : [reminders];
+            // Ensure reminders is always an array and filter out null/undefined values
+            if (Array.isArray(reminders)) {
+                const filteredReminders = reminders.filter(r => r != null);
+                if (filteredReminders.length > 0) {
+                    mapped.reminders = filteredReminders;
+                }
+            } else if (reminders != null) {
+                mapped.reminders = [reminders];
+            }
         }
 
         // Handle tags array (includes archive tag)
@@ -290,6 +297,19 @@ export class FieldMapper {
      */
     getMapping(): FieldMapping {
         return { ...this.mapping };
+    }
+
+    /**
+     * Convert user's property name back to internal field name
+     * This is the reverse of toUserField()
+     */
+    fromUserField(userPropertyName: string): keyof FieldMapping | null {
+        for (const [internalName, userName] of Object.entries(this.mapping)) {
+            if (userName === userPropertyName) {
+                return internalName as keyof FieldMapping;
+            }
+        }
+        return null;
     }
 
     /**
