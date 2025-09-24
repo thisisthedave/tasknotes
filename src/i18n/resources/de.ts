@@ -739,7 +739,6 @@ export const de: TranslationTree = {
                     due: 'Fälligkeitsdatum',
                     scheduled: 'Planungsdatum',
                     timeEstimate: 'Zeitschätzung',
-                    points: 'Punktschätzung',
                     totalTrackedTime: 'Gesamte erfasste Zeit',
                     recurrence: 'Wiederholung',
                     completedDate: 'Abschlussdatum',
