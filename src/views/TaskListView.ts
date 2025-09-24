@@ -91,11 +91,12 @@ export class TaskListView extends ItemView implements OptimizedView {
                 .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
             // Find the siblings before and after the insertion point and load the TaskInfo
-            const beforeEl = placeholder.previousElementSibling as HTMLElement | null;
+            const descending = this.currentQuery.sortDirection === 'desc';
+            const siblings = [placeholder.previousElementSibling as HTMLElement | null, placeholder.nextElementSibling as HTMLElement | null]
+            const [beforeEl, afterEl] = descending ? siblings.reverse() : siblings;
             const taskBefore = beforeEl
                 ? await this.plugin.cacheManager.getTaskInfo(beforeEl.dataset.key!)
                 : null;
-            const afterEl = placeholder.nextElementSibling as HTMLElement | null;
             const taskAfter = afterEl
                 ? await this.plugin.cacheManager.getTaskInfo(afterEl.dataset.key!)
                 : null;
