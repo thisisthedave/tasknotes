@@ -1,4 +1,4 @@
-import { TFile, ItemView, WorkspaceLeaf, EventRef, Notice, debounce, setIcon, ButtonComponent } from 'obsidian';
+import { TFile, ItemView, WorkspaceLeaf, EventRef, Notice, setIcon, ButtonComponent } from 'obsidian';
 import TaskNotesPlugin from '../main';
 import {
     TASK_LIST_VIEW_TYPE,
@@ -105,7 +105,7 @@ export class TaskListView extends ItemView implements OptimizedView {
 
             await this.plugin.taskService.updateSortOrder(taskBefore, tasksInserted, taskAfter);
 
-            this.debouncedRefreshTasks();
+            this.refreshTasks();
         });
 
 
@@ -562,11 +562,12 @@ export class TaskListView extends ItemView implements OptimizedView {
     async moveToGroup(movedTasks: TaskInfo[], toGroup: string | null) {
         const isGrouped = (this.currentQuery.groupKey || 'none') !== 'none'
         if (movedTasks && isGrouped) {
-            
+
             const [propertyKey, newPropertyVal] =
                 this.currentQuery.groupKey == 'project' ? ['projects' as keyof TaskInfo, toGroup ? [toGroup] : []] :
                     this.currentQuery.groupKey == 'context' ? ['contexts' as keyof TaskInfo, toGroup ? [toGroup] : []] :
                         [this.currentQuery.groupKey as keyof TaskInfo, toGroup];
+
             await this.plugin.batchUpdateTasksProperty(movedTasks, propertyKey, newPropertyVal);
         }
     }
@@ -591,10 +592,6 @@ export class TaskListView extends ItemView implements OptimizedView {
             copyTaskTitleToClipboard(tasks);
         });
     }
-
-    private debouncedRefreshTasks = debounce(() => {
-        this.refreshTasks();
-    }, 100, true);
 
     /**
      * Update the filter heading with current saved view and completion count
