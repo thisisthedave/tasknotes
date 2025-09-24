@@ -211,7 +211,11 @@ export const zh: TranslationTree = {
             appearance: '外观和界面',
             features: '功能',
             integrations: '集成'
-        },
+        ,
+                  keyboardShortcuts: '键盘'
+              ,
+                  jira: 'Jira'
+              },
         features: {
             inlineTasks: {
                 header: '内联任务',
@@ -405,7 +409,13 @@ export const zh: TranslationTree = {
                     name: '默认重复',
                     description: '新任务的默认重复模式'
                 }
-            },
+            ,
+                               defaultStoryPoints: {
+                                   name: '默认故事点',
+                                   description: '默认故事点（0 = 无默认值）',
+                                   placeholder: '3'
+                               }
+                           },
             dateDefaults: {
                 defaultDueDate: {
                     name: '默认到期日期',
@@ -661,6 +671,7 @@ export const zh: TranslationTree = {
                     contexts: '上下文',
                     projects: '项目',
                     timeEstimate: '时间估计',
+                    points: '点数预估',
                     recurrence: '重复',
                     dateCreated: '创建日期',
                     completedDate: '完成日期',
@@ -672,7 +683,9 @@ export const zh: TranslationTree = {
                     icsEventId: 'ICS事件ID',
                     icsEventTag: 'ICS事件标签',
                     reminders: '提醒'
-                }
+                ,
+                            sortOrder: '排序顺序'
+                        }
             },
             customUserFields: {
                 header: '自定义用户字段',
@@ -734,7 +747,11 @@ export const zh: TranslationTree = {
                     projects: '项目',
                     contexts: '上下文',
                     tags: '标签'
-                }
+                ,
+                                points: '点数预估'
+                            ,
+                                sortOrder: '排序顺序'
+                            }
             },
             taskFilenames: {
                 header: '任务文件名',
@@ -1376,7 +1393,108 @@ export const zh: TranslationTree = {
                 daysAgo: '{days}天{plural}前'
             }
         }
-    },
+    ,
+                  keyboard: {
+                      header: '键盘快捷键',
+                      help: {
+                          line1: '点击 + 然后按下按键（或组合）以添加绑定。按 Esc 取消。',
+                          line2: '红色显示的绑定与其他操作冲突。'
+                      },
+                      resetAll: {
+                          name: '全部重置为默认值',
+                          description: '恢复任务列表视图的默认按键绑定。',
+                          buttonText: '重置'
+                      },
+                      groups: {
+                          navigationSelection: '导航与选择',
+                          openFocus: '打开与聚焦',
+                          quickEditMenus: '快速编辑菜单',
+                          other: '其他'
+                      },
+                      actions: {
+                          navigateDown: '向下导航',
+                          navigateUp: '向上导航',
+                          copyTaskTitles: '复制所选任务标题',
+                          newTask: '创建新任务',
+                          focusFilter: '聚焦到筛选框',
+                          toggleSelect: '切换聚焦任务的选中',
+                          selectAll: '全选',
+                          clearFocusAndSelection: '清除焦点与选中（并关闭筛选弹窗）',
+                          openInNewPane: '打开所选/聚焦任务（新面板）',
+                          openEdit: '打开聚焦任务编辑器',
+                          editDueDates: '编辑到期日',
+                          editScheduleDates: '编辑计划日期',
+                          editPoints: '编辑点数',
+                          editTags: '编辑标签',
+                          editProjects: '编辑项目',
+                          editContexts: '编辑上下文',
+                          editPriorities: '编辑优先级',
+                          editRecurrence: '编辑重复',
+                          editStatuses: '编辑状态',
+                          deleteTasks: '删除所选/聚焦任务',
+                          toggleArchive: '切换归档',
+                      },
+                      ui: {
+                          addHotkey: '添加快捷键',
+                          capturingPrompt: '按下快捷键。',
+                          conflictNote: '与 {others} 冲突',
+                          removeShortcutAria: '移除快捷键'
+                      }
+                  }
+              ,
+                  jiraMapping: {
+                      header: 'Jira 字段映射',
+                      description: '将 JIRA 的数据映射到 TaskNotes 字段。在模板中使用 $tokens（如 $key、$fields.summary、$fields.parent.key）。输入 Issue Key 以预览值。',
+                      sample: {
+                          header: 'Jira 示例数据',
+                          help: '加载一个 JIRA 事项以预览映射。需要安装并配置 “Jira Issue” 插件。',
+                          name: '示例事项（用于自动完成与预览）',
+                          desc: '输入 JIRA 事项键，如 JIRA-123。',
+                          placeholder: 'JIRA-123',
+                          fetchButton: '获取事项',
+                          notices: {
+                              missingPlugin: '“Jira Issue” 插件未安装或未启用',
+                              enterKey: '请输入事项键',
+                              loaded: '已加载 {key}',
+                              failed: '无法加载 {key}'
+                          }
+                      },
+                      raw: {
+                          header: '原始数据',
+                          desc: '已加载事项的 JSON（默认折叠）。',
+                          searchLabel: '搜索：',
+                          searchPlaceholder: '查找文本…',
+                          prev: '上一个',
+                          next: '下一个',
+                          expand: '展开',
+                          collapse: '折叠'
+                      },
+                      mapping: {
+                          mode: { template: '模板', path: '字段路径', fixed: '固定', off: '关闭' },
+                          placeholders: { generic: '例如：$key 或 fields.summary', fixed: '固定值', path: 'fields.xyz', templateHint: '支持 $tokens' },
+                          buttons: { resetToDefault: '重置为默认', addSource: '添加来源', removeSource: '移除来源', remove: '移除', addMapping: '添加映射' },
+                          enumRemap: { titleSuffix: ' 映射', description: '将 JIRA 值转换为你的 TaskNotes 值。', jiraValuesPlaceholder: 'JIRA 值（用逗号分隔）' }
+                      },
+                      fields: {
+                          title: '标题',
+                          id: 'ID',
+                          details: '详情',
+                          status: '状态',
+                          priority: '优先级',
+                          due: '到期',
+                          scheduled: '计划',
+                          timeEstimate: '时间预估',
+                          points: '点数',
+                          dateCreated: '创建日期',
+                          dateModified: '修改日期',
+                          completedDate: '完成日期',
+                          recurrence: '重复',
+                          tags: '标签',
+                          projects: '项目',
+                          contexts: '上下文',
+                      }
+                  }
+              },
     notices: {
         languageChanged: '语言已更改为{language}。',
         exportTasksFailed: '导出任务为ICS文件失败'
@@ -1403,7 +1521,9 @@ export const zh: TranslationTree = {
         pauseResumePomodoro: '暂停/恢复番茄钟计时器',
         refreshCache: '刷新缓存',
         exportAllTasksIcs: '导出所有任务为ICS文件'
-    },
+    ,
+                  importJiraIssue: '导入 Jira 事项'
+              },
     modals: {
         task: {
             titlePlaceholder: '需要做什么？',
@@ -1951,7 +2071,11 @@ export const zh: TranslationTree = {
                 tags: '标签',
                 ascending: '升序',
                 descending: '降序'
-            },
+            ,
+                             points: '点数'
+                         ,
+                             sortOrder: '手动'
+                         },
             group: {
                 none: '无',
                 status: '状态',
@@ -1987,7 +2111,11 @@ export const zh: TranslationTree = {
                 projects: '项目',
                 contexts: '上下文',
                 tags: '标签'
-            }
+            ,
+                            points: '点数预估'
+                        ,
+                            sortOrder: '排序顺序'
+                        }
         },
         reminderContextMenu: {
             remindBeforeDue: '到期前提醒...',

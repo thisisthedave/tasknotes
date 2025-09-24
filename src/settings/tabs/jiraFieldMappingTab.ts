@@ -5,6 +5,7 @@ import type { IJiraIssue } from 'src/types/obsidian-jira-issue';
 import { getByPath, renderTemplate, resolveTokenToPath, sanitizeJiraFieldName } from 'src/utils/JiraMapping';
 import { EnumRemapPair, JiraArraySource, JiraFieldMappingSettings, JiraValueSource } from 'src/types/settings';
 import { DEFAULT_JIRA_FIELD_MAPPING } from '../defaults';
+import { TranslationKey } from 'src/i18n';
 
 type TokenItem = { token: string; preview?: string };
 type PreviewResolver = (token: string) => string | undefined;
@@ -67,12 +68,14 @@ function normalizeSource(src: JiraValueSource | undefined, fallback: JiraValueSo
 export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: TaskNotesPlugin, save: () => void) {
 	container.empty();
 
+	const translate = (key: TranslationKey, params?: Record<string, string | number>) => plugin.i18n.translate(key, params);
+
 	const settings: JiraFieldMappingSettings = plugin.settings.jiraMapping ?? (plugin.settings.jiraMapping = structuredClone(DEFAULT_JIRA_FIELD_MAPPING));
 
 	// --- Sample issue fetcher
-	createSectionHeader(container, 'Jira Sample Data');
+	createSectionHeader(container, translate('settings.jiraMapping.sample.header'));
 	createHelpText(container,
-		'Load a JIRA issue to preview field mappings. Requires the "Jira Issue" plugin to be installed and configured.');
+		translate('settings.jiraMapping.sample.help'));
 
 	let sampleIssue: IJiraIssue | null = null;
 
@@ -80,20 +83,20 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	let issueFetchButton: ExtraButtonComponent;
 	let tokens: { token: string, preview?: string }[] = [];
 
-	// --- Sample issue fetcher
+	// Sample issue row
 	const fetchRow = new Setting(container)
-		.setName('Sample issue (for autocomplete & preview)')
-		.setDesc('Enter a JIRA issue key like JIRA-123.')
+		.setName(translate('settings.jiraMapping.sample.name'))
+		.setDesc(translate('settings.jiraMapping.sample.desc'))
 		.addText((t) => {
 			issueKeyInput = t;
-			t.setPlaceholder('JIRA-123');
+			t.setPlaceholder(translate('settings.jiraMapping.sample.placeholder'));
 			t.inputEl.addEventListener('keydown', (ev) => {
 				if (ev.key === 'Enter') fetchIssue();
 			});
 		})
 		.addExtraButton((btn) => {
 			issueFetchButton = btn;
-			btn.setIcon('search').setTooltip('Fetch issue');
+			btn.setIcon('search').setTooltip(translate('settings.jiraMapping.sample.fetch.tooltip'));
 			btn.onClick(fetchIssue);
 		});
 
@@ -107,11 +110,11 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	let rawSearch: TextComponent;
 
 	const rawRow = new Setting(container)
-		.setName('Raw Data')
-		.setDesc('JSON for the loaded issue (collapsed by default).')
+		.setName(translate('settings.jiraMapping.raw.header'))
+		.setDesc(translate('settings.jiraMapping.raw.desc'))
 		.addExtraButton((b) => {
 			rawToggleBtn = b;
-			b.setIcon('chevron-right').setTooltip('Expand');
+			b.setIcon('chevron-right').setTooltip(translate('common.expand'));
 			b.onClick(() => {
 				rawExpanded = !rawExpanded;
 				updateRawPanel();
@@ -122,9 +125,10 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	rawHost = rawRow.settingEl.createDiv({ cls: 'tasknotes-settings__raw is-collapsed' });
 
 	const rawToolbar = rawHost.createDiv({ cls: 'tasknotes-settings__raw-toolbar' });
-	rawToolbar.createSpan({ text: 'Search:' });
+	// toolbar
+	rawToolbar.createSpan({ text: translate('common.search') + ':' });
 	rawSearch = new TextComponent(rawToolbar);
-	rawSearch.inputEl.placeholder = 'Find text…';
+	rawSearch.inputEl.placeholder = translate('common.find.placeholder');
 	rawSearch.inputEl.addEventListener('keydown', (ev) => {
 		if (ev.key === 'Enter') {
 			performRawSearch(ev.shiftKey ? -1 : +1);
@@ -132,9 +136,9 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 			ev.stopPropagation();
 		}
 	});
-	const rawFindPrev = rawToolbar.createEl('button', { text: 'Prev', cls: 'clickable-icon' });
+	const rawFindPrev = rawToolbar.createEl('button', { text: translate('common.prev'), cls: 'clickable-icon' });
 	rawFindPrev.onclick = (e) => { e.preventDefault(); performRawSearch(-1); };
-	const rawFindNext = rawToolbar.createEl('button', { text: 'Next', cls: 'clickable-icon' });
+	const rawFindNext = rawToolbar.createEl('button', { text: translate('common.next'), cls: 'clickable-icon' });
 	rawFindNext.onclick = (e) => { e.preventDefault(); performRawSearch(+1); };
 
 	rawTextArea = rawHost.createEl('textarea', { cls: 'tasknotes-settings__raw-text' });
@@ -144,7 +148,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 		// toggle visibility + icon
 		rawHost.classList.toggle('is-collapsed', !rawExpanded);
 		rawToggleBtn.setIcon(rawExpanded ? 'chevron-down' : 'chevron-right');
-		rawToggleBtn.setTooltip(rawExpanded ? 'Collapse' : 'Expand');
+		rawToggleBtn.setTooltip(rawExpanded ? translate('common.collapse') : translate('common.expand'));
 
 		// refresh content from current sample
 		if (sampleIssue && rawExpanded) {
@@ -206,25 +210,25 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	// call after attempting to fetch an issue
 	async function fetchIssue() {
 		const key = issueKeyInput.getValue().trim();
-		if (!key) { sampleIssue = null; new Notice('Enter an issue key'); updateRawPanel(); return; }
+		if (!key) { sampleIssue = null; new Notice(translate('settings.jiraMapping.sample.notice.enterKey')); updateRawPanel(); return; }
 
 		const jira = plugin.app.plugins.getPlugin('obsidian-jira-issue');
 		if (!jira?.api?.base?.getIssue) {
-			new Notice('"Jira Issue" plugin not installed or not enabled');
+			new Notice(translate('settings.jiraMapping.sample.notice.missingPlugin'));
 			return;
 		}
 
 		issueFetchButton.setDisabled(true);
 		try {
 			sampleIssue = await jira.api.base.getIssue(key);
-			new Notice(`Loaded ${sampleIssue.key}`);
+			new Notice(translate('settings.jiraMapping.sample.notice.loaded', { key: sampleIssue.key }));
 		} catch (e) {
-			new Notice(`Could not load ${key}`);
+			new Notice(translate('settings.jiraMapping.sample.notice.loadFailed', { key }));
 			sampleIssue = null;
 		} finally {
 			issueFetchButton.setDisabled(false);
 			tokens = collectTokens();
-			updateRawPanel();         // <— refresh Raw Data section here
+			updateRawPanel();
 			rerenderFields();
 		}
 	}
@@ -333,7 +337,10 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 			// set input state
 			valueInput.setValue(jiraSrc.value ?? '');
 			valueInput.inputEl.toggleAttribute('disabled', jiraSrc.mode === 'off' || jiraSrc.mode === 'fixed');
-			valueInput.inputEl.placeholder = jiraSrc.mode === 'fixed' ? 'Constant value' : jiraSrc.mode === 'path' ? 'fields.xyz' : '$tokens allowed';
+			valueInput.inputEl.placeholder = 
+				jiraSrc.mode === 'fixed' ? translate('settings.jiraMapping.placeholder.constant')
+				: jiraSrc.mode === 'path' ? translate('settings.jiraMapping.placeholder.fieldPath')
+				: translate('settings.jiraMapping.placeholder.tokensAllowed');
 		}
 		if (suggest) suggest.setTokens(tokens);
 
@@ -348,14 +355,16 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 			if (jiraSrc.mode === 'template') val = renderTemplate(jiraSrc.value, sampleIssue);
 			else if (jiraSrc.mode === 'path') val = getByPath(sampleIssue, jiraSrc.value);
 			else if (jiraSrc.mode === 'fixed') val = jiraSrc.value;
-			setting.setDesc(val == null ? 'Preview: <no value>' : `Preview: ${Array.isArray(val) ? val.join(', ') : String(val)}`);
+
+			const prefix = translate('settings.jiraMapping.preview.prefix');
+			setting.setDesc(val == null ? translate('settings.jiraMapping.preview.none') : `${prefix} ${Array.isArray(val) ? val.join(', ') : String(val)}`);
 		} else {
 			setting.setDesc('');
 		}
 	};
 
 	const addScalarRow = (
-		label: string,
+		labelKey: TranslationKey,
 		property: keyof JiraFieldMappingSettings,
 		getSrc: () => JiraValueSource | undefined,
 		setSrc: (scalarSource: JiraValueSource) => void,
@@ -369,12 +378,12 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 
 		var suggest: TokenSuggest;
 		const scalarSetting = new Setting(container)
-			.setName(label)
+			.setName(translate(labelKey))
 			.addDropdown(typeDropdown => {
-				typeDropdown.addOption('template', 'Template');
-				typeDropdown.addOption('path', 'Field path');
-				typeDropdown.addOption('fixed', 'Fixed');
-				typeDropdown.addOption('off', 'Off');
+				typeDropdown.addOption('template', translate('settings.jiraMapping.mapping.mode.template'));
+				typeDropdown.addOption('path', translate('settings.jiraMapping.mapping.mode.path'));
+				typeDropdown.addOption('fixed', translate('settings.jiraMapping.mapping.mode.fixed'));
+				typeDropdown.addOption('off', translate('settings.jiraMapping.mapping.mode.off'));
 				const current = normalizeSource(getSrc(), { mode: 'off', value: '' });
 				typeDropdown.setValue(current.mode);
 				typeDropdown.onChange(v => {
@@ -383,7 +392,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 				});
 			}).addText(input => {
 				// Value input with $-autocomplete (when template/path)
-				input.setPlaceholder('e.g., $key or fields.summary');
+				input.setPlaceholder(translate('settings.jiraMapping.value.placeholder'));
 				suggest = new TokenSuggest(plugin.app, input.inputEl);
 				suggest.setPreviewResolver(previewResolver)
 				suggest.setTokens(collectTokens());
@@ -393,13 +402,16 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 					if (cur.value !== v) setAndSave({ ...cur, value: v });
 				});
 			}).addExtraButton(resetBtn => {
-				resetBtn.setIcon('rotate-ccw').setTooltip('Reset to default').onClick(() => {
+				resetBtn
+					.setIcon('rotate-ccw')
+					.setTooltip(translate('common.resetToDefault'))
+					.onClick(() => {
 					// reset from defaults by label
 					const def = (DEFAULT_JIRA_FIELD_MAPPING as any)[property] as JiraValueSource | undefined;
 					if (def) setAndSave({ ...def });
 				});
-				resetBtn.extraSettingsEl.addClass('tasknotes-settings__inline');
-			}).setDesc('Load a sample issue to preview'); // may be updated below
+				resetBtn.extraSettingsEl.addClass('tasknotes-settings__inline');						
+			}).setDesc(translate('settings.jiraMapping.preview.hint'));
 
 
 		const renderScalarSetting = () => { refreshSetting(getSrc(), scalarSetting, opts?.preview !== false, suggest); };
@@ -408,7 +420,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	};
 
 	const addArrayRow = (
-		label: string,
+		labelKey: TranslationKey,
 		property: keyof JiraFieldMappingSettings,
 		getList: () => JiraArraySource[] | undefined,
 		setList: (arraySources: JiraArraySource[]) => void
@@ -419,7 +431,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 			render();
 		};
 
-		const arraySetting = new Setting(container).setName(label);
+		const arraySetting = new Setting(container).setName(translate(labelKey));
 		const mappingArrayEl = arraySetting.controlEl.createDiv({ cls: 'tasknotes-settings__jira-arr' });
 
 		const renderArraySetting = () => {
@@ -431,9 +443,9 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 				var suggest: TokenSuggest | null = null;
 				const arrayRowSetting = new Setting(line).addDropdown(typeDropdown => {
 					typeDropdown
-						.addOption('template', 'Template')
-						.addOption('path', 'Field path')
-						.addOption('fixed', 'Fixed')
+						.addOption('template', translate('settings.jiraMapping.mapping.mode.template'))
+						.addOption('path', translate('settings.jiraMapping.mapping.mode.path'))
+						.addOption('fixed', translate('settings.jiraMapping.mapping.mode.fixed'))
 						.setValue(src.mode)
 						.onChange(value => {
 							const cp = [...arraySources];
@@ -453,13 +465,13 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 				}).addExtraButton(deleteBtn => {
 					deleteBtn
 						.setIcon('x')
-						.setTooltip('Remove source')
+						.setTooltip(translate('common.remove'))
 						.onClick(() => {
 							const cp = [...arraySources];
 							cp.splice(idx, 1);
 							setAndSave(cp, () => rerenderFields());
 						});
-				}).setDesc('Load a sample issue to preview'); // may be updated below
+				}).setDesc(translate('settings.jiraMapping.preview.hint')); // may be updated below
 
 				refreshSetting(src, arrayRowSetting, true, suggest);
 			});
@@ -477,34 +489,32 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 		fieldRows.push(renderArraySetting);
 	};
 
-	// ---- rows
+	// rows
+	createSectionHeader(container, translate('settings.jiraMapping.header'));
+	createHelpText(container, translate('settings.jiraMapping.description'));
+	addScalarRow('settings.jiraMapping.fields.title', 'title', () => settings.title, v => settings.title = v, { template: true, preview: true });
+	addScalarRow('settings.jiraMapping.fields.id', 'id', () => settings.id, v => settings.id = v, { template: true, preview: true });
+	addScalarRow('settings.jiraMapping.fields.details', 'details', () => settings.details, v => settings.details = v, { template: true, preview: true });
 
-	createSectionHeader(container, 'Jira Field Mapping');
-	createHelpText(container,
-		'Map JIRA issue data into TaskNotes fields. Use $tokens in templates (e.g., $key, $fields.summary, $fields.parent.key). Enter an issue key to preview values.');
-	addScalarRow('Title', 'title', () => settings.title, v => settings.title = v, { template: true, preview: true });
-	addScalarRow('ID', 'id', () => settings.id, v => settings.id = v, { template: true, preview: true });
-	addScalarRow('Details', 'details', () => settings.details, v => settings.details = v, { template: true, preview: true });
+	addScalarRow('settings.jiraMapping.fields.status', 'status', () => settings.status, v => settings.status = v, { preview: true });
+	addScalarRow('settings.jiraMapping.fields.priority', 'priority', () => settings.priority, v => settings.priority = v, { preview: true });
 
-	addScalarRow('Status', 'status', () => settings.status, v => settings.status = v, { preview: true });
-	addScalarRow('Priority', 'priority', () => settings.priority, v => settings.priority = v, { preview: true });
+	addScalarRow('settings.jiraMapping.fields.due', 'due', () => settings.due, v => settings.due = v, { preview: true });
+	addScalarRow('settings.jiraMapping.fields.scheduled', 'scheduled', () => settings.scheduled, v => settings.scheduled = v, { preview: true });
+	addScalarRow('settings.jiraMapping.fields.timeEstimate', 'timeEstimate', () => settings.timeEstimate, v => settings.timeEstimate = v, { preview: true });
+	addScalarRow('settings.jiraMapping.fields.points', 'points', () => settings.points, v => settings.points = v, { preview: true });
+	addScalarRow('settings.jiraMapping.fields.dateCreated', 'dateCreated', () => settings.dateCreated, v => settings.dateCreated = v, { preview: true });
+	addScalarRow('settings.jiraMapping.fields.dateModified', 'dateModified', () => settings.dateModified, v => settings.dateModified = v, { preview: true });
+	addScalarRow('settings.jiraMapping.fields.completedDate', 'completedDate', () => settings.completedDate, v => settings.completedDate = v, { preview: true });
+	addScalarRow('settings.jiraMapping.fields.recurrence', 'recurrence', () => settings.recurrence, v => settings.recurrence = v, { preview: true });
 
-	addScalarRow('Due', 'due', () => settings.due, v => settings.due = v, { preview: true });
-	addScalarRow('Scheduled', 'scheduled', () => settings.scheduled, v => settings.scheduled = v, { preview: true });
-	addScalarRow('Time Estimate', 'timeEstimate', () => settings.timeEstimate, v => settings.timeEstimate = v, { preview: true });
-	addScalarRow('Points', 'points', () => settings.points, v => settings.points = v, { preview: true });
-	addScalarRow('Date Created', 'dateCreated', () => settings.dateCreated, v => settings.dateCreated = v, { preview: true });
-	addScalarRow('Date Modified', 'dateModified', () => settings.dateModified, v => settings.dateModified = v, { preview: true });
-	addScalarRow('Completed Date', 'completedDate', () => settings.completedDate, v => settings.completedDate = v, { preview: true });
-	addScalarRow('Recurrence', 'recurrence', () => settings.recurrence, v => settings.recurrence = v, { preview: true });
-
-	addArrayRow('Tags', 'tags', () => settings.tags, xs => settings.tags = xs);
-	addArrayRow('Projects', 'projects', () => settings.projects, xs => settings.projects = xs); // no default
-	addArrayRow('Contexts', 'contexts', () => settings.contexts, xs => settings.contexts = xs); // no default
+	addArrayRow('settings.jiraMapping.fields.tags', 'tags', () => settings.tags, xs => settings.tags = xs);
+	addArrayRow('settings.jiraMapping.fields.projects', 'projects', () => settings.projects, xs => settings.projects = xs); // no default
+	addArrayRow('settings.jiraMapping.fields.contexts', 'contexts', () => settings.contexts, xs => settings.contexts = xs); // no default
 
 	// --- Enum remaps (status/priority/contexts)
 	const addEnumEditor = (
-		title: string,
+		titleKey: string,
 		property: keyof JiraFieldMappingSettings,
 		getPairs: () => EnumRemapPair[] | undefined,
 		setPairs: (enumPairs: EnumRemapPair[]) => void,
@@ -517,7 +527,9 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 			save();
 		};
 
-		const box = new Setting(container).setName(`${title} remapping`).setDesc('Convert incoming JIRA values to your TaskNotes values.');
+		const box = new Setting(container)
+			.setName(translate(titleKey))
+			.setDesc(translate('settings.jiraMapping.enum.description'));
 		const host = box.controlEl.createDiv();
 
 		const renderEnumSetting = () => {
@@ -529,7 +541,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 				new Setting(row)
 					.addText(t => {
 						// right: CSV of JIRA values mapping to that TaskNotes value
-						t.setPlaceholder('JIRA values (comma separated)');
+						t.setPlaceholder(translate('settings.jiraMapping.enum.jiraValues.placeholder'));
 						t.setValue((enumPair.jiraValues ?? []).join(', '));
 						t.onChange(v => {
 							setAndSave(idx, enumPair.taskValue, v.split(',').map(s => s.trim()).filter(Boolean));
@@ -546,7 +558,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 						});
 					}).addExtraButton(b =>
 						b.setIcon('x')
-							.setTooltip('Remove')
+							.setTooltip(translate('common.remove'))
 							.onClick(() => {
 								const cp = [...getPairs() ?? []];
 								cp.splice(idx, 1);
@@ -559,7 +571,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 			new Setting(host).addExtraButton(addMappingBtn => {
 				addMappingBtn
 					.setIcon('circle-plus')
-					.setTooltip('Add mapping')
+					.setTooltip(translate('settings.jiraMapping.enum.addMapping'))
 					.onClick(() => {
 						const cp = [...(getPairs() ?? [])];
 						cp.push({ taskValue: leftValues[0] ?? '', jiraValues: [] });
@@ -580,9 +592,9 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	// const contexts = plugin.cacheManager.getAllContexts();
 	// const contextVals = (contexts ?? []).map((c: any) => c.value) as string[];	// if you expose contexts similarly
 
-	addEnumEditor('Status', 'status', () => settings.statusMap, xs => settings.statusMap = xs, statuses);
-	addEnumEditor('Priority', 'priority', () => settings.priorityMap, xs => settings.priorityMap = xs, priorities);
-	// addEnumEditor('Contexts', 'contexts', () => settings.contextsMap, xs => settings.contextsMap = xs, contextVals);
+	addEnumEditor('settings.jiraMapping.enum.statusHeader', 'status', () => settings.statusMap, xs => settings.statusMap = xs, statuses);
+	addEnumEditor('settings.jiraMapping.enum.priorityHeader', 'priority', () => settings.priorityMap, xs => settings.priorityMap = xs, priorities);
+	// addEnumEditor('settings.jiraMapping.enum.contextsHeader', 'contexts', () => settings.contextsMap, xs => settings.contextsMap = xs, contextVals);
 
 	// --- Re-render helpers
 	function rerenderFields() { fieldRows.forEach(fn => fn()); }

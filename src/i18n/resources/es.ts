@@ -210,7 +210,9 @@ export const es: TranslationTree = {
             defaults: 'Predeterminados y plantillas',
             appearance: 'Apariencia e interfaz',
             features: 'Características',
-            integrations: 'Integraciones'
+            integrations: 'Integraciones',
+            keyboardShortcuts: 'Teclado',
+            jira: 'Jira'
         },
         features: {
             inlineTasks: {
@@ -404,6 +406,11 @@ export const es: TranslationTree = {
                 defaultRecurrence: {
                     name: 'Recurrencia predeterminada',
                     description: 'Patrón de recurrencia predeterminado para nuevas tareas'
+                },
+                defaultStoryPoints: {
+                    name: 'Puntos de historia predeterminados',
+                    description: 'Puntos de historia predeterminados (0 = sin valor predeterminado)',
+                    placeholder: '3'
                 }
             },
             dateDefaults: {
@@ -661,6 +668,7 @@ export const es: TranslationTree = {
                     contexts: 'Contextos',
                     projects: 'Proyectos',
                     timeEstimate: 'Estimación de tiempo',
+                    points: 'Estimación de puntos',
                     recurrence: 'Recurrencia',
                     dateCreated: 'Fecha de creación',
                     completedDate: 'Fecha de finalización',
@@ -671,7 +679,8 @@ export const es: TranslationTree = {
                     pomodoros: 'Pomodoros',
                     icsEventId: 'ID de evento ICS',
                     icsEventTag: 'Etiqueta de evento ICS',
-                    reminders: 'Recordatorios'
+                    reminders: 'Recordatorios',
+                    sortOrder: 'Orden de clasificación'
                 }
             },
             customUserFields: {
@@ -733,7 +742,9 @@ export const es: TranslationTree = {
                     modifiedDate: 'Fecha de modificación',
                     projects: 'Proyectos',
                     contexts: 'Contextos',
-                    tags: 'Etiquetas'
+                    tags: 'Etiquetas',
+                    points: 'Estimación de puntos',
+                    sortOrder: 'Orden de clasificación'
                 }
             },
             taskFilenames: {
@@ -1376,6 +1387,106 @@ export const es: TranslationTree = {
                 daysAgo: 'hace {days} día{plural}'
             }
         }
+        ,
+        keyboard: {
+            header: 'Atajos de teclado',
+            help: {
+                line1: 'Haz clic en + y pulsa una tecla (o combinación) para añadir un atajo. Pulsa Esc para cancelar.',
+                line2: 'Los atajos en rojo entran en conflicto con otras acciones.'
+            },
+            resetAll: {
+                name: 'Restablecer todo a los valores predeterminados',
+                description: 'Restaurar los atajos predeterminados para la vista de lista de tareas.',
+                buttonText: 'Restablecer'
+            },
+            groups: {
+                navigationSelection: 'Navegación y selección',
+                openFocus: 'Abrir y enfocar',
+                quickEditMenus: 'Menús de edición rápida',
+                other: 'Otros'
+            },
+            actions: {
+                navigateDown: 'Navegar hacia abajo',
+                navigateUp: 'Navegar hacia arriba',
+                copyTaskTitles: 'Copiar títulos de tareas seleccionadas',
+                newTask: 'Crear nueva tarea',
+                focusFilter: 'Enfocar cuadro de filtro',
+                toggleSelect: 'Alternar selección en la tarea enfocada',
+                selectAll: 'Seleccionar todo',
+                clearFocusAndSelection: 'Borrar enfoque y selección (y cerrar menús de filtro)',
+                openInNewPane: 'Abrir tareas seleccionadas/enfocadas (panel nuevo)',
+                openEdit: 'Abrir editor de la tarea enfocada',
+                editDueDates: 'Editar fecha de vencimiento',
+                editScheduleDates: 'Editar fecha programada',
+                editPoints: 'Editar puntos',
+                editTags: 'Editar etiquetas',
+                editProjects: 'Editar proyectos',
+                editContexts: 'Editar contextos',
+                editPriorities: 'Editar prioridad',
+                editRecurrence: 'Editar recurrencia',
+                editStatuses: 'Editar estado',
+                deleteTasks: 'Eliminar tareas seleccionadas/enfocadas',
+                toggleArchive: 'Alternar archivo',
+            },
+            ui: {
+                addHotkey: 'Añadir atajo',
+                capturingPrompt: 'Pulsa el atajo.',
+                conflictNote: 'Conflicta con {others}',
+                removeShortcutAria: 'Eliminar atajo'
+            }
+        },
+        jiraMapping: {
+            header: 'Mapeo de campos de Jira',
+            description: 'Mapea datos de JIRA a campos de TaskNotes. Usa $tokens en plantillas (p. ej., $key, $fields.summary, $fields.parent.key). Introduce una clave para previsualizar.',
+            sample: {
+                header: 'Datos de muestra de Jira',
+                help: 'Carga un issue de JIRA para previsualizar las asignaciones. Requiere el plugin "Jira Issue" instalado y configurado.',
+                name: 'Issue de muestra (para autocompletar y vista previa)',
+                desc: 'Introduce una clave de JIRA como JIRA-123.',
+                placeholder: 'JIRA-123',
+                fetchButton: 'Obtener issue',
+                notices: {
+                    missingPlugin: 'Plugin "Jira Issue" no instalado o deshabilitado',
+                    enterKey: 'Introduce una clave de issue',
+                    loaded: 'Cargado {key}',
+                    failed: 'No se pudo cargar {key}'
+                }
+            },
+            raw: {
+                header: 'Datos en bruto',
+                desc: 'JSON del issue cargado (plegado por defecto).',
+                searchLabel: 'Buscar:',
+                searchPlaceholder: 'Encontrar texto…',
+                prev: 'Anterior',
+                next: 'Siguiente',
+                expand: 'Expandir',
+                collapse: 'Contraer'
+            },
+            mapping: {
+                mode: { template: 'Plantilla', path: 'Ruta de campo', fixed: 'Fijo', off: 'Desactivado' },
+                placeholders: { generic: 'p. ej., $key o fields.summary', fixed: 'Valor fijo', path: 'fields.xyz', templateHint: 'Se permiten $tokens' },
+                buttons: { resetToDefault: 'Restablecer por defecto', addSource: 'Añadir fuente', removeSource: 'Eliminar fuente', remove: 'Eliminar', addMapping: 'Añadir mapeo' },
+                enumRemap: { titleSuffix: ' (remapeo)', description: 'Convertir valores de JIRA a tus valores de TaskNotes.', jiraValuesPlaceholder: 'Valores de JIRA (separados por comas)' }
+            },
+            fields: {
+                title: 'Título',
+                id: 'ID',
+                details: 'Detalles',
+                status: 'Estado',
+                priority: 'Prioridad',
+                due: 'Vencimiento',
+                scheduled: 'Programado',
+                timeEstimate: 'Estimación de tiempo',
+                points: 'Puntos',
+                dateCreated: 'Fecha de creación',
+                dateModified: 'Fecha de modificación',
+                completedDate: 'Fecha de finalización',
+                recurrence: 'Repetición',
+                tags: 'Etiquetas',
+                projects: 'Proyectos',
+                contexts: 'Contextos',
+            }
+        }
     },
     notices: {
         languageChanged: 'Idioma cambiado a {language}.',
@@ -1403,6 +1514,8 @@ export const es: TranslationTree = {
         pauseResumePomodoro: 'Pausar/reanudar temporizador pomodoro',
         refreshCache: 'Actualizar caché',
         exportAllTasksIcs: 'Exportar todas las tareas como archivo ICS'
+        ,
+        importJiraIssue: 'Importar incidencia de Jira'
     },
     modals: {
         task: {
@@ -1950,7 +2063,9 @@ export const es: TranslationTree = {
                 createdDate: 'Fecha de creación',
                 tags: 'Etiquetas',
                 ascending: 'Ascendente',
-                descending: 'Descendente'
+                descending: 'Descendente',
+                points: 'Puntos',
+                sortOrder: 'Manual'
             },
             group: {
                 none: 'Ninguno',
@@ -1986,7 +2101,9 @@ export const es: TranslationTree = {
                 modifiedDate: 'Fecha de modificación',
                 projects: 'Proyectos',
                 contexts: 'Contextos',
-                tags: 'Etiquetas'
+                tags: 'Etiquetas',
+                points: 'Estimación de puntos',
+                sortOrder: 'Orden de clasificación'
             }
         },
         reminderContextMenu: {

@@ -211,7 +211,11 @@ export const ru: TranslationTree = {
             appearance: 'Внешний вид и интерфейс',
             features: 'Функции',
             integrations: 'Интеграции'
-        },
+        ,
+                  keyboardShortcuts: 'Клавиатура'
+              ,
+                  jira: 'Jira'
+              },
         features: {
             inlineTasks: {
                 header: 'Встроенные задачи',
@@ -405,7 +409,13 @@ export const ru: TranslationTree = {
                     name: 'Повторение по умолчанию',
                     description: 'Шаблон повторения по умолчанию для новых задач'
                 }
-            },
+            ,
+                               defaultStoryPoints: {
+                                   name: 'Стандартные story points',
+                                   description: 'Стандартные story points (0 = нет значения по умолчанию)',
+                                   placeholder: '3'
+                               }
+                           },
             dateDefaults: {
                 defaultDueDate: {
                     name: 'Срок выполнения по умолчанию',
@@ -661,6 +671,7 @@ export const ru: TranslationTree = {
                     contexts: 'Контексты',
                     projects: 'Проекты',
                     timeEstimate: 'Оценка времени',
+                    points: 'Оценка в очках',
                     recurrence: 'Повторение',
                     dateCreated: 'Дата создания',
                     completedDate: 'Дата завершения',
@@ -672,7 +683,9 @@ export const ru: TranslationTree = {
                     icsEventId: 'ID события ICS',
                     icsEventTag: 'Тег события ICS',
                     reminders: 'Напоминания'
-                }
+                ,
+                            sortOrder: 'Порядок сортировки'
+                        }
             },
             customUserFields: {
                 header: 'Пользовательские поля',
@@ -734,7 +747,11 @@ export const ru: TranslationTree = {
                     projects: 'Проекты',
                     contexts: 'Контексты',
                     tags: 'Теги'
-                }
+                ,
+                                points: 'Оценка в очках'
+                            ,
+                                sortOrder: 'Порядок сортировки'
+                            }
             },
             taskFilenames: {
                 header: 'Имена файлов задач',
@@ -1376,7 +1393,108 @@ export const ru: TranslationTree = {
                 daysAgo: '{days} дн{plural} назад'
             }
         }
-    },
+    ,
+                  keyboard: {
+                      header: 'Горячие клавиши',
+                      help: {
+                          line1: 'Нажмите + и затем клавишу (или комбинацию), чтобы добавить привязку. Esc — отмена.',
+                          line2: 'Привязки, выделенные красным, конфликтуют с другими действиями.'
+                      },
+                      resetAll: {
+                          name: 'Сбросить все по умолчанию',
+                          description: 'Восстановить стандартные привязки клавиш для списка задач.',
+                          buttonText: 'Сбросить'
+                      },
+                      groups: {
+                          navigationSelection: 'Навигация и выбор',
+                          openFocus: 'Открытие и фокус',
+                          quickEditMenus: 'Меню быстрой правки',
+                          other: 'Прочее'
+                      },
+                      actions: {
+                          navigateDown: 'Перейти вниз',
+                          navigateUp: 'Перейти вверх',
+                          copyTaskTitles: 'Копировать названия выбранных задач',
+                          newTask: 'Создать новую задачу',
+                          focusFilter: 'Фокус на поле фильтра',
+                          toggleSelect: 'Переключить выделение у активной задачи',
+                          selectAll: 'Выбрать все',
+                          clearFocusAndSelection: 'Снять фокус и выделение (и закрыть всплывающие фильтры)',
+                          openInNewPane: 'Открыть выбранные/активные задачи (в новой панели)',
+                          openEdit: 'Открыть редактор активной задачи',
+                          editDueDates: 'Изменить срок',
+                          editScheduleDates: 'Изменить дату планирования',
+                          editPoints: 'Изменить очки',
+                          editTags: 'Изменить теги',
+                          editProjects: 'Изменить проекты',
+                          editContexts: 'Изменить контексты',
+                          editPriorities: 'Изменить приоритет',
+                          editRecurrence: 'Изменить повторение',
+                          editStatuses: 'Изменить статус',
+                          deleteTasks: 'Удалить выбранные/активные задачи',
+                          toggleArchive: 'Переключить архив',
+                      },
+                      ui: {
+                          addHotkey: 'Добавить сочетание',
+                          capturingPrompt: 'Нажмите сочетание.',
+                          conflictNote: 'Конфликт с {others}',
+                          removeShortcutAria: 'Удалить сочетание'
+                      }
+                  }
+              ,
+                  jiraMapping: {
+                      header: 'Сопоставление полей Jira',
+                      description: 'Свяжите данные JIRA с полями TaskNotes. Используйте $tokens в шаблонах (например, $key, $fields.summary, $fields.parent.key). Введите ключ задачи для предпросмотра.',
+                      sample: {
+                          header: 'Пример данных Jira',
+                          help: 'Загрузите задачу JIRA для предпросмотра сопоставления. Требуется установленный и настроенный плагин «Jira Issue».',
+                          name: 'Пример задачи (для автодополнения и предпросмотра)',
+                          desc: 'Введите ключ JIRA, например JIRA-123.',
+                          placeholder: 'JIRA-123',
+                          fetchButton: 'Загрузить задачу',
+                          notices: {
+                              missingPlugin: 'Плагин «Jira Issue» не установлен или отключён',
+                              enterKey: 'Введите ключ задачи',
+                              loaded: 'Загружено {key}',
+                              failed: 'Не удалось загрузить {key}'
+                          }
+                      },
+                      raw: {
+                          header: 'Исходные данные',
+                          desc: 'JSON загруженной задачи (по умолчанию свернуто).',
+                          searchLabel: 'Поиск:',
+                          searchPlaceholder: 'Найти текст…',
+                          prev: 'Назад',
+                          next: 'Вперёд',
+                          expand: 'Развернуть',
+                          collapse: 'Свернуть'
+                      },
+                      mapping: {
+                          mode: { template: 'Шаблон', path: 'Путь к полю', fixed: 'Фиксированное', off: 'Выкл.' },
+                          placeholders: { generic: 'например, $key или fields.summary', fixed: 'Постоянное значение', path: 'fields.xyz', templateHint: 'Разрешены $tokens' },
+                          buttons: { resetToDefault: 'Сбросить по умолчанию', addSource: 'Добавить источник', removeSource: 'Удалить источник', remove: 'Удалить', addMapping: 'Добавить сопоставление' },
+                          enumRemap: { titleSuffix: ' — сопоставление', description: 'Преобразовать входящие JIRA значения в TaskNotes значения.', jiraValuesPlaceholder: 'Значения JIRA (через запятую)' }
+                      },
+                      fields: {
+                          title: 'Название',
+                          id: 'ID',
+                          details: 'Подробности',
+                          status: 'Статус',
+                          priority: 'Приоритет',
+                          due: 'Срок',
+                          scheduled: 'Запланировано',
+                          timeEstimate: 'Оценка времени',
+                          points: 'Очки',
+                          dateCreated: 'Дата создания',
+                          dateModified: 'Дата изменения',
+                          completedDate: 'Дата завершения',
+                          recurrence: 'Повторение',
+                          tags: 'Теги',
+                          projects: 'Проекты',
+                          contexts: 'Контексты',
+                      }
+                  }
+              },
     notices: {
         languageChanged: 'Язык изменен на {language}.',
         exportTasksFailed: 'Не удалось экспортировать задачи как файл ICS'
@@ -1403,7 +1521,9 @@ export const ru: TranslationTree = {
         pauseResumePomodoro: 'Приостановить/возобновить таймер помодоро',
         refreshCache: 'Обновить кэш',
         exportAllTasksIcs: 'Экспортировать все задачи как файл ICS'
-    },
+    ,
+                  importJiraIssue: 'Импорт задачи Jira'
+              },
     modals: {
         task: {
             titlePlaceholder: 'Что нужно сделать?',
@@ -1951,7 +2071,11 @@ export const ru: TranslationTree = {
                 tags: 'Теги',
                 ascending: 'По возрастанию',
                 descending: 'По убыванию'
-            },
+            ,
+                             points: 'Очки'
+                         ,
+                             sortOrder: 'Вручную'
+                         },
             group: {
                 none: 'Нет',
                 status: 'Статус',
@@ -1987,7 +2111,11 @@ export const ru: TranslationTree = {
                 projects: 'Проекты',
                 contexts: 'Контексты',
                 tags: 'Теги'
-            }
+            ,
+                            points: 'Оценка в очках'
+                        ,
+                            sortOrder: 'Порядок сортировки'
+                        }
         },
         reminderContextMenu: {
             remindBeforeDue: 'Напомнить до срока выполнения...',

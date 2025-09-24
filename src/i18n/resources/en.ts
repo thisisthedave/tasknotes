@@ -210,7 +210,9 @@ export const en: TranslationTree = {
             defaults: 'Defaults & Templates',
             appearance: 'Appearance & UI',
             features: 'Features',
-            integrations: 'Integrations'
+            keyboardShortcuts: 'Keyboard Shortcuts',
+            integrations: 'Integrations',
+            jira: 'Jira'
         },
         features: {
             inlineTasks: {
@@ -400,6 +402,11 @@ export const en: TranslationTree = {
                     name: 'Default time estimate',
                     description: 'Default time estimate in minutes (0 = no default)',
                     placeholder: '60'
+                },
+                defaultStoryPoints: {
+                    name: 'Default story points',
+                    description: 'Default story points estimate (0 = no default)',
+                    placeholder: '3'
                 },
                 defaultRecurrence: {
                     name: 'Default recurrence',
@@ -661,6 +668,7 @@ export const en: TranslationTree = {
                     contexts: 'Contexts',
                     projects: 'Projects',
                     timeEstimate: 'Time estimate',
+                    points: 'Points estimate',
                     recurrence: 'Recurrence',
                     dateCreated: 'Created date',
                     completedDate: 'Completed date',
@@ -669,6 +677,7 @@ export const en: TranslationTree = {
                     timeEntries: 'Time entries',
                     completeInstances: 'Complete instances',
                     pomodoros: 'Pomodoros',
+                    sortOrder: 'Sort order',
                     icsEventId: 'ICS Event ID',
                     icsEventTag: 'ICS Event Tag',
                     reminders: 'Reminders'
@@ -726,6 +735,7 @@ export const en: TranslationTree = {
                     due: 'Due Date',
                     scheduled: 'Scheduled Date',
                     timeEstimate: 'Time Estimate',
+                    points: 'Points Estimate',
                     totalTrackedTime: 'Total Tracked Time',
                     recurrence: 'Recurrence',
                     completedDate: 'Completed Date',
@@ -733,7 +743,8 @@ export const en: TranslationTree = {
                     modifiedDate: 'Modified Date',
                     projects: 'Projects',
                     contexts: 'Contexts',
-                    tags: 'Tags'
+                    tags: 'Tags',
+                    sortOrder: 'Sort Order'
                 }
             },
             taskFilenames: {
@@ -999,6 +1010,53 @@ export const en: TranslationTree = {
             timeblocking: {
                 description: 'Configure timeblock functionality for lightweight scheduling in daily notes.',
                 usage: 'Usage: In the advanced calendar view, hold Shift + drag to create timeblocks. Drag to move existing timeblocks. Resize edges to adjust duration.'
+            }
+        },
+        keyboard: {
+            header: 'Keyboard Shortcuts',
+            help: {
+                line1: 'Click + and press a key (or combo) to add a binding. Press Esc to cancel.',
+                line2: 'Bindings shown in red conflict with other actions.'
+            },
+            resetAll: {
+                name: 'Reset all to defaults',
+                description: 'Restore default key bindings for the Task List view.',
+                buttonText: 'Reset'
+            },
+            groups: {
+                navigationSelection: 'Navigation & Selection',
+                openFocus: 'Open & Focus',
+                quickEditMenus: 'Quick-Edit Menus',
+                other: 'Other'
+            },
+            actions: {
+                navigateDown: 'Navigate down',
+                navigateUp: 'Navigate up',
+                copyTaskTitles: 'Copy selected task titles',
+                newTask: 'Create new task',
+                focusFilter: 'Focus filter box',
+                toggleSelect: 'Toggle selection on focused task',
+                selectAll: 'Select all',
+                clearFocusAndSelection: 'Clear focus & selection (and close filter popups)',
+                openInNewPane: 'Open selected/focused tasks (new pane)',
+                openEdit: 'Open focused task editor',
+                editDueDates: 'Edit Due date',
+                editScheduleDates: 'Edit Scheduled date',
+                editPoints: 'Edit Points',
+                editTags: 'Edit Tags',
+                editProjects: 'Edit Projects',
+                editContexts: 'Edit Contexts',
+                editPriorities: 'Edit Priority',
+                editRecurrence: 'Edit Recurrence',
+                editStatuses: 'Edit Status',
+                deleteTasks: 'Delete selected/focused tasks',
+                toggleArchive: 'Toggle Archive'
+            },
+            ui: {
+                addHotkey: 'Add hotkey',
+                capturingPrompt: 'Press hotkey.',
+                conflictNote: 'Conflicts with {others}',
+                removeShortcutAria: 'Remove shortcut'
             }
         },
         integrations: {
@@ -1375,6 +1433,81 @@ export const en: TranslationTree = {
                 hoursAgo: '{hours} hour{plural} ago',
                 daysAgo: '{days} day{plural} ago'
             }
+        },
+        jiraMapping: {
+            header: 'Jira Field Mapping',
+            description:
+                'Map JIRA issue data into TaskNotes fields. Use $tokens in templates (e.g., $key, $fields.summary, $fields.parent.key). Enter an issue key to preview values.',
+            sample: {
+                header: 'Jira Sample Data',
+                help: 'Load a JIRA issue to preview field mappings. Requires the "Jira Issue" plugin to be installed and configured.',
+                name: 'Sample issue (for autocomplete & preview)',
+                desc: 'Enter a JIRA issue key like JIRA-123.',
+                placeholder: 'JIRA-123',
+                fetchButton: 'Fetch issue',
+                notices: {
+                    missingPlugin: '"Jira Issue" plugin not installed or not enabled',
+                    enterKey: 'Enter an issue key',
+                    loaded: 'Loaded {key}',
+                    failed: 'Could not load {key}'
+                }
+            },
+            raw: {
+                header: 'Raw Data',
+                desc: 'JSON for the loaded issue (collapsed by default).',
+                searchLabel: 'Search:',
+                searchPlaceholder: 'Find text…',
+                prev: 'Prev',
+                next: 'Next',
+                expand: 'Expand',
+                collapse: 'Collapse'
+            },
+            mapping: {
+                // dropdown choices for scalar/array source kind
+                mode: {
+                    template: 'Template',
+                    path: 'Field path',
+                    fixed: 'Fixed',
+                    off: 'Off'
+                },
+                placeholders: {
+                    generic: 'e.g., $key or fields.summary',
+                    fixed: 'Constant value',
+                    path: 'fields.xyz',
+                    templateHint: '$tokens allowed'
+                },
+                buttons: {
+                    resetToDefault: 'Reset to default',
+                    addSource: 'Add source',
+                    removeSource: 'Remove source',
+                    remove: 'Remove',
+                    addMapping: 'Add mapping'
+                },
+                enumRemap: {
+                    titleSuffix: ' remapping',
+                    description: 'Convert incoming JIRA values to your TaskNotes values.',
+                    jiraValuesPlaceholder: 'JIRA values (comma separated)'
+                }
+            },
+            fields: {
+                // Field labels used in the two-column mapping UI
+                title: 'Title',
+                id: 'ID',
+                details: 'Details',
+                status: 'Status',
+                priority: 'Priority',
+                due: 'Due',
+                scheduled: 'Scheduled',
+                timeEstimate: 'Time Estimate',
+                points: 'Points',            // visible label
+                dateCreated: 'Date Created',
+                dateModified: 'Date Modified',
+                completedDate: 'Completed Date',
+                recurrence: 'Recurrence',
+                tags: 'Tags',
+                projects: 'Projects',
+                contexts: 'Contexts'
+            }
         }
     },
     notices: {
@@ -1402,6 +1535,7 @@ export const en: TranslationTree = {
         stopPomodoro: 'Stop pomodoro timer',
         pauseResumePomodoro: 'Pause/resume pomodoro timer',
         refreshCache: 'Refresh cache',
+        importJiraIssue: 'Import Jira issue',
         exportAllTasksIcs: 'Export all tasks as ICS file'
     },
     modals: {
@@ -1946,8 +2080,10 @@ export const en: TranslationTree = {
                 dueDate: 'Due Date',
                 scheduledDate: 'Scheduled Date',
                 priority: 'Priority',
+                points: 'Points',
                 title: 'Title',
                 createdDate: 'Created Date',
+                sortOrder: 'Manual',
                 tags: 'Tags',
                 ascending: 'Ascending',
                 descending: 'Descending'
@@ -1979,6 +2115,7 @@ export const en: TranslationTree = {
                 dueDate: 'Due Date',
                 scheduledDate: 'Scheduled Date',
                 timeEstimate: 'Time Estimate',
+                points: 'Points Estimate',
                 totalTrackedTime: 'Total Tracked Time',
                 recurrence: 'Recurrence',
                 completedDate: 'Completed Date',
@@ -1986,7 +2123,8 @@ export const en: TranslationTree = {
                 modifiedDate: 'Modified Date',
                 projects: 'Projects',
                 contexts: 'Contexts',
-                tags: 'Tags'
+                tags: 'Tags',
+                sortOrder: 'Manual Sort'
             }
         },
         reminderContextMenu: {

@@ -3,29 +3,34 @@ import TaskNotesPlugin from '../../main';
 import { KeyboardShortcutAction, KeyboardShortcuts } from 'src/types/settings';
 import { DEFAULT_KEYBOARD_SHORTCUTS } from '../defaults';
 import { KeyboardShortcutsMap } from '../KeyboardShortcutsMap';
+import { TranslationKey } from 'src/i18n';
 
-const ACTION_LABELS: Record<KeyboardShortcutAction, string> = {
-    navigateDown: 'Navigate down',
-    navigateUp: 'Navigate up',
-    copyTaskTitles: 'Copy selected task titles',
-    newTask: 'Create new task',
-    focusFilter: 'Focus filter box',
-    toggleSelect: 'Toggle selection on focused task',
-    selectAll: 'Select all',
-    clearFocusAndSelection: 'Clear focus & selection (and close filter popups)',
-    openInNewPane: 'Open selected/focused tasks (new pane)',
-    openEdit: 'Open focused task editor',
-    editDueDates: 'Edit Due date',
-    editScheduleDates: 'Edit Scheduled date',
-    editPoints: 'Edit Points',
-    editTags: 'Edit Tags',
-    editProjects: 'Edit Projects',
-    editContexts: 'Edit Contexts',
-    editPriorities: 'Edit Priority',
-    editRecurrence: 'Edit Recurrence',
-    editStatuses: 'Edit Status',
-    deleteTasks: 'Delete selected/focused tasks',
-    toggleArchive: 'Toggle Archive',
+// local helper
+const t = (plugin: TaskNotesPlugin, key: TranslationKey, params?: Record<string, string | number>) =>
+    plugin.i18n.translate(key, params);
+
+const ACTION_LABEL_KEYS: Record<KeyboardShortcutAction, string> = {
+    navigateDown: 'settings.keyboard.actions.navigateDown',
+    navigateUp: 'settings.keyboard.actions.navigateUp',
+    copyTaskTitles: 'settings.keyboard.actions.copyTaskTitles',
+    newTask: 'settings.keyboard.actions.newTask',
+    focusFilter: 'settings.keyboard.actions.focusFilter',
+    toggleSelect: 'settings.keyboard.actions.toggleSelect',
+    selectAll: 'settings.keyboard.actions.selectAll',
+    clearFocusAndSelection: 'settings.keyboard.actions.clearFocusAndSelection',
+    openInNewPane: 'settings.keyboard.actions.openInNewPane',
+    openEdit: 'settings.keyboard.actions.openEdit',
+    editDueDates: 'settings.keyboard.actions.editDueDates',
+    editScheduleDates: 'settings.keyboard.actions.editScheduleDates',
+    editPoints: 'settings.keyboard.actions.editPoints',
+    editTags: 'settings.keyboard.actions.editTags',
+    editProjects: 'settings.keyboard.actions.editProjects',
+    editContexts: 'settings.keyboard.actions.editContexts',
+    editPriorities: 'settings.keyboard.actions.editPriorities',
+    editRecurrence: 'settings.keyboard.actions.editRecurrence',
+    editStatuses: 'settings.keyboard.actions.editStatuses',
+    deleteTasks: 'settings.keyboard.actions.deleteTasks',
+    toggleArchive: 'settings.keyboard.actions.toggleArchive',
 };
 
 // ---- Normalization & display helpers ---------------------------------------
@@ -62,6 +67,8 @@ export function renderKeyboardShortcutTab(
 ): void {
     container.empty();
 
+    const translate = (key: TranslationKey, params?: Record<string, string | number>) => plugin.i18n.translate(key, params);
+
     // Ensure settings exist & are mutable copies (we mutate arrays when adding/removing)
     if (!plugin.settings.keyboardShortcuts) {
         plugin.settings.keyboardShortcuts = DEFAULT_KEYBOARD_SHORTCUTS;
@@ -69,23 +76,21 @@ export function renderKeyboardShortcutTab(
     }
 
     // Header & reset
-    const header = container.createEl('h3', { text: 'Keyboard Shortcuts' });
+    const header = container.createEl('h3', { text: translate('settings.keyboard.header') });
     header.style.marginBottom = '0';
 
     const help = container.createEl('div', {
-        text:
-            'Click + and press a key (or combo) to add a binding. Press Esc to cancel. ' +
-            'Bindings shown in red conflict with other actions.',
+        text: translate('settings.keyboard.help.line1') + '\n' + translate('settings.keyboard.help.line2'),
     });
     help.style.opacity = '0.8';
     help.style.margin = '6px 0 12px';
 
     new Setting(container)
-        .setName('Reset all to defaults')
-        .setDesc('Restore default key bindings for the Task List view.')
+    .setName(translate('settings.keyboard.resetAll.name'))
+    .setDesc(translate('settings.keyboard.resetAll.description'))
         .addButton((b) =>
             (b as ButtonComponent)
-                .setButtonText('Reset')
+                .setButtonText(translate('settings.keyboard.resetAll.buttonText'))
                 .setCta()
                 .onClick(() => {
                     plugin.settings.keyboardShortcuts = DEFAULT_KEYBOARD_SHORTCUTS;
@@ -95,7 +100,7 @@ export function renderKeyboardShortcutTab(
         );
 
     // Build rows
-    const ACTIONS: KeyboardShortcutAction[] = Object.keys(ACTION_LABELS) as KeyboardShortcutAction[];
+    const ACTIONS: KeyboardShortcutAction[] = Object.keys(ACTION_LABEL_KEYS) as KeyboardShortcutAction[];
 
     // single source of truth in this tab
     const getMap = (): KeyboardShortcutsMap => new KeyboardShortcutsMap(plugin.settings.keyboardShortcuts!);
@@ -123,7 +128,7 @@ export function renderKeyboardShortcutTab(
 
     // render an action row (chips + add button)
     const renderRow = (parent: HTMLElement, action: KeyboardShortcutAction) => {
-        const setting = new Setting(parent).setName(ACTION_LABELS[action]);
+        const setting = new Setting(parent).setName(translate(ACTION_LABEL_KEYS[action]));
         // right-side container we fully control
         const row = setting.controlEl.createDiv({ cls: 'tasknotes-settings__ts-hotkey-row setting-command-hotkeys' });
 
@@ -140,7 +145,7 @@ export function renderKeyboardShortcutTab(
 
                 chip.createSpan({ text: formatSig(sig) });
 
-                const remove = chip.createEl('button', { text: '', attr: { 'aria-label': 'Remove shortcut' } });
+                const remove = chip.createEl('button', { text: '', attr: { 'aria-label': translate('settings.keyboard.removeShortcut.ariaLabel') } });
                 setIcon(remove, 'x');
                 remove.addClass('setting-delete-hotkey', 'setting-hotkey-icon');
                 remove.addEventListener('click', () => {
@@ -151,16 +156,16 @@ export function renderKeyboardShortcutTab(
                 });
 
                 if (offenders.length > 1) {
-                    const others = offenders.filter((a) => a !== action).map((a) => ACTION_LABELS[a]);
+                    const others = offenders.filter((a) => a !== action).map((a) => ACTION_LABEL_KEYS[a]);
                     if (others.length) {
-                        row.createSpan({ cls: 'tasknotes-settings__ts-conflict-note', text: `Conflicts with ${others.join(', ')}` });
+                        row.createSpan({ cls: 'tasknotes-settings__ts-conflict-note', text: translate('settings.keyboard.conflictNote', { actions: others.join(', ') }) });
                     }
                 }
             }
 
             // add button (capture)
             const addBtn = new ButtonComponent(row);
-            addBtn.setIcon('circle-plus').setTooltip('Add hotkey').setClass('tasknotes-settings__ts-capture-btn');
+            addBtn.setIcon('circle-plus').setTooltip(translate('settings.keyboard.addHotkey.tooltip')).setClass('tasknotes-settings__ts-capture-btn');
             addBtn.buttonEl.classList.add('clickable-icon');
 
             // swallow Esc (and optionally Enter) while capturing
@@ -190,7 +195,7 @@ export function renderKeyboardShortcutTab(
             };
 
             const startCapture = () => {
-                addBtn.setButtonText('Press hotkey...').setCta().setClass('mod-capturing');
+                addBtn.setButtonText(translate('settings.keyboard.capture.prompt')).setCta().setClass('mod-capturing');
                 plugin.app.keymap.pushScope(bindHotkeyScope);
                 document.addEventListener('keydown', onKey, { capture: true });
             };
@@ -218,10 +223,10 @@ export function renderKeyboardShortcutTab(
         return el;
     };
 
-    const nav = group('Navigation & Selection');
-    const open = group('Open & Focus');
-    const edit = group('Quick-Edit Menus');
-    const other = group('Other');
+    const nav = group(translate('settings.keyboard.groups.navigationSelection'));
+    const open = group(translate('settings.keyboard.groups.openFocus'));
+    const edit = group(translate('settings.keyboard.groups.quickEditMenus'));
+    const other = group(translate('settings.keyboard.groups.other'));
 
     const attach = (parent: HTMLElement, action: KeyboardShortcutAction) => renderRow(parent, action);
 

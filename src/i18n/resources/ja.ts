@@ -211,7 +211,11 @@ export const ja: TranslationTree = {
             appearance: '外観とUI',
             features: '機能',
             integrations: '統合'
-        },
+        ,
+                  keyboardShortcuts: 'キーボード'
+              ,
+                  jira: 'Jira'
+              },
         features: {
             inlineTasks: {
                 header: 'インラインタスク',
@@ -405,7 +409,13 @@ export const ja: TranslationTree = {
                     name: 'デフォルト繰り返し',
                     description: '新しいタスクのデフォルト繰り返しパターン'
                 }
-            },
+            ,
+                               defaultStoryPoints: {
+                                   name: 'デフォルトのストーリーポイント',
+                                   description: 'デフォルトのストーリーポイント（0 = 既定なし）',
+                                   placeholder: '3'
+                               }
+                           },
             dateDefaults: {
                 defaultDueDate: {
                     name: 'デフォルト期限日',
@@ -661,6 +671,7 @@ export const ja: TranslationTree = {
                     contexts: 'コンテキスト',
                     projects: 'プロジェクト',
                     timeEstimate: '時間見積もり',
+                    points: 'ポイント見積り',
                     recurrence: '繰り返し',
                     dateCreated: '作成日',
                     completedDate: '完了日',
@@ -672,7 +683,9 @@ export const ja: TranslationTree = {
                     icsEventId: 'ICSイベントID',
                     icsEventTag: 'ICSイベントタグ',
                     reminders: 'リマインダー'
-                }
+                ,
+                            sortOrder: '並び順'
+                        }
             },
             customUserFields: {
                 header: 'カスタムユーザーフィールド',
@@ -734,7 +747,11 @@ export const ja: TranslationTree = {
                     projects: 'プロジェクト',
                     contexts: 'コンテキスト',
                     tags: 'タグ'
-                }
+                ,
+                                points: 'ポイント見積り'
+                            ,
+                                sortOrder: '並び順'
+                            }
             },
             taskFilenames: {
                 header: 'タスクファイル名',
@@ -1376,7 +1393,108 @@ export const ja: TranslationTree = {
                 daysAgo: '{days}日前'
             }
         }
-    },
+    ,
+                  keyboard: {
+                      header: 'キーボードショートカット',
+                      help: {
+                          line1: '＋をクリックしてキー（または組み合わせ）を押すと割り当てを追加できます。Esc でキャンセル。',
+                          line2: '赤色の割り当ては他のアクションと競合しています。'
+                      },
+                      resetAll: {
+                          name: 'すべて既定にリセット',
+                          description: 'タスクリストビューの既定のキー割り当てに戻します。',
+                          buttonText: 'リセット'
+                      },
+                      groups: {
+                          navigationSelection: 'ナビゲーションと選択',
+                          openFocus: '開く・フォーカス',
+                          quickEditMenus: 'クイック編集メニュー',
+                          other: 'その他'
+                      },
+                      actions: {
+                          navigateDown: '下へ移動',
+                          navigateUp: '上へ移動',
+                          copyTaskTitles: '選択したタスクのタイトルをコピー',
+                          newTask: '新しいタスクを作成',
+                          focusFilter: 'フィルター入力にフォーカス',
+                          toggleSelect: 'フォーカス中のタスクの選択を切り替え',
+                          selectAll: 'すべて選択',
+                          clearFocusAndSelection: 'フォーカスと選択を解除（フィルターポップアップも閉じる）',
+                          openInNewPane: '選択/フォーカス中のタスクを開く（新規ペイン）',
+                          openEdit: 'フォーカス中のタスクを編集',
+                          editDueDates: '期限日を編集',
+                          editScheduleDates: '予定日を編集',
+                          editPoints: 'ポイントを編集',
+                          editTags: 'タグを編集',
+                          editProjects: 'プロジェクトを編集',
+                          editContexts: 'コンテキストを編集',
+                          editPriorities: '優先度を編集',
+                          editRecurrence: '繰り返しを編集',
+                          editStatuses: 'ステータスを編集',
+                          deleteTasks: '選択/フォーカス中のタスクを删除',
+                          toggleArchive: 'アーカイブ切り替え',
+                      },
+                      ui: {
+                          addHotkey: 'ショートカットを追加',
+                          capturingPrompt: 'ショートカットを押してください。',
+                          conflictNote: '{others} と競合しています',
+                          removeShortcutAria: 'ショートカットを削除'
+                      }
+                  }
+              ,
+                  jiraMapping: {
+                      header: 'Jira フィールドマッピング',
+                      description: 'JIRA のデータを TaskNotes のフィールドに割り当てます。テンプレートでは $tokens を使用できます（例: $key、$fields.summary、$fields.parent.key）。プレビュー用に Issue キーを入力してください。',
+                      sample: {
+                          header: 'Jira サンプルデータ',
+                          help: 'JIRA Issue を読み込んでマッピングをプレビューします。「Jira Issue」プラグインの導入と設定が必要です。',
+                          name: 'サンプル Issue（補完とプレビュー用）',
+                          desc: 'JIRA-123 のような Issue キーを入力してください。',
+                          placeholder: 'JIRA-123',
+                          fetchButton: 'Issue を取得',
+                          notices: {
+                              missingPlugin: '「Jira Issue」プラグインが未インストールまたは無効です',
+                              enterKey: 'Issue キーを入力してください',
+                              loaded: '{key} を読み込みました',
+                              failed: '{key} を読み込めませんでした'
+                          }
+                      },
+                      raw: {
+                          header: '生データ',
+                          desc: '読み込んだ Issue の JSON（初期状態は折りたたみ）。',
+                          searchLabel: '検索：',
+                          searchPlaceholder: 'テキストを検索…',
+                          prev: '前へ',
+                          next: '次へ',
+                          expand: '展開',
+                          collapse: '折りたたみ'
+                      },
+                      mapping: {
+                          mode: { template: 'テンプレート', path: 'フィールドパス', fixed: '固定値', off: 'オフ' },
+                          placeholders: { generic: '例：$key または fields.summary', fixed: '固定値', path: 'fields.xyz', templateHint: '$tokens 利用可' },
+                          buttons: { resetToDefault: '既定に戻す', addSource: 'ソースを追加', removeSource: 'ソースを削除', remove: '削除', addMapping: 'マッピングを追加' },
+                          enumRemap: { titleSuffix: ' の再マッピング', description: '受信した JIRA の値を TaskNotes の値に変換します。', jiraValuesPlaceholder: 'JIRA の値（カンマ区切り）' }
+                      },
+                      fields: {
+                          title: 'タイトル',
+                          id: 'ID',
+                          details: '詳細',
+                          status: 'ステータス',
+                          priority: '優先度',
+                          due: '期限',
+                          scheduled: '予定日',
+                          timeEstimate: '見積り時間',
+                          points: 'ポイント',
+                          dateCreated: '作成日',
+                          dateModified: '更新日',
+                          completedDate: '完了日',
+                          recurrence: '繰り返し',
+                          tags: 'タグ',
+                          projects: 'プロジェクト',
+                          contexts: 'コンテキスト',
+                      }
+                  }
+              },
     notices: {
         languageChanged: '言語を{language}に変更しました。',
         exportTasksFailed: 'タスクのICSファイルエクスポートに失敗しました'
@@ -1403,7 +1521,9 @@ export const ja: TranslationTree = {
         pauseResumePomodoro: 'ポモドーロタイマーを一時停止/再開',
         refreshCache: 'キャッシュを更新',
         exportAllTasksIcs: 'すべてのタスクをICSファイルとしてエクスポート'
-    },
+    ,
+                  importJiraIssue: 'Jira の課題をインポート'
+              },
     modals: {
         task: {
             titlePlaceholder: '何をする必要がありますか？',
@@ -1951,7 +2071,11 @@ export const ja: TranslationTree = {
                 tags: 'タグ',
                 ascending: '昇順',
                 descending: '降順'
-            },
+            ,
+                             points: 'ポイント'
+                         ,
+                             sortOrder: '手動'
+                         },
             group: {
                 none: 'なし',
                 status: 'ステータス',
@@ -1987,7 +2111,11 @@ export const ja: TranslationTree = {
                 projects: 'プロジェクト',
                 contexts: 'コンテキスト',
                 tags: 'タグ'
-            }
+            ,
+                            points: 'ポイント見積り'
+                        ,
+                            sortOrder: '並び順'
+                        }
         },
         reminderContextMenu: {
             remindBeforeDue: '期限前にリマインド...',

@@ -211,7 +211,11 @@ export const fr: TranslationTree = {
             appearance: 'Apparence et interface',
             features: 'Fonctionnalités',
             integrations: 'Intégrations'
-        },
+        ,
+                  keyboardShortcuts: 'Clavier'
+              ,
+                  jira: 'Jira'
+              },
         features: {
             inlineTasks: {
                 header: 'Tâches dans les notes',
@@ -405,7 +409,13 @@ export const fr: TranslationTree = {
                     name: 'Récurrence par défaut',
                     description: 'Modèle de récurrence par défaut pour les nouvelles tâches'
                 }
-            },
+            ,
+                               defaultStoryPoints: {
+                                   name: 'Points d’histoire par défaut',
+                                   description: 'Points d’histoire par défaut (0 = aucun)',
+                                   placeholder: '3'
+                               }
+                           },
             dateDefaults: {
                 defaultDueDate: {
                     name: 'Date d\'échéance par défaut',
@@ -661,6 +671,7 @@ export const fr: TranslationTree = {
                     contexts: 'Contextes',
                     projects: 'Projets',
                     timeEstimate: 'Estimation de temps',
+                    points: 'Estimation de points',
                     recurrence: 'Récurrence',
                     dateCreated: 'Date de création',
                     completedDate: 'Date d\'achèvement',
@@ -672,7 +683,9 @@ export const fr: TranslationTree = {
                     icsEventId: 'ID d\'événement ICS',
                     icsEventTag: 'Tag d\'événement ICS',
                     reminders: 'Rappels'
-                }
+                ,
+                            sortOrder: 'Ordre de tri'
+                        }
             },
             customUserFields: {
                 header: 'Champs utilisateur personnalisés',
@@ -734,7 +747,11 @@ export const fr: TranslationTree = {
                     projects: 'Projets',
                     contexts: 'Contextes',
                     tags: 'Étiquettes'
-                }
+                ,
+                                points: 'Estimation de points'
+                            ,
+                                sortOrder: 'Ordre de tri'
+                            }
             },
             taskFilenames: {
                 header: 'Noms de fichiers des tâches',
@@ -1376,7 +1393,108 @@ export const fr: TranslationTree = {
                 daysAgo: 'il y a {days} jour{plural}'
             }
         }
-    },
+    ,
+                  keyboard: {
+                      header: 'Raccourcis clavier',
+                      help: {
+                          line1: 'Cliquez sur + puis appuyez sur une touche (ou combinaison) pour ajouter un raccourci. Esc pour annuler.',
+                          line2: 'Les raccourcis en rouge sont en conflit avec d’autres actions.'
+                      },
+                      resetAll: {
+                          name: 'Réinitialiser tous les paramètres',
+                          description: 'Rétablir les raccourcis par défaut pour la liste des tâches.',
+                          buttonText: 'Réinitialiser'
+                      },
+                      groups: {
+                          navigationSelection: 'Navigation & sélection',
+                          openFocus: 'Ouverture & focus',
+                          quickEditMenus: 'Menus d’édition rapide',
+                          other: 'Autre'
+                      },
+                      actions: {
+                          navigateDown: 'Aller vers le bas',
+                          navigateUp: 'Aller vers le haut',
+                          copyTaskTitles: 'Copier les titres des tâches sélectionnées',
+                          newTask: 'Créer une nouvelle tâche',
+                          focusFilter: 'Placer le focus dans le filtre',
+                          toggleSelect: 'Basculer la sélection sur la tâche ciblée',
+                          selectAll: 'Tout sélectionner',
+                          clearFocusAndSelection: 'Effacer focus & sélection (et fermer les fenêtres de filtre)',
+                          openInNewPane: 'Ouvrir les tâches sélectionnées/ciblées (nouveau volet)',
+                          openEdit: 'Ouvrir l’éditeur de la tâche ciblée',
+                          editDueDates: 'Modifier la date d’échéance',
+                          editScheduleDates: 'Modifier la date planifiée',
+                          editPoints: 'Modifier les points',
+                          editTags: 'Modifier les tags',
+                          editProjects: 'Modifier les projets',
+                          editContexts: 'Modifier les contextes',
+                          editPriorities: 'Modifier la priorité',
+                          editRecurrence: 'Modifier la récurrence',
+                          editStatuses: 'Modifier le statut',
+                          deleteTasks: 'Supprimer les tâches sélectionnées/ciblées',
+                          toggleArchive: 'Basculer l’archivage',
+                      },
+                      ui: {
+                          addHotkey: 'Ajouter un raccourci',
+                          capturingPrompt: 'Appuyez sur le raccourci.',
+                          conflictNote: 'En conflit avec {others}',
+                          removeShortcutAria: 'Supprimer le raccourci'
+                      }
+                  }
+              ,
+                  jiraMapping: {
+                      header: 'Mappage des champs Jira',
+                      description: 'Faire correspondre les données JIRA aux champs TaskNotes. Utilisez des $tokens dans les modèles (ex. $key, $fields.summary, $fields.parent.key). Entrez une clé d’issue pour prévisualiser.',
+                      sample: {
+                          header: 'Données d’exemple Jira',
+                          help: 'Chargez un issue JIRA pour prévisualiser le mappage. Nécessite le plugin « Jira Issue » installé et configuré.',
+                          name: 'Issue d’exemple (pour l’auto-complétion & la prévisualisation)',
+                          desc: 'Entrez une clé JIRA comme JIRA-123.',
+                          placeholder: 'JIRA-123',
+                          fetchButton: 'Récupérer l’issue',
+                          notices: {
+                              missingPlugin: 'Plugin « Jira Issue » non installé ou désactivé',
+                              enterKey: 'Saisissez une clé d’issue',
+                              loaded: '{key} chargé',
+                              failed: 'Impossible de charger {key}'
+                          }
+                      },
+                      raw: {
+                          header: 'Données brutes',
+                          desc: 'JSON de l’issue chargée (replié par défaut).',
+                          searchLabel: 'Rechercher :',
+                          searchPlaceholder: 'Trouver du texte…',
+                          prev: 'Précédent',
+                          next: 'Suivant',
+                          expand: 'Déployer',
+                          collapse: 'Replier'
+                      },
+                      mapping: {
+                          mode: { template: 'Modèle', path: 'Chemin de champ', fixed: 'Valeur fixe', off: 'Désactivé' },
+                          placeholders: { generic: 'ex. $key ou fields.summary', fixed: 'Valeur constante', path: 'fields.xyz', templateHint: '$tokens autorisés' },
+                          buttons: { resetToDefault: 'Réinitialiser par défaut', addSource: 'Ajouter une source', removeSource: 'Supprimer la source', remove: 'Supprimer', addMapping: 'Ajouter un mappage' },
+                          enumRemap: { titleSuffix: ' — remappage', description: 'Convertir les valeurs JIRA en vos valeurs TaskNotes.', jiraValuesPlaceholder: 'Valeurs JIRA (séparées par des virgules)' }
+                      },
+                      fields: {
+                          title: 'Titre',
+                          id: 'ID',
+                          details: 'Détails',
+                          status: 'Statut',
+                          priority: 'Priorité',
+                          due: 'Échéance',
+                          scheduled: 'Planifiée',
+                          timeEstimate: 'Estimation du temps',
+                          points: 'Points',
+                          dateCreated: 'Date de création',
+                          dateModified: 'Date de modification',
+                          completedDate: 'Date d’achèvement',
+                          recurrence: 'Récurrence',
+                          tags: 'Tags',
+                          projects: 'Projets',
+                          contexts: 'Contextes',
+                      }
+                  }
+              },
     notices: {
         languageChanged: 'Langue changée pour {language}.',
         exportTasksFailed: 'Échec de l\'export des tâches au format ICS'
@@ -1403,7 +1521,9 @@ export const fr: TranslationTree = {
         pauseResumePomodoro: 'Mettre en pause/reprendre le minuteur Pomodoro',
         refreshCache: 'Actualiser le cache',
         exportAllTasksIcs: 'Exporter toutes les tâches en fichier ICS'
-    },
+    ,
+                  importJiraIssue: 'Importer un ticket Jira'
+              },
     modals: {
         task: {
             titlePlaceholder: 'Quel est votre prochain objectif ?',
@@ -1951,7 +2071,11 @@ export const fr: TranslationTree = {
                 tags: 'Étiquettes',
                 ascending: 'Croissant',
                 descending: 'Décroissant'
-            },
+            ,
+                             points: 'Points'
+                         ,
+                             sortOrder: 'Manuel'
+                         },
             group: {
                 none: 'Aucun',
                 status: 'Statut',
@@ -1987,7 +2111,11 @@ export const fr: TranslationTree = {
                 projects: 'Projets',
                 contexts: 'Contextes',
                 tags: 'Étiquettes'
-            }
+            ,
+                            points: 'Estimation de points'
+                        ,
+                            sortOrder: 'Ordre de tri'
+                        }
         },
         reminderContextMenu: {
             remindBeforeDue: 'Rappeler avant l\'échéance...',

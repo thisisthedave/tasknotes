@@ -211,7 +211,11 @@ export const de: TranslationTree = {
             appearance: 'Erscheinungsbild & UI',
             features: 'Funktionen',
             integrations: 'Integrationen'
-        },
+        ,
+                  keyboardShortcuts: 'Tastatur'
+              ,
+                  jira: 'Jira'
+              },
         features: {
             inlineTasks: {
                 header: 'Inline-Aufgaben',
@@ -405,7 +409,13 @@ export const de: TranslationTree = {
                     name: 'Standard-Wiederholung',
                     description: 'Standard-Wiederholungsmuster für neue Aufgaben'
                 }
-            },
+            ,
+                               defaultStoryPoints: {
+                                   name: 'Standard-Storypoints',
+                                   description: 'Standard-Storypoints (0 = kein Standard)',
+                                   placeholder: '3'
+                               }
+                           },
             dateDefaults: {
                 defaultDueDate: {
                     name: 'Standard-Fälligkeitsdatum',
@@ -661,6 +671,7 @@ export const de: TranslationTree = {
                     contexts: 'Kontexte',
                     projects: 'Projekte',
                     timeEstimate: 'Zeitschätzung',
+                    points: 'Оценка в очках',
                     recurrence: 'Wiederholung',
                     dateCreated: 'Erstellungsdatum',
                     completedDate: 'Abschlussdatum',
@@ -672,7 +683,9 @@ export const de: TranslationTree = {
                     icsEventId: 'ICS-Event-ID',
                     icsEventTag: 'ICS-Event-Tag',
                     reminders: 'Erinnerungen'
-                }
+                ,
+                            sortOrder: 'Sortierreihenfolge'
+                        }
             },
             customUserFields: {
                 header: 'Benutzerdefinierte Felder',
@@ -726,6 +739,7 @@ export const de: TranslationTree = {
                     due: 'Fälligkeitsdatum',
                     scheduled: 'Planungsdatum',
                     timeEstimate: 'Zeitschätzung',
+                    points: 'Punktschätzung',
                     totalTrackedTime: 'Gesamte erfasste Zeit',
                     recurrence: 'Wiederholung',
                     completedDate: 'Abschlussdatum',
@@ -734,7 +748,11 @@ export const de: TranslationTree = {
                     projects: 'Projekte',
                     contexts: 'Kontexte',
                     tags: 'Tags'
-                }
+                ,
+                                points: 'Punktschätzung'
+                            ,
+                                sortOrder: 'Sortierreihenfolge'
+                            }
             },
             taskFilenames: {
                 header: 'Aufgabendateinamen',
@@ -1376,7 +1394,108 @@ export const de: TranslationTree = {
                 daysAgo: 'vor {days} Tag{plural}'
             }
         }
-    },
+    ,
+                  keyboard: {
+                      header: 'Tastaturkürzel',
+                      help: {
+                          line1: 'Klicke auf + und drücke eine Taste (oder Kombination), um eine Belegung hinzuzufügen. Mit Esc abbrechen.',
+                          line2: 'In Rot angezeigte Belegungen stehen in Konflikt mit anderen Aktionen.'
+                      },
+                      resetAll: {
+                          name: 'Alle auf Standard zurücksetzen',
+                          description: 'Standardbelegungen für die Aufgabenliste wiederherstellen.',
+                          buttonText: 'Zurücksetzen'
+                      },
+                      groups: {
+                          navigationSelection: 'Navigation & Auswahl',
+                          openFocus: 'Öffnen & Fokus',
+                          quickEditMenus: 'Schnellbearbeitungsmenüs',
+                          other: 'Sonstiges'
+                      },
+                      actions: {
+                          navigateDown: 'Nach unten navigieren',
+                          navigateUp: 'Nach oben navigieren',
+                          copyTaskTitles: 'Ausgewählte Aufgabentitel kopieren',
+                          newTask: 'Neue Aufgabe erstellen',
+                          focusFilter: 'Fokus auf Filterfeld',
+                          toggleSelect: 'Auswahl bei fokussierter Aufgabe umschalten',
+                          selectAll: 'Alle auswählen',
+                          clearFocusAndSelection: 'Fokus & Auswahl löschen (und Filter-Popups schließen)',
+                          openInNewPane: 'Ausgewählte/fokussierte Aufgaben öffnen (neues Fenster)',
+                          openEdit: 'Editor der fokussierten Aufgabe öffnen',
+                          editDueDates: 'Fälligkeitsdatum bearbeiten',
+                          editScheduleDates: 'Geplantes Datum bearbeiten',
+                          editPoints: 'Punkte bearbeiten',
+                          editTags: 'Tags bearbeiten',
+                          editProjects: 'Projekte bearbeiten',
+                          editContexts: 'Kontexte bearbeiten',
+                          editPriorities: 'Priorität bearbeiten',
+                          editRecurrence: 'Wiederholung bearbeiten',
+                          editStatuses: 'Status bearbeiten',
+                          deleteTasks: 'Ausgewählte/fokussierte Aufgaben löschen',
+                          toggleArchive: 'Archiv umschalten',
+                      },
+                      ui: {
+                          addHotkey: 'Hotkey hinzufügen',
+                          capturingPrompt: 'Hotkey drücken.',
+                          conflictNote: 'Konflikt mit {others}',
+                          removeShortcutAria: 'Kürzel entfernen'
+                      }
+                  }
+              ,
+                  jiraMapping: {
+                      header: 'Jira-Feldzuordnung',
+                      description: 'JIRA-Daten Feldern in TaskNotes zuordnen. Verwende $Tokens in Vorlagen (z. B. $key, $fields.summary, $fields.parent.key). Gib einen Issue-Key ein, um Werte anzuzeigen.',
+                      sample: {
+                          header: 'Jira-Beispieldaten',
+                          help: 'Lade ein JIRA-Issue, um Feldzuordnungen zu sehen. Erfordert das installierte und konfigurierte „Jira Issue“-Plugin.',
+                          name: 'Beispiel-Issue (für Autovervollständigung & Vorschau)',
+                          desc: 'Gib einen JIRA-Issue-Key wie JIRA-123 ein.',
+                          placeholder: 'JIRA-123',
+                          fetchButton: 'Issue laden',
+                          notices: {
+                              missingPlugin: 'Plugin „Jira Issue“ nicht installiert oder deaktiviert',
+                              enterKey: 'Einen Issue-Key eingeben',
+                              loaded: '{key} geladen',
+                              failed: 'Konnte {key} nicht laden'
+                          }
+                      },
+                      raw: {
+                          header: 'Rohdaten',
+                          desc: 'JSON des geladenen Issues (standardmäßig eingeklappt).',
+                          searchLabel: 'Suchen:',
+                          searchPlaceholder: 'Text finden…',
+                          prev: 'Zurück',
+                          next: 'Weiter',
+                          expand: 'Ausklappen',
+                          collapse: 'Einklappen'
+                      },
+                      mapping: {
+                          mode: { template: 'Vorlage', path: 'Feldpfad', fixed: 'Konstant', off: 'Aus' },
+                          placeholders: { generic: 'z. B. $key oder fields.summary', fixed: 'Konstanter Wert', path: 'fields.xyz', templateHint: '$Tokens erlaubt' },
+                          buttons: { resetToDefault: 'Auf Standard zurücksetzen', addSource: 'Quelle hinzufügen', removeSource: 'Quelle entfernen', remove: 'Entfernen', addMapping: 'Zuordnung hinzufügen' },
+                          enumRemap: { titleSuffix: '-Zuordnung', description: 'Eingehende JIRA-Werte in TaskNotes-Werte umwandeln.', jiraValuesPlaceholder: 'JIRA-Werte (kommagetrennt)' }
+                      },
+                      fields: {
+                          title: 'Titel',
+                          id: 'ID',
+                          details: 'Details',
+                          status: 'Status',
+                          priority: 'Priorität',
+                          due: 'Fällig',
+                          scheduled: 'Geplant',
+                          timeEstimate: 'Zeitschätzung',
+                          points: 'Punkte',
+                          dateCreated: 'Erstellt am',
+                          dateModified: 'Geändert am',
+                          completedDate: 'Abschlussdatum',
+                          recurrence: 'Wiederholung',
+                          tags: 'Tags',
+                          projects: 'Projekte',
+                          contexts: 'Kontexte',
+                      }
+                  }
+              },
     notices: {
         languageChanged: 'Sprache geändert zu {language}.',
         exportTasksFailed: 'Export der Aufgaben als ICS-Datei fehlgeschlagen'
@@ -1403,7 +1522,9 @@ export const de: TranslationTree = {
         pauseResumePomodoro: 'Pomodoro-Timer pausieren/fortsetzen',
         refreshCache: 'Cache aktualisieren',
         exportAllTasksIcs: 'Alle Aufgaben als ICS-Datei exportieren'
-    },
+    ,
+                  importJiraIssue: 'Jira-Vorgang importieren'
+              },
     modals: {
         task: {
             titlePlaceholder: 'Was muss getan werden?',
@@ -1951,7 +2072,11 @@ export const de: TranslationTree = {
                 tags: 'Tags',
                 ascending: 'Aufsteigend',
                 descending: 'Absteigend'
-            },
+            ,
+                             points: 'Punkte'
+                         ,
+                             sortOrder: 'Manuell'
+                         },
             group: {
                 none: 'Keine',
                 status: 'Status',
@@ -1987,7 +2112,11 @@ export const de: TranslationTree = {
                 projects: 'Projekte',
                 contexts: 'Kontexte',
                 tags: 'Tags'
-            }
+            ,
+                            points: 'Punktschätzung'
+                        ,
+                            sortOrder: 'Sortierreihenfolge'
+                        }
         },
         reminderContextMenu: {
             remindBeforeDue: 'Vor Fälligkeit erinnern...',
