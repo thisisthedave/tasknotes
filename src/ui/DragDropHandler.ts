@@ -4,6 +4,7 @@
 export interface DragState {
     draggedElement: HTMLElement | null;
     placeholder: HTMLElement | null;
+    placeholderHeight: number | null;
     draggedIndex: number;
     dropHandled: boolean;
 }
@@ -73,6 +74,7 @@ export class DragDropHandler {
             this.dragState = {
                 draggedElement: null,
                 placeholder: null,
+                placeholderHeight: null,
                 draggedIndex: -1,
                 dropHandled: false
             };
@@ -89,9 +91,10 @@ export class DragDropHandler {
         
         // Create placeholder
         this.dragState.placeholder = container.cloneNode(true) as HTMLElement;
+        this.dragState.placeholderHeight = this.dragState.placeholder.getBoundingClientRect().height;
         this.dragState.placeholder.classList.add('filter-bar__view-item-container--placeholder');
         this.dragState.placeholder.classList.remove('filter-bar__view-item-container--dragging');
-        
+
         if (e.dataTransfer) {
             e.dataTransfer.setData('text/plain', index.toString());
             e.dataTransfer.effectAllowed = 'move';
@@ -117,9 +120,7 @@ export class DragDropHandler {
             return;
         }
 
-        const rect = container.getBoundingClientRect();
-        const y = e.clientY - rect.top;
-        const insertBefore = y < rect.height / 2;
+        const insertBefore = e.offsetY < this.dragState.placeholderHeight! / 2;
 
         const parent = container.parentNode;
         const placeholder = this.dragState.placeholder;
@@ -185,6 +186,7 @@ export class DragDropHandler {
         if (this.dragState) {
             this.dragState.draggedElement = null;
             this.dragState.placeholder = null;
+            this.dragState.placeholderHeight = null;
             this.dragState.draggedIndex = -1;
             this.dragState.dropHandled = false;
         }
