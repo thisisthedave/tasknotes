@@ -1289,9 +1289,14 @@ export class MinimalNativeCache extends Events {
                         let dataIsUpdated = true;
                         for (const [key, expectedValue] of Object.entries(expectedChanges)) {
                             const actualValue = taskInfo[key as keyof TaskInfo];
-                            if (actualValue !== expectedValue) {
-                                dataIsUpdated = false;
-                                break;
+
+                            const equal = Array.isArray(expectedValue)
+                                    ? this.arraysEqual(actualValue, expectedValue)
+                                    : actualValue === expectedValue;
+
+                            if (!equal) { 
+                                dataIsUpdated = false; 
+                                break; 
                             }
                         }
                         if (dataIsUpdated) {
