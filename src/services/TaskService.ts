@@ -1467,140 +1467,86 @@ export class TaskService {
     }
     
     /**
-     * Reorder multiple tasks in the specified range. Update the tasks' sortOrder properties to reflect their new positions.
+     * Update the sort order of tasks in the specified range to reflect their new positions.
      * If the sortOrder property is not set, it will be initialized with a default value. If the sortOrder values
      * become too bunched, the sort order values will be renormalized evenly with spacing of 1000.
-     * @param tasks All the fresh tasks in the range of tasks that need updates to the sortOrder property
-     * @param indicesToMove Indices of the tasks to move
-     * @param toIndex Target index to move the tasks to
-     * @returns The updated list of tasks
+     * @param taskBefore the task before the target group, or null if none
+     * @param tasksInserted the tasks being moved between taskBefore and taskAfter
+     * @param taskAfter the task after the target group, or null if none
+     * @returns The updated list of tasks in the order: [taskBefore? ...tasksInserted ...taskAfter?]
      */
-    async reorderTasks(
-        tasks: TaskInfo[],            // the full list for the target group, in current rendered order
-        indicesToMove: number[],      // indices in `tasks` (before removal)
-        toIndex: number               // drop index reported by the UI (before removal)
+    async updateSortOrder(
+        taskBefore: TaskInfo | null,
+        tasksInserted: TaskInfo[],
+        taskAfter: TaskInfo | null,
     ): Promise<TaskInfo[]> {
-        try {
-            if (tasks.length === 0 || indicesToMove.length === 0) return tasks;
+        const INITIAL_SPACING = 1000;
+        const MIN_GAP = 1e-5; // Minimum gap to avoid floating point precision issues
 
-            // Sanitize inputs
-            const n = tasks.length;
-            const uniqSorted = [...new Set(indicesToMove.filter(i => i >= 0 && i < n))].sort((a, b) => a - b);
-            if (uniqSorted.length === 0) return tasks;
-            if (toIndex < 0) toIndex = 0;
-            if (toIndex > n) toIndex = n;
-
-            // Lazily initialize sortOrders
-            const INITIAL_SPACING = 1000;
-            const newOrders: number[] = tasks.map(t => Number.isFinite(t.sortOrder) ? t.sortOrder! : NaN);
-            let last = 0;
-            for (let i = 0; i < newOrders.length; i++) {
-                if (!Number.isFinite(newOrders[i])) {
-                    const nextIdx = newOrders.findIndex((v, idx) => idx > i && Number.isFinite(v));
-                    if (nextIdx !== -1) {
-                        const nextVal = newOrders[nextIdx]!;
-                        const span = nextVal - last;
-                        const gapCount = (nextIdx - i) + 1;
-                        for (let j = i; j < nextIdx; j++) {
-                            newOrders[j] = last + (span * (j - (i - 1))) / gapCount;
-                        }
-                        last = nextVal;
-                        i = nextIdx - 1;
-                    } else {
-                        newOrders[i] = last + INITIAL_SPACING;
-                        last = newOrders[i];
-                    }
-                } else {
-                    last = newOrders[i];
-                }
-            }
-
-            // Remove the moving block (preserving relative order)
-            const movingTasks: TaskInfo[] = [];
-            const movingOrders: number[] = [];
-            let removedBeforeTo = 0;
-            let offset = 0;
-            let workTasks = tasks.slice();
-            let workOrders = newOrders.slice();
-
-            for (const idx of uniqSorted) {
-                const i = idx - offset;
-                movingTasks.push(workTasks.splice(i, 1)[0]);
-                movingOrders.push(workOrders.splice(i, 1)[0]);
-                if (idx < toIndex) removedBeforeTo++;
-                offset++;
-            }
-
-            // Compute adjusted insertion index in the shrunken array
-            let insertAt = toIndex - removedBeforeTo;
-            if (insertAt < 0) insertAt = 0;
-            if (insertAt > workTasks.length) insertAt = workTasks.length;
-
-            // Insert the block at the new position (relative order preserved)
-            workTasks.splice(insertAt, 0, ...movingTasks);
-            workOrders.splice(insertAt, 0, ...Array(movingTasks.length).fill(NaN)); // fill then assign
-
-            // Assign orders for the inserted block using surrounding neighbors 
-            const prevOrder = workOrders[insertAt - 1];
-            const nextOrder = workOrders[insertAt + movingTasks.length];
-
-            if (Number.isFinite(prevOrder) && Number.isFinite(nextOrder)) {
-                // distribute linearly between prev and next
-                const span = (nextOrder as number) - (prevOrder as number);
-                for (let k = 0; k < movingTasks.length; k++) {
-                    workOrders[insertAt + k] = (prevOrder as number) + ((k + 1) * span) / (movingTasks.length + 1);
-                }
-            } else if (!Number.isFinite(prevOrder) && Number.isFinite(nextOrder)) {
-                // before the first: step backwards from next
-                for (let k = movingTasks.length - 1; k >= 0; k--) {
-                    workOrders[insertAt + k] = (nextOrder as number) - INITIAL_SPACING * (movingTasks.length - k);
-                }
-            } else if (Number.isFinite(prevOrder) && !Number.isFinite(nextOrder)) {
-                // after the last: step forward from prev
-                for (let k = 0; k < movingTasks.length; k++) {
-                    workOrders[insertAt + k] = (prevOrder as number) + INITIAL_SPACING * (k + 1);
-                }
-            } else {
-                // only items in list
-                for (let k = 0; k < movingTasks.length; k++) {
-                    workOrders[insertAt + k] = (k + 1) * INITIAL_SPACING;
-                }
-            }
-
-            // Renormalize if gaps are too small
-            const MIN_GAP = 1;
-            let needsRenorm = false;
-            for (let i = 1; i < workOrders.length; i++) {
-                if ((workOrders[i] - workOrders[i - 1]) < MIN_GAP) { needsRenorm = true; break; }
-            }
-            if (needsRenorm) {
-                for (let i = 0; i < workOrders.length; i++) workOrders[i] = i * INITIAL_SPACING;
-            }
-
-            // Persist changes only where needed
-            const updates: Array<Promise<unknown>> = [];
-            for (let i = 0; i < workTasks.length; i++) {
-                const t = workTasks[i];
-                const next = workOrders[i];
-                if (t.sortOrder !== next) {
-                    updates.push(this.updateProperty(t, "sortOrder", next));
-                }
-            }
-            const results = await Promise.all(updates);
-            
-            // Return the authoritative tasks for convenience (you can map if needed)
-            return workTasks;
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error("Error reordering tasks:", {
-                error: errorMessage,
-                stack: error instanceof Error ? error.stack : undefined,
-                tasks,
-                indicesToMove,
-                toIndex
-            });
-            throw new Error(`Failed to reorder tasks: ${errorMessage}`);
+        if (!tasksInserted || tasksInserted.length === 0) {
+            return Promise.resolve([]);
         }
-    }
 
+        // Helper to generate number ranges. start and end are exclusive.
+        const range = (start: number, end: number, length: number): number[] => {
+            const step = (end - start) / (length + 1);
+            return Array.from({ length }, (_, i) => start + ((i + 1) * step));
+        };
+
+        // Gather all tasks in the affected range
+        const tasks = [taskBefore, ...tasksInserted, taskAfter].filter(t => t !== null) as TaskInfo[];
+        // Extract existing sortOrder values and determine the min/max bounds
+        const sortOrderValues = new Set(tasks.filter(t => Number.isFinite(t.sortOrder)).map(t => t.sortOrder!));
+        const minSortOrder = Number.isFinite(taskBefore?.sortOrder) ? taskBefore!.sortOrder! : Number.NEGATIVE_INFINITY;
+        const maxSortOrder = Number.isFinite(taskAfter?.sortOrder) ? taskAfter!.sortOrder! : Number.POSITIVE_INFINITY;
+        const sortOrders: number[] = Array.from(sortOrderValues)
+            .filter(order => minSortOrder <= order && order <= maxSortOrder)
+            .sort();
+
+        // Determine new sortOrder values for the inserted tasks
+        if (sortOrders.length < tasks.length) {
+            // Some tasks are missing sortOrder
+            type Insertion = 'allNew' | 'between' | 'before' | 'after';
+            const findInsertionPoint: (sortOrders: number[]) => Insertion = (sortOrders: number[]) => {
+                if (sortOrders.length === 0) return 'allNew';
+                if (sortOrders.length >= 2 && Math.max(...sortOrders) - Math.min(...sortOrders) > MIN_GAP) return 'between';
+                if (!(taskBefore?.sortOrder)) return 'before';
+                return 'after';
+            };
+            const missingCount = tasks.length - sortOrders.length;
+            const insertion = findInsertionPoint(sortOrders);
+            switch (insertion) {
+                case 'allNew': {
+                    // Generate a fresh block at even INITIAL_SPACING increments
+                    sortOrders.splice(1, 0, ...range(0, INITIAL_SPACING * (missingCount - 1), missingCount));
+                    break;
+                }
+                case 'between': {
+                    // Insert evenly spaced between the existing min and max
+                    sortOrders.splice(1, 0, ...range(sortOrders[0], sortOrders[sortOrders.length - 1], missingCount));
+                    break;
+                }
+                case 'before': {
+                    // insert even INITIAL_SPACING increments at the beginning
+                    sortOrders.unshift(...range(sortOrders[0] - (INITIAL_SPACING * (missingCount + 1)), sortOrders[0], missingCount));
+                    break;
+                }
+                case 'after': {
+                    // insert even INITIAL_SPACING increments at end
+                    const maxOrder = sortOrders[sortOrders.length - 1];
+                    sortOrders.push(...range(maxOrder, maxOrder + (INITIAL_SPACING * (missingCount + 1)), missingCount));
+                    break;
+                }
+            }
+        }
+
+        // update the sortOrder values
+        const updates = tasks.map((t, index) => {
+            if (t.sortOrder == sortOrders[index]) return Promise.resolve(t)
+            else return this.updateProperty(t, 'sortOrder', sortOrders[index])
+        });
+        const updatedTasks = await Promise.all(updates);
+
+        return updatedTasks;
+    }
 }

@@ -1831,9 +1831,13 @@ export default class TaskNotesPlugin extends Plugin {
 		}
 	}
 
-	async reorderTasks(tasks: TaskInfo[], indicesToMove: number[], toIndex: number): Promise<TaskInfo[]> {
+	async updateSortOrder(
+		taskBefore: TaskInfo | null,
+		tasksInserted: TaskInfo[],
+		taskAfter: TaskInfo | null,
+	): Promise<TaskInfo[]> {
 		try {
-			const updatedTasks = await this.taskService.reorderTasks(tasks, indicesToMove, toIndex);
+			const updatedTasks = await this.taskService.updateSortOrder(taskBefore, tasksInserted, taskAfter);
 			return updatedTasks;
 		} catch (error) {
 			console.error('Failed to reorder tasks:', error);

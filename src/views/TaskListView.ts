@@ -52,7 +52,7 @@ export class TaskListView extends ItemView implements OptimizedView {
 
     // Task item tracking for dynamic updates
     taskElements: MultiMap<string, HTMLElement> = new MultiMap();
-    private focusedTaskElement: { taskPath: string, index:number } | null = null; // Track focused task for keyboard navigation
+    private focusedTaskElement: { taskPath: string, index: number } | null = null; // Track focused task for keyboard navigation
 
     // Event listeners
     private listeners: EventRef[] = [];
@@ -77,66 +77,37 @@ export class TaskListView extends ItemView implements OptimizedView {
         this.dragDropHandler = new DragDropHandler(async (fromIndex, toIndex, draggedEl, placeholder) => {
             const pending: Array<Promise<unknown>> = [];
 
-            // Determine the destination group container (whatever you currently use)
+            // Ensure dragged item is selected; collect all moving elements
+            setTaskCardSelected(draggedEl, true);
+            const movingEls = this.getSelectedTaskElements();
+            if (movingEls.length === 0) return;
+
+            // Determine destination group of placeholder before async calls
             const destGroupId = this.findTaskElementGroup(placeholder);
 
-            // Determine which elements move: dragged + selected-in-same-group
-            setTaskCardSelected(draggedEl, true); // Ensure dragged element is selected
-            const movingEls = this.getSelectedTaskElements();
+            // Load tasks to move
+            const tasksInserted = (await Promise.all(movingEls.map(el => this.plugin.cacheManager.getTaskInfo(el.dataset.key!))))
+                .filter((t): t is TaskInfo => t != null)
+                .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-            // Keep track of original groupings
-            const srcGroupsByTaskId = movingEls.reduce<Record<string, string[]>>((acc, el: HTMLElement) => {
-                const taskGroup = this.findTaskElementGroup(el);
-                if (taskGroup) {
-                    const taskId: string = el.dataset.key!;
-                    (acc[taskId] ??= []).push(taskGroup);
-                }
-                return acc;
-            }, {});
+            // Find the siblings before and after the insertion point and load the TaskInfo
+            const beforeEl = placeholder.previousElementSibling as HTMLElement | null;
+            const taskBefore = beforeEl
+                ? await this.plugin.cacheManager.getTaskInfo(beforeEl.dataset.key!)
+                : null;
+            const afterEl = placeholder.nextElementSibling as HTMLElement | null;
+            const taskAfter = afterEl
+                ? await this.plugin.cacheManager.getTaskInfo(afterEl.dataset.key!)
+                : null;
 
-            // Find their indices (ascending)
-            const indicesToMove = movingEls.map(el => this.taskElements.indexOf(el));
+            // Update group field if we switched groups
+            await this.moveToGroup(tasksInserted, destGroupId);
 
-            if (indicesToMove.length > 0) {
-                // Find the affected range of tasks to update.
-                fromIndex = indicesToMove[0]
-                const affectedStart = Math.max(0, fromIndex > toIndex ? toIndex - 1 : fromIndex - 1);
-                const affectedEnd = Math.min(this.taskElements.sizeValues, Math.max(toIndex, indicesToMove.at(-1)!) + 2); // +2 because end is exclusive for slice
-                const affectedTaskElements = this.taskElements.slice(affectedStart, affectedEnd); // returns a copy
-                const affectedIndices = indicesToMove.map(idx => idx - affectedStart);
-                if (affectedTaskElements.length > 0) {
-                    // Load tasks and ensure they're loaded
-                    const affectedTasks = await Promise.all(
-                        affectedTaskElements.map(child => this.plugin.cacheManager.getTaskInfo((child as HTMLElement).dataset.key!))
-                    );
-                    const failedLoad = affectedTasks.map((task, idx) => [task, affectedTaskElements[idx].dataset.key]).filter(([task, key]) => task == null)
-                    if (failedLoad.length > 0) {
-                        throw new Error(`TaskInfo not found for key(s) ${failedLoad.map(([task, key]) => key).join(', ')}`);
-                    }
+            await this.plugin.taskService.updateSortOrder(taskBefore, tasksInserted, taskAfter);
 
-                    // reorder the tasks
-                    console.debug(`Reordering tasks from ${fromIndex} to ${toIndex}. Loaded ${affectedTasks.length} tasks with offset ${affectedStart}`);
-                    const reorder = this.plugin.taskService.reorderTasks(affectedTasks as TaskInfo[], affectedIndices, toIndex - affectedStart);
-                    pending.push(reorder);
-
-                    // Update the value of the grouping field if the task was moved, e.g. from "In Progress" to "Done"
-                    if (this.currentQuery.groupKey) {
-                        for (const task of affectedTasks) {
-                            const srcGroups = srcGroupsByTaskId[task!.id!];
-                            if (srcGroups) {
-                                const regroup = this.moveBetweenGroups(task!, srcGroups.filter(group => group !== null), destGroupId);
-                                pending.push(regroup);
-                            } 
-                        }
-                    }
-
-                    if (pending.length > 0) {
-                        await Promise.all(pending);
-                        this.debouncedRefreshTasks(); // Ensures DOM reflects new order
-                    }
-                }
-            }
+            this.debouncedRefreshTasks();
         });
+
 
         // Register event listeners
         this.registerEvents();
@@ -524,7 +495,7 @@ export class TaskListView extends ItemView implements OptimizedView {
             await handler(selectedTasks);
             return;
         }
-        
+
         const focusedElement = this.getFocusedTaskElement();
         if (focusedElement && focusedElement.dataset.key) {
             const taskInfo = await this.plugin.cacheManager.getTaskInfo(focusedElement.dataset.key!);
@@ -588,21 +559,15 @@ export class TaskListView extends ItemView implements OptimizedView {
         });
     }
 
-    async moveBetweenGroups(movedTask: TaskInfo, fromGroups: string[], toGroup: string | null) {
-        if (movedTask && (fromGroups.length !== 1 || fromGroups[0] !== toGroup)) {
-            const [propertyKey, isArrayProperty] =
-                this.currentQuery.groupKey == 'project' ? ['projects' as keyof TaskInfo, true] :
-                this.currentQuery.groupKey == 'context' ? ['contexts' as keyof TaskInfo, true] :
-                [this.currentQuery.groupKey as keyof TaskInfo, false]
-            let newValue: string | string[] | null = toGroup;
-            if (isArrayProperty) {
-                const oldValue = (movedTask[propertyKey]! as string[])
-                newValue = oldValue.filter(oldProject => !fromGroups.includes(oldProject));
-                if (toGroup != null && !newValue.includes(toGroup)) {
-                    newValue.push(toGroup);
-                }
-            }
-            await this.plugin.updateTaskProperty(movedTask, propertyKey, newValue as TaskInfo[keyof TaskInfo]);
+    async moveToGroup(movedTasks: TaskInfo[], toGroup: string | null) {
+        const isGrouped = (this.currentQuery.groupKey || 'none') !== 'none'
+        if (movedTasks && isGrouped) {
+            
+            const [propertyKey, newPropertyVal] =
+                this.currentQuery.groupKey == 'project' ? ['projects' as keyof TaskInfo, toGroup ? [toGroup] : []] :
+                    this.currentQuery.groupKey == 'context' ? ['contexts' as keyof TaskInfo, toGroup ? [toGroup] : []] :
+                        [this.currentQuery.groupKey as keyof TaskInfo, toGroup];
+            await this.plugin.batchUpdateTasksProperty(movedTasks, propertyKey, newPropertyVal);
         }
     }
 
@@ -1252,7 +1217,7 @@ export class TaskListView extends ItemView implements OptimizedView {
         // Move focus forward or backward
         if (this.focusedTaskElement) {
             const { taskPath, index } = this.focusedTaskElement;
-            const newFocusEntry = forward ? this.taskElements.nextAfter(taskPath, index) :  this.taskElements.prevBefore(taskPath, index);
+            const newFocusEntry = forward ? this.taskElements.nextAfter(taskPath, index) : this.taskElements.prevBefore(taskPath, index);
             this.focusedTaskElement = newFocusEntry ? { taskPath: newFocusEntry.key, index: newFocusEntry.indexInKey } : null;
         } else if (forward) {
             // no current focus - start at the beginning if moving forward
@@ -1266,7 +1231,7 @@ export class TaskListView extends ItemView implements OptimizedView {
             newFocus.focus();
         }
     }
-    
+
     private async handleKeyboardShortcut(action: KeyboardShortcutAction) {
         if (action == 'navigateDown') {
             this.incrementTaskElementFocus(true);
@@ -1353,8 +1318,8 @@ export class TaskListView extends ItemView implements OptimizedView {
     private isViewDraggable(): boolean {
         if (this.currentQuery.sortKey !== 'sortOrder') {
             return false;
-        } 
-    
+        }
+
         if (this.currentQuery.groupKey && ['due', 'scheduled'].includes(this.currentQuery.groupKey)) {
             return false; // Don't allow drag if grouping by due/scheduled date
         }
