@@ -529,7 +529,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 
 		const box = new Setting(container)
 			.setName(translate(titleKey))
-			.setDesc(translate('settings.jiraMapping.enum.description'));
+			.setDesc(translate('settings.jiraMapping.mapping.enumRemap.description'));
 		const host = box.controlEl.createDiv();
 
 		const renderEnumSetting = () => {
@@ -541,7 +541,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 				new Setting(row)
 					.addText(t => {
 						// right: CSV of JIRA values mapping to that TaskNotes value
-						t.setPlaceholder(translate('settings.jiraMapping.enum.jiraValues.placeholder'));
+						t.setPlaceholder(translate('settings.jiraMapping.mapping.enumRemap.jiraValues.placeholder'));
 						t.setValue((enumPair.jiraValues ?? []).join(', '));
 						t.onChange(v => {
 							setAndSave(idx, enumPair.taskValue, v.split(',').map(s => s.trim()).filter(Boolean));
@@ -571,7 +571,7 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 			new Setting(host).addExtraButton(addMappingBtn => {
 				addMappingBtn
 					.setIcon('circle-plus')
-					.setTooltip(translate('settings.jiraMapping.enum.addMapping'))
+					.setTooltip(translate('settings.jiraMapping.mapping.enumRemap.addMapping'))
 					.onClick(() => {
 						const cp = [...(getPairs() ?? [])];
 						cp.push({ taskValue: leftValues[0] ?? '', jiraValues: [] });
@@ -592,9 +592,9 @@ export async function renderJiraFieldMappingTab(container: HTMLElement, plugin: 
 	// const contexts = plugin.cacheManager.getAllContexts();
 	// const contextVals = (contexts ?? []).map((c: any) => c.value) as string[];	// if you expose contexts similarly
 
-	addEnumEditor('settings.jiraMapping.enum.statusHeader', 'status', () => settings.statusMap, xs => settings.statusMap = xs, statuses);
-	addEnumEditor('settings.jiraMapping.enum.priorityHeader', 'priority', () => settings.priorityMap, xs => settings.priorityMap = xs, priorities);
-	// addEnumEditor('settings.jiraMapping.enum.contextsHeader', 'contexts', () => settings.contextsMap, xs => settings.contextsMap = xs, contextVals);
+	addEnumEditor('settings.jiraMapping.fields.status', 'status', () => settings.statusMap, xs => settings.statusMap = xs, statuses);
+	addEnumEditor('settings.jiraMapping.fields.priority', 'priority', () => settings.priorityMap, xs => settings.priorityMap = xs, priorities);
+	// addEnumEditor('settings.jiraMapping.fields.contexts', 'contexts', () => settings.contextsMap, xs => settings.contextsMap = xs, contextVals);
 
 	// --- Re-render helpers
 	function rerenderFields() { fieldRows.forEach(fn => fn()); }
