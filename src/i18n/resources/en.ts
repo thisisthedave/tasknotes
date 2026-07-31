@@ -1765,6 +1765,45 @@ export const en: TranslationTree = {
 			},
 		},
 		integrations: {
+			/* eslint-disable obsidianmd/ui/sentence-case-locale-module -- Jira and TaskNotes product names require canonical casing. */
+			jiraMapping: {
+				header: "Jira field mapping",
+				description:
+					"Choose how Jira values become TaskNotes properties. Paths read Jira JSON, templates interpolate $path tokens, and fixed values always apply the same value.",
+				reset: "Reset mappings",
+				sourcesHeader: "Property sources",
+				sourcesDescription:
+					"List properties can merge multiple sources. Time estimates are interpreted as Jira seconds and stored as TaskNotes minutes.",
+				userFieldsHeader: "User fields",
+				userFieldsDescription:
+					"Mappings use stable user-field IDs and continue working if their frontmatter keys are renamed.",
+				remapsHeader: "Value remapping",
+				remapsDescription:
+					"Translate Jira status, priority, and context names to the values configured in TaskNotes.",
+				preview: {
+					sampleIssue: "Sample issue",
+					sampleIssueDescription:
+						"Fetch an issue to preview the current mappings. The issue and key are not saved.",
+					issueKey: "Sample Jira issue key",
+					issueKeyPlaceholder: "PROJ-123",
+					fetch: "Fetch preview",
+					loading: "Loading…",
+					unknownError: "The Jira issue could not be loaded.",
+					resolvedValues: "Resolved values",
+					resolvedValuesDescription:
+						"These are the TaskNotes values produced by the current mappings.",
+					missing: "Not set",
+					invalid: "Invalid value",
+					rawJson: "Raw Jira issue JSON",
+					rawJsonDescription:
+						"Collapsed by default because Jira issues can contain sensitive information.",
+					copyRawJson: "Copy raw Jira issue JSON",
+					copySuccess: "Raw Jira issue JSON copied to clipboard",
+					copyFailure: "Failed to copy raw Jira issue JSON",
+					truncated: "The raw JSON preview was truncated to keep settings responsive.",
+				},
+			},
+			/* eslint-enable obsidianmd/ui/sentence-case-locale-module -- End product-name-specific strings. */
 			mobileCalendar: {
 				disable: {
 					name: "Disable calendar integrations on mobile",
@@ -2450,6 +2489,17 @@ export const en: TranslationTree = {
 		openPomodoroStats: "Open Pomodoro statistics",
 		openStatisticsView: "Open task & project statistics",
 		createNewTask: "Create new task",
+		/* eslint-disable obsidianmd/ui/sentence-case-locale-module -- Jira branding and example issue keys require canonical casing. */
+		importJiraIssue: "Import Jira issue",
+		jiraIssueKeyPlaceholder: "Issue key, for example PROJ-123",
+		jiraImportButton: "Import",
+		jiraImportMissingPlugin:
+			"The obsidian-jira-issue plugin is not installed, enabled, or compatible.",
+		jiraImportInvalidKey: "Enter a valid Jira issue key, such as PROJ-123.",
+		jiraImportFetchFailed: "Could not fetch that Jira issue.",
+		jiraImportCreationFailed: "The Jira issue was fetched, but the task could not be created.",
+		jiraImportSuccess: 'Created task "{title}".',
+		/* eslint-enable obsidianmd/ui/sentence-case-locale-module -- End Jira-specific canonical casing. */
 		convertCurrentNoteToTask: {
 			name: "Convert current note to task",
 			noActiveFile: "No active file to convert",
