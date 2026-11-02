@@ -13,7 +13,12 @@ import {
 	TokenExpiredError,
 } from "./errors";
 import { validateCalendarId, validateEventId, validateRequired } from "./validation";
-import { CalendarProvider, ProviderCalendar } from "./CalendarProvider";
+import {
+	CalendarProvider,
+	findProviderCalendar,
+	PRIMARY_CALENDAR_ALIAS,
+	ProviderCalendar,
+} from "./CalendarProvider";
 import { createTaskNotesLogger } from "../utils/tasknotesLogger";
 import { publishUserNotice } from "../core/userNotices";
 import { normalizeCalendarDescription } from "../utils/calendarDescription";
@@ -75,6 +80,13 @@ export class GoogleCalendarService extends CalendarProvider {
 	private calendarColors: Map<string, string> = new Map(); // Map calendar ID to color
 	private cacheConnectionGeneration = 0;
 	private lastManualRefresh = 0; // Timestamp of last manual refresh for rate limiting
+	private syncStatus: { lastSuccess: string | null; calendarErrors: { calendarId: string; message: string }[]; calendarsChecked: number } = {
+		lastSuccess: null, calendarErrors: [], calendarsChecked: 0,
+	};
+
+	getSyncStatus() {
+		return { ...this.syncStatus, calendarErrors: this.syncStatus.calendarErrors.map((error) => ({ ...error })) };
+	}
 
 	constructor(plugin: TaskNotesPlugin, oauthService: OAuthService) {
 		super();
@@ -330,10 +342,15 @@ export class GoogleCalendarService extends CalendarProvider {
 				for (const calendar of calendars) {
 					if (calendar.backgroundColor) {
 						calendarColors.set(calendar.id, calendar.backgroundColor);
+						// Event conversion precedes publishing availableCalendars during a
+						// refresh, so resolve the alias from this same metadata snapshot.
+						if (calendar.primary) {
+							calendarColors.set(PRIMARY_CALENDAR_ALIAS, calendar.backgroundColor);
+						}
 					}
 					providerCalendars.push({
 						id: calendar.id,
-						summary: calendar.summary,
+						summary: calendar.summaryOverride || calendar.summary,
 						description: calendar.description,
 						backgroundColor: calendar.backgroundColor,
 						primary: calendar.primary || false,
@@ -504,6 +521,20 @@ export class GoogleCalendarService extends CalendarProvider {
 	}
 
 	/**
+	 * Resolves a calendar's color, including for calendars fetched under the
+	 * primary alias, whose colors are cached under the account's real calendar id.
+	 */
+	private getCalendarColor(calendarId: string): string | undefined {
+		const directColor = this.calendarColors.get(calendarId);
+		if (directColor) {
+			return directColor;
+		}
+
+		const calendar = findProviderCalendar(this.availableCalendars, calendarId);
+		return calendar ? this.calendarColors.get(calendar.id) : undefined;
+	}
+
+	/**
 	 * Converts a Google Calendar event to TaskNotes ICSEvent format
 	 */
 	private convertToICSEvent(googleEvent: GoogleCalendarEvent, calendarId: string): ICSEvent {
@@ -541,7 +572,7 @@ export class GoogleCalendarService extends CalendarProvider {
 
 		// Priority 2: Calendar-level color (from calendar metadata)
 		if (!color) {
-			color = this.calendarColors.get(calendarId);
+			color = this.getCalendarColor(calendarId);
 		}
 
 		// Priority 3: Default Google Calendar blue
@@ -587,7 +618,8 @@ export class GoogleCalendarService extends CalendarProvider {
 			const enabledCalendarIds = this.getEnabledCalendarIds(refreshedCalendars);
 
 			// Get current cached events
-			let cachedEvents = this.cache.get("all") || [];
+			let cachedEvents = this.getAllEvents();
+			const calendarErrors: { calendarId: string; message: string }[] = [];
 
 			// Fetch events from each enabled calendar
 			for (const calendarId of enabledCalendarIds) {
@@ -643,6 +675,7 @@ export class GoogleCalendarService extends CalendarProvider {
 						operation: "fetch-events-calendar",
 						error: error,
 					});
+					calendarErrors.push({ calendarId, message: error instanceof Error ? error.message : String(error) });
 					// Continue with other calendars
 				}
 			}
@@ -655,8 +688,16 @@ export class GoogleCalendarService extends CalendarProvider {
 			this.availableCalendars = refreshedCalendars;
 			this.cache.set("all", cachedEvents);
 
-			// Emit data-changed event
+			this.syncStatus = {
+				lastSuccess: calendarErrors.length === 0 ? new Date().toISOString() : this.syncStatus.lastSuccess,
+				calendarErrors,
+				calendarsChecked: enabledCalendarIds.length,
+			};
+			// Publish successful calendars even when other calendars failed.
 			this.emit("data-changed");
+			if (calendarErrors.length > 0 && options.propagateErrors) {
+				throw new Error(calendarErrors.map(({ calendarId, message }) => `${calendarId}: ${message}`).join("\n"));
+			}
 		} catch (error) {
 			tasknotesLogger.error("Failed to refresh Google calendars:", {
 				category: "provider",
@@ -687,7 +728,8 @@ export class GoogleCalendarService extends CalendarProvider {
 	getAllEvents(): ICSEvent[] {
 		this.clearMemoryCachesForChangedConnection();
 		const events = this.cache.get("all") || [];
-		return events;
+		const enabled = new Set(this.getEnabledCalendarIds().map((id) => `google-${id}`));
+		return events.filter((event) => enabled.has(event.subscriptionId));
 	}
 
 	/**
@@ -750,6 +792,7 @@ export class GoogleCalendarService extends CalendarProvider {
 		calendarId: string,
 		eventId: string,
 		updates: {
+			transparency?: "opaque" | "transparent";
 			title?: string;
 			summary?: string;
 			description?: string;
@@ -799,6 +842,9 @@ export class GoogleCalendarService extends CalendarProvider {
 			// Support both 'title' and 'summary'
 			if (updates.title !== undefined || updates.summary !== undefined) {
 				payload.summary = updates.summary || updates.title;
+			}
+			if (updates.transparency !== undefined) {
+				payload.transparency = updates.transparency;
 			}
 			if (updates.description !== undefined) {
 				payload.description = updates.description;
@@ -916,6 +962,7 @@ export class GoogleCalendarService extends CalendarProvider {
 	async createEvent(
 		calendarId: string,
 		event: {
+			transparency?: "opaque" | "transparent";
 			title?: string;
 			summary?: string;
 			description?: string;
@@ -949,6 +996,10 @@ export class GoogleCalendarService extends CalendarProvider {
 				description: event.description,
 				location: event.location,
 			};
+
+			if (event.transparency !== undefined) {
+				payload.transparency = event.transparency;
+			}
 
 			// Add reminders if provided
 			if (event.reminders) {

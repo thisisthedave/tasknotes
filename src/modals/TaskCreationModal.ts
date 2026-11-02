@@ -107,6 +107,8 @@ export class TaskCreationModal extends TaskModal {
 	private nlInput: HTMLTextAreaElement = undefined as unknown as HTMLTextAreaElement; // Legacy - keeping for compatibility
 	private nlMarkdownEditor: EmbeddableMarkdownEditor | null = null;
 	private nlPreviewContainer: HTMLElement = undefined as unknown as HTMLElement;
+	// Parsed natural language values shown in the action bar before they are applied on save.
+	private nlPreviewParsed: NLParsedTaskData | null = null;
 	private nlButtonContainer: HTMLElement = undefined as unknown as HTMLElement;
 	private nlpSuggest: NLPSuggest | null = null; // Will be replaced with CodeMirror autocomplete
 
@@ -255,8 +257,19 @@ export class TaskCreationModal extends TaskModal {
 						// Shift+Enter - allow newline
 						return false;
 					}
-					// Normal Enter - allow new line
-					return false;
+					if (!this.plugin.settings.nlpEnterToSubmit) {
+						// Normal Enter - allow new line
+						return false;
+					}
+					if (editor.hasSelectableCompletion) {
+						// Enter belongs to the visible suggestion. If it opened too recently
+						// to accept, swallow the key so it neither saves nor adds a newline.
+						editor.acceptCompletion();
+						return true;
+					}
+					// Enter saves when enabled; Shift+Enter (above) still inserts a newline
+					void this.handleSubmitShortcut(false);
+					return true;
 				},
 			});
 		} catch (error) {
@@ -285,6 +298,18 @@ export class TaskCreationModal extends TaskModal {
 			};
 			this.addTrackedEventListener(this.nlInput, "input", inputHandler);
 
+			// WebKit fires the Enter that confirms IME text after compositionend, so
+			// stay "composing" until that keydown has been handled.
+			let composing = false;
+			this.addTrackedEventListener(this.nlInput, "compositionstart", () => {
+				composing = true;
+			});
+			this.addTrackedEventListener(this.nlInput, "compositionend", () => {
+				window.setTimeout(() => {
+					composing = false;
+				}, 0);
+			});
+
 			const keydownHandler = (e: Event) => {
 				const input = this.nlInput.value.trim();
 				if (!input) return;
@@ -293,6 +318,15 @@ export class TaskCreationModal extends TaskModal {
 				if (keyEvent.key === "Enter" && (keyEvent.ctrlKey || keyEvent.metaKey)) {
 					keyEvent.preventDefault();
 					void this.handleSubmitShortcut(keyEvent.shiftKey);
+				} else if (
+					keyEvent.key === "Enter" &&
+					!keyEvent.shiftKey &&
+					!keyEvent.isComposing &&
+					!composing &&
+					this.plugin.settings.nlpEnterToSubmit
+				) {
+					keyEvent.preventDefault();
+					void this.handleSubmitShortcut(false);
 				} else if (keyEvent.key === "Tab" && keyEvent.shiftKey) {
 					keyEvent.preventDefault();
 					this.parseAndFillForm(input);
@@ -358,6 +392,8 @@ export class TaskCreationModal extends TaskModal {
 
 		const parsed = this.nlParser.parseInput(input);
 		const previewData = this.nlParser.getPreviewData(parsed);
+		this.nlPreviewParsed = parsed;
+		this.updateIconStates();
 
 		if (previewData.length > 0 && parsed.title) {
 			this.nlPreviewContainer.empty();
@@ -382,7 +418,35 @@ export class TaskCreationModal extends TaskModal {
 		}
 	}
 
+	protected getPendingActionIconValues() {
+		const parsed = this.nlPreviewParsed;
+		// Mirrors handleSave: the text is only parsed on save while no title has been entered.
+		if (!parsed || this.title.trim()) return {};
+		return {
+			...(parsed.status ? { status: parsed.status } : {}),
+			...(parsed.priority ? { priority: parsed.priority } : {}),
+			...(parsed.dueDate
+				? {
+						dueDate: parsed.dueTime
+							? combineDateAndTime(parsed.dueDate, parsed.dueTime)
+							: parsed.dueDate,
+					}
+				: {}),
+			...(parsed.scheduledDate
+				? {
+						scheduledDate: parsed.scheduledTime
+							? combineDateAndTime(parsed.scheduledDate, parsed.scheduledTime)
+							: parsed.scheduledDate,
+					}
+				: {}),
+		};
+	}
+
 	private clearNaturalLanguagePreview(): void {
+		if (this.nlPreviewParsed) {
+			this.nlPreviewParsed = null;
+			this.updateIconStates();
+		}
 		if (this.nlPreviewContainer) {
 			this.nlPreviewContainer.empty();
 			this.nlPreviewContainer.classList.remove("nl-preview-container--visible");
@@ -551,7 +615,7 @@ export class TaskCreationModal extends TaskModal {
 
 		// Handle projects differently - they use file selection, not text input
 		if (parsed.projects && parsed.projects.length > 0) {
-			this.addProjectsFromStrings(parsed.projects);
+			this.addProjectsFromStrings(parsed.projects, true);
 			this.renderProjectsList();
 		}
 
@@ -609,7 +673,7 @@ export class TaskCreationModal extends TaskModal {
 		this.userFields = formState.userFields;
 
 		if (formState.projectStrings.length > 0) {
-			this.initializeProjectsFromStrings(formState.projectStrings);
+			this.initializeProjectsFromStrings(formState.projectStrings, true);
 		}
 
 		this.details = this.normalizeDetails(this.details);

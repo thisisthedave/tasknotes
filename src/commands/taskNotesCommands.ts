@@ -3,13 +3,32 @@ import type TaskNotesPlugin from "../main";
 import type { TranslatedCommandDefinition } from "./types";
 import { createTaskNotesLogger } from "../utils/tasknotesLogger";
 import { showConfirmationModal } from "../modals/ConfirmationModal";
+import { CheckCollectionModal } from "../modals/CheckCollectionModal";
 
 const tasknotesLogger = createTaskNotesLogger({ tag: "Commands/TaskNotesCommands" });
+
+async function syncCurrentTask(plugin: TaskNotesPlugin): Promise<void> {
+	const file = plugin.app.workspace.getActiveFile();
+	if (!file || !plugin.taskCalendarSyncService?.isEnabled()) return;
+	const task = await plugin.cacheManager.getTaskInfo(file.path);
+	if (!task) return;
+	if (!plugin.taskCalendarSyncService.shouldSyncTask(task)) {
+		new Notice(plugin.i18n.translate("settings.integrations.googleCalendarExport.notices.noDateToSync"));
+		return;
+	}
+	await plugin.taskCalendarSyncService.syncTaskToCalendar(task);
+	new Notice(plugin.i18n.translate("settings.integrations.googleCalendarExport.notices.taskSynced"));
+}
 
 export function createTaskNotesCommandDefinitions(
 	plugin: TaskNotesPlugin
 ): TranslatedCommandDefinition[] {
 	return [
+		{
+			id: "check-collection",
+			nameKey: "collectionCheck.title",
+			callback: (ctx) => { new CheckCollectionModal(ctx).open(); },
+		},
 		{
 			id: "open-calendar-view",
 			nameKey: "commands.openCalendarView",
@@ -29,6 +48,20 @@ export function createTaskNotesCommandDefinitions(
 			nameKey: "commands.openTasksView",
 			callback: async (ctx) => {
 				await ctx.openBasesFileForCommand("open-tasks-view");
+			},
+		},
+		{
+			id: "open-today",
+			nameKey: "commands.openToday",
+			callback: async (ctx) => {
+				await ctx.openBasesFileForCommand("open-tasks-view", "Today");
+			},
+		},
+		{
+			id: "open-inbox",
+			nameKey: "commands.openInbox",
+			callback: async (ctx) => {
+				await ctx.openBasesFileForCommand("open-tasks-view", "Inbox");
 			},
 		},
 		{
@@ -74,20 +107,6 @@ export function createTaskNotesCommandDefinitions(
 				}
 
 				await ctx.createDefaultBasesFiles({ overwriteExisting: true });
-			},
-		},
-		{
-			id: "open-pomodoro-stats",
-			nameKey: "commands.openPomodoroStats",
-			callback: async (ctx) => {
-				await ctx.activatePomodoroStatsView();
-			},
-		},
-		{
-			id: "open-statistics",
-			nameKey: "commands.openStatisticsView",
-			callback: async (ctx) => {
-				await ctx.activateStatsView();
 			},
 		},
 		{
@@ -274,67 +293,22 @@ export function createTaskNotesCommandDefinitions(
 		{
 			id: "sync-all-tasks-google-calendar",
 			nameKey: "commands.syncAllTasksGoogleCalendar",
-			callback: async (ctx) => {
-				if (!ctx.taskCalendarSyncService?.isEnabled()) {
-					new Notice(
-						ctx.i18n.translate(
-							"settings.integrations.googleCalendarExport.notices.notEnabled"
-						)
-					);
-					return;
-				}
-
-				await ctx.taskCalendarSyncService.syncAllTasks();
+			checkCallback: (checking) => {
+				if (!plugin.taskCalendarSyncService?.isEnabled()) return false;
+				if (!checking) void plugin.taskCalendarSyncService.syncAllTasks();
+				return true;
 			},
 		},
 		{
 			id: "sync-current-task-google-calendar",
 			nameKey: "commands.syncCurrentTaskGoogleCalendar",
-			callback: async (ctx) => {
-				if (!ctx.taskCalendarSyncService?.isEnabled()) {
-					new Notice(
-						ctx.i18n.translate(
-							"settings.integrations.googleCalendarExport.notices.notEnabled"
-						)
-					);
-					return;
-				}
-
-				const activeFile = ctx.app.workspace.getActiveFile();
-				if (!activeFile) {
-					new Notice(
-						ctx.i18n.translate(
-							"settings.integrations.googleCalendarExport.notices.noActiveFile"
-						)
-					);
-					return;
-				}
-
-				const task = await ctx.cacheManager.getTaskInfo(activeFile.path);
-				if (!task) {
-					new Notice(
-						ctx.i18n.translate(
-							"settings.integrations.googleCalendarExport.notices.notATask"
-						)
-					);
-					return;
-				}
-
-				if (!ctx.taskCalendarSyncService.shouldSyncTask(task)) {
-					new Notice(
-						ctx.i18n.translate(
-							"settings.integrations.googleCalendarExport.notices.noDateToSync"
-						)
-					);
-					return;
-				}
-
-				await ctx.taskCalendarSyncService.syncTaskToCalendar(task);
-				new Notice(
-					ctx.i18n.translate(
-						"settings.integrations.googleCalendarExport.notices.taskSynced"
-					)
-				);
+			checkCallback: (checking) => {
+				if (!plugin.taskCalendarSyncService?.isEnabled()) return false;
+				const file = plugin.app.workspace.getActiveFile();
+				const frontmatter = file && plugin.app.metadataCache.getFileCache(file)?.frontmatter;
+				if (!frontmatter || !plugin.cacheManager.isTaskFile(frontmatter)) return false;
+				if (!checking) void syncCurrentTask(plugin);
+				return true;
 			},
 		},
 		{
@@ -342,6 +316,27 @@ export function createTaskNotesCommandDefinitions(
 			nameKey: "commands.viewReleaseNotes",
 			callback: async (ctx) => {
 				await ctx.activateReleaseNotesView();
+			},
+		},
+		{
+			id: "start-time-tracking-current-task",
+			nameKey: "commands.startTimeTrackingCurrentTask",
+			callback: async (ctx) => {
+				await ctx.setCurrentTaskTimeTracking("start");
+			},
+		},
+		{
+			id: "stop-time-tracking-current-task",
+			nameKey: "commands.stopTimeTrackingCurrentTask",
+			callback: async (ctx) => {
+				await ctx.setCurrentTaskTimeTracking("stop");
+			},
+		},
+		{
+			id: "stop-active-time-tracking",
+			nameKey: "commands.stopActiveTimeTracking",
+			callback: async (ctx) => {
+				await ctx.stopActiveTimeTracking();
 			},
 		},
 		{

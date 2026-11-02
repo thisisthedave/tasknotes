@@ -17,6 +17,7 @@ nav:
           - Core concepts: core-concepts.md
           - Adopt TaskNotes in an existing vault: getting-started/existing-vault.md
           - Mobile guide: getting-started/mobile.md
+          - Upgrade from v4 to v5: migration-v4-to-v5.md
           - Migrate from v3 to v4: migration-v3-to-v4.md
     - Guides:
           - Task workflows:
@@ -88,6 +89,7 @@ nav:
                 - Links: spec/11-links.md
                 - mdbase v0.3 binding: spec/12-mdbase-v0.3-binding.md
                 - Changelog: spec/CHANGELOG.md
+          - Obsidian E2E harness: development/obsidian-e2e-harness.md
           - Translation workflow: development/translations.md
           - i18n-state-manager: development/i18n-state-manager.md
     - Releases and support:
@@ -108,6 +110,8 @@ redirects:
 # Redirected legacy pages remain here so their old Markdown can still support
 # maintainers without becoming a second public source of truth.
 drafts:
+    - development/styling.md
+    - development/local-credentials-and-runtime-state.md
     - development/architecture.md
     - development/data-flow.md
     - development/refactor-smoke-checks.md

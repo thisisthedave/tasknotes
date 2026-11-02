@@ -15,6 +15,7 @@ import {
 	getDatePart,
 	getTimePart,
 	parseDateToLocal,
+	formatDateLabel,
 	formatDateForStorage,
 	parseDateToUTC,
 	getTodayLocal,
@@ -467,6 +468,28 @@ export async function handleRecurringTaskDrop(
 }
 
 /**
+ * Return the recurrence instance addressed by a calendar event. Rendered dates
+ * from due events or time entries must not become occurrence identity.
+ */
+export function getOccurrenceDateForEvent(
+	taskInfo: TaskInfo,
+	eventArg: unknown
+): Date | undefined {
+	if (!taskInfo.recurrence) {
+		return undefined;
+	}
+
+	const eventContainer = eventArg as CalendarEventArgLike;
+	const event = eventContainer.event || eventContainer;
+	const instanceDate = event.extendedProps?.instanceDate;
+	if (typeof instanceDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(instanceDate)) {
+		return undefined;
+	}
+
+	return parseDateToUTC(instanceDate);
+}
+
+/**
  * Get target date for calendar event context menu
  * Uses the same UTC-anchored logic as AdvancedCalendarView
  */
@@ -648,8 +671,18 @@ export function createScheduledToDueSpanEvent(
 /**
  * Create time entry events from task
  */
-export function createTimeEntryEvents(task: TaskInfo, plugin: TaskNotesPlugin): CalendarEvent[] {
-	return createTimeEntryTaskEvents(task, createTaskEventContext(plugin));
+export function createTimeEntryEvents(
+	task: TaskInfo,
+	plugin: TaskNotesPlugin,
+	visibleStart?: Date,
+	visibleEnd?: Date
+): CalendarEvent[] {
+	return createTimeEntryTaskEvents(
+		task,
+		createTaskEventContext(plugin),
+		visibleStart,
+		visibleEnd
+	);
 }
 
 /**
@@ -1119,6 +1152,13 @@ export function generateRecurringTaskInstances(
 	const hasOriginalTime = hasTimeComponent(task.scheduled);
 	const templateTime = getRecurringTime(task);
 	const nextScheduledDate = getDatePart(task.scheduled);
+	// A moved occurrence is represented at its current scheduled placement.
+	// Its original rule date must not also become a projected task. Recorded
+	// completions/skips are handled separately below and remain available.
+	const movedOriginalDates = new Set(task.googleCalendarMovedOriginalDates || []);
+	if (task.googleCalendarExceptionOriginalScheduled) {
+		movedOriginalDates.add(getDatePart(task.googleCalendarExceptionOriginalScheduled));
+	}
 	const spanDayOffset = showScheduledToDueSpan ? getScheduledToDueSpanDayOffset(task) : null;
 	const shouldCreateRecurringSpan = spanDayOffset !== null;
 	const recurringSearchStartDate = shouldCreateRecurringSpan
@@ -1205,7 +1245,7 @@ export function generateRecurringTaskInstances(
 			}
 
 			// Skip if conflicts with next scheduled occurrence
-			if (instanceDate === nextScheduledDate) {
+			if (instanceDate === nextScheduledDate || movedOriginalDates.has(instanceDate)) {
 				continue;
 			}
 
@@ -1762,12 +1802,9 @@ export async function generateCalendarEvents(
 
 			// Add time entry events with date range filtering
 			if (showTimeEntries && task.timeEntries) {
-				const timeEvents = createTimeEntryEvents(task, plugin);
-				// Filter time entries by visible range
+				const timeEvents = createTimeEntryEvents(task, plugin, visibleStart, visibleEnd);
 				for (const event of timeEvents) {
-					if (isDateInVisibleRange(event.start, visibleStart, visibleEnd)) {
-						events.push(addMaterializedOccurrenceMetadata(event, task));
-					}
+					events.push(addMaterializedOccurrenceMetadata(event, task));
 				}
 			}
 		} catch (error) {
@@ -2179,7 +2216,7 @@ export function attachDailyNoteHeaderLink(
 
 	const linkEl =
 		headerCell.querySelector<HTMLElement>(".fc-col-header-cell-cushion") || headerCell;
-	const title = `Go to ${format(date, "d MMMM yyyy")}`;
+	const title = `Go to ${formatDateLabel(date, plugin.settings, "d MMMM yyyy")}`;
 
 	linkEl.setAttribute("data-navlink", "");
 	linkEl.setAttribute("title", title);

@@ -1,0 +1,312 @@
+/**
+ * Upgrade matrix for collections written by shipped TaskNotes releases.
+ *
+ * Each fixture in tests/fixtures/mdbase-upgrades is the exact collection a
+ * released build produced (see the fixture README): TaskNotes 4.13.6 (mdbase
+ * v0.2), the 5.0.0 betas (tasknotes.task 0.3.0-rc.3) and a beta.0 collection
+ * whose v0.2 metadata that beta left unchanged; and collections TaskNotes App
+ * set up through Connect ("app-", with an mdbase.lock.yaml). This release must
+ * bring every one of them to the current contract without touching records,
+ * and leave a collection that is already current exactly as it is.
+ *
+ * tasknotes.task rc.6 moved app behaviour out of the binding: every upgrade
+ * also writes the TaskNotes settings record (_settings/dev.tasknotes.md) with
+ * the settings the collection had (data.json for v4, the binding for rc.3 and
+ * rc.5), in the same journalled step.
+ */
+import { TFile } from "obsidian";
+import * as fs from "fs";
+import * as path from "path";
+import YAML from "yaml";
+import { TASKNOTES_SPEC_VERSION } from "@tasknotes/model";
+
+import { FieldMapper } from "../../../src/services/FieldMapper";
+import { MdbaseSpecService } from "../../../src/services/MdbaseSpecService";
+import { canonicalTaskNotesResources } from "../../../src/services/canonicalTaskNotesPack";
+import { DEFAULT_SETTINGS } from "../../../src/settings/defaults";
+
+const FIXTURES = path.join(__dirname, "../../fixtures/mdbase-upgrades");
+
+// The settings each fixture was captured with. "custom" users mapped due to
+// "deadline", added a number field and a skipped "cancelled" status.
+function settingsFor(profile: string): Record<string, any> {
+	const settings: Record<string, any> = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+	settings.enableMdbaseSpec = true;
+	if (profile === "custom") {
+		const status = (value: string, label: string, color: string, order: number, extra = {}) => ({
+			id: value, value, label, color, isCompleted: value === "done", order, autoArchive: false, autoArchiveDelay: 5, ...extra,
+		});
+		settings.customStatuses = [
+			status("none", "None", "#cccccc", 0),
+			status("open", "Open", "#808080", 1),
+			status("in-progress", "In progress", "#0066cc", 2),
+			status("done", "Done", "#00aa00", 3),
+			status("cancelled", "Cancelled", "#808080", 4, { isSkipped: true, excludeFromCycle: true }),
+		];
+		settings.fieldMapping = { ...settings.fieldMapping, due: "deadline" };
+		settings.userFields = [{ id: "effort", displayName: "Effort", key: "effort", type: "number" }];
+		settings.taskFilenameFormat = "zettel";
+		settings.storeTitleInFilename = false;
+	}
+	return settings;
+}
+
+function memoryVault(entries: Record<string, string>) {
+	const files = new Map(Object.entries(entries));
+	const folders = new Set<string>();
+	const parents = (p: string) => {
+		let current = "";
+		for (const part of p.split("/").slice(0, -1)) {
+			current = current ? `${current}/${part}` : part;
+			folders.add(current);
+		}
+	};
+	for (const p of files.keys()) parents(p);
+	const vault = {
+		adapter: {
+			exists: async (p: string) => files.has(p) || folders.has(p),
+			read: async (p: string) => {
+				const content = files.get(p);
+				if (content === undefined) throw new Error(`Missing file: ${p}`);
+				return content;
+			},
+			write: async (p: string, content: string) => { files.set(p, content); parents(p); },
+			remove: async (p: string) => { files.delete(p); },
+			rename: async (from: string, to: string) => {
+				const content = files.get(from);
+				if (content === undefined) throw new Error(`Missing file: ${from}`);
+				files.set(to, content); files.delete(from); parents(to);
+			},
+			mkdir: async (p: string) => { folders.add(p); parents(`${p}/x`); },
+			list: async (folder: string) => {
+				const prefix = folder ? `${folder}/` : "";
+				const direct = (p: string) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/");
+				return { files: [...files.keys()].filter(direct), folders: [...folders].filter((p) => p !== folder && direct(p)) };
+			},
+		},
+		on: () => ({}),
+		getAbstractFileByPath: (p: string) => (files.has(p) ? new (TFile as any)(p) : null),
+		process: async (file: { path: string }, update: (content: string) => string) => {
+			const next = update(files.get(file.path)!);
+			files.set(file.path, next);
+			return next;
+		},
+		create: async (p: string, content: string) => {
+			if (files.has(p)) throw new Error(`File exists: ${p}`);
+			files.set(p, content);
+			parents(p);
+			return { path: p };
+		},
+		createFolder: async (p: string) => { folders.add(p); parents(`${p}/x`); },
+	};
+	return { files, vault };
+}
+
+async function load(files: Map<string, string>, vault: unknown, settings: Record<string, any>) {
+	return (await start(files, vault, settings)).notices;
+}
+
+async function start(_files: Map<string, string>, vault: unknown, settings: Record<string, any>) {
+	const notices: string[] = [];
+	const plugin: any = {
+		settings,
+		fieldMapper: new FieldMapper(settings.fieldMapping),
+		app: { vault },
+		registerEvent: () => {},
+		emitter: { trigger: (_event: string, message: any) => notices.push(String(message?.message ?? message)) },
+		saveSettings: async () => {},
+	};
+	const service = new MdbaseSpecService(plugin);
+	await service.initialize();
+	service.flushPendingNotices();
+	return { notices, service };
+}
+
+function frontmatter(document: string): Record<string, any> {
+	return YAML.parse(document.slice(4, document.indexOf("\n---", 4)));
+}
+
+const canonical = (source: string) =>
+	canonicalTaskNotesResources.find((resource) => resource.source === source)!.document;
+
+const fixtures = fs.readdirSync(FIXTURES).filter((name) => name.endsWith(".json"));
+
+describe("upgrading collections written by shipped TaskNotes releases", () => {
+	it("has fixtures for every shipped state", () => {
+		expect(fixtures.length).toBeGreaterThanOrEqual(15);
+	});
+
+	it.each(fixtures)("%s", async (name) => {
+		const profile = name.endsWith("-custom.json") ? "custom" : "default";
+		const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURES, name), "utf8"));
+		const before: Record<string, string> = fixture.files;
+		const { files, vault } = memoryVault(before);
+		const settings = settingsFor(profile);
+
+		const notices = await load(files, vault, settings);
+		if (name.startsWith("app-rc17")) {
+			// Omitted membership keys retain engine defaults.
+			const config = YAML.parse(files.get("mdbase.yaml")!);
+			expect(config.settings.explicit_type_keys).toBeUndefined();
+			expect(config.settings.record_extensions).toEqual(expect.arrayContaining(["md", "base"]));
+		}
+
+		const config = YAML.parse(files.get("mdbase.yaml")!);
+		expect(config.spec_version).toBe("0.3.0");
+
+		const typePaths = [...files.keys()].filter((p) => /^_types\/[^/]+\.md$/.test(p));
+		const taskTypes = typePaths.filter((p) =>
+			(frontmatter(files.get(p)!).implements ?? []).some((i: any) => i.contract === "tasknotes.task")
+		);
+		expect(taskTypes).toEqual(["_types/task.md"]);
+		const type = frontmatter(files.get("_types/task.md")!);
+		const implementation = type.implements.find((i: any) => i.contract === "tasknotes.task");
+		expect(implementation.version).toBe(TASKNOTES_SPEC_VERSION);
+		expect(implementation.fields.assignees).toBe("assignees");
+		expect(type.collection.links["assignees[]"]).toBeDefined();
+
+		expect(files.get(`_contracts/tasknotes.task/${TASKNOTES_SPEC_VERSION}.md`)).toBe(canonical(`contracts/tasknotes.task/${TASKNOTES_SPEC_VERSION}.md`));
+		for (const binding of [implementation.binding]) {
+			expect(binding.templating).toBeUndefined();
+			expect(binding.time_tracking).toBeUndefined();
+			expect(binding.nlp).toBeUndefined();
+			expect(binding.archive.move_on_archive).toBeUndefined();
+			expect(binding.status.definitions.some((d: any) => "auto_archive" in d || "next_status" in d)).toBe(false);
+		}
+		expect(files.get("_types/tasknotes-settings.md")).toBe(canonical("types/tasknotes-settings/1.md"));
+		expect(files.get("_contracts/tasknotes.settings/1.0.0.md")).toBe(canonical("contracts/tasknotes.settings/1.0.0.md"));
+		expect(files.get("_contracts/mdbase.app-settings/1.0.0.md")).toBe(canonical("contracts/mdbase.app-settings/1.0.0.md"));
+		const record = frontmatter(files.get("_settings/dev.tasknotes.md")!);
+		expect(record).toMatchObject({ app: "dev.tasknotes", scope: "collection", settings_version: 1 });
+		expect(Object.keys(record.status_behavior).sort()).toEqual([...implementation.binding.status.values].sort());
+		if (implementation.binding.status.values.includes("cancelled")) {
+			expect(record.status_behavior.cancelled.exclude_from_cycle).toBe(true);
+		}
+		expect(record.link_write_format).toBe("wikilink");
+		expect(files.get("_schemas/tasknotes/tasknotes-task.schema.json")).toBe(
+			canonical(`schemas/tasknotes.task/${TASKNOTES_SPEC_VERSION}.schema.json`)
+		);
+		expect(files.get("_schemas/tasknotes/tasknotes-task-binding.schema.json")).toBe(
+			canonical(`schemas/tasknotes.task.binding/${TASKNOTES_SPEC_VERSION}.schema.json`)
+		);
+
+		for (const record of ["TaskNotes/Tasks/cancelled.md", "TaskNotes/Tasks/open.md", "paper.md"]) {
+			expect(files.get(record)).toBe(before[record]);
+		}
+		expect([...files.keys()].filter((p) => p.includes("tasknotes-backup"))).toEqual([]);
+		expect(notices.filter((n) => /invalid|could not|left the existing|preserved/i.test(n))).toEqual([]);
+
+		const statuses = implementation.binding.status.values;
+		if (name.startsWith("app-")) {
+			// The collection's own type wins over plugin settings.
+			expect(statuses).toContain("cancelled");
+		} else if (profile === "custom") {
+			expect(statuses).toContain("cancelled");
+			expect(implementation.binding.status.skipped_values).toEqual(["cancelled"]);
+			expect(implementation.fields.due).toBe("deadline");
+		}
+
+		const snapshot = new Map(files);
+		const again = await load(files, vault, settingsFor(profile));
+		expect(files).toEqual(snapshot);
+		expect(again).toEqual([]);
+	});
+});
+
+describe("the TaskNotes settings record during the rc.6 upgrade", () => {
+	const RECORD = "_settings/dev.tasknotes.md";
+
+	it("keeps an existing record, adds only absent fields, and reads record over binding over local settings", async () => {
+		const before: Record<string, string> = { ...JSON.parse(fs.readFileSync(path.join(FIXTURES, "beta3-custom.json"), "utf8")).files };
+		// The rc.5 binding holds an archive move that the local settings do not.
+		before["_types/task.md"] = before["_types/task.md"]
+			.replace("move_on_archive: false", "move_on_archive: true")
+			.replace("folder: TaskNotes/Archive", "folder: Legacy/Archive");
+		expect(before["_types/task.md"]).toContain("folder: Legacy/Archive");
+		// TaskNotes App already wrote a record with some settings.
+		before[RECORD] = [
+			"---",
+			"type: tasknotes-settings",
+			"app: dev.tasknotes",
+			"scope: collection",
+			"settings_version: 1",
+			"template_enabled: true",
+			"template_path: Templates/App.md",
+			"link_write_format: markdown",
+			"x-other-client: keep",
+			"---",
+			"Notes for people.",
+			"",
+		].join("\n");
+		const { files, vault } = memoryVault(before);
+		const settings = settingsFor("custom");
+
+		await load(files, vault, settings);
+
+		const content = files.get(RECORD)!;
+		expect(content).toContain("Notes for people.");
+		const record = frontmatter(content);
+		// Present fields are kept as written, and win over the binding.
+		expect(record).toMatchObject({ template_enabled: true, template_path: "Templates/App.md", link_write_format: "markdown", "x-other-client": "keep" });
+		// Absent fields come from the rc.5 binding, not local defaults.
+		expect(record).toMatchObject({ move_on_archive: true, archive_folder: "Legacy/Archive", auto_stop_time_tracking_on_complete: true });
+		expect(record.status_behavior.cancelled.exclude_from_cycle).toBe(true);
+		expect(settings.taskCreationDefaults.useBodyTemplate).toBe(true);
+		expect(settings.taskCreationDefaults.bodyTemplate).toBe("Templates/App.md");
+		expect(settings.useFrontmatterMarkdownLinks).toBe(true);
+		expect(settings.moveArchivedTasks).toBe(true);
+		expect(settings.archiveFolder).toBe("Legacy/Archive");
+
+		const snapshot = new Map(files);
+		expect(await load(files, vault, settings)).toEqual([]);
+		expect(files).toEqual(snapshot);
+	});
+});
+
+describe("saving a moved setting after a v4 migration", () => {
+	it("writes the first and later saves to the settings record", async () => {
+		const { files, vault } = memoryVault(JSON.parse(fs.readFileSync(path.join(FIXTURES, "v4-default.json"), "utf8")).files);
+		const settings = settingsFor("default");
+		settings.moveArchivedTasks = true;
+		settings.archiveFolder = "Old/Archive";
+		const { service } = await start(files, vault, settings);
+		const record = () => frontmatter(files.get("_settings/dev.tasknotes.md")!);
+		expect(record()).toMatchObject({ move_on_archive: true, archive_folder: "Old/Archive" });
+
+		settings.moveArchivedTasks = false;
+		await service.onSettingsChanged();
+		expect(record().move_on_archive).toBe(false);
+
+		settings.archiveFolder = "New/Archive";
+		await service.onSettingsChanged();
+		expect(record()).toMatchObject({ move_on_archive: false, archive_folder: "New/Archive" });
+
+		// A restart reads the saved values back from the record.
+		const restarted = settingsFor("default");
+		restarted.moveArchivedTasks = true;
+		await load(files, vault, restarted);
+		expect(restarted.moveArchivedTasks).toBe(false);
+		expect(restarted.archiveFolder).toBe("New/Archive");
+	});
+});
+
+describe("competing TaskNotes settings records", () => {
+	it("names sync conflict copies and keeps using the canonical record", async () => {
+		const { files, vault } = memoryVault(JSON.parse(fs.readFileSync(path.join(FIXTURES, "beta3-default.json"), "utf8")).files);
+		await load(files, vault, settingsFor("default"));
+		const canonicalRecord = files.get("_settings/dev.tasknotes.md")!;
+		files.set("_settings/dev.tasknotes.md", canonicalRecord.replace(/archive_folder: .*/, "archive_folder: Device-A"));
+		const copy = canonicalRecord.replace(/archive_folder: .*/, "archive_folder: Device-B");
+		files.set("_settings/dev.tasknotes (conflicted copy Device-B).md", copy);
+		files.set("_settings/dev.other.md", "---\napp: dev.other\nscope: collection\n---\n");
+
+		const settings = settingsFor("default");
+		const notices = await load(files, vault, settings);
+
+		const notice = notices.find((message) => message.includes("conflicted copy"));
+		expect(notice).toContain("_settings/dev.tasknotes (conflicted copy Device-B).md");
+		expect(notice).not.toContain("dev.other");
+		expect(settings.archiveFolder).toBe("Device-A");
+		expect(files.get("_settings/dev.tasknotes (conflicted copy Device-B).md")).toBe(copy);
+	});
+});

@@ -141,6 +141,36 @@ describe('GoogleCalendarService', () => {
 			expect((service as any).calendarColors.size).toBe(0);
 		});
 
+		test.each([
+			['user-set name', 'Running', 'Running'],
+			['missing override', undefined, 'Original Calendar'],
+			['empty override', '', 'Original Calendar'],
+		])('should resolve calendar summary with %s (#2411)', async (_, summaryOverride, expectedSummary) => {
+			const calendar = {
+				id: 'subscribed@example.com',
+				summary: 'Original Calendar',
+				summaryOverride,
+				description: 'Subscribed calendar',
+				backgroundColor: '#f83a22',
+				primary: false,
+			};
+			mockRequestUrl.mockResolvedValueOnce({
+				status: 200,
+				json: { items: [calendar] },
+				text: '',
+				arrayBuffer: new ArrayBuffer(0),
+				headers: {}
+			});
+
+			expect(await service.listCalendars()).toEqual([{
+				id: calendar.id,
+				summary: expectedSummary,
+				description: calendar.description,
+				backgroundColor: calendar.backgroundColor,
+				primary: false,
+			}]);
+		});
+
 		test('should handle empty calendar list', async () => {
 			mockRequestUrl.mockResolvedValueOnce({
 				status: 200,
@@ -311,6 +341,36 @@ describe('GoogleCalendarService', () => {
 			expect(params.get('timeMax')).toBe('2026-09-07T12:00:00.000Z');
 
 			jest.useRealTimers();
+		});
+	});
+
+	describe('availability serialization (#2375)', () => {
+		const currentEvent = {
+			id: 'availability-event', summary: 'Task',
+			start: { date: '2026-10-01' }, end: { date: '2026-10-02' },
+			transparency: 'transparent',
+		};
+		const response = (json: unknown) => ({
+			status: 200, json, text: '', arrayBuffer: new ArrayBuffer(0), headers: {},
+		});
+
+		beforeEach(() => {
+			jest.spyOn(service, 'refreshAllCalendars').mockResolvedValue(undefined);
+		});
+
+		test.each(['opaque', 'transparent'] as const)('serializes %s when creating events', async (transparency) => {
+			mockRequestUrl.mockResolvedValueOnce(response(currentEvent));
+			await service.createEvent('primary', { ...currentEvent, transparency });
+			expect(JSON.parse(mockRequestUrl.mock.calls[0][0].body as string).transparency).toBe(transparency);
+		});
+
+		test.each(['opaque', 'transparent', undefined] as const)('updates or preserves availability with %s', async (transparency) => {
+			mockRequestUrl.mockResolvedValueOnce(response(currentEvent));
+			mockRequestUrl.mockResolvedValueOnce(response(currentEvent));
+			await service.updateEvent('primary', currentEvent.id, { summary: 'Updated task', transparency });
+			const payload = JSON.parse(mockRequestUrl.mock.calls[1][0].body as string);
+			expect(payload.transparency).toBe(transparency ?? currentEvent.transparency);
+			expect(payload.start).toEqual(currentEvent.start);
 		});
 	});
 

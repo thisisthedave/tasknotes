@@ -182,6 +182,8 @@ export abstract class BasesViewBase extends Component {
 		this.setupContainer();
 		this.setupTaskCardKeyboard();
 		this.setupTaskUpdateListener();
+		const settingsListener = this.plugin.emitter.on("settings-changed", () => this.onDataUpdated());
+		this.register(() => this.plugin.emitter.offref(settingsListener));
 		this.setupSelectionHandling();
 		this.updateRelevantPathsCache();
 		void this.render();
@@ -578,7 +580,8 @@ export abstract class BasesViewBase extends Component {
 			fieldMapper: this.plugin.fieldMapper,
 			taskTag: this.plugin.settings.taskTag,
 			userFields: this.plugin.settings.userFields || [],
-			currentFileLink: () => getBasesCurrentFileLinkDefault(app),
+			currentFileLink: () =>
+				getBasesCurrentFileLinkDefault(app, this.plugin.settings.useFrontmatterMarkdownLinks),
 			frontmatterProcessor,
 		});
 

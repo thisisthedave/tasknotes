@@ -95,6 +95,7 @@ export interface ProjectAutosuggestSettings {
 }
 
 export interface TaskNotesSettings {
+	dateDisplayFormat: "default" | "iso";
 	tasksFolder: string; // Now just a default location for new tasks
 	moveArchivedTasks: boolean; // Whether to move tasks to archive folder when archived
 	archiveFolder: string; // Folder to move archived tasks to, supports template variables
@@ -141,11 +142,9 @@ export interface TaskNotesSettings {
 	taskModalTabMovesFocus: boolean;
 	enableNaturalLanguageInput: boolean;
 	nlpDefaultToScheduled: boolean;
+	nlpEnterToSubmit: boolean; // Enter saves from the NLP input; Shift+Enter inserts a newline
 	nlpLanguage: string; // Language code for natural language processing (e.g., 'en', 'es', 'fr')
 	uiLanguage: string; // 'system' or supported locale code for UI translations
-
-	// NLP status suggestion trigger (empty to disable) - DEPRECATED: Use nlpTriggers instead
-	statusSuggestionTrigger: string;
 
 	// NLP triggers configuration
 	nlpTriggers: NLPTriggersConfig;
@@ -198,7 +197,10 @@ export interface TaskNotesSettings {
 	expandSubtasksByDefault: boolean;
 	// Subtask chevron position in task cards
 	subtaskChevronPosition: "left" | "right";
+	// Nest the complete/skip context-menu actions under a submenu (vs. flat menu items)
+	completionMenuAsSubmenu: boolean;
 	// Filter toolbar layout
+	/** Legacy persisted key, ignored by Bases. Retained for downgrade compatibility. */
 	viewsButtonAlignment: "left" | "right";
 	// Overdue behavior settings
 	hideCompletedFromOverdue: boolean;
@@ -231,7 +233,6 @@ export interface TaskNotesSettings {
 	// Default visible properties for inline task cards (task link widgets in editor)
 	inlineVisibleProperties?: string[];
 	// Bases integration settings
-	enableBases: boolean;
 	enableMdbaseSpec: boolean;
 	autoCreateDefaultBasesFiles: boolean; // Auto-create missing default Base files on startup
 	// Command-to-file mappings for view commands (v4)
@@ -241,7 +242,6 @@ export interface TaskNotesSettings {
 		"open-tasks-view": string;
 		"open-advanced-calendar-view": string;
 		"open-agenda-view": string;
-		"pomodoro-stats-base": string;
 		relationships: string; // Bases file for unified relationships widget
 		[key: string]: string; // Allow string indexing
 	};
@@ -347,6 +347,7 @@ export interface GoogleCalendarExportSettings {
 	eventColorId: string | null; // Optional: Google Calendar color ID for TaskNotes events (null = calendar default)
 	syncTrigger: "scheduled" | "due" | "both"; // Which date triggers event creation
 	createAsAllDay: boolean; // Create as all-day events vs timed
+	showAllDayAsFree: boolean; // All-day task exports do not block Google Calendar availability
 	defaultEventDuration: number; // Duration in minutes if timed (uses timeEstimate if available)
 	includeObsidianLink: boolean; // Include obsidian:// link in event description
 	defaultReminderMinutes: number | number[] | null; // Popup reminder(s) X minutes before event (null = no reminder)

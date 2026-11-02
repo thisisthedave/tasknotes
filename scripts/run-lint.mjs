@@ -12,8 +12,10 @@ const tasks = [
 let failed = false;
 
 for (const args of tasks) {
+	// Windows exposes npm as a command script, which needs a shell to spawn from Node.
 	const result = spawnSync(npmCommand, args, {
 		stdio: "inherit",
+		shell: process.platform === "win32",
 	});
 
 	if (result.status !== 0) {

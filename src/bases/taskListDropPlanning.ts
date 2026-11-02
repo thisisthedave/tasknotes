@@ -15,6 +15,8 @@ export interface TaskListGroupDropPlan {
 	needsGroupUpdate: boolean;
 	normalizedTargetGroupKey: string | null;
 	sourceGroupKey: string | null;
+	sourceValues?: readonly unknown[];
+	targetValues?: readonly unknown[];
 }
 
 export interface BuildTaskListGroupDropPlanOptions {
@@ -22,6 +24,8 @@ export interface BuildTaskListGroupDropPlanOptions {
 	sourceGroupKey: string | null;
 	targetGroupKey: string | null;
 	preserveExistingListValues?: boolean;
+	sourceValues?: readonly unknown[];
+	targetValues?: readonly unknown[];
 	lookupMappingKey: (frontmatterPropertyName: string) => keyof FieldMapping | null;
 	isListTypeProperty: (propertyName: string) => boolean;
 	normalizeListGroupValue?: (
@@ -38,10 +42,7 @@ export interface ApplyTaskListDropFrontmatterMutationOptions {
 	sortOrder: string | null;
 	isRecurring: boolean;
 	dateModifiedField: string;
-	coerceGroupKeyForFrontmatter: (
-		property: string,
-		groupKey: string
-	) => string | number | boolean;
+	coerceGroupKeyForFrontmatter: (property: string, groupKey: string) => string | number | boolean;
 	updateCompletedDateInFrontmatter: (
 		frontmatter: Record<string, unknown>,
 		status: string,
@@ -55,6 +56,8 @@ export interface BuildTaskListDropSideEffectTaskOptions {
 	isCompletedStatus: (status: string) => boolean;
 	getTimestamp: () => string;
 	getCompletedDate: () => string;
+	coerceGroupKeyForTask?: (property: string, groupKey: string) => string | number | boolean;
+	getClearedTaskValue?: (property: keyof FieldMapping) => unknown;
 }
 
 export function shouldPreserveTaskListGroupDropValues(
@@ -71,6 +74,8 @@ export function buildTaskListGroupDropPlan({
 	sourceGroupKey,
 	targetGroupKey,
 	preserveExistingListValues = false,
+	sourceValues,
+	targetValues,
 	lookupMappingKey,
 	isListTypeProperty,
 	normalizeListGroupValue,
@@ -78,13 +83,15 @@ export function buildTaskListGroupDropPlan({
 	const cleanGroupBy = groupByPropertyId ? stripPropertyPrefix(groupByPropertyId) : null;
 	const isFormulaGrouping = !!groupByPropertyId?.startsWith("formula.");
 	const rawTargetGroupKey = targetGroupKey === "None" ? null : targetGroupKey;
-	const needsGroupUpdate = !!groupByPropertyId && rawTargetGroupKey !== sourceGroupKey;
+	const normalizedSourceGroupKey = sourceGroupKey === "None" ? null : sourceGroupKey;
 	const groupByTaskProp = cleanGroupBy ? lookupMappingKey(cleanGroupBy) : null;
 	const isListGrouping = !!cleanGroupBy && isListTypeProperty(cleanGroupBy);
 	const normalizedTargetGroupKey =
 		rawTargetGroupKey !== null && isListGrouping && cleanGroupBy && normalizeListGroupValue
 			? normalizeListGroupValue(groupByTaskProp, cleanGroupBy, rawTargetGroupKey)
-			: rawTargetGroupKey;
+			: rawTargetGroupKey === "None" ? null : rawTargetGroupKey;
+	const needsGroupUpdate =
+		!!groupByPropertyId && normalizedTargetGroupKey !== normalizedSourceGroupKey;
 	const replacesListGroupingValue = isListGrouping && !preserveExistingListValues;
 	const preservesListGroupingValues = isListGrouping && preserveExistingListValues;
 	const frontmatterKey = groupByPropertyId
@@ -102,7 +109,9 @@ export function buildTaskListGroupDropPlan({
 		preservesListGroupingValues,
 		needsGroupUpdate,
 		normalizedTargetGroupKey,
-		sourceGroupKey,
+		sourceGroupKey: normalizedSourceGroupKey,
+		sourceValues,
+		targetValues,
 	};
 }
 
@@ -156,10 +165,10 @@ export function applyTaskListDropFrontmatterMutation({
 			);
 		}
 
-		if (plan.groupByTaskProp === "status" && plan.normalizedTargetGroupKey !== null) {
+		if (plan.groupByTaskProp === "status") {
 			updateCompletedDateInFrontmatter(
 				frontmatter,
-				plan.normalizedTargetGroupKey,
+				plan.normalizedTargetGroupKey ?? "",
 				isRecurring
 			);
 			frontmatter[dateModifiedField] = getTimestamp();
@@ -178,6 +187,8 @@ export function buildTaskListDropSideEffectTask(
 		isCompletedStatus,
 		getTimestamp,
 		getCompletedDate,
+		coerceGroupKeyForTask,
+		getClearedTaskValue,
 	}: BuildTaskListDropSideEffectTaskOptions
 ): TaskInfo | null {
 	if (!plan.needsGroupUpdate || !plan.groupByTaskProp) {
@@ -212,7 +223,13 @@ export function buildTaskListDropSideEffectTask(
 			updatedRecord[taskProperty] = nextValues;
 		}
 	} else {
-		updatedRecord[taskProperty] = plan.normalizedTargetGroupKey;
+		updatedRecord[taskProperty] =
+			plan.normalizedTargetGroupKey === null
+				? getClearedTaskValue?.(taskProperty)
+				: (coerceGroupKeyForTask?.(
+						plan.frontmatterKey ?? taskProperty,
+						plan.normalizedTargetGroupKey
+					) ?? plan.normalizedTargetGroupKey);
 	}
 
 	updatedTask.dateModified = getTimestamp();

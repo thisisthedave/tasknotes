@@ -9,9 +9,13 @@ import {
 	formatDateTimeForDisplay,
 	getDatePart,
 	getTimePart,
+	getTodayLocal,
+	hasTimeComponent,
 	isOverdueTimeAware,
 	isTodayTimeAware,
+	parseDateToLocal,
 } from "../utils/dateUtils";
+import { convertBasesValueToNative } from "../bases/basesValueConversion";
 import { stringifyUnknown } from "../utils/stringUtils";
 import { convertInternalToUserProperties } from "../utils/propertyMapping";
 import {
@@ -84,6 +88,7 @@ function normalizeICSEventIds(value: unknown): string[] {
 function formatICSEventSummary(icsEvent: ICSEvent, plugin: TaskNotesPlugin): string {
 	const dateText = icsEvent.start
 		? formatDateTimeForDisplay(icsEvent.start, {
+				dateDisplayFormat: plugin.settings.dateDisplayFormat,
 				userTimeFormat: plugin.settings.calendarViewSettings.timeFormat,
 			})
 		: "";
@@ -345,6 +350,7 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
 	occurrenceDate: (element, value, _task, plugin) => {
 		if (typeof value === "string") {
 			element.textContent = `Occurrence: ${formatDateTimeForDisplay(value, {
+				dateDisplayFormat: plugin.settings.dateDisplayFormat,
 				dateFormat: "MMM d",
 				showTime: false,
 				userTimeFormat: plugin.settings.calendarViewSettings?.timeFormat,
@@ -409,6 +415,7 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
 				options?.propertyLabels
 			);
 			element.textContent = `${label}: ${formatDateTimeForDisplay(value, {
+				dateDisplayFormat: plugin.settings.dateDisplayFormat,
 				dateFormat: "MMM d",
 				showTime: false,
 				userTimeFormat: plugin.settings.calendarViewSettings.timeFormat,
@@ -419,6 +426,7 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
 		if (typeof value === "string") {
 			const label = getTaskCardPropertyLabel("dateCreated", plugin, options?.propertyLabels);
 			element.textContent = `${label}: ${formatDateTimeForDisplay(value, {
+				dateDisplayFormat: plugin.settings.dateDisplayFormat,
 				dateFormat: "MMM d",
 				showTime: false,
 				userTimeFormat: plugin.settings.calendarViewSettings.timeFormat,
@@ -429,6 +437,7 @@ const PROPERTY_RENDERERS: Record<string, PropertyRenderer> = {
 		if (typeof value === "string") {
 			const label = getTaskCardPropertyLabel("dateModified", plugin, options?.propertyLabels);
 			element.textContent = `${label}: ${formatDateTimeForDisplay(value, {
+				dateDisplayFormat: plugin.settings.dateDisplayFormat,
 				dateFormat: "MMM d",
 				showTime: false,
 				userTimeFormat: plugin.settings.calendarViewSettings.timeFormat,
@@ -570,9 +579,11 @@ export function renderPropertyMetadata(
 
 	try {
 		const mappingKey = plugin.fieldMapper.lookupMappingKey(propertyId);
-		const rendererKey = mappingKey || propertyId;
+		const rendererKey = mappingKey || (propertyId === "file.tags" ? "tags" : propertyId);
 
-		if (rendererKey in PROPERTY_RENDERERS) {
+		if (propertyId === "file.tags") {
+			PROPERTY_RENDERERS.tags(element, getFileTagsList(value, task), task, plugin, options);
+		} else if (rendererKey in PROPERTY_RENDERERS) {
 			PROPERTY_RENDERERS[rendererKey](element, value, task, plugin, options);
 		} else if (propertyId.startsWith("user:")) {
 			renderUserProperty(element, propertyId, value, plugin);
@@ -601,6 +612,14 @@ export function renderPropertyMetadata(
 		element.textContent = `${propertyId}: (error)`;
 		return element;
 	}
+}
+
+function getFileTagsList(value: unknown, task: TaskInfo): string[] {
+	const native = convertBasesValueToNative(value);
+	const list = Array.isArray(native) ? native : typeof native === "string" ? [native] : task.tags;
+	return (list ?? [])
+		.map((tag) => (tag !== null && typeof tag === "object" ? convertBasesValueToNative(tag) : tag))
+		.filter((tag): tag is string => typeof tag === "string" && tag.trim() !== "");
 }
 
 function hasValidValue(value: unknown): boolean {
@@ -636,7 +655,7 @@ function renderUserProperty(
 		if (containsRichTextLink(stringValue)) {
 			renderTextWithLinks(valueContainer, stringValue, linkServices);
 		} else {
-			valueContainer.textContent = formatUserPropertyValue(value, userField);
+			valueContainer.textContent = formatUserPropertyValue(value, userField, plugin);
 		}
 	} else if (userField.type === "list" && Array.isArray(value)) {
 		const validItems = value.map((item) => extractBasesValue(item)).filter(hasValidValue);
@@ -655,7 +674,7 @@ function renderUserProperty(
 			}
 		});
 	} else {
-		const displayValue = formatUserPropertyValue(value, userField);
+		const displayValue = formatUserPropertyValue(value, userField, plugin);
 		valueContainer.textContent = displayValue.trim() !== "" ? displayValue : "(empty)";
 	}
 }
@@ -700,7 +719,7 @@ function renderPropertyValue(
 		return;
 	}
 
-	if (plugin && renderBasesValue(container, value, plugin.app.renderContext)) {
+	if (plugin && renderBasesValue(container, value, plugin.app.renderContext, plugin.settings)) {
 		return;
 	}
 
@@ -729,6 +748,7 @@ function renderPropertyValue(
 	if (typeof value === "object" && value !== null) {
 		if (value instanceof Date) {
 			displayValue = formatDateTimeForDisplay(value.toISOString(), {
+				dateDisplayFormat: plugin?.settings.dateDisplayFormat,
 				dateFormat: "MMM d, yyyy",
 				timeFormat: "",
 				showTime: false,
@@ -766,7 +786,7 @@ function containsRichTextLink(value: string): boolean {
 	);
 }
 
-function formatUserPropertyValue(value: unknown, userField: UserField): string {
+function formatUserPropertyValue(value: unknown, userField: UserField, plugin: TaskNotesPlugin): string {
 	if (value === null || value === undefined) return "";
 
 	try {
@@ -776,6 +796,7 @@ function formatUserPropertyValue(value: unknown, userField: UserField): string {
 				return stringifyUnknown(value);
 			case "date":
 				return formatDateTimeForDisplay(stringifyUnknown(value), {
+					dateDisplayFormat: plugin.settings.dateDisplayFormat,
 					dateFormat: "MMM d, yyyy",
 					timeFormat: "",
 					showTime: false,
@@ -800,6 +821,62 @@ function formatUserPropertyValue(value: unknown, userField: UserField): string {
 	}
 }
 
+const WEEKDAY_KEYS = [
+	"sunday",
+	"monday",
+	"tuesday",
+	"wednesday",
+	"thursday",
+	"friday",
+	"saturday",
+] as const;
+
+const DAY_MS = 86400000;
+
+/** Day name relative to today for dates within a week, or null to show the date itself. */
+function getRelativeCardDay(dateString: string, plugin: TaskNotesPlugin): string | null {
+	if (plugin.settings.dateDisplayFormat === "iso") return null;
+	let target: Date;
+	try {
+		target = parseDateToLocal(getDatePart(dateString));
+	} catch {
+		return null;
+	}
+	if (Number.isNaN(target.getTime())) return null;
+	const days = Math.round((target.getTime() - getTodayLocal().getTime()) / DAY_MS);
+	if (days === -1) return tTaskCard(plugin, "relativeYesterday");
+	if (days === 1) return tTaskCard(plugin, "relativeTomorrow");
+	if (days < -1 && days > -7) return tTaskCard(plugin, "relativeDaysAgo", { count: -days });
+	if (days > 1 && days < 7) {
+		return plugin.i18n.translate(`common.weekdays.${WEEKDAY_KEYS[target.getDay()]}`);
+	}
+	return null;
+}
+
+/** Card date text: relative within a week of today, with the full date as a tooltip. */
+function formatCardDate(
+	dateString: string,
+	plugin: TaskNotesPlugin
+): { display: string; fullDisplay?: string } {
+	const userTimeFormat = plugin.settings.calendarViewSettings.timeFormat;
+	const absolute = formatDateTimeForDisplay(dateString, {
+		dateDisplayFormat: plugin.settings.dateDisplayFormat,
+		dateFormat: getTaskCardDateFormat(dateString),
+		showTime: true,
+		userTimeFormat,
+	});
+	const day = getRelativeCardDay(dateString, plugin);
+	if (!day) return { display: absolute };
+
+	const time = hasTimeComponent(dateString)
+		? formatDateTimeForDisplay(dateString, { dateFormat: "", showTime: true, userTimeFormat })
+		: "";
+	return {
+		display: time ? tTaskCard(plugin, "relativeDayAtTime", { day, time }) : day,
+		fullDisplay: absolute,
+	};
+}
+
 function getTaskCardDateFormat(dateString: string): string {
 	const year = Number(getDatePart(dateString).slice(0, 4));
 	return Number.isInteger(year) && year !== new Date().getFullYear() ? "MMM d, yyyy" : "MMM d";
@@ -820,7 +897,7 @@ function renderDueDateProperty(
 	const userTimeFormat = plugin.settings.calendarViewSettings.timeFormat;
 	const dueLabel = getTaskCardPropertyLabel("due", plugin, propertyLabels);
 	let dueDateText = "";
-	if (isDueToday) {
+	if (isDueToday && plugin.settings.dateDisplayFormat !== "iso") {
 		const timeDisplay = formatDateTimeForDisplay(due, {
 			dateFormat: "",
 			showTime: true,
@@ -830,26 +907,28 @@ function renderDueDateProperty(
 			timeDisplay.trim() === ""
 				? tTaskCard(plugin, "dueToday", { label: dueLabel })
 				: tTaskCard(plugin, "dueTodayAt", { label: dueLabel, time: timeDisplay });
-	} else if (isDueOverdue) {
-		const display = formatDateTimeForDisplay(due, {
-			dateFormat: getTaskCardDateFormat(due),
-			showTime: true,
-			userTimeFormat,
-		});
-		dueDateText = tTaskCard(plugin, "dueOverdue", { label: dueLabel, display });
 	} else {
-		const display = formatDateTimeForDisplay(due, {
-			dateFormat: getTaskCardDateFormat(due),
-			showTime: true,
-			userTimeFormat,
-		});
-		dueDateText = tTaskCard(plugin, "dueLabel", { label: dueLabel, display });
+		const { display, fullDisplay } = formatCardDate(due, plugin);
+		// Relative overdue text ("3 days ago") already says the date has passed.
+		const key = isDueOverdue && !fullDisplay ? "dueOverdue" : "dueLabel";
+		dueDateText = tTaskCard(plugin, key, { label: dueLabel, display });
+		if (fullDisplay) {
+			setTooltip(element, tTaskCard(plugin, "dueLabel", { label: dueLabel, display: fullDisplay }), {
+				placement: "top",
+			});
+		}
 	}
 
 	element.textContent = dueDateText;
 	element.classList.add("task-card__metadata-date", "task-card__metadata-date--due");
 	if (isDueOverdue) {
 		element.classList.add("task-card__metadata-date--overdue");
+	}
+	if (isDueToday) {
+		element.classList.add("task-card__metadata-date--today");
+	}
+	if (!isDueToday && !isOverdueTimeAware(due, false, false)) {
+		element.classList.add("task-card__metadata-date--future");
 	}
 	element.dataset.tnAction = "edit-date";
 	element.dataset.tnDateType = "due";
@@ -872,7 +951,7 @@ function renderScheduledDateProperty(
 	const userTimeFormat = plugin.settings.calendarViewSettings.timeFormat;
 	const scheduledLabel = getTaskCardPropertyLabel("scheduled", plugin, propertyLabels);
 	let scheduledDateText = "";
-	if (isScheduledToday) {
+	if (isScheduledToday && plugin.settings.dateDisplayFormat !== "iso") {
 		const timeDisplay = formatDateTimeForDisplay(scheduled, {
 			dateFormat: "",
 			showTime: true,
@@ -885,26 +964,29 @@ function renderScheduledDateProperty(
 						label: scheduledLabel,
 						time: timeDisplay,
 					});
-	} else if (isScheduledPast) {
-		const display = formatDateTimeForDisplay(scheduled, {
-			dateFormat: getTaskCardDateFormat(scheduled),
-			showTime: true,
-			userTimeFormat,
-		});
-		scheduledDateText = tTaskCard(plugin, "scheduledPast", { label: scheduledLabel, display });
 	} else {
-		const display = formatDateTimeForDisplay(scheduled, {
-			dateFormat: getTaskCardDateFormat(scheduled),
-			showTime: true,
-			userTimeFormat,
-		});
+		// Past scheduled dates are shown muted; only overdue due dates carry a warning.
+		const { display, fullDisplay } = formatCardDate(scheduled, plugin);
 		scheduledDateText = tTaskCard(plugin, "scheduledLabel", { label: scheduledLabel, display });
+		if (fullDisplay) {
+			setTooltip(
+				element,
+				tTaskCard(plugin, "scheduledLabel", { label: scheduledLabel, display: fullDisplay }),
+				{ placement: "top" }
+			);
+		}
 	}
 
 	element.textContent = scheduledDateText;
 	element.classList.add("task-card__metadata-date", "task-card__metadata-date--scheduled");
 	if (isScheduledPast) {
 		element.classList.add("task-card__metadata-date--past");
+	}
+	if (isScheduledToday) {
+		element.classList.add("task-card__metadata-date--today");
+	}
+	if (!isScheduledToday && !isOverdueTimeAware(scheduled, false, false)) {
+		element.classList.add("task-card__metadata-date--future");
 	}
 	element.dataset.tnAction = "edit-date";
 	element.dataset.tnDateType = "scheduled";

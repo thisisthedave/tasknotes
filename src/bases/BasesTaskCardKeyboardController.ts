@@ -99,7 +99,8 @@ export class BasesTaskCardKeyboardController {
 	private readonly inputOwnershipController: TaskListInputOwnershipController;
 	private readonly cardAreaElement: HTMLElement;
 	private leafActive = false;
-	private shortcutScope: Scope | null = null;
+	private shortcutScope!: Scope;
+	private shortcutScopeActive = false;
 
 	constructor(
 		private readonly component: Component,
@@ -258,7 +259,7 @@ private handleRootKeyDown(event: KeyboardEvent): void {
 	}
 
 	private activateShortcutScope(): void {
-		if (this.shortcutScope) return;
+		if (this.shortcutScopeActive) return;
 
 		// A child Obsidian scope lets view-local configurable chords win over global
 		// editor commands while this view's leaf is active.
@@ -280,13 +281,14 @@ private handleRootKeyDown(event: KeyboardEvent): void {
 		}
 
 		this.shortcutScope = scope;
+		this.shortcutScopeActive = true;
 		this.plugin.app.keymap.pushScope(scope);
 	}
 
 	private deactivateShortcutScope(): void {
-		if (!this.shortcutScope) return;
+		if (!this.shortcutScopeActive) return;
 		this.plugin.app.keymap.popScope(this.shortcutScope);
-		this.shortcutScope = null;
+		this.shortcutScopeActive = false;
 	}
 
 	private handleKeyDown(event: KeyboardEvent, allowRememberedFocus = false): boolean {

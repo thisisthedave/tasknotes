@@ -90,13 +90,9 @@ function toOptionalNumber(value: unknown): number | undefined {
 	return undefined;
 }
 
-function toOccurrenceMaterializationMode(
-	value: unknown
-): Optional<OccurrenceMaterializationMode> {
+function toOccurrenceMaterializationMode(value: unknown): Optional<OccurrenceMaterializationMode> {
 	const mode = toOptionalString(value);
-	return mode === "manual" || mode === "on_completion" || mode === "rolling"
-		? mode
-		: undefined;
+	return mode === "manual" || mode === "on_completion" || mode === "rolling" ? mode : undefined;
 }
 
 function toOccurrenceNextTrigger(value: unknown): Optional<OccurrenceNextTrigger> {
@@ -138,7 +134,7 @@ export function mapBasesPropertyToTaskCardProperty(
 ): string {
 	// Delegate to PropertyMappingService if available (preferred path)
 	if (plugin) {
-		const mapper = new PropertyMappingService(plugin, plugin.fieldMapper);
+		const mapper = new PropertyMappingService(plugin.fieldMapper);
 		return mapper.basesToTaskCardProperty(propId);
 	}
 
@@ -198,6 +194,8 @@ function createTaskInfoFromProperties(
 		"icsEventId",
 		"complete_instances",
 		"skipped_instances",
+		"googleCalendarExceptionOriginalScheduled",
+		"googleCalendarMovedOriginalDates",
 		"blockedBy",
 		"blocking",
 		"sortOrder",
@@ -267,6 +265,10 @@ function createTaskInfoFromProperties(
 		icsEventId: toStringArray(props.icsEventId),
 		complete_instances: toStringArray(props.complete_instances),
 		skipped_instances: toStringArray(props.skipped_instances),
+		googleCalendarExceptionOriginalScheduled: toOptionalString(
+			props.googleCalendarExceptionOriginalScheduled
+		),
+		googleCalendarMovedOriginalDates: toStringArray(props.googleCalendarMovedOriginalDates),
 		blockedBy: toDependencies(props.blockedBy),
 		blocking: blockingTasks.length > 0 ? blockingTasks : undefined,
 		isBlocked: isBlocked,
@@ -329,16 +331,22 @@ export function createTaskInfoFromBasesData(
 		});
 
 		// Merge file properties with existing custom properties
-		return enrichTaskInfoFromCache({
-			...taskInfo,
-			customProperties: {
-				...mappedTaskInfo.customProperties,
-				...taskInfo.customProperties,
-				...fileProperties,
+		return enrichTaskInfoFromCache(
+			{
+				...taskInfo,
+				customProperties: {
+					...mappedTaskInfo.customProperties,
+					...taskInfo.customProperties,
+					...fileProperties,
+				},
 			},
-		}, plugin);
+			plugin
+		);
 	} else {
-		return enrichTaskInfoFromCache(createTaskInfoFromProperties(props, basesItem, plugin), plugin);
+		return enrichTaskInfoFromCache(
+			createTaskInfoFromProperties(props, basesItem, plugin),
+			plugin
+		);
 	}
 }
 

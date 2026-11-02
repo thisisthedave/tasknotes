@@ -1,4 +1,4 @@
-import { setTooltip } from "obsidian";
+import { setIcon, setTooltip } from "obsidian";
 import type { PriorityConfig, StatusConfig } from "../types";
 
 const STATIC_COLOR_CLASSES = [
@@ -20,6 +20,7 @@ const STATIC_COLOR_CLASSES = [
 
 export interface TaskModalActionIconStateContext {
 	translate: (key: string, params?: Record<string, string | number>) => string;
+	formatDate?: (value: string) => string;
 }
 
 export interface TaskModalActionIconState {
@@ -69,6 +70,14 @@ function updateDateIcon(
 ): void {
 	const icon = getActionIcon(actionBar, dataType);
 	if (!icon) return;
+	const displayValue = value ? (context.formatDate?.(value) ?? value) : "";
+	// Due and scheduled share similar icons, so the chip names which date it holds.
+	updateActionValue(
+		icon,
+		displayValue
+			? context.translate(tooltipKeys.activeTooltipKey, { value: displayValue })
+			: ""
+	);
 
 	if (value) {
 		icon.classList.add("has-value");
@@ -92,6 +101,7 @@ function updateStatusIcon(
 
 	const statusConfig = state.statusConfigs.find((config) => config.value === state.status);
 	const statusLabel = statusConfig ? statusConfig.label : state.status;
+	setStatusIconSymbol(icon, getTaskModalStatusIconName(statusConfig));
 	updateConfiguredValueIcon(icon, context, {
 		isActive: Boolean(
 			state.status && statusConfig && statusConfig.value !== state.defaultStatus
@@ -103,6 +113,20 @@ function updateStatusIcon(
 	});
 }
 
+/** Match task cards: the configured status icon, otherwise a circle. */
+export function getTaskModalStatusIconName(statusConfig: StatusConfig | undefined): string {
+	if (statusConfig?.icon) return statusConfig.icon;
+	return statusConfig?.isCompleted ? "circle-check" : "circle";
+}
+
+function setStatusIconSymbol(icon: HTMLElement, iconName: string): void {
+	const iconElement = icon.querySelector<HTMLElement>(".icon");
+	if (!iconElement || iconElement.dataset.statusIcon === iconName) return;
+	iconElement.empty();
+	setIcon(iconElement, iconName);
+	iconElement.dataset.statusIcon = iconName;
+}
+
 function updatePriorityIcon(
 	actionBar: HTMLElement,
 	context: TaskModalActionIconStateContext,
@@ -111,9 +135,7 @@ function updatePriorityIcon(
 	const icon = getActionIcon(actionBar, "priority");
 	if (!icon) return;
 
-	const priorityConfig = state.priorityConfigs.find(
-		(config) => config.value === state.priority
-	);
+	const priorityConfig = state.priorityConfigs.find((config) => config.value === state.priority);
 	const priorityLabel = priorityConfig ? priorityConfig.label : state.priority;
 	updateConfiguredValueIcon(icon, context, {
 		isActive: Boolean(
@@ -137,6 +159,8 @@ function updateConfiguredValueIcon(
 		color?: string;
 	}
 ): void {
+	// Status and priority always have a value, so always name it; accent marks non-defaults.
+	updateActionValue(icon, options.label);
 	if (options.isActive) {
 		icon.classList.add("has-value");
 		setTooltip(icon, context.translate(options.activeTooltipKey, { value: options.label }), {
@@ -166,6 +190,7 @@ function updateRecurrenceIcon(
 ): void {
 	const icon = getActionIcon(actionBar, "recurrence");
 	if (!icon) return;
+	updateActionValue(icon, state.recurrenceRule.trim() ? state.recurrenceDisplayText : "");
 
 	if (state.recurrenceRule.trim()) {
 		icon.classList.add("has-value");
@@ -192,6 +217,7 @@ function updateReminderIcon(
 ): void {
 	const icon = getActionIcon(actionBar, "reminders");
 	if (!icon) return;
+	updateActionValue(icon, reminderCount > 0 ? String(reminderCount) : "");
 
 	if (reminderCount > 0) {
 		icon.classList.add("has-value");
@@ -209,6 +235,15 @@ function updateReminderIcon(
 	setTooltip(icon, context.translate("modals.task.actions.reminders"), {
 		placement: "top",
 	});
+}
+
+function updateActionValue(icon: HTMLElement, value: string): void {
+	const label =
+		icon.querySelector<HTMLElement>(".action-icon__value") ??
+		icon.createSpan({ cls: "action-icon__value", attr: { "aria-hidden": "true" } });
+	// The button's translated tooltip supplies the complete accessible name.
+	// Text content also keeps user-defined status and priority labels literal.
+	label.textContent = value;
 }
 
 function getActionIcon(actionBar: HTMLElement, dataType: string): HTMLElement | null {

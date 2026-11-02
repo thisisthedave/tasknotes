@@ -3,8 +3,6 @@
 These settings allow you to enable, disable, and configure the various features of the plugin, such as inline tasks, natural language processing, the Pomodoro timer, and notifications.
 
 
-![Features Settings](../assets/settings-features.png)
-
 ## Inline Tasks
 
 Inline task settings control how aggressively TaskNotes turns plain note content into structured task interactions. **Task link overlay** enables the Live Preview card behavior for task links, while **Instant task convert** surfaces conversion buttons next to list items and checkboxes. **Keep checkbox when converting** leaves the original Markdown checkbox marker in the source note when a checkbox becomes a TaskNote link. For conversion output, **Inline task convert folder** sets destination behavior and supports `{{currentNotePath}}`, and **Use task defaults on instant convert** applies your default task values at conversion time.
@@ -19,7 +17,7 @@ Materialized occurrence notes can use a separate template. Set **Occurrence note
 
 ## Natural Language Processing
 
-NLP settings define how text input is interpreted during task capture. **Enable natural language task input** activates date and metadata parsing, **Default to scheduled** changes ambiguous date handling, **NLP language** selects parsing patterns, and **Status suggestion trigger** controls optional status autocomplete activation.
+NLP settings define how text input is interpreted during task capture. **Enable natural language task input** activates date and metadata parsing, **Default to scheduled** changes ambiguous date handling, **Enter saves task** makes Enter save from the natural language input (Shift+Enter inserts a newline, and Ctrl/Cmd+Enter still saves), **NLP language** selects parsing patterns, and **Status suggestion trigger** controls optional status autocomplete activation.
 
 Wrap text in double quotes, single quotes, or backticks to keep it as literal title text during NLP parsing. For example, `BIO "123H" - HW1` keeps `123H` in the title instead of treating it as a 123-hour estimate, while `Review "Today" notes` keeps `Today` as text instead of parsing it as a date.
 

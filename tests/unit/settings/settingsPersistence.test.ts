@@ -105,7 +105,7 @@ describe("settings persistence helpers", () => {
 		expect(host.loadData).toHaveBeenCalledTimes(2);
 	});
 
-	it("returns false when checking data file existence fails", async () => {
+	it("does not interpret an existence probe error as an absent settings file", async () => {
 		const host = createHost({
 			dir: ".obsidian/plugins/tasknotes",
 			dataFileExists: true,
@@ -113,13 +113,43 @@ describe("settings persistence helpers", () => {
 		host.app.vault.adapter.exists.mockRejectedValueOnce(new Error("adapter failed"));
 		jest.spyOn(console, "warn").mockImplementation(() => undefined);
 
-		await expect(pluginDataFileExists(host)).resolves.toBe(false);
+		await expect(pluginDataFileExists(host)).rejects.toThrow("adapter failed");
 		expect(console.warn).toHaveBeenCalledWith(
 			expect.stringContaining(
 				"[TaskNotes][Settings/SettingsPersistence][configuration][check-settings-data-file-existence] [TaskNotes] Could not check settings data file existence:"
 			),
 			expect.any(Error)
 		);
+	});
+
+	it("marks settings as compromised when the existence probe fails after a null read", async () => {
+		const host = createHost({ dir: ".obsidian/plugins/tasknotes", loadResults: [null] });
+		host.app.vault.adapter.exists.mockRejectedValueOnce(new Error("I/O error"));
+		jest.spyOn(console, "warn").mockImplementation(() => undefined);
+		await expect(loadPluginSettingsDataWithRetry(host)).resolves.toEqual({ data: null, compromised: true });
+	});
+
+	it("migrates a legacy custom property before indexing without dropping colliding names", () => {
+		const original = {
+			userField: {
+				enabled: true,
+				key: "legacy",
+				displayName: "Client",
+				type: "text" as const,
+			},
+			userFields: [
+				{ id: "client", key: "other", displayName: "Client", type: "text" as const },
+			],
+		};
+		const { settings, shouldPersistMigratedSettings } = buildSettingsFromLoadedData(original);
+		expect(settings.userFields).toEqual([
+			original.userFields[0],
+			{ id: "client-2", key: "legacy", displayName: "Client", type: "text" },
+		]);
+		expect(settings.userField.enabled).toBe(false);
+		expect(original.userField.enabled).toBe(true);
+		expect(shouldPersistMigratedSettings).toBe(true);
+		expect(buildSettingsFromLoadedData(settings).settings.userFields).toHaveLength(2);
 	});
 
 	it("migrates legacy settings and preserves explicit false/null nested defaults", () => {
@@ -133,7 +163,8 @@ describe("settings persistence helpers", () => {
 			},
 		});
 
-		expect(settings.enableBases).toBe(true);
+		expect("enableBases" in settings).toBe(false);
+		expect("statusSuggestionTrigger" in settings).toBe(false);
 		expect(settings.enableAPI).toBe(false);
 		expect(settings.apiPort).toBe(8080);
 		expect(settings.apiAuthToken).toBe("");

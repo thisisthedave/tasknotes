@@ -1,3 +1,4 @@
+import { formatDateTimeForDisplay } from "../utils/dateUtils";
 import { App, Modal, TAbstractFile, TFile } from "obsidian";
 
 type Nullable<T> = T | null;
@@ -63,7 +64,10 @@ import {
 	createTaskModalActionIcons,
 	type TaskModalActionIconSpec,
 } from "./taskModalActionBar";
-import { updateTaskModalActionIconStates } from "./taskModalActionIconStates";
+import {
+	type TaskModalActionIconState,
+	updateTaskModalActionIconStates,
+} from "./taskModalActionIconStates";
 import {
 	buildTaskModalActionIconState,
 	createTaskModalActionMenuContext,
@@ -95,6 +99,7 @@ import {
 	renderTaskModalSubtasksList,
 } from "./taskModalSubtasks";
 import { openTaskModalTaskSelector } from "./taskModalTaskSelector";
+import { buildSubtaskCreationPrePopulatedValues } from "../services/taskRelationshipActions";
 import {
 	createTaskModalTitleTextarea,
 	type TaskModalTitleInputElement,
@@ -352,8 +357,7 @@ export abstract class TaskModal extends Modal {
 	// UI elements
 	protected titleInput: TaskModalTitleInputElement =
 		undefined as unknown as TaskModalTitleInputElement;
-	protected detailsInput: HTMLTextAreaElement =
-		undefined as unknown as HTMLTextAreaElement; // Legacy - kept for compatibility
+	protected detailsInput: HTMLTextAreaElement = undefined as unknown as HTMLTextAreaElement; // Legacy - kept for compatibility
 	protected detailsMarkdownEditor: EmbeddableMarkdownEditor | null = null;
 	protected contextsInput: HTMLInputElement = undefined as unknown as HTMLInputElement;
 	protected projectsInput: HTMLInputElement = undefined as unknown as HTMLInputElement;
@@ -560,7 +564,7 @@ export abstract class TaskModal extends Modal {
 	protected getCoreActionIconSpecs(): TaskModalActionIconSpec[] {
 		return [
 			{
-				iconName: "dot-square",
+				iconName: "circle",
 				tooltip: this.t("modals.task.actions.status"),
 				onClick: (_, event) => {
 					this.showStatusContextMenu(event);
@@ -697,6 +701,9 @@ export abstract class TaskModal extends Modal {
 				},
 				focusNextField: () => this.focusNextField(),
 				focusPreviousField: () => this.focusPreviousField(),
+				attachMobileKeyboardScrollGuard: (container) => {
+					this.attachMobileKeyboardScrollGuard(container);
+				},
 			});
 		}
 
@@ -1044,12 +1051,32 @@ export abstract class TaskModal extends Modal {
 
 		updateTaskModalActionIconStates(
 			this.actionBar,
-			{ translate: (key, params) => this.t(key, params) },
-			buildTaskModalActionIconState(actionMenuState, {
-				statusConfigs: this.plugin.settings.customStatuses || [],
-				priorityConfigs: this.plugin.settings.customPriorities || [],
-			})
+			{
+				translate: (key, params) => this.t(key, params),
+				formatDate: (value) =>
+					formatDateTimeForDisplay(value, {
+						dateDisplayFormat: this.plugin.settings.dateDisplayFormat,
+						dateFormat: value.startsWith(`${new Date().getFullYear()}-`)
+							? "MMM d"
+							: "MMM d, yyyy",
+						userTimeFormat: this.plugin.settings.calendarViewSettings.timeFormat,
+					}),
+			},
+			{
+				...buildTaskModalActionIconState(actionMenuState, {
+					statusConfigs: this.plugin.settings.customStatuses || [],
+					priorityConfigs: this.plugin.settings.customPriorities || [],
+				}),
+				...this.getPendingActionIconValues(),
+			}
 		);
+	}
+
+	/** Values not yet applied to the form that the action bar should already show. */
+	protected getPendingActionIconValues(): Partial<
+		Pick<TaskModalActionIconState, "status" | "priority" | "dueDate" | "scheduledDate">
+	> {
+		return {};
 	}
 
 	protected focusTitleInput(): void {
@@ -1111,17 +1138,24 @@ export abstract class TaskModal extends Modal {
 		);
 	}
 
-	protected initializeProjectsFromStrings(projects: string[]): void {
+	protected initializeProjectsFromStrings(projects: string[], formatLinks = false): void {
 		this.selectedProjectItems = [];
-		this.addProjectsFromStrings(projects);
+		this.addProjectsFromStrings(projects, formatLinks);
 		// Don't render immediately - let the caller decide when to render
 	}
 
-	protected addProjectsFromStrings(projects: string[]): void {
+	/**
+	 * Add projects given as text. `formatLinks` writes projects that resolve to a
+	 * note in the TaskNotes link format (new tasks); otherwise links are kept as written.
+	 */
+	protected addProjectsFromStrings(projects: string[], formatLinks = false): void {
+		const context = this.getProjectStringContext();
 		this.selectedProjectItems = addTaskModalProjectItemsFromStrings(
 			this.selectedProjectItems,
 			projects,
-			this.getProjectStringContext()
+			formatLinks
+				? { ...context, formatLink: (file) => this.buildProjectReference(file, context.sourcePath) }
+				: context
 		);
 		this.updateProjectsFromFiles();
 		// Don't render immediately - let the caller decide when to render
@@ -1148,8 +1182,18 @@ export abstract class TaskModal extends Modal {
 
 	// Subtask management methods
 	protected async openSubtaskSelector(): Promise<void> {
+		const parentPath = this.getCurrentTaskPath();
+		const parentFile = parentPath ? this.app.vault.getAbstractFileByPath(parentPath) : null;
+		const parentTask = parentPath
+			? await this.plugin.cacheManager.getTaskInfo(parentPath)
+			: null;
+		const creationDefaults = parentFile instanceof TFile && parentTask
+			? buildSubtaskCreationPrePopulatedValues(this.plugin, parentTask, parentFile)
+			: undefined;
+
 		await openTaskModalTaskSelector({
 			plugin: this.plugin,
+			selectorOptions: creationDefaults ? { creationDefaults } : undefined,
 			getCandidates: (allTasks) =>
 				getTaskModalSubtaskCandidates(
 					allTasks,

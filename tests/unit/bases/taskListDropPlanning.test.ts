@@ -304,6 +304,22 @@ describe("taskListDropPlanning", () => {
 		});
 	});
 
+	it("clears status derivatives and uses an inferred default in the task cache", () => {
+		const plan = buildTaskListGroupDropPlan({ groupByPropertyId: "note.status", sourceGroupKey: "done", targetGroupKey: "None", lookupMappingKey, isListTypeProperty });
+		const frontmatter: Record<string, unknown> = { status: "done", completedDate: "2026-05-19" };
+		applyTaskListDropFrontmatterMutation({
+			frontmatter, plan, sortOrderField: "rank", sortOrder: null, isRecurring: false, dateModifiedField: "modified",
+			coerceGroupKeyForFrontmatter: (_key, value) => value,
+			updateCompletedDateInFrontmatter: (fm, status) => { expect(status).toBe(""); delete fm.completedDate; }, getTimestamp: () => "now",
+		});
+		expect(frontmatter).toEqual({ modified: "now" });
+		const updatedTask = buildTaskListDropSideEffectTask(createTask({ status: "done", completedDate: "2026-05-19" }), {
+			plan, isCompletedStatus: status => status === "done", getTimestamp: () => "now", getCompletedDate: () => "today", getClearedTaskValue: () => "open",
+		});
+		expect(updatedTask?.status).toBe("open");
+		expect(updatedTask?.completedDate).toBeUndefined();
+	});
+
 	it("builds side-effect task snapshots for scalar status moves", () => {
 		const plan = buildTaskListGroupDropPlan({
 			groupByPropertyId: "status",

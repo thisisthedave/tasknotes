@@ -205,7 +205,10 @@ export class PomodoroService {
 
 	async loadState() {
 		try {
-			const data = await this.plugin.loadData();
+			const data = (await this.plugin.loadData()) as {
+				pomodoroState?: PomodoroState;
+				lastPomodoroDate?: string;
+			} | null;
 
 			if (data?.pomodoroState) {
 				this.state = data.pomodoroState;
@@ -309,7 +312,9 @@ export class PomodoroService {
 			return this.lastSelectedTaskPath;
 		}
 		try {
-			const data = await this.plugin.loadData();
+			const data = (await this.plugin.loadData()) as {
+				lastSelectedTaskPath?: unknown;
+			} | null;
 			const path = data?.lastSelectedTaskPath;
 			if (typeof path === "string" && path.trim().length > 0) {
 				this.lastSelectedTaskPath = path;
@@ -394,7 +399,7 @@ export class PomodoroService {
 		// Start time tracking on the task if applicable
 		if (task) {
 			try {
-				await this.plugin.taskService.startTimeTracking(task);
+				await this.startOwnedTimeTracking(session, task);
 			} catch (error) {
 				// If time tracking is already active, that's fine for Pomodoro
 				if (!error.message?.includes("Time tracking is already active")) {
@@ -508,7 +513,7 @@ export class PomodoroService {
 					this.state.currentSession.taskPath
 				);
 				if (task) {
-					await this.plugin.taskService.stopTimeTracking(task);
+					await this.stopOwnedTimeTracking(this.state.currentSession, task);
 				}
 			} catch (error) {
 				tasknotesLogger.error("Failed to stop time tracking for Pomodoro pause:", {
@@ -555,7 +560,7 @@ export class PomodoroService {
 					this.state.currentSession.taskPath
 				);
 				if (task) {
-					await this.plugin.taskService.startTimeTracking(task);
+					await this.startOwnedTimeTracking(this.state.currentSession, task);
 				}
 			} catch (error) {
 				// If time tracking is already active, that's fine for Pomodoro resume
@@ -639,7 +644,7 @@ export class PomodoroService {
 					this.state.currentSession.taskPath
 				);
 				if (task) {
-					await this.plugin.taskService.stopTimeTracking(task);
+					await this.stopOwnedTimeTracking(this.state.currentSession, task);
 				}
 			} catch (error) {
 				tasknotesLogger.error("Failed to stop time tracking for Pomodoro interrupt:", {
@@ -838,6 +843,19 @@ export class PomodoroService {
 		}
 	}
 
+	private async startOwnedTimeTracking(session: PomodoroSession, task: TaskInfo): Promise<void> {
+		session.timeTrackingStartTime = undefined;
+		const updatedTask = await this.plugin.taskService.startTimeTracking(task);
+		session.timeTrackingStartTime = updatedTask?.timeEntries?.find((entry) => !entry.endTime)?.startTime;
+		await this.saveState();
+	}
+
+	private async stopOwnedTimeTracking(session: PomodoroSession, task: TaskInfo, stopTime?: string): Promise<void> {
+		if (!session.timeTrackingStartTime) return;
+		await this.plugin.taskService.stopTimeTracking(task, stopTime, session.timeTrackingStartTime);
+		session.timeTrackingStartTime = undefined;
+	}
+
 	private async completePomodoro() {
 		this.stopTimer();
 
@@ -874,7 +892,7 @@ export class PomodoroService {
 				try {
 					const task = await this.plugin.cacheManager.getTaskInfo(session.taskPath);
 					if (task) {
-						await this.plugin.taskService.stopTimeTracking(task);
+						await this.stopOwnedTimeTracking(session, task, completedAt);
 					}
 				} catch (error) {
 					tasknotesLogger.error("Failed to stop time tracking for Pomodoro completion:", {
@@ -1166,7 +1184,7 @@ export class PomodoroService {
 			try {
 				const previousTask = await this.plugin.cacheManager.getTaskInfo(previousTaskPath);
 				if (previousTask) {
-					await this.plugin.taskService.stopTimeTracking(previousTask);
+					await this.stopOwnedTimeTracking(session, previousTask);
 				}
 			} catch (error) {
 				tasknotesLogger.error("Failed to stop time tracking for previous Pomodoro task:", {
@@ -1178,6 +1196,7 @@ export class PomodoroService {
 		}
 
 		// Update the current session's task
+		if (previousTaskPath !== nextTaskPath) session.timeTrackingStartTime = undefined;
 		session.taskPath = nextTaskPath;
 
 		if (nextTaskPath) {
@@ -1194,7 +1213,7 @@ export class PomodoroService {
 
 		if (shouldSwitchActiveTracking && task) {
 			try {
-				await this.plugin.taskService.startTimeTracking(task);
+				await this.startOwnedTimeTracking(session, task);
 			} catch (error) {
 				if (!error.message?.includes("Time tracking is already active")) {
 					tasknotesLogger.error("Failed to start time tracking for new Pomodoro task:", {
@@ -1433,7 +1452,9 @@ export class PomodoroService {
 	}
 
 	private async loadPluginHistory(): Promise<PomodoroSessionHistory[]> {
-		const data = await this.plugin.loadData();
+		const data = (await this.plugin.loadData()) as {
+			pomodoroHistory?: PomodoroSessionHistory[];
+		} | null;
 		const pluginHistory = data?.pomodoroHistory;
 		return Array.isArray(pluginHistory) ? pluginHistory : [];
 	}
@@ -1806,8 +1827,11 @@ export class PomodoroService {
 			}
 
 			// Load existing plugin data
-			const data = await this.plugin.loadData();
-			const pluginHistory = data?.pomodoroHistory || [];
+			const data = (await this.plugin.loadData()) as {
+				pomodoroHistory?: PomodoroSessionHistory[];
+			} | null;
+			if (!data) return;
+			const pluginHistory = data.pomodoroHistory || [];
 
 			if (pluginHistory.length === 0) {
 				return; // Nothing to migrate
@@ -1820,7 +1844,8 @@ export class PomodoroService {
 			data.pomodoroHistory = [];
 			await this.plugin.saveData(data);
 
-			publishUserNotice(this.plugin.emitter,
+			publishUserNotice(
+				this.plugin.emitter,
 				this.translate("services.pomodoro.notices.migrationSuccess", {
 					count: pluginHistory.length,
 				})

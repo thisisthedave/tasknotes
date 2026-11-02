@@ -11,14 +11,17 @@
  * 3. Ensure all Bases syntax is valid according to https://help.obsidian.md/Bases/Bases+syntax
  */
 
+import { stringifyYaml } from "obsidian";
 import type { TaskNotesSettings } from "../types/settings";
 import type TaskNotesPlugin from "../main";
 import type { FieldMapping } from "../types";
 import { parseExcludedFolders } from "../utils/pathExclusions";
 import { isTagsTaskIdentifierProperty } from "../utils/taskIdentificationFrontmatter";
+import { hasCompletePropertyTaskIdentification } from "../utils/taskIdentification";
 
 function escapeBasesStringLiteral(value: string): string {
-	return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+	return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+		.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
 }
 
 function formatNotePropertyReference(propertyName: string): string {
@@ -33,7 +36,7 @@ function formatDependencyEntryLinkExpression(entryExpression: string): string {
 	return `${formatDependencyEntryFileExpression(entryExpression)}.asLink()`;
 }
 
-function formatProjectEntryLinkExpression(entryExpression: string): string {
+export function formatProjectEntryLinkExpression(entryExpression: string): string {
 	return `file(${entryExpression}.replace(/^\\[[^\\]]+\\]\\((.*)\\)$/, "$1").replace(/%20/g, " ")).asLink()`;
 }
 
@@ -51,30 +54,22 @@ function generateTaskFilterCondition(settings: TaskNotesSettings): string {
 		const propertyName = settings.taskPropertyName;
 		const propertyValue = settings.taskPropertyValue;
 
-		if (!propertyName) {
-			// No property name specified, fall back to tag-based filtering
-			const taskTag = settings.taskTag || "task";
-			return `file.hasTag("${taskTag}")`;
+		if (!hasCompletePropertyTaskIdentification(settings)) {
+			// Match TaskManager: incomplete property identification recognizes no tasks.
+			return "false";
 		}
 
-		if (propertyValue) {
-			if (isTagsTaskIdentifierProperty(propertyName)) {
-				return `file.hasTag("${escapeBasesStringLiteral(propertyValue)}")`;
-			}
-			// Check property has a specific value. list() handles scalar and list
-			// frontmatter values consistently, while preserving exact element
-			// comparisons. Boolean values must not be quoted (#1491).
-			const propertyRef = formatNotePropertyReference(propertyName);
-			const lower = propertyValue.toLowerCase();
-			if (lower === "true" || lower === "false") {
-				return `list(${propertyRef}).contains(${lower})`;
-			}
-			return `list(${propertyRef}).contains("${escapeBasesStringLiteral(propertyValue)}")`;
-		} else {
-			// Just check property exists (is not empty)
-			const propertyRef = formatNotePropertyReference(propertyName);
-			return `${propertyRef} && ${propertyRef} != "" && ${propertyRef} != null`;
+		if (isTagsTaskIdentifierProperty(propertyName)) {
+			return `file.hasTag("${escapeBasesStringLiteral(propertyValue)}")`;
 		}
+		// list() handles scalar and list frontmatter consistently. Boolean values
+		// must not be quoted (#1491).
+		const propertyRef = formatNotePropertyReference(propertyName);
+		const lower = propertyValue.toLowerCase();
+		if (lower === "true" || lower === "false") {
+			return `list(${propertyRef}).contains(${lower})`;
+		}
+		return `list(${propertyRef}).contains("${escapeBasesStringLiteral(propertyValue)}")`;
 	}
 }
 
@@ -96,7 +91,7 @@ function generateTaskFilterConditions(settings: TaskNotesSettings): string[] {
  */
 function formatFilterAsYAML(conditions: string | string[]): string {
 	const conditionArray = Array.isArray(conditions) ? conditions : [conditions];
-	const formattedConditions = conditionArray.map(c => `    - ${c}`).join('\n');
+	const formattedConditions = conditionArray.map(c => `    - ${c === "false" ? '"false"' : c}`).join('\n');
 	return `filters:
   and:
 ${formattedConditions}`;
@@ -279,7 +274,7 @@ function generatePriorityWeightFormula(plugin: TaskNotesPlugin): string {
 	for (let i = sortedPriorities.length - 1; i >= 0; i--) {
 		const priority = sortedPriorities[i];
 		// Use the index as the weight value (0 = highest priority)
-		formula = `if(${priorityProperty}=="${priority.value}",${i},${formula})`;
+		formula = `if(${priorityProperty}=="${escapeBasesStringLiteral(priority.value)}",${i},${formula})`;
 	}
 
 	return formula;
@@ -301,7 +296,7 @@ function generatePriorityCategoryFormula(plugin: TaskNotesPlugin): string {
 	let formula = '"No priority"';
 	for (let i = priorities.length - 1; i >= 0; i--) {
 		const p = priorities[i];
-		formula = `if(${priorityProperty}=="${p.value}","${p.label}",${formula})`;
+		formula = `if(${priorityProperty}=="${escapeBasesStringLiteral(p.value)}","${escapeBasesStringLiteral(p.label)}",${formula})`;
 	}
 
 	return formula;
@@ -324,7 +319,7 @@ function generateAllFormulas(plugin: TaskNotesPlugin): Record<string, string> {
 		.filter(s => s.isCompleted)
 		.map(s => s.value);
 	const completedStatusCheck = completedStatuses
-		.map(status => `${statusProperty} != "${status}"`)
+		.map(status => `${statusProperty} != "${escapeBasesStringLiteral(status)}"`)
 		.join(' && ');
 
 	const scheduledProperty = getPropertyName(mapPropertyToBasesProperty('scheduled', plugin));
@@ -488,11 +483,7 @@ function generateAllFormulas(plugin: TaskNotesPlugin): Record<string, string> {
 function generateFormulasSection(plugin: TaskNotesPlugin): string {
 	const formulas = generateAllFormulas(plugin);
 
-	const formulaLines = Object.entries(formulas)
-		.map(([name, formula]) => `  ${name}: '${formula}'`)
-		.join('\n');
-
-	return `formulas:\n${formulaLines}`;
+	return stringifyYaml({ formulas }).trimEnd();
 }
 
 function insertOrderPropertyAfter(
@@ -521,107 +512,15 @@ function insertOrderPropertyAfter(
 	return nextProperties;
 }
 
-function generatePomodoroStatsTemplate(plugin: TaskNotesPlugin): string {
-	const pomodoroProperty = mapPropertyToBasesProperty("pomodoros", plugin);
-	const pomodoroRef = formatNotePropertyReference(pomodoroProperty);
-	const workSessions = `list(${pomodoroRef}).filter(value.type == "work")`;
-	const completedWorkSessions = `list(${pomodoroRef}).filter(value.type == "work" && value.completed == true)`;
-	const completedWorkDurations = `${completedWorkSessions}.map(if(value.plannedDuration && value.plannedDuration > 0, value.plannedDuration, if(value.startTime && value.endTime, ((number(date(value.endTime)) - number(date(value.startTime))) / 60000).round(), 0)))`;
-
-	return `# Pomodoro statistics
-# Generated with your TaskNotes settings
-# Requires Pomodoro data storage to be set to Daily notes.
-
-filters:
-  and:
-    - file.hasProperty("${escapeBasesStringLiteral(pomodoroProperty)}")
-    - list(${pomodoroRef}).filter(value.startTime).isEmpty() == false
-
-formulas:
-  pomodoroDate: 'if(${pomodoroRef}, list(${pomodoroRef}).filter(value.startTime).map(date(value.startTime).format("YYYY-MM-DD")).unique().join(", "), file.basename)'
-  pomodoroMonth: 'if(${pomodoroRef}, list(${pomodoroRef}).filter(value.startTime).map(date(value.startTime).format("YYYY-MM")).unique().join(", "), "")'
-  completedPomos: 'if(${pomodoroRef}, ${completedWorkSessions}.length, 0)'
-  attemptedPomos: 'if(${pomodoroRef}, ${workSessions}.length, 0)'
-  interruptedPomos: 'if(${pomodoroRef}, list(${pomodoroRef}).filter(value.type == "work" && value.completed == false).length, 0)'
-  focusMinutes: 'if(${pomodoroRef}, ${completedWorkDurations}.reduce(acc + value, 0).round(), 0)'
-  focusTime: 'if(formula.focusMinutes >= 60, (formula.focusMinutes / 60).floor() + "h " + (formula.focusMinutes % 60).round() + "m", formula.focusMinutes + "m")'
-  completionRate: 'if(formula.attemptedPomos > 0, (formula.completedPomos / formula.attemptedPomos * 100).round() + "%", "0%")'
-  shortBreaks: 'if(${pomodoroRef}, list(${pomodoroRef}).filter(value.type == "short-break").length, 0)'
-  longBreaks: 'if(${pomodoroRef}, list(${pomodoroRef}).filter(value.type == "long-break").length, 0)'
-
-properties:
-  formula.pomodoroDate:
-    displayName: Date
-  formula.pomodoroMonth:
-    displayName: Month
-  formula.completedPomos:
-    displayName: Completed
-  formula.attemptedPomos:
-    displayName: Attempted
-  formula.interruptedPomos:
-    displayName: Interrupted
-  formula.focusMinutes:
-    displayName: Focus minutes
-  formula.focusTime:
-    displayName: Focus time
-  formula.completionRate:
-    displayName: Completion
-  formula.shortBreaks:
-    displayName: Short breaks
-  formula.longBreaks:
-    displayName: Long breaks
-
-views:
-  - type: table
-    name: "Daily"
-    order:
-      - formula.pomodoroDate
-      - formula.completedPomos
-      - formula.focusTime
-      - formula.attemptedPomos
-      - formula.completionRate
-      - formula.interruptedPomos
-      - formula.shortBreaks
-      - formula.longBreaks
-      - file.name
-    sort:
-      - column: formula.pomodoroDate
-        direction: DESC
-  - type: table
-    name: "Monthly"
-    groupBy:
-      property: formula.pomodoroMonth
-      direction: DESC
-    order:
-      - formula.pomodoroDate
-      - formula.completedPomos
-      - formula.focusMinutes
-      - formula.focusTime
-      - formula.attemptedPomos
-      - formula.completionRate
-      - formula.interruptedPomos
-      - formula.shortBreaks
-      - formula.longBreaks
-      - file.name
-    summaries:
-      formula.completedPomos: Sum
-      formula.focusMinutes: Sum
-      formula.attemptedPomos: Sum
-      formula.interruptedPomos: Sum
-      formula.shortBreaks: Sum
-      formula.longBreaks: Sum
-    sort:
-      - column: formula.pomodoroDate
-        direction: DESC
-`;
-}
-
 /**
  * Generate a Bases file template for a specific command with user settings
  */
 export function generateBasesFileTemplate(commandId: string, plugin: TaskNotesPlugin): string {
 	const settings = plugin.settings;
 	const taskFilterConditions = generateTaskFilterConditions(settings);
+	const archiveTag = escapeBasesStringLiteral(settings.fieldMapping.archiveTag || "archived");
+	const activeFilter = `file.hasTag("${archiveTag}") != true`;
+	const activeTaskFilterConditions = [...taskFilterConditions, activeFilter];
 	const excludedFolderFilterConditions = generateExcludedFolderFilterConditions(settings);
 	const orderArray = generateOrderArray(plugin);
 	const orderYaml = formatOrderArray(orderArray);
@@ -634,7 +533,7 @@ export function generateBasesFileTemplate(commandId: string, plugin: TaskNotesPl
 			return `# Mini Calendar
 # Generated with your TaskNotes settings
 
-${formatFilterAsYAML(taskFilterConditions)}
+${formatFilterAsYAML(activeTaskFilterConditions)}
 
 ${formulasSection}
 
@@ -664,7 +563,7 @@ ${orderYaml}
 			const sortOrderProperty = mapPropertyToBasesProperty('sortOrder', plugin);
 			return `# Kanban Board
 
-${formatFilterAsYAML(taskFilterConditions)}
+${formatFilterAsYAML(activeTaskFilterConditions)}
 
 ${formulasSection}
 
@@ -679,9 +578,8 @@ ${orderYaml}
     groupBy:
       property: ${statusProperty}
       direction: ASC
-    config:
-      columnWidth: 280
-      hideEmptyColumns: false
+    columnWidth: 280
+    hideEmptyColumns: false
 `;
 		}
 
@@ -708,7 +606,7 @@ ${orderYaml}
 			// Generate filter for non-recurring incomplete tasks
 			// Status must not be in any of the completed statuses
 			const nonRecurringIncompleteFilter = completedStatuses
-				.map(status => `${statusProperty} != "${status}"`)
+				.map(status => `${statusProperty} != "${escapeBasesStringLiteral(status)}"`)
 				.join('\n            - ');
 
 			// Normalize completion dates before comparing so YAML date values and strings both work.
@@ -718,7 +616,7 @@ ${orderYaml}
 			// Generate filter condition for checking if a blocking task is incomplete
 			// This is used in the "Not Blocked" view to filter out completed blocking tasks
 			const blockingTaskIncompleteCondition = completedStatuses
-				.map(status => `${formatDependencyEntryFileExpression("value")}.properties.${getPropertyName(statusProperty)} != "${status}"`)
+				.map(status => `${formatDependencyEntryFileExpression("value")}.properties.${getPropertyName(statusProperty)} != "${escapeBasesStringLiteral(status)}"`)
 				.join(' && ');
 
 			return `# All Tasks
@@ -729,7 +627,61 @@ ${formulasSection}
 
 views:
   - type: tasknotesTaskList
+    name: "Today"
+    filters:
+      and:
+        - ${activeFilter}
+        - or:
+          - and:
+            - ${recurrenceProperty}.isEmpty()
+            - ${nonRecurringIncompleteFilter}
+          - and:
+            - ${recurrenceProperty}.isEmpty() == false
+            - ${recurringIncompleteFilter}
+        - or:
+          - and:
+            - ${dueHasValue}
+            - ${dueDay} == ${todayDay}
+          - and:
+            - ${scheduledHasValue}
+            - ${scheduledDay} == ${todayDay}
+    order:
+${orderYaml}
+    sort:
+      - column: formula.urgencyScore
+        direction: DESC
+  - type: tasknotesTaskList
+    name: "Inbox"
+    filters:
+      and:
+        - ${activeFilter}
+        - ${mapPropertyToBasesProperty('projects', plugin)}.isEmpty()
+        - ${dueProperty}.isEmpty()
+        - ${scheduledProperty}.isEmpty()
+        - or:
+          - and:
+            - ${recurrenceProperty}.isEmpty()
+            - ${nonRecurringIncompleteFilter}
+          - and:
+            - ${recurrenceProperty}.isEmpty() == false
+            - ${recurringIncompleteFilter}
+    order:
+${orderYaml}
+    sort:
+      - column: ${sortOrderProperty}
+        direction: DESC
+  - type: tasknotesTaskList
+    name: "Archived"
+    filters:
+      and:
+        - file.hasTag("${archiveTag}")
+    order:
+${orderYaml}
+  - type: tasknotesTaskList
     name: "Manual Order"
+    filters:
+      and:
+        - ${activeFilter}
     order:
 ${orderYaml}
     sort:
@@ -749,6 +701,7 @@ ${orderYaml}
     name: "Not Blocked"
     filters:
       and:
+        - ${activeFilter}
         # Incomplete tasks
         - or:
           # Non-recurring task that's not in any completed status
@@ -764,34 +717,7 @@ ${orderYaml}
           # No blocking dependencies at all
           - ${blockedByProperty}.isEmpty()
           # All blocking tasks are completed (filter returns only incomplete, then check if empty)
-          - 'list(${blockedByProperty}).filter(${blockingTaskIncompleteCondition}).isEmpty()'
-    order:
-${orderYaml}
-    sort:
-      - column: formula.urgencyScore
-        direction: DESC
-  - type: tasknotesTaskList
-    name: "Today"
-    filters:
-      and:
-        # Incomplete tasks (handles both recurring and non-recurring)
-        - or:
-          # Non-recurring task that's not in any completed status
-          - and:
-            - ${recurrenceProperty}.isEmpty()
-            - ${nonRecurringIncompleteFilter}
-          # Recurring task where today is not in complete_instances
-          - and:
-            - ${recurrenceProperty}.isEmpty() == false
-            - ${recurringIncompleteFilter}
-        # Due or scheduled today
-        - or:
-          - and:
-            - ${dueHasValue}
-            - ${dueDay} == ${todayDay}
-          - and:
-            - ${scheduledHasValue}
-            - ${scheduledDay} == ${todayDay}
+          - ${JSON.stringify(`list(${blockedByProperty}).filter(${blockingTaskIncompleteCondition}).isEmpty()`)}
     order:
 ${orderYaml}
     sort:
@@ -801,6 +727,7 @@ ${orderYaml}
     name: "Overdue"
     filters:
       and:
+        - ${activeFilter}
         # Incomplete tasks
         - or:
           # Non-recurring task that's not in any completed status
@@ -828,6 +755,7 @@ ${orderYaml}
     name: "This Week"
     filters:
       and:
+        - ${activeFilter}
         # Incomplete tasks
         - or:
           # Non-recurring task that's not in any completed status
@@ -857,6 +785,7 @@ ${orderYaml}
     name: "Unscheduled"
     filters:
       and:
+        - ${activeFilter}
         # Incomplete tasks
         - or:
           # Non-recurring task that's not in any completed status
@@ -881,7 +810,7 @@ ${orderYaml}
 		case 'open-advanced-calendar-view':
 			return `# Calendar
 
-${formatFilterAsYAML(taskFilterConditions)}
+${formatFilterAsYAML(activeTaskFilterConditions)}
 
 ${formulasSection}
 
@@ -890,17 +819,16 @@ views:
     name: "Calendar"
     order:
 ${orderYaml}
-    options:
-      showScheduled: true
-      showDue: true
-      showRecurring: true
-      showTimeEntries: true
-      showTimeblocks: true
-      showPropertyBasedEvents: true
-      createDailyNotesFromDateLinks: true
-      calendarView: "timeGridWeek"
-      customDayCount: 3
-      firstDay: ${plugin.settings.calendarViewSettings.firstDay}
+    showScheduled: true
+    showDue: true
+    showRecurring: true
+    showTimeEntries: true
+    showTimeblocks: true
+    showPropertyBasedEvents: true
+    createDailyNotesFromDateLinks: true
+    calendarView: "timeGridWeek"
+    customDayCount: 3
+    firstDay: ${plugin.settings.calendarViewSettings.firstDay}
 `;
 
 		case 'open-agenda-view': {
@@ -917,7 +845,7 @@ properties:
 
 			return `# Agenda
 
-${formatFilterAsYAML(taskFilterConditions)}
+${formatFilterAsYAML(activeTaskFilterConditions)}
 
 ${formulasSection}
 ${agendaPropertiesYaml}
@@ -927,19 +855,15 @@ views:
     name: "Agenda"
     order:
 ${agendaOrderYaml}
-    options:
-      showPropertyBasedEvents: false
-      showOverdueOnToday: true
-      createDailyNotesFromDateLinks: true
+    showPropertyBasedEvents: false
+    showOverdueOnToday: true
+    createDailyNotesFromDateLinks: true
     calendarView: "listWeek"
     startDateProperty: file.ctime
     listDayCount: 7
     titleProperty: file.basename
 `;
 		}
-
-		case 'pomodoro-stats-base':
-			return generatePomodoroStatsTemplate(plugin);
 
 			case 'relationships': {
 				// Unified relationships widget that shows all relationship types

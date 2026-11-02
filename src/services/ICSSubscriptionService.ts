@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- ICS parsing normalizes optional event fields before use. */
 import { requestUrl, TFile } from "obsidian";
 import ICAL from "ical.js";
+import { getICSCalendarOwnerEmail, getICSOwnerDeclined } from "../utils/icsAttendeeFiltering";
 import { ICSSubscription, ICSEvent, ICSCache } from "../types";
 import { EventEmitter } from "../utils/EventEmitter";
 import TaskNotesPlugin from "../main";
 import type { InterpolationValues, TranslationKey } from "../i18n";
-import { stringifyUnknown } from "../utils/stringUtils";
 import { createTaskNotesLogger } from "../utils/tasknotesLogger";
 import { publishUserNotice } from "../core/userNotices";
 import { resolveTzidToIANA, wallTimeInZoneToUtcIso } from "../utils/icsTimezoneFallback";
@@ -13,6 +13,7 @@ import { resolveTzidToIANA, wallTimeInZoneToUtcIso } from "../utils/icsTimezoneF
 const tasknotesLogger = createTaskNotesLogger({ tag: "Services/ICSSubscriptionService" });
 
 const ICS_RECURRENCE_EXPANSION_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
+const ICS_RECURRENCE_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_RECURRING_ICS_VISIBLE_INSTANCES = 3000;
 const MAX_RECURRING_ICS_ITERATIONS = 10000;
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
@@ -269,7 +270,9 @@ export class ICSSubscriptionService extends EventEmitter {
 
 	private async loadSubscriptions(): Promise<void> {
 		try {
-			const data = await this.plugin.loadData();
+			const data = (await this.plugin.loadData()) as {
+				icsSubscriptions?: ICSSubscription[];
+			} | null;
 			this.subscriptions = data?.icsSubscriptions || [];
 		} catch (error) {
 			tasknotesLogger.error("Failed to load ICS subscriptions:", {
@@ -505,6 +508,7 @@ export class ICSSubscriptionService extends EventEmitter {
 			// Register VTIMEZONE components before processing events.
 			registerCalendarVTimezones(comp);
 
+			const ownerEmail = getICSCalendarOwnerEmail(comp);
 			const vevents = comp.getAllSubcomponents("vevent");
 			const events: ICSEvent[] = [];
 
@@ -520,11 +524,13 @@ export class ICSSubscriptionService extends EventEmitter {
 
 				// Check if this is a modified instance (has RECURRENCE-ID)
 				const recurrenceId = vevent.getFirstPropertyValue("recurrence-id");
-				if (recurrenceId) {
+				if (recurrenceId instanceof ICAL.Time) {
 					if (!modifiedInstances.has(uid)) {
 						modifiedInstances.set(uid, new Map());
 					}
-					const recurrenceIdStr = stringifyUnknown(recurrenceId);
+					// Use the same ICAL.Time representation as iterator occurrences,
+					// not JSON serialization of the time's internal fields.
+					const recurrenceIdStr = recurrenceId.toString();
 					modifiedInstances.get(uid)!.set(recurrenceIdStr, event);
 				}
 			});
@@ -546,23 +552,11 @@ export class ICSSubscriptionService extends EventEmitter {
 						return;
 					}
 
-					// Skip events the user has declined.
-					// In a personal calendar's ICS feed the owner's ATTENDEE
-					// entry carries their own PARTSTAT, so if any attendee is
-					// marked DECLINED the event was almost certainly declined
-					// by the calendar owner.
-					const attendees = vevent.getAllProperties("attendee");
-					if (attendees && attendees.length > 0) {
-						const hasDeclined = attendees.some((a) => {
-							const partstat = a.getParameter("partstat");
-							return (
-								typeof partstat === "string" &&
-								partstat.toUpperCase() === "DECLINED"
-							);
-						});
-						if (hasDeclined) {
-							return;
-						}
+					// Another guest declining is not evidence that the owner declined.
+					// Keep events visible when the feed does not identify the owner.
+					const ownerDeclined = getICSOwnerDeclined(vevent, ownerEmail) ?? false;
+					if (ownerDeclined && !event.isRecurring()) {
+						return;
 					}
 
 					// Extract basic properties
@@ -630,8 +624,12 @@ export class ICSSubscriptionService extends EventEmitter {
 						// Get modified instances for this UID
 						const modifiedForThisEvent = modifiedInstances.get(uid) || new Map();
 
-						// Generate instances for the next year
-						const iterator = event.iterator(startDate);
+						// Retain only the display window. Plain fixed-step rules can be
+						// advanced without traversing years of discarded history.
+						const minDate = new Date(Date.now() - ICS_RECURRENCE_LOOKBACK_MS);
+						const iterator = modifiedForThisEvent.size > 0
+							? event.iterator(startDate)
+							: this.createWindowedIterator(event, vevent, startDate, minDate);
 						const maxDate = new ICAL.Time();
 						maxDate.fromJSDate(
 							new Date(Date.now() + ICS_RECURRENCE_EXPANSION_WINDOW_MS)
@@ -659,11 +657,23 @@ export class ICSSubscriptionService extends EventEmitter {
 								continue;
 							}
 
-							const instanceId = `${eventId}-${visibleInstanceCount}`;
+							const modifiedStartInWindow = modifiedForThisEvent.get(occurrenceStr)?.startDate;
+							const effectiveStart = modifiedStartInWindow || occurrence;
+							const effectiveDate = new Date(this.icalTimeToISOString(effectiveStart, startTzidRaw));
+							if (effectiveDate < minDate || effectiveDate.getTime() > Date.now() + ICS_RECURRENCE_EXPANSION_WINDOW_MS) continue;
+
+							const instanceId = `${eventId}-${occurrenceStr}`;
 
 							// Check if this instance has been modified
 							const modifiedEvent = modifiedForThisEvent.get(occurrenceStr);
 							if (modifiedEvent) {
+								const modifiedStatus = modifiedEvent.component.getFirstPropertyValue("status");
+								if (typeof modifiedStatus === "string" && modifiedStatus.toUpperCase() === "CANCELLED") {
+									continue;
+								}
+								if (getICSOwnerDeclined(modifiedEvent.component, ownerEmail) ?? ownerDeclined) {
+									continue;
+								}
 								// Use the modified event instead
 								const modifiedStart = modifiedEvent.startDate;
 								const modifiedEnd = modifiedEvent.endDate;
@@ -700,6 +710,7 @@ export class ICSSubscriptionService extends EventEmitter {
 									visibleInstanceCount++;
 								}
 							} else {
+								if (ownerDeclined) continue;
 								// Use the original recurring event instance.
 								// The iterator emits ICAL.Time values that share the
 								// startDate's TZID, so pass startTzidRaw for fallback.
@@ -748,6 +759,44 @@ export class ICSSubscriptionService extends EventEmitter {
 			});
 			throw new Error("Invalid ICS format");
 		}
+	}
+
+	private createWindowedIterator(
+		event: ICAL.Event, component: ICAL.Component, start: ICAL.Time, minimum: Date
+	): ICAL.EventIterator {
+		const rules = component.getAllProperties("rrule");
+		const rule = component.getFirstPropertyValue("rrule") as {
+			freq: string; interval: number; count?: number; parts: Record<string, unknown>;
+		} | null;
+		const stepDays = rule?.freq === "DAILY" ? 1 : rule?.freq === "WEEKLY" ? 7 : 0;
+		// Changing DTSTART for BY* rules can change their phase/defaults. Leave
+		// those to ical.js, as well as RDATE and detached override series.
+		if (!rule || rules.length !== 1 || !stepDays || Object.keys(rule.parts).length > 0 ||
+			component.getAllProperties("rdate").length > 0 ||
+			component.getAllProperties("exrule").length > 0) return event.iterator(start);
+		const startWall = Date.UTC(start.year, start.month - 1, start.day);
+		const minWall = Date.UTC(minimum.getUTCFullYear(), minimum.getUTCMonth(), minimum.getUTCDate());
+		const step = stepDays * (rule.interval || 1) * 86400000;
+		// Keep one preceding occurrence to accommodate timezone offsets.
+		const skipped = Math.max(0, Math.floor((minWall - startWall) / step) - 1);
+		if (!skipped) return event.iterator(start);
+		if (rule.count && skipped >= rule.count) return { next: () => null };
+		const copy = new ICAL.Component(JSON.parse(JSON.stringify(component.toJSON())));
+		const advanced = new ICAL.Time();
+		const date = new Date(startWall + skipped * step);
+		advanced.fromJSDate(date);
+		advanced.year = date.getUTCFullYear();
+		advanced.month = date.getUTCMonth() + 1;
+		advanced.day = date.getUTCDate();
+		advanced.hour = start.hour;
+		advanced.minute = start.minute;
+		advanced.second = start.second;
+		advanced.isDate = start.isDate;
+		advanced.zone = start.zone;
+		copy.updatePropertyWithValue("dtstart", advanced);
+		const copiedRule = copy.getFirstPropertyValue("rrule") as typeof rule;
+		if (copiedRule.count) copiedRule.count -= skipped;
+		return new ICAL.Event(copy).iterator(advanced);
 	}
 
 	getAllEvents(): ICSEvent[] {

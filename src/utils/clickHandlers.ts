@@ -21,6 +21,7 @@ export interface ClickHandlerOptions {
 	createBatchContextMenu?: BatchContextMenuFactory;
 	/** Optional view-specific handler for Shift+click task selection. */
 	selectionClickHandler?: (e: MouseEvent) => void;
+	navigationSubpath?: string | null;
 }
 
 const DEFAULT_EXCLUDE_SELECTOR = [
@@ -50,6 +51,7 @@ export function createTaskClickHandler(options: ClickHandlerOptions) {
 		contextMenuHandler,
 		createBatchContextMenu,
 		selectionClickHandler,
+		navigationSubpath,
 	} = options;
 	const clickExcludeSelector = excludeSelector
 		? `${DEFAULT_EXCLUDE_SELECTOR}, ${excludeSelector}`
@@ -60,7 +62,9 @@ export function createTaskClickHandler(options: ClickHandlerOptions) {
 	const openNote = (newTab = false) => {
 		const file = plugin.app.vault.getAbstractFileByPath(task.path);
 		if (file instanceof TFile) {
-			if (newTab) {
+			if (navigationSubpath) {
+				void plugin.app.workspace.openLinkText(task.path + navigationSubpath, "", newTab);
+			} else if (newTab) {
 				void plugin.app.workspace.openLinkText(task.path, "", true);
 			} else {
 				void plugin.app.workspace.getLeaf(false).openFile(file);

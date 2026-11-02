@@ -11,9 +11,11 @@ import {
 import type { BasesEntry, BasesPropertyId, BasesView, BasesViewFactory } from "obsidian";
 import TaskNotesPlugin from "../main";
 import { BasesViewBase } from "./BasesViewBase";
+import { readBasesViewConfigValue } from "./basesViewConfig";
 import { ICSEvent, TaskInfo } from "../types";
 import { format } from "date-fns";
 import {
+	formatDateLabel,
 	formatDateForStorage,
 	getTodayLocal,
 	createUTCDateFromLocalCalendarDate,
@@ -36,6 +38,8 @@ import {
 import { ICSEventInfoModal } from "../modals/ICSEventInfoModal";
 import { createTaskNotesLogger } from "../utils/tasknotesLogger";
 import { createElementInDocument } from "../utils/documentDom";
+import { findProviderCalendar } from "../services/CalendarProvider";
+import { setProviderCalendarToggle } from "./calendarExternalEvents";
 
 const tasknotesLogger = createTaskNotesLogger({ tag: "Bases/MiniCalendarView" });
 
@@ -171,11 +175,10 @@ export class MiniCalendarView extends BasesViewBase {
 		}
 
 		try {
-			this.dateProperty = (this.config.get("dateProperty") as string) || "file.ctime";
-			this.titleProperty = (this.config.get("titleProperty") as string) || "file.name";
-			this.heatMapMaxCount = normalizeMiniCalendarHeatMapMaxCount(
-				this.config.get("heatMapMaxCount")
-			);
+			const get = (key: string): unknown => readBasesViewConfigValue(this.config, key);
+			this.dateProperty = (get("dateProperty") as string) || "file.ctime";
+			this.titleProperty = (get("titleProperty") as string) || "file.name";
+			this.heatMapMaxCount = normalizeMiniCalendarHeatMapMaxCount(get("heatMapMaxCount"));
 			this.readCalendarToggles();
 			this.configLoaded = true;
 		} catch (e) {
@@ -196,7 +199,8 @@ export class MiniCalendarView extends BasesViewBase {
 			return;
 		}
 
-		const getToggleValue = (key: string): boolean => this.config.get(key) !== false;
+		const getToggleValue = (key: string): boolean =>
+			readBasesViewConfigValue(this.config, key) !== false;
 
 		if (this.plugin.icsSubscriptionService) {
 			for (const subscription of this.plugin.icsSubscriptionService.getSubscriptions()) {
@@ -209,8 +213,9 @@ export class MiniCalendarView extends BasesViewBase {
 
 		if (this.plugin.googleCalendarService) {
 			for (const calendar of this.plugin.googleCalendarService.getAvailableCalendars()) {
-				this.googleCalendarToggles.set(
-					calendar.id,
+				setProviderCalendarToggle(
+					this.googleCalendarToggles,
+					calendar,
 					getToggleValue(`showGoogleCalendar_${calendar.id}`)
 				);
 			}
@@ -447,17 +452,13 @@ export class MiniCalendarView extends BasesViewBase {
 			return;
 		}
 
-		const calendars = new Map(
-			this.plugin.googleCalendarService
-				.getAvailableCalendars()
-				.map((calendar) => [calendar.id, calendar])
-		);
+		const calendars = this.plugin.googleCalendarService.getAvailableCalendars();
 
 		for (const icsEvent of this.plugin.googleCalendarService.getAllEvents()) {
 			const calendarId = icsEvent.subscriptionId.replace("google-", "");
 			if (this.googleCalendarToggles.get(calendarId) === false) continue;
 
-			const calendar = calendars.get(calendarId);
+			const calendar = findProviderCalendar(calendars, calendarId);
 			this.indexExternalEvent(
 				icsEvent,
 				calendar?.summary || "Google Calendar",
@@ -703,7 +704,7 @@ export class MiniCalendarView extends BasesViewBase {
 		// Current month display
 		navSection.createDiv({
 			cls: "mini-calendar-view__month-display",
-			text: format(convertUTCToLocalCalendarDate(this.selectedDate), "MMMM yyyy"),
+			text: format(convertUTCToLocalCalendarDate(this.selectedDate), this.plugin.settings.dateDisplayFormat === "iso" ? "yyyy-MM" : "MMMM yyyy"),
 		});
 
 		// Next month button
@@ -751,7 +752,7 @@ export class MiniCalendarView extends BasesViewBase {
 			cls: "mini-calendar-view__grid",
 			attr: {
 				role: "grid",
-				"aria-label": `Calendar for ${format(convertUTCToLocalCalendarDate(new Date(Date.UTC(currentYear, currentMonth, 1))), "MMMM yyyy")}`,
+				"aria-label": `Calendar for ${format(convertUTCToLocalCalendarDate(new Date(Date.UTC(currentYear, currentMonth, 1))), this.plugin.settings.dateDisplayFormat === "iso" ? "yyyy-MM" : "MMMM yyyy")}`,
 				tabindex: "0",
 			},
 		});
@@ -906,7 +907,7 @@ export class MiniCalendarView extends BasesViewBase {
 			attr: {
 				role: "gridcell",
 				"aria-label":
-					format(convertUTCToLocalCalendarDate(dayDate), "EEEE, MMMM d, yyyy") +
+					formatDateLabel(convertUTCToLocalCalendarDate(dayDate), this.plugin.settings, "EEEE, MMMM d, yyyy") +
 					(isToday ? " (Today)" : ""),
 				"aria-selected": isSelected ? "true" : "false",
 				"aria-current": isToday ? "date" : null,

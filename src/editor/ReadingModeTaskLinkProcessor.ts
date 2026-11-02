@@ -1,4 +1,4 @@
-import { MarkdownPostProcessor } from "obsidian";
+import { MarkdownPostProcessor, parseLinktext } from "obsidian";
 import { EditorView } from "@codemirror/view";
 import TaskNotesPlugin from "../main";
 import {
@@ -181,6 +181,17 @@ export function shouldSkipReadingModeTaskLinkOverlay(options: {
 	return currentText !== options.originalLinkPath && currentText !== options.taskTitle;
 }
 
+/**
+ * Tags (`a.tag`) and same-note heading links (`[[#Heading]]`, `[text](#Heading)`)
+ * render as anchors whose target starts with `#`. They have no link path, so they
+ * would otherwise resolve to the current note and be replaced by its task widget.
+ */
+function isSameNoteFragmentLink(linkEl: HTMLAnchorElement): boolean {
+	if (linkEl.classList.contains("tag")) return true;
+	const target = linkEl.getAttribute("data-href") || linkEl.getAttribute("href") || "";
+	return target.startsWith("#");
+}
+
 function getMarkdownSectionText(
 	ctx: Parameters<MarkdownPostProcessor>[1],
 	el: HTMLElement
@@ -228,6 +239,7 @@ export class ReadingModeTaskLinkProcessor {
 
 			for (const link of Array.from(allLinks)) {
 				const linkEl = link;
+				if (isSameNoteFragmentLink(linkEl)) continue;
 				const href = linkEl.getAttribute("href");
 				const linkTarget = linkEl.getAttribute("data-href") || href || "";
 				const sourceLink =
@@ -426,7 +438,10 @@ export class ReadingModeTaskLinkProcessor {
 				const originalLinkPath = widgetEl.dataset.originalLinkPath || taskInfo.path;
 				const originalText = widgetEl.dataset.originalText || taskInfo.title;
 				const displayText = widgetEl.dataset.displayText || undefined;
-				const widget = new TaskLinkWidget(taskInfo, this.plugin, originalText, displayText);
+				const widget = new TaskLinkWidget(
+					taskInfo, this.plugin, originalText, displayText,
+					undefined, parseLinktext(originalLinkPath).subpath || undefined
+				);
 				const refreshedElement = this.createReadingModeWidget(
 					widget,
 					taskInfo,
@@ -484,7 +499,9 @@ export class ReadingModeTaskLinkProcessor {
 	private resolveLinkPath(linkPath: string, sourcePath: string): string | null {
 		try {
 			// Use Obsidian's metadata cache to resolve the link - it handles relative paths safely
-			const file = this.plugin.app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
+			const file = this.plugin.app.metadataCache.getFirstLinkpathDest(
+				parseLinktext(linkPath).path, sourcePath
+			);
 			return file?.path || null;
 		} catch (error) {
 			tasknotesLogger.debug("Error resolving link path:", {
@@ -581,7 +598,10 @@ export class ReadingModeTaskLinkProcessor {
 			}
 
 			// Create a task widget instance
-			const widget = new TaskLinkWidget(taskInfo, this.plugin, originalText, displayText);
+			const widget = new TaskLinkWidget(
+				taskInfo, this.plugin, originalText, displayText,
+				undefined, parseLinktext(originalLinkPath).subpath || undefined
+			);
 
 			// Create the DOM element for reading mode
 			const widgetElement = this.createReadingModeWidget(

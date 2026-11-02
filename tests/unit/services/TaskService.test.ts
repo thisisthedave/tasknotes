@@ -27,6 +27,7 @@ jest.mock('../../../src/utils/dateUtils', () => {
 });
 
 jest.mock('../../../src/utils/filenameGenerator', () => ({
+  ...jest.requireActual('../../../src/utils/filenameGenerator'),
   generateTaskFilename: jest.fn((context) => `${context.title.toLowerCase().replace(/\s+/g, '-')}`),
   generateUniqueFilename: jest.fn((base) => base)
 }));
@@ -245,6 +246,23 @@ describe('TaskService', () => {
 
       expect(mockPlugin.app.vault.read).toHaveBeenCalledWith(mockTemplateFile);
     });
+
+    it.each([undefined, 'inline-conversion', 'modal-inline-creation'] as const)(
+      'preserves date-like current note paths for %s creation (#2335)', async (creationContext) => {
+        mockPlugin.settings.tasksFolder = '{{currentNotePath}}/YYYY/{{currentNoteTitle}}';
+        mockPlugin.settings.inlineTaskConvertFolder = mockPlugin.settings.tasksFolder;
+        const file = new TFile('AMM-01/AMM-01.md');
+        file.parent = { path: 'AMM-01' } as any;
+        mockPlugin.app.workspace.getActiveFile.mockReturnValue(file);
+
+        await taskService.createTask({ title: 'Literal Path', creationContext });
+
+        expect(mockPlugin.app.vault.create).toHaveBeenCalledWith(
+          `AMM-01/${new Date().getFullYear()}/AMM-01/literal-path.md`,
+          expect.any(String)
+        );
+      }
+    );
 
     it('should handle inline conversion context with currentNotePath variable', async () => {
       mockPlugin.settings.inlineTaskConvertFolder = 'Tasks/{{currentNotePath}}';
@@ -857,6 +875,245 @@ describe('TaskService', () => {
       expect(result.completedDate).toBeUndefined();
     });
 
+    it('should record an explicit completion date on a non-recurring status completion', async () => {
+      const nonRecurringTask = TaskFactory.createTask({ recurrence: undefined });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(nonRecurringTask);
+
+      const result = await taskService.updateProperty(nonRecurringTask, 'status', 'done', {
+        completionDate: '2025-05-20',
+      });
+
+      expect(result.status).toBe('done');
+      expect(result.completedDate).toBe('2025-05-20');
+    });
+
+    it('should record a chosen completion date for an undated non-recurring task', async () => {
+      const undatedTask = TaskFactory.createTask({
+        recurrence: undefined,
+        scheduled: undefined,
+        due: undefined,
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(undatedTask);
+
+      const result = await taskService.updateProperty(undatedTask, 'status', 'done', {
+        completionDate: '2025-04-15',
+      });
+
+      expect(result.status).toBe('done');
+      expect(result.completedDate).toBe('2025-04-15');
+    });
+
+    it('should default the completion date to today when none is provided', async () => {
+      const nonRecurringTask = TaskFactory.createTask({ recurrence: undefined });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(nonRecurringTask);
+
+      const result = await taskService.updateProperty(nonRecurringTask, 'status', 'done');
+
+      expect(result.completedDate).toBe('2025-01-01'); // mocked today, unchanged
+    });
+
+    it('should ignore an explicit completion date for recurring tasks', async () => {
+      const recurringTask = TaskFactory.createTask({ recurrence: 'FREQ=DAILY' });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+
+      const result = await taskService.updateProperty(recurringTask, 'status', 'done', {
+        completionDate: '2025-05-20',
+      });
+
+      expect(result.completedDate).toBeUndefined();
+    });
+
+    // #3: rescheduling a recurring task onto a recorded date reactivates that occurrence.
+    it('removes the rescheduled date from complete_instances for a recurring task', async () => {
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-09',
+        complete_instances: ['2026-06-02', '2026-05-26'],
+        skipped_instances: [],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+
+      const result = await taskService.updateProperty(recurringTask, 'scheduled', '2026-06-02');
+
+      expect(result.complete_instances).toEqual(['2026-05-26']);
+    });
+
+    it('removes the rescheduled date from skipped_instances for a recurring task', async () => {
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-09',
+        complete_instances: [],
+        skipped_instances: ['2026-06-02'],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+
+      const result = await taskService.updateProperty(recurringTask, 'scheduled', '2026-06-02');
+
+      expect(result.skipped_instances).toEqual([]);
+    });
+
+    it('ignores the time component when matching the rescheduled date', async () => {
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-09',
+        complete_instances: ['2026-06-02'],
+        skipped_instances: [],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+
+      const result = await taskService.updateProperty(
+        recurringTask,
+        'scheduled',
+        '2026-06-02T09:30'
+      );
+
+      expect(result.complete_instances).toEqual([]);
+    });
+
+    it('preserves recurring history for an unchanged scheduled value', async () => {
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-12T09:00',
+        complete_instances: ['2026-06-12', '2026-06-19'],
+        skipped_instances: ['2026-06-26'],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+      const confirm = jest.fn(async () => true);
+
+      const result = await taskService.updateProperty(
+        recurringTask,
+        'scheduled',
+        '2026-06-12T09:00',
+        { confirmClearInstances: confirm }
+      );
+
+      expect(result.complete_instances).toEqual(['2026-06-12', '2026-06-19']);
+      expect(result.skipped_instances).toEqual(['2026-06-26']);
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
+    it('preserves recurring history when only the scheduled time changes', async () => {
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-12T09:00',
+        complete_instances: ['2026-06-12', '2026-06-19'],
+        skipped_instances: ['2026-06-26'],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+      const confirm = jest.fn(async () => true);
+
+      const result = await taskService.updateProperty(
+        recurringTask,
+        'scheduled',
+        '2026-06-12T10:00',
+        { confirmClearInstances: confirm }
+      );
+
+      expect(result.scheduled).toBe('2026-06-12T10:00');
+      expect(result.complete_instances).toEqual(['2026-06-12', '2026-06-19']);
+      expect(result.skipped_instances).toEqual(['2026-06-26']);
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
+    it('clears an off-schedule completion/skip recorded on or after the rescheduled date, keeping older history', async () => {
+      // Off-schedule completion (06-08) + later skip (06-19), reschedule back to 06-05:
+      // the ">= new date" rule clears both while keeping the older 05-29 history.
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-12',
+        complete_instances: ['2026-05-29', '2026-06-08'],
+        skipped_instances: ['2026-06-19'],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+
+      const result = await taskService.updateProperty(recurringTask, 'scheduled', '2026-06-05');
+
+      expect(result.complete_instances).toEqual(['2026-05-29']);
+      expect(result.skipped_instances).toEqual([]);
+    });
+
+    it('leaves complete/skipped instances untouched when nothing is on or after the rescheduled date', async () => {
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-09',
+        complete_instances: ['2026-06-02'],
+        skipped_instances: ['2026-05-26'],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+
+      const result = await taskService.updateProperty(recurringTask, 'scheduled', '2026-06-16');
+
+      expect(result.complete_instances).toEqual(['2026-06-02']);
+      expect(result.skipped_instances).toEqual(['2026-05-26']);
+    });
+
+    it('does not touch instances for a non-recurring reschedule', async () => {
+      const nonRecurring = TaskFactory.createTask({
+        recurrence: undefined,
+        scheduled: '2026-06-09',
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(nonRecurring);
+
+      await expect(
+        taskService.updateProperty(nonRecurring, 'scheduled', '2026-06-02')
+      ).resolves.toBeDefined();
+    });
+
+    it('aborts the reschedule (no write, instances intact) when confirmClearInstances returns false', async () => {
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-12',
+        complete_instances: ['2026-06-08'],
+        skipped_instances: ['2026-06-19'],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+      const confirm = jest.fn(async () => false);
+
+      const result = await taskService.updateProperty(recurringTask, 'scheduled', '2026-06-05', {
+        confirmClearInstances: confirm,
+      });
+
+      expect(confirm).toHaveBeenCalledWith({ complete: ['2026-06-08'], skipped: ['2026-06-19'] });
+      expect(result.complete_instances).toEqual(['2026-06-08']);
+      expect(result.scheduled).toBe('2026-06-12'); // unchanged
+      expect(mockPlugin.app.fileManager.processFrontMatter).not.toHaveBeenCalled();
+    });
+
+    it('proceeds and clears when confirmClearInstances returns true', async () => {
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-12',
+        complete_instances: ['2026-06-08'],
+        skipped_instances: [],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+      const confirm = jest.fn(async () => true);
+
+      const result = await taskService.updateProperty(recurringTask, 'scheduled', '2026-06-05', {
+        confirmClearInstances: confirm,
+      });
+
+      expect(confirm).toHaveBeenCalled();
+      expect(result.complete_instances).toEqual([]);
+    });
+
+    it('does not call confirmClearInstances when nothing would be cleared', async () => {
+      const recurringTask = TaskFactory.createTask({
+        recurrence: 'FREQ=WEEKLY',
+        scheduled: '2026-06-12',
+        complete_instances: ['2026-05-01'],
+        skipped_instances: [],
+      });
+      mockPlugin.cacheManager.getTaskInfo.mockResolvedValue(recurringTask);
+      const confirm = jest.fn(async () => true);
+
+      await taskService.updateProperty(recurringTask, 'scheduled', '2026-06-05', {
+        confirmClearInstances: confirm,
+      });
+
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
     it('should remove empty due/scheduled dates', async () => {
       await taskService.updateProperty(task, 'due', undefined);
 
@@ -1074,6 +1331,10 @@ describe('TaskService', () => {
       mockFile = new TFile(task.path);
       mockPlugin.app.vault.getAbstractFileByPath.mockReturnValue(mockFile);
       mockPlugin.getActiveTimeSession.mockReturnValue(null);
+      mockPlugin.app.fileManager.processFrontMatter.mockImplementation(async (_file: any, fn: any) => {
+        const frontmatter = { ...task, timeEntries: [...(task.timeEntries || [])] };
+        fn(frontmatter);
+      });
     });
 
     afterEach(() => {
@@ -1093,6 +1354,7 @@ describe('TaskService', () => {
 
     it('should add to existing time entries', async () => {
       const taskWithEntries = TaskFactory.createTaskWithTimeTracking();
+      task = taskWithEntries;
       const existingCount = taskWithEntries.timeEntries?.length || 0;
 
       const result = await taskService.startTimeTracking(taskWithEntries);
@@ -1102,7 +1364,7 @@ describe('TaskService', () => {
 
     it('should prevent starting when already tracking', async () => {
       const activeSession = { startTime: '2025-01-01T11:00:00Z' };
-      mockPlugin.getActiveTimeSession.mockReturnValue(activeSession);
+      task.timeEntries = [activeSession];
 
       await expect(taskService.startTimeTracking(task))
         .rejects.toThrow('Time tracking is already active for this task');
@@ -1137,6 +1399,10 @@ describe('TaskService', () => {
       mockFile = new TFile(task.path);
       mockPlugin.app.vault.getAbstractFileByPath.mockReturnValue(mockFile);
       mockPlugin.getActiveTimeSession.mockReturnValue(activeSession);
+      mockPlugin.app.fileManager.processFrontMatter.mockImplementation(async (_file: any, fn: any) => {
+        const frontmatter = { ...task, timeEntries: [...(task.timeEntries || [])] };
+        fn(frontmatter);
+      });
     });
 
     afterEach(() => {
@@ -1154,7 +1420,7 @@ describe('TaskService', () => {
     });
 
     it('should prevent stopping when not tracking', async () => {
-      mockPlugin.getActiveTimeSession.mockReturnValue(null);
+      task.timeEntries = [];
 
       await expect(taskService.stopTimeTracking(task))
         .rejects.toThrow('No active time tracking session for this task');
@@ -1163,8 +1429,9 @@ describe('TaskService', () => {
     it('should handle missing time entries array', async () => {
       const taskWithoutEntries = TaskFactory.createTask({ timeEntries: undefined });
 
-      // Should not throw but won't find entry to update
-      await taskService.stopTimeTracking(taskWithoutEntries);
+      task = taskWithoutEntries;
+      await expect(taskService.stopTimeTracking(taskWithoutEntries))
+        .rejects.toThrow('No active time tracking session for this task');
     });
   });
 
@@ -1205,6 +1472,7 @@ describe('TaskService', () => {
         complete_instances: ['2024-12-30', '2024-12-31']
       });
 
+      mockPlugin.app.fileManager.processFrontMatter.mockImplementation(async (_file, fn) => fn({...recurringTask}));
       const result = await taskService.updateTask(recurringTask, { priority: 'high' });
 
       expect(result.complete_instances).toEqual(['2024-12-30', '2024-12-31']);
@@ -1245,6 +1513,7 @@ describe('TaskService', () => {
       const taskWithTags = TaskFactory.createTask({ tags: ['task', 'important'] });
       const updates = { priority: 'high' };
 
+      mockPlugin.app.fileManager.processFrontMatter.mockImplementation(async (_file, fn) => fn({...taskWithTags}));
       const result = await taskService.updateTask(taskWithTags, updates);
 
       expect(result.tags).toEqual(['task', 'important']);

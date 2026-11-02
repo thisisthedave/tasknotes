@@ -270,12 +270,19 @@ export class UserFieldEditModal extends Modal {
 	/** Formats a stored value for an input control. */
 	private toInputValue(value: unknown): string {
 		if (Array.isArray(value)) return value.join(", ");
-		return value === undefined || value === null ? "" : String(value);
+		if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+			return String(value);
+		}
+		return "";
 	}
 
 	/** Formats a stored value for an MRU button label. */
 	private toDisplayValue(value: unknown): string {
-		return Array.isArray(value) ? value.join(", ") : String(value ?? "");
+		if (Array.isArray(value)) return value.join(", ");
+		if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+			return String(value);
+		}
+		return "";
 	}
 
 	/** Applies the value, updates MRU history, and closes only after persistence succeeds. */

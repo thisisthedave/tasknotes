@@ -3,8 +3,6 @@
 These settings control the foundational aspects of the plugin, such as task identification, file storage, and click behavior.
 
 
-![General Settings](../assets/settings-general.png)
-
 ## Task Storage
 
 Task storage settings define where new and inline-created task files are created and how archived tasks are relocated. **Default tasks folder** sets the base location and supports folder template variables, including `{{currentNotePath}}` and `{{currentNoteTitle}}` for creating command-palette or ribbon tasks beside the active note. It also supports date variables such as `{{year}}` and Daily Notes-style date tokens such as `YYYY/MM/DD`. **Folder for inline-created tasks** controls the Create Inline Task command and instant conversion output. Leave it empty to use the default tasks folder, set a fixed folder path to centralize inline tasks, or use `{{currentNotePath}}` and `{{currentNoteTitle}}` placeholders for contextual routing. Relative path segments such as `../` are normalized after variables are expanded. If archive moves are enabled, completed archived tasks are moved automatically to your configured archive folder.
@@ -18,7 +16,9 @@ Use **Identify tasks by** to select a strategy.
 - **Tag mode** uses a configured task tag (for example `task`) and can optionally hide that identifying tag in card displays.
 - **Property mode** matches a property/value pair (for example `isTask: true` or `category: task`) and is useful when you avoid tag-based identification.
 
-If you change the task tag after creating default Base views, existing `.base` filters will still point at the old tag until you update the default Base files or edit those filters.
+In property mode, enter both **Task property name** and **Task property value** explicitly. The input prompts are not saved defaults. An inline warning appears while either field is empty or whitespace-only; TaskNotes does not recognize tasks until both are configured.
+
+If you change task identification after creating default Base views, existing `.base` filters keep their old settings until you update the default Base files or edit those filters. For `category: task`, filter on that value, not merely whether `category` exists. Updating default files overwrites their manual edits, so back them up first.
 
 ### Hide Identification Tags
 

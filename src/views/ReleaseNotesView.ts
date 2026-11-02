@@ -1,7 +1,9 @@
 import { ItemView, WorkspaceLeaf, MarkdownRenderer } from "obsidian";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
+import { formatDateLabel } from "../utils/dateUtils";
 import TaskNotesPlugin from "../main";
 import type { ReleaseNoteVersion } from "../releaseNotes";
+import releaseNotesAnnouncement from "../releaseNotesAnnouncement.md";
 
 export const RELEASE_NOTES_VIEW_TYPE = "tasknotes-release-notes";
 
@@ -74,7 +76,7 @@ export class ReleaseNotesView extends ItemView {
 		if (!dateString) return "";
 		try {
 			const date = parseISO(dateString);
-			return format(date, "MMMM d, yyyy");
+			return formatDateLabel(date, this.plugin.settings, "MMMM d, yyyy");
 		} catch {
 			return "";
 		}
@@ -85,7 +87,13 @@ export class ReleaseNotesView extends ItemView {
 		versionData: ReleaseNoteVersion
 	): Promise<void> {
 		// Transform issue references into clickable links and render the markdown
-		const transformedNotes = this.transformIssueLinks(versionData.content);
+		// The beta invitation now appears once above the version list. Preserve
+		// historical source files (also used by GitHub), but omit their old callout.
+		const notes = versionData.content.replace(
+			/^> \[!info\] TaskNotes v5 beta\r?\n(?:>[^\n]*(?:\n|$))*/gm,
+			""
+		);
+		const transformedNotes = this.transformIssueLinks(notes);
 		const releaseContent = versionData.isCurrent
 			? `${this.plugin.i18n.translate("views.releaseNotes.baseFilesNotice")}\n\n${transformedNotes}`
 			: transformedNotes;
@@ -535,6 +543,12 @@ export class ReleaseNotesView extends ItemView {
 		} else {
 			starMessage.appendText(messageText);
 		}
+
+		// One shared announcement, independent of the bundled release versions.
+		const announcement = container.createEl("section", {
+			cls: "release-notes-announcement",
+		});
+		await MarkdownRenderer.render(this.plugin.app, releaseNotesAnnouncement, announcement, "", this);
 
 		// Create all version sections
 		const versionsContainer = container.createDiv({ cls: "release-notes-versions" });

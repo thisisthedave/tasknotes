@@ -1,24 +1,56 @@
-import { Modal, normalizePath, type TAbstractFile, TFile } from "obsidian";
+import { Modal, normalizePath, type TAbstractFile } from "obsidian";
 import YAML from "yaml";
+import { canonicalTaskNotesResources } from "./canonicalTaskNotesPack";
+import { FieldMapper } from "./FieldMapper";
+import { hasLegacyFieldsSchema, isKnownLegacySupport, recognizeLegacyTaskType } from "./mdbase/legacyRecognition";
+import { migrationRecognitionNotice } from "./mdbase/recognitionNotices";
+import { metadataSafetyNotice } from "./mdbase/metadataFailureNotices";
+import { addAppCollectionConfig, effectiveMembershipKeys, applyTaskExclusions } from "./mdbase/collectionConfig";
+import { upgradeCanonicalDocument } from "./mdbase/preserveCanonical";
+import { MetadataQueue, SafeMetadata } from "./mdbase/SafeMetadata";
+import { MetadataTransaction } from "./mdbase/MetadataTransaction";
+import { findExplicitTypeReference } from "./mdbase/ExplicitTypeReferences";
+import { remapMdbaseTypeReferences } from "./mdbaseTypeReferences";
 import {
 	buildTaskNotesMdbaseResources,
 	type TaskNotesMdbaseResources,
 } from "@tasknotes/model/mdbase";
 import { TASKNOTES_SPEC_VERSION as TASKNOTES_CONTRACT_VERSION } from "@tasknotes/model";
+import {
+	absentTaskNotesSettingsPatch,
+	buildTaskNotesSettingsPatch,
+	changedTaskNotesAppSettings,
+	completeTaskNotesAppSettingsChanges,
+	newTaskNotesSettingsFrontmatter,
+	APP_SETTINGS_FOLDER,
+	readAppSettingsFrontmatter,
+	resolveTaskNotesAppSettings,
+	TASKNOTES_SETTINGS_APP,
+	TASKNOTES_SETTINGS_TYPE,
+	writeAppSettingsDocument,
+	type TaskNotesAppSettingsValues,
+} from "@tasknotes/model/settings";
+import { APP_SETTINGS_RECORD_PATH, appSettingsSupportResources } from "./mdbase/appSettingsResources";
 
 import TaskNotesPlugin from "../main";
 import { FieldMapping } from "../types";
 import { UserMappedField } from "../types/settings";
 import { createTaskNotesLogger } from "../utils/tasknotesLogger";
 import { publishUserNotice } from "../core/userNotices";
+import { createI18nService } from "../i18n";
 import {
+	appSettingsFingerprint,
+	appSettingsFromPluginSettings,
+	applyAppSettingsToPluginSettings,
 	applyCanonicalTaskTypeToSettings,
 	buildTaskNotesModelConfig,
+	hasLegacyAppSettings,
+	PREVIOUS_TASKNOTES_CONTRACT_VERSIONS,
 	mergeCanonicalTaskTypeDocument,
 	parseMdbaseTaskTypeDocument,
 	portableSettingsFingerprint,
-	type ParsedMdbaseTaskType,
 	validateCanonicalTaskType,
+	withCurrentTaskNotesContract,
 } from "./mdbaseCanonicalConfig";
 
 const tasknotesLogger = createTaskNotesLogger({ tag: "Services/MdbaseSpecService" });
@@ -26,6 +58,9 @@ const tasknotesLogger = createTaskNotesLogger({ tag: "Services/MdbaseSpecService
 const DEFAULT_TYPES_FOLDER = "_types";
 const DEFAULT_CONTRACTS_FOLDER = "_contracts";
 const MDBASE_V03_SPEC_VERSION = "0.3.0";
+
+const writableMembershipKeys = effectiveMembershipKeys;
+
 const MDBASE_MIGRATION_BACKUP_FOLDER = ".tasknotes/migrations";
 const MDBASE_MIGRATION_PENDING_PATH = `${MDBASE_MIGRATION_BACKUP_FOLDER}/mdbase-v0.2-pending.json`;
 
@@ -53,6 +88,12 @@ type CanonicalTypeState = {
 	path: string;
 	content: string;
 	type: Record<string, unknown>;
+	/** The file implements an earlier tasknotes.task version and must be rewritten. */
+	outdated?: boolean;
+	/** The earlier binding, which still holds the settings rc.6 moved to the settings record. */
+	legacyBinding?: Record<string, unknown>;
+	/** The tasknotes.task version an outdated file implemented. */
+	previousVersion?: string;
 };
 
 type LegacyTaskNotesTypeState = {
@@ -81,7 +122,8 @@ class MdbaseConfigurationConflictModal extends Modal {
 		app: TaskNotesPlugin["app"],
 		private readonly typePath: string,
 		private readonly invalidType: boolean,
-		private readonly resolveChoice: (choice: ConflictChoice) => void
+		private readonly resolveChoice: (choice: ConflictChoice) => void,
+		private readonly settingsRecord = false
 	) {
 		super(app);
 	}
@@ -96,12 +138,18 @@ class MdbaseConfigurationConflictModal extends Modal {
 		this.contentEl.createEl("p", {
 			text: this.invalidType
 				? "Keep the file unchanged so you can repair it manually, or replace its managed TaskNotes fields with the current settings."
-				: "Choose which version should become canonical. Unknown mdbase extensions will be preserved.",
+				: this.settingsRecord
+					? "Choose which version should become canonical. Using TaskNotes settings writes only the settings you changed; other fields in the file are kept."
+					: "Choose which version should become canonical. Unknown mdbase extensions will be preserved.",
 		});
 
 		const actions = this.contentEl.createDiv({ cls: "modal-button-container" });
 		const useTypeButton = actions.createEl("button", {
-			text: this.invalidType ? "Keep file unchanged" : "Use mdbase type",
+			text: this.invalidType
+				? "Keep file unchanged"
+				: this.settingsRecord
+					? "Use settings file"
+					: "Use mdbase type",
 		});
 		useTypeButton.addEventListener("click", () => this.finish("type"));
 
@@ -146,15 +194,42 @@ export class MdbaseSpecService {
 	private canonicalResourcePaths = new Set<string>();
 	private lastKnownTypeContent: string | null = null;
 	private lastAppliedSettingsFingerprint: string | null = null;
+	/** The TaskNotes settings record as last read or written (null: not yet seen). */
+	private lastKnownRecordContent: string | null = null;
+	/** The record as read at the start of the current synchronization. */
+	private currentRecordContent: string | null = null;
+	/** App settings as last applied from, or written to, the record. */
+	private lastAppliedAppFingerprint: string | null = null;
+	private lastAppliedAppValues: TaskNotesAppSettingsValues | null = null;
+	/** Set when a synchronization applied app settings read from the record. */
+	private appSettingsAppliedFromRecord = false;
+	private lastRecordNotice: string | null = null;
+	private lastCompetingRecordsNotice: string | null = null;
+	/** Whether this session has added the fields an existing record lacked. */
+	private recordAbsentFieldsMerged = false;
 	private canonicalReadBlocked = false;
 	private watcherRegistered = false;
+	private canonicalWritePromise: Promise<boolean> = Promise.resolve(true);
 	private reconcileRequested = false;
 	private reconcilePromise: Promise<void> | null = null;
 	private writeInProgress = false;
 	private pendingUserNotices: string[] = [];
+	private readonly metadataQueue = new MetadataQueue();
+	private readonly metadataIO: SafeMetadata;
+	private readonly metadataTransaction: MetadataTransaction;
+	private lastBlockedNotice: string | null = null;
+	private deferredMetadataNotices: string[] | null = null;
 
 	constructor(plugin: TaskNotesPlugin) {
 		this.plugin = plugin;
+		this.metadataIO = new SafeMetadata(plugin.app.vault.adapter, (path) => this.ensureFolderPath(path));
+		this.metadataTransaction = new MetadataTransaction(
+			this.metadataIO,
+			(path) => this.ensureFolderPath(path),
+			async (path) => {
+				if (await plugin.app.vault.adapter.exists(path)) await plugin.app.vault.adapter.remove(path);
+			}
+		);
 	}
 
 	/**
@@ -167,18 +242,15 @@ export class MdbaseSpecService {
 		}
 
 		try {
+			await this.metadataIO.recoverSwaps();
+			await this.metadataTransaction.recover();
 			await this.recoverInterruptedV02Migration();
 			const existingCollection = await this.readExistingCollection();
 			const specFamily = getSpecFamily(existingCollection.config?.spec_version);
 			if (!existingCollection.exists) {
 				await this.syncSettingsToCanonicalType(existingCollection);
 			} else if (specFamily === "v0.3") {
-				const state = await this.readCanonicalType(existingCollection);
-				if (state) {
-					this.applyCanonicalState(state);
-				} else {
-					await this.syncSettingsToCanonicalType(existingCollection);
-				}
+				await this.syncSettingsToCanonicalType(existingCollection);
 			} else if (specFamily === "v0.2") {
 				await this.migrateGeneratedV02Collection(existingCollection);
 			} else if (!specFamily) {
@@ -193,7 +265,7 @@ export class MdbaseSpecService {
 				error,
 			});
 			this.publishNotice(
-				"TaskNotes could not initialize the canonical mdbase configuration. Plugin settings remain active."
+				this.safetyNotice(String(error))
 			);
 		} finally {
 			this.registerCanonicalWatchers();
@@ -208,11 +280,26 @@ export class MdbaseSpecService {
 	private async migrateGeneratedV02Collection(
 		existingCollection: ExistingCollection
 	): Promise<boolean> {
-		const legacyType = await this.readGeneratedV02TaskType(existingCollection);
+		return this.metadataQueue.run(async () => {
+			await this.recoverInterruptedV02Migration();
+			await this.metadataIO.assertPhysical(this.resolveTypesFolder(existingCollection));
+			return this.migrateGeneratedV02CollectionSnapshot(existingCollection);
+		});
+	}
+
+	private async migrateGeneratedV02CollectionSnapshot(
+		existingCollection: ExistingCollection
+	): Promise<boolean> {
+		// Register the folder before scanning so delayed Sync type arrivals retry.
+		this.canonicalTypesFolder = this.resolveTypesFolder(existingCollection);
+		const legacyType = await this.readGeneratedV02TaskType(
+			existingCollection,
+			getSpecFamily(existingCollection.config?.spec_version) !== "v0.3"
+		);
 		if (!legacyType) {
-			this.publishNotice(
-				"TaskNotes left the existing mdbase v0.2 collection unchanged because it could not confirm that the active type files are generated solely by TaskNotes."
-			);
+			this.publishNotice(migrationRecognitionNotice(this.plugin, "review", {
+				path: `${this.canonicalTypesFolder}/task.md`,
+			}));
 			return false;
 		}
 
@@ -224,15 +311,16 @@ export class MdbaseSpecService {
 			legacyType.typeName,
 			contractsFolder
 		);
-		for (const path of [
-			resources.paths.contract,
-			resources.paths.taskSchema,
-			resources.paths.bindingSchema,
-		]) {
-			if (await this.plugin.app.vault.adapter.exists(path)) {
-				this.publishNotice(
-					`TaskNotes left the mdbase v0.2 collection unchanged because ${path} already exists and may be user-maintained.`
-				);
+		const support = new Map([
+			[resources.paths.contract, resources.contractDocument],
+			[resources.paths.taskSchema, resources.taskSchemaDocument],
+			[resources.paths.bindingSchema, resources.bindingSchemaDocument],
+		]);
+		for (const [path, intended] of support) {
+			if (await this.plugin.app.vault.adapter.exists(path) &&
+				await this.plugin.app.vault.adapter.read(path) !== intended &&
+				!isKnownLegacySupport(await this.plugin.app.vault.adapter.read(path))) {
+				this.publishNotice(migrationRecognitionNotice(this.plugin, "support", { path }));
 				return false;
 			}
 		}
@@ -242,20 +330,25 @@ export class MdbaseSpecService {
 			resources,
 			legacyType.path
 		);
+		const settingsResources = this.appSettingsResources(resources);
 		const managedPaths = [
 			resources.paths.contract,
 			resources.paths.taskSchema,
 			resources.paths.bindingSchema,
 			legacyType.path,
+			...settingsResources.map(({ path }) => path),
+			APP_SETTINGS_RECORD_PATH,
 			"mdbase.yaml",
 		];
 		const snapshots = await this.snapshotFiles(managedPaths);
+		const sharedPaths = new Set([...settingsResources.map(({ path }) => path), APP_SETTINGS_RECORD_PATH]);
 		if (
 			snapshots.find(({ path }) => path === "mdbase.yaml")?.content !== sourceConfig ||
 			snapshots.find(({ path }) => path === legacyType.path)?.content !== legacyType.content ||
 			snapshots.some(
 				({ path, content }) =>
-					path !== "mdbase.yaml" && path !== legacyType.path && content !== null
+					path !== "mdbase.yaml" && path !== legacyType.path && !sharedPaths.has(path) &&
+					content !== null && content !== support.get(path) && !isKnownLegacySupport(content)
 			)
 		) {
 			this.publishNotice(
@@ -263,26 +356,40 @@ export class MdbaseSpecService {
 			);
 			return false;
 		}
+		// The v4 settings (data.json) become the settings record in the same
+		// journalled step. A record another device already wrote keeps its fields.
+		const recordSnapshot = snapshots.find(({ path }) => path === APP_SETTINGS_RECORD_PATH)?.content ?? null;
+		const recordContent = this.migratedRecordContent(recordSnapshot, YAML.parse(migratedConfig) as MdbaseYamlConfig);
 		const intendedWrites: FileSnapshot[] = [
-			{ path: resources.paths.contract, content: resources.contractDocument },
 			{ path: resources.paths.taskSchema, content: resources.taskSchemaDocument },
 			{ path: resources.paths.bindingSchema, content: resources.bindingSchemaDocument },
 			{ path: legacyType.path, content: resources.typeDocument },
+			{ path: resources.paths.contract, content: resources.contractDocument },
+			...settingsResources
+				.filter(({ path }) => snapshots.find((snapshot) => snapshot.path === path)?.content === null)
+				.map(({ path, content }) => ({ path, content })),
+			...(recordContent !== null && recordContent !== recordSnapshot
+				? [{ path: APP_SETTINGS_RECORD_PATH, content: recordContent }]
+				: []),
 			{ path: "mdbase.yaml", content: migratedConfig },
 		];
-		const backupFolder = await this.writeV02MigrationBackup(sourceConfig, legacyType);
+		const backupFolder = await this.writeV02MigrationBackup(sourceConfig, legacyType, snapshots);
 		const journal: MigrationJournal = { backupFolder, snapshots, intendedWrites };
-		await this.writeMigrationJournal(journal);
-
 		this.writeInProgress = true;
 		try {
+			await this.writeMigrationJournal(journal);
 			await this.assertSnapshotsUnchanged(snapshots);
+			const progress = snapshots.map((snapshot) => ({ ...snapshot }));
 			for (const intendedWrite of intendedWrites) {
+				await this.assertSnapshotsUnchanged(progress);
 				const snapshot = snapshots.find(({ path }) => path === intendedWrite.path);
 				if (!snapshot || intendedWrite.content === null) {
 					throw new Error(`Invalid migration write plan for ${intendedWrite.path}`);
 				}
 				await this.writeFileIfUnchanged(snapshot, intendedWrite.content);
+				const progressEntry = progress.find((entry) => entry.path === intendedWrite.path);
+				if (!progressEntry) throw new Error(`Missing migration progress: ${intendedWrite.path}`);
+				progressEntry.content = intendedWrite.content;
 				if (
 					intendedWrite.path === resources.paths.contract ||
 					intendedWrite.path === resources.paths.taskSchema ||
@@ -291,10 +398,15 @@ export class MdbaseSpecService {
 					this.canonicalResourcePaths.add(intendedWrite.path);
 				}
 			}
+			await this.assertSnapshotsUnchanged(progress);
 			const state = await this.verifyMigratedV03Collection(legacyType.path, resources);
 			await this.removeMigrationJournal();
+			await this.loadAppSettingsRecord();
 			this.canonicalTypesFolder = typesFolder;
 			this.applyCanonicalState(state);
+			// The migration wrote the record with every absent field added, so the
+			// next sync only has to carry local changes.
+			if (this.lastKnownRecordContent !== null) this.recordAbsentFieldsMerged = true;
 			this.publishNotice(
 				`TaskNotes updated its mdbase metadata to v0.3. Task files were not changed. The previous metadata is backed up in ${backupFolder}.`
 			);
@@ -321,7 +433,7 @@ export class MdbaseSpecService {
 			});
 			if (rollbackError) {
 				this.publishNotice(
-					`TaskNotes stopped the mdbase update after another change was detected. It did not overwrite that change; recovery copies and the pending migration record are in ${backupFolder}.`
+					this.safetyNotice(`Pending record: ${MDBASE_MIGRATION_PENDING_PATH}; backups: ${backupFolder}; blocked file: ${rollbackError instanceof Error ? rollbackError.message : "Unknown recovery error"}`)
 				);
 			} else {
 				this.publishNotice(
@@ -334,8 +446,25 @@ export class MdbaseSpecService {
 		}
 	}
 
+	/** The settings record a v4 migration writes: new, or the existing one with absent fields added. */
+	private migratedRecordContent(existing: string | null, config: MdbaseYamlConfig): string | null {
+		const local = appSettingsFromPluginSettings(this.plugin.settings);
+		if (existing === null) {
+			return writeAppSettingsDocument(null, {}, {
+				frontmatter: newTaskNotesSettingsFrontmatter(completeTaskNotesAppSettingsChanges(local)),
+				type: TASKNOTES_SETTINGS_TYPE,
+				typeKey: this.recordTypeKey({ exists: true, config }),
+			});
+		}
+		const frontmatter = this.parseRecord(existing);
+		if (!frontmatter || resolveTaskNotesAppSettings(frontmatter).readOnly) return existing;
+		const patch = absentTaskNotesSettingsPatch(frontmatter, local);
+		return Object.keys(patch).length > 0 ? writeAppSettingsDocument(existing, patch) : existing;
+	}
+
 	private async readGeneratedV02TaskType(
-		existingCollection: ExistingCollection
+		existingCollection: ExistingCollection,
+		exclusive = true
 	): Promise<LegacyTaskNotesTypeState | null> {
 		const typesFolder = this.resolveTypesFolder(existingCollection);
 		const typePath = `${typesFolder}/task.md`;
@@ -345,22 +474,20 @@ export class MdbaseSpecService {
 		const otherMarkdownTypes = (await this.listMarkdownFilesRecursively(typesFolder)).filter(
 			(path) => path !== typePath
 		);
-		if (otherMarkdownTypes.length > 0) return null;
+		// The canonical settings type, left by an earlier attempt or seeded by
+		// TaskNotes App, does not make the legacy collection ambiguous.
+		const settingsType = appSettingsSupportResources(DEFAULT_CONTRACTS_FOLDER, typesFolder).find((resource) => resource.seed);
+		const unrelatedTypes = [];
+		for (const path of otherMarkdownTypes) {
+			if (path === settingsType?.path && (await adapter.read(path)) === settingsType.content) continue;
+			unrelatedTypes.push(path);
+		}
+		if (exclusive && unrelatedTypes.length > 0) return null;
 
 		const content = await adapter.read(typePath);
-		let parsed: ParsedMdbaseTaskType;
-		try {
-			parsed = parseMdbaseTaskTypeDocument(content);
-		} catch {
-			return null;
-		}
-		if (!isUnmodifiedGeneratedV02Type(content, this.buildTaskTypeDefV02())) return null;
-
-		return {
-			path: typePath,
-			content,
-			typeName: typeof parsed.type.name === "string" ? parsed.type.name : "task",
-		};
+		if (!recognizeLegacyTaskType(content, this.plugin.settings)) return null;
+		// All shipped v4 writers name this type task; exact writer bytes can be invalid YAML.
+		return { path: typePath, content, typeName: "task" };
 	}
 
 	private async listMarkdownFilesRecursively(folder: string): Promise<string[]> {
@@ -391,7 +518,7 @@ export class MdbaseSpecService {
 		const sourceSettings = isRecord(source.settings) ? source.settings : {};
 		const generatedSettings = generated.settings;
 		const typesFolder = resources.paths.type.split("/").slice(0, -1).join("/");
-		const contractsFolder = resources.paths.contract.split("/").slice(0, -1).join("/");
+		const contractsFolder = resources.paths.contract.split("/").slice(0, -2).join("/");
 		const exclude = uniqueStrings([
 			...stringValues(generatedSettings.exclude),
 			...stringValues(sourceSettings.exclude),
@@ -410,6 +537,7 @@ export class MdbaseSpecService {
 			settings: {
 				...generatedSettings,
 				...sourceSettings,
+				explicit_type_keys: writableMembershipKeys(sourceSettings.explicit_type_keys),
 				types_folder: typesFolder,
 				contracts_folder: contractsFolder,
 				record_extensions:
@@ -427,13 +555,14 @@ export class MdbaseSpecService {
 			},
 		};
 
-		return YAML.stringify(migrated);
+		return addAppCollectionConfig(YAML.stringify(migrated), this.plugin.settings);
 	}
 
 	private async snapshotFiles(paths: string[]): Promise<FileSnapshot[]> {
 		const adapter = this.plugin.app.vault.adapter;
 		const snapshots: FileSnapshot[] = [];
 		for (const path of uniqueStrings(paths)) {
+			await this.metadataIO.assertPhysical(path);
 			snapshots.push({
 				path,
 				content: (await adapter.exists(path)) ? await adapter.read(path) : null,
@@ -464,9 +593,9 @@ export class MdbaseSpecService {
 			const currentContent = current.find(({ path }) => path === snapshot.path)?.content ?? null;
 			if (currentContent === snapshot.content) continue;
 			if (snapshot.content === null) {
-				// Never delete a newly created support resource during rollback: an
-				// external process could have changed it after our last comparison.
-				// Leaving an orphaned generated file is safer than risking user data.
+				// Created by this migration: remove it only while it still holds
+				// exactly what the migration wrote (checked again just before removal).
+				if (currentContent !== null) await this.metadataIO.removeIfUnchanged(snapshot.path, currentContent);
 				continue;
 			} else {
 				await this.writeFileIfUnchanged(
@@ -475,6 +604,7 @@ export class MdbaseSpecService {
 				);
 			}
 		}
+		await this.metadataIO.removeAbandonedStages(journal.snapshots.map(({ path }) => path));
 	}
 
 	private async writeMigrationJournal(journal: MigrationJournal): Promise<void> {
@@ -482,8 +612,8 @@ export class MdbaseSpecService {
 		if (await this.plugin.app.vault.adapter.exists(MDBASE_MIGRATION_PENDING_PATH)) {
 			throw new Error("An unresolved mdbase metadata migration is already pending.");
 		}
-		await this.plugin.app.vault.create(
-			MDBASE_MIGRATION_PENDING_PATH,
+		await this.metadataIO.replace(
+			{ path: MDBASE_MIGRATION_PENDING_PATH, content: null },
 			JSON.stringify(journal, null, 2) + "\n"
 		);
 	}
@@ -497,9 +627,11 @@ export class MdbaseSpecService {
 	private async recoverInterruptedV02Migration(): Promise<void> {
 		const adapter = this.plugin.app.vault.adapter;
 		if (!(await adapter.exists(MDBASE_MIGRATION_PENDING_PATH))) return;
+		let recoveryFolder = "see pending record";
 		try {
 			const parsed = JSON.parse(await adapter.read(MDBASE_MIGRATION_PENDING_PATH)) as unknown;
 			const journal = parseMigrationJournal(parsed);
+			recoveryFolder = journal.backupFolder;
 			const configSnapshot = journal.snapshots.find(({ path }) => path === "mdbase.yaml");
 			const typeSnapshot = journal.snapshots.find(({ path }) => path.endsWith("/task.md"));
 			if (
@@ -510,6 +642,12 @@ export class MdbaseSpecService {
 				(await adapter.read(`${journal.backupFolder}/task.md.bak`)) !== typeSnapshot.content
 			) {
 				throw new Error("The migration recovery copies do not match the pending record.");
+			}
+			for (const snapshot of journal.snapshots) {
+				if (snapshot.content === null || snapshot.path === "mdbase.yaml" || snapshot.path === typeSnapshot.path) continue;
+				// Older journals only stored config/type; retain backward recovery support.
+				const backupPath = `${journal.backupFolder}/${snapshot.path}.bak`;
+				if (await adapter.exists(backupPath) && await adapter.read(backupPath) !== snapshot.content) throw new Error(`Recovery backup mismatch: ${snapshot.path}`);
 			}
 			await this.restoreSnapshotsIfUnchanged(journal);
 			await this.removeMigrationJournal();
@@ -523,14 +661,15 @@ export class MdbaseSpecService {
 				error,
 			});
 			throw new Error(
-				`An interrupted mdbase migration needs manual review; TaskNotes left all files unchanged: ${String(error)}`
+				`Pending record: ${MDBASE_MIGRATION_PENDING_PATH}; backups: ${recoveryFolder}; blocked file: ${String(error)}. Review the backup manifest before restoring metadata; do not replace changed files blindly.`
 			);
 		}
 	}
 
 	private async writeV02MigrationBackup(
 		configContent: string,
-		legacyType: LegacyTaskNotesTypeState
+		legacyType: LegacyTaskNotesTypeState,
+		snapshots: FileSnapshot[]
 	): Promise<string> {
 		const suffix = new Date().toISOString().replace(/[:.]/g, "-");
 		const baseFolder = `${MDBASE_MIGRATION_BACKUP_FOLDER}/mdbase-v0.2-${suffix}`;
@@ -541,10 +680,17 @@ export class MdbaseSpecService {
 			attempt += 1;
 		}
 		await this.ensureFolderPath(folder);
-		await this.plugin.app.vault.create(`${folder}/mdbase.yaml.bak`, configContent);
-		await this.plugin.app.vault.create(`${folder}/task.md.bak`, legacyType.content);
-		await this.plugin.app.vault.create(
-			`${folder}/manifest.json`,
+		await this.metadataIO.replace({ path: `${folder}/mdbase.yaml.bak`, content: null }, configContent);
+		await this.metadataIO.replace({ path: `${folder}/task.md.bak`, content: null }, legacyType.content);
+		for (const snapshot of snapshots) {
+			if (snapshot.content === null) continue;
+			const path = `${folder}/${snapshot.path}.bak`;
+			if (path === `${folder}/mdbase.yaml.bak`) continue;
+			await this.ensureFolderPath(path.split("/").slice(0, -1).join("/"));
+			await this.metadataIO.replace({ path, content: null }, snapshot.content);
+		}
+		await this.metadataIO.replace(
+			{ path: `${folder}/manifest.json`, content: null },
 			JSON.stringify(
 				{
 					created_at: new Date().toISOString(),
@@ -552,6 +698,7 @@ export class MdbaseSpecService {
 					files: {
 						"mdbase.yaml": "mdbase.yaml.bak",
 						[legacyType.path]: "task.md.bak",
+						...Object.fromEntries(snapshots.filter((snapshot) => snapshot.content !== null && snapshot.path !== "mdbase.yaml" && snapshot.path !== legacyType.path).map((snapshot) => [snapshot.path, `${snapshot.path}.bak`])),
 					},
 				},
 				null,
@@ -610,7 +757,7 @@ export class MdbaseSpecService {
 		const existingCollection = await this.readExistingCollection();
 		const specFamily = getSpecFamily(existingCollection.config?.spec_version);
 		if (existingCollection.exists && specFamily === "v0.2") {
-			await this.generate();
+			await this.migrateGeneratedV02Collection(existingCollection);
 			return;
 		}
 		if (existingCollection.exists && !specFamily) {
@@ -627,6 +774,7 @@ export class MdbaseSpecService {
 		if (!this.plugin.settings.enableMdbaseSpec) return;
 		const collection = await this.readExistingCollection();
 		if (getSpecFamily(collection.config?.spec_version) !== "v0.3") return;
+		await this.loadAppSettingsRecord();
 		const state = await this.readCanonicalType(collection);
 		if (state) {
 			this.applyCanonicalState(state);
@@ -659,61 +807,12 @@ export class MdbaseSpecService {
 				return;
 			}
 
-			const specFamily = existingSpecFamily ?? "v0.3";
-			const specVersion =
-				typeof existingCollection.config?.spec_version === "string"
-					? existingCollection.config.spec_version
-					: MDBASE_V03_SPEC_VERSION;
-			const typesFolder =
-				this.normalizeTypesFolder(existingCollection.config?.settings?.types_folder) ??
-				DEFAULT_TYPES_FOLDER;
-			const contractsFolder =
-				this.normalizeTypesFolder(
-					existingCollection.config?.settings?.contracts_folder
-				) ?? DEFAULT_CONTRACTS_FOLDER;
-			const taskTypePath = `${typesFolder}/task.md`;
-
-			await this.ensureFolderPath(typesFolder);
-
-			const legacyCompatibility =
-				specFamily === "v0.3" && isRecord(existingCollection.config?.["x-legacy-v0.2"]);
-			let canonicalResources: TaskNotesMdbaseResources | null = null;
-			if (specFamily === "v0.2") {
-				await this.writeFile(taskTypePath, this.buildTaskTypeDefV02());
-			} else {
-				canonicalResources = this.buildCanonicalMdbaseResources(
-					typesFolder,
-					legacyCompatibility,
-					"task",
-					contractsFolder
-				);
-				await this.writeCanonicalSupportResources(canonicalResources);
-				const written = await this.writeCanonicalType(
-					taskTypePath,
-					canonicalResources,
-					!existingCollection.exists
-				);
-				if (!written) {
-					return;
-				}
+			if (existingSpecFamily === "v0.2") {
+				await this.migrateGeneratedV02Collection(existingCollection);
+				return;
 			}
+			await this.syncSettingsToCanonicalType(existingCollection);
 
-			// Only create mdbase.yaml if it doesn't already exist so that
-			// user customisations (extra excludes, description, etc.) are preserved.
-			if (!existingCollection.exists) {
-				const mdbaseYaml =
-					canonicalResources?.configDocument ?? this.buildMdbaseYaml(typesFolder);
-				await this.writeFile("mdbase.yaml", mdbaseYaml);
-			}
-
-			tasknotesLogger.debug(
-				`[TaskNotes][mdbase-spec] Generated ${specFamily} collection metadata and ${taskTypePath}`,
-				{
-					category: "configuration",
-					operation: "generated-mdbase-yaml-and",
-					details: { specVersion },
-				}
-			);
 		} catch (error) {
 			tasknotesLogger.error("[TaskNotes][mdbase-spec] Failed to generate files:", {
 				category: "configuration",
@@ -723,20 +822,91 @@ export class MdbaseSpecService {
 		}
 	}
 
+	private async reconcileMembershipKeys(): Promise<void> {
+		const adapter = this.plugin.app.vault.adapter;
+		if (!(await adapter.exists("mdbase.yaml"))) return;
+		const before = await adapter.read("mdbase.yaml");
+		const after = addAppCollectionConfig(before, this.plugin.settings);
+		if (after !== before) await this.writeFileIfUnchanged({ path: "mdbase.yaml", content: before }, after);
+	}
+
 	private async syncSettingsToCanonicalType(
+		existingCollection: ExistingCollection
+	): Promise<void> {
+		return this.metadataQueue.run(async () => {
+			await this.metadataIO.assertPhysical(this.resolveTypesFolder(existingCollection));
+			if (existingCollection.exists && await this.readGeneratedV02TaskType(existingCollection, false)) {
+				// Already inside the shared queue: avoid a nested queue/transaction.
+				await this.recoverInterruptedV02Migration();
+				await this.migrateGeneratedV02CollectionSnapshot(existingCollection);
+				return;
+			}
+			const previous = this.writeInProgress;
+			this.writeInProgress = true;
+			this.deferredMetadataNotices = [];
+			try {
+				await this.metadataTransaction.run(async () => {
+					if (existingCollection.exists) {
+						const content = await this.metadataIO.read("mdbase.yaml");
+						if (content === null) throw new Error("mdbase.yaml disappeared while preparing the update.");
+						this.metadataTransaction.stage({ path: "mdbase.yaml", content }, content);
+					}
+					await this.loadAppSettingsRecord();
+					await this.syncSettingsToCanonicalTypeSnapshot(existingCollection);
+					await this.syncAppSettingsRecordSnapshot(existingCollection);
+				});
+				const notices = this.deferredMetadataNotices;
+				this.deferredMetadataNotices = null;
+				for (const notice of notices) this.publishNotice(notice);
+			} catch (error) {
+				this.clearCanonicalState();
+				throw error;
+			} finally {
+				this.deferredMetadataNotices = null;
+				this.writeInProgress = previous;
+			}
+		});
+	}
+
+	private async syncSettingsToCanonicalTypeSnapshot(
 		existingCollection: ExistingCollection
 	): Promise<void> {
 		const typesFolder = this.resolveTypesFolder(existingCollection);
 		const contractsFolder = this.resolveContractsFolder(existingCollection);
 		const legacyCompatibility = isRecord(existingCollection.config?.["x-legacy-v0.2"]);
 		this.canonicalTypesFolder = typesFolder;
+		if (!existingCollection.exists && !this.canonicalTypePath &&
+			!await this.readCanonicalType(existingCollection, false)) {
+			const adapter = this.plugin.app.vault.adapter;
+			for (const folder of [typesFolder, contractsFolder]) {
+				if (await adapter.exists(folder) && (await this.listMarkdownFilesRecursively(folder)).length > 0) {
+					this.publishNotice(migrationRecognitionNotice(this.plugin, "waiting", { path: folder }));
+					return;
+				}
+			}
+		}
 		await this.ensureFolderPath(typesFolder);
+		if (!(await this.setAsideSupersededBetaTypes(typesFolder, existingCollection))) return;
 
-		const state = await this.readCanonicalType(existingCollection, false);
-		if (this.canonicalReadBlocked) {
-			return;
+		let state = await this.readCanonicalType(existingCollection);
+		if (this.canonicalReadBlocked) return;
+		const legacyPath = `${typesFolder}/task.md`;
+		if (await this.plugin.app.vault.adapter.exists(legacyPath)) {
+			const content = await this.plugin.app.vault.adapter.read(legacyPath);
+			if (hasLegacyFieldsSchema(content)) {
+				this.publishNotice(migrationRecognitionNotice(this.plugin, "review", { path: legacyPath }));
+				return;
+			}
 		}
 		if (state) {
+			const savedExclusions = (state.type["x-tasknotes-generator"] as Record<string, unknown> | undefined)?.excluded_folders;
+			if (this.lastKnownTypeContent === null && Array.isArray(savedExclusions)) this.plugin.settings.excludedFolders = savedExclusions.join(", ");
+			const adjusted = this.lastKnownTypeContent === null ? applyTaskExclusions(state.content, this.plugin.settings.excludedFolders || "") : state.content;
+			if (adjusted !== state.content) {
+				await this.writeFileIfUnchanged({ path: state.path, content: state.content }, adjusted);
+				state = { ...state, content: adjusted, type: withCurrentTaskNotesContract(parseMdbaseTaskTypeDocument(adjusted).type).type };
+			}
+			await this.reconcileMembershipKeys();
 			await this.writeCanonicalSupportResources(
 				this.buildCanonicalMdbaseResources(
 					typesFolder,
@@ -758,6 +928,30 @@ export class MdbaseSpecService {
 			rememberedPath ??
 			(defaultPathOccupied ? `${typesFolder}/tasknotes-task.md` : defaultPath);
 		const localFingerprint = portableSettingsFingerprint(this.plugin.settings);
+		let comparedContent = state?.content ?? null;
+
+		if (state?.outdated) {
+			// Read the earlier type into settings, then rewrite it in place at the
+			// current contract version. Settings it does not model are kept by the merge.
+			this.applyCanonicalState(state);
+			const resources = this.buildCanonicalMdbaseResources(
+				typesFolder,
+				legacyCompatibility,
+				typeof state.type.name === "string" ? state.type.name : "task",
+				contractsFolder
+			);
+			const upgraded = upgradeCanonicalDocument(state.content, resources);
+			await this.writeFileIfUnchanged({ path: state.path, content: state.content }, upgraded);
+			this.applyCanonicalState({ path: state.path, content: upgraded, type: parseMdbaseTaskTypeDocument(upgraded).type }, false);
+			if (upgraded !== state.content) {
+				this.publishNotice(
+					hasLegacyAppSettings(state.legacyBinding)
+						? `TaskNotes updated ${state.path} to tasknotes.task ${TASKNOTES_CONTRACT_VERSION} and moved its app settings to ${APP_SETTINGS_RECORD_PATH}. Task files were not changed.`
+						: `TaskNotes updated ${state.path} to tasknotes.task ${TASKNOTES_CONTRACT_VERSION}. Task files were not changed.`
+				);
+			}
+			return;
+		}
 
 		if (state) {
 			if (
@@ -815,6 +1009,7 @@ export class MdbaseSpecService {
 				return;
 			}
 		} else if (await this.plugin.app.vault.adapter.exists(typePath)) {
+			comparedContent = await this.plugin.app.vault.adapter.read(typePath);
 			const choice = await this.askConflict(typePath, true);
 			if (choice === "type") {
 				return;
@@ -833,11 +1028,13 @@ export class MdbaseSpecService {
 			contractsFolder
 		);
 		await this.writeCanonicalSupportResources(resources);
-		const written = await this.writeCanonicalType(typePath, resources, true);
+		const written = await this.writeCanonicalType(typePath, resources, true, comparedContent);
 		if (!written) return;
 
 		if (!existingCollection.exists) {
 			await this.writeFile("mdbase.yaml", resources.configDocument);
+		} else {
+			await this.reconcileMembershipKeys();
 		}
 	}
 
@@ -855,9 +1052,9 @@ export class MdbaseSpecService {
 			return defaultState;
 		}
 
-		const listing = await adapter.list(typesFolder);
+		const paths = await this.listMarkdownFilesRecursively(typesFolder);
 		const candidates: CanonicalTypeState[] = defaultState ? [defaultState] : [];
-		for (const path of listing.files.filter((file) => file.endsWith(".md"))) {
+		for (const path of paths) {
 			if (path === defaultPath) continue;
 			const state = await this.readCanonicalTypeAtPath(path, false);
 			if (state) candidates.push(state);
@@ -865,13 +1062,16 @@ export class MdbaseSpecService {
 
 		if (candidates.length > 1) {
 			this.canonicalReadBlocked = true;
-			if (reportErrors) {
-				this.reportInvalidCanonicalType(
-					`Multiple TaskNotes contracts were found in ${typesFolder}. Keep one canonical type before continuing.`
-				);
+			const paths = candidates.map((candidate) => candidate.path).sort().join(", ");
+			const message = this.plugin.i18n?.translate("mdbaseSafety.multiple", { paths }) ??
+				`Multiple TaskNotes types: ${paths}. Keep one canonical provider or move the others out of the types folder, then reload TaskNotes. TaskNotes kept its last-known-good configuration.`;
+			if (this.lastBlockedNotice !== message) {
+				this.publishNotice(message);
+				this.lastBlockedNotice = message;
 			}
 			return null;
 		}
+		this.lastBlockedNotice = null;
 		return candidates[0] ?? null;
 	}
 
@@ -894,20 +1094,27 @@ export class MdbaseSpecService {
 
 		try {
 			const parsed = parseMdbaseTaskTypeDocument(content);
-			if (!hasTaskNotesImplementation(parsed.type)) {
+			const { type, outdated, legacyBinding, previousVersion } = withCurrentTaskNotesContract(parsed.type);
+			if (!hasTaskNotesImplementation(type)) {
 				return null;
 			}
-			const validation = validateCanonicalTaskType(parsed.type);
+			const validation = validateCanonicalTaskType(type);
 			if (!validation.valid) {
 				this.canonicalTypePath = path;
-				if (reportErrors) {
-					this.reportInvalidCanonicalType(
-						`${path} is inconsistent: ${validation.issues.join("; ")}`
-					);
-				}
+				this.canonicalReadBlocked = true;
+				this.reportInvalidCanonicalType(
+					(this.plugin.i18n ?? createI18nService()).translate("collectionCheck.invalidType", { path, issues: validation.issues.join("; ") })
+				);
 				return null;
 			}
-			return { path, content, type: parsed.type };
+			return {
+				path,
+				content,
+				type,
+				outdated,
+				...(legacyBinding ? { legacyBinding } : {}),
+				...(previousVersion ? { previousVersion } : {}),
+			};
 		} catch (error) {
 			this.canonicalTypePath = path;
 			if (reportErrors) {
@@ -917,27 +1124,235 @@ export class MdbaseSpecService {
 		}
 	}
 
-	private applyCanonicalState(state: CanonicalTypeState): void {
-		applyCanonicalTaskTypeToSettings(this.plugin.settings, state.type);
+	/**
+	 * Apply the canonical type, and the settings record when it is new to this
+	 * session and the app settings have no unsaved local change, to the plugin
+	 * settings. `includeRecord: false` is for read-back after TaskNotes wrote the
+	 * type from local settings.
+	 */
+	private applyCanonicalState(state: CanonicalTypeState, includeRecord = true): void {
+		const record = includeRecord ? this.recordToApply() : undefined;
+		try {
+			applyCanonicalTaskTypeToSettings(this.plugin.settings, state.type, {
+				...(record ? { record: record.frontmatter } : {}),
+				...(state.legacyBinding ? { legacyBinding: state.legacyBinding } : {}),
+			});
+		}
+		catch (error) { throw new Error(`${state.path}: ${String(error)}`); }
 		this.canonicalTypePath = state.path;
 		this.lastKnownTypeContent = state.content;
 		this.lastAppliedSettingsFingerprint = portableSettingsFingerprint(this.plugin.settings);
+		if (record) {
+			this.lastKnownRecordContent = record.content;
+			this.appSettingsAppliedFromRecord = true;
+		}
+		if (record || state.legacyBinding || this.lastAppliedAppFingerprint === null) {
+			this.rememberAppliedAppSettings();
+		}
+	}
+
+	private rememberAppliedAppSettings(): void {
+		this.lastAppliedAppValues = appSettingsFromPluginSettings(this.plugin.settings);
+		this.lastAppliedAppFingerprint = JSON.stringify(this.lastAppliedAppValues);
+	}
+
+	private localAppSettingsChanged(): boolean {
+		return this.lastAppliedAppFingerprint !== null &&
+			appSettingsFingerprint(this.plugin.settings) !== this.lastAppliedAppFingerprint;
+	}
+
+	/** The current record, when it should be applied over the plugin settings. */
+	private recordToApply(): { content: string; frontmatter: Record<string, unknown> } | undefined {
+		const content = this.currentRecordContent;
+		if (content === null || content === this.lastKnownRecordContent) return undefined;
+		if (this.localAppSettingsChanged()) return undefined;
+		const frontmatter = this.parseRecord(content);
+		return frontmatter ? { content, frontmatter } : undefined;
+	}
+
+	private parseRecord(content: string): Record<string, unknown> | undefined {
+		try {
+			return readAppSettingsFrontmatter(content);
+		} catch {
+			return undefined;
+		}
+	}
+
+	private async loadAppSettingsRecord(): Promise<void> {
+		this.currentRecordContent = await this.metadataIO.read(APP_SETTINGS_RECORD_PATH);
+		await this.reportCompetingSettingsRecords();
+	}
+
+	/**
+	 * Name other files in the settings folder that also claim to be the TaskNotes
+	 * collection settings record, such as sync conflict copies. TaskNotes keeps
+	 * using the canonical record; the others are never changed.
+	 */
+	private async reportCompetingSettingsRecords(): Promise<void> {
+		const adapter = this.plugin.app.vault.adapter;
+		const competing: string[] = [];
+		if (typeof adapter.list === "function" && (await adapter.exists(APP_SETTINGS_FOLDER))) {
+			for (const path of await this.listMarkdownFilesRecursively(APP_SETTINGS_FOLDER)) {
+				if (path === APP_SETTINGS_RECORD_PATH) continue;
+				const frontmatter = this.parseRecord(await adapter.read(path));
+				if (frontmatter?.app === TASKNOTES_SETTINGS_APP && frontmatter.scope === "collection") competing.push(path);
+			}
+		}
+		if (competing.length === 0) {
+			this.lastCompetingRecordsNotice = null;
+			return;
+		}
+		const paths = competing.sort().join(", ");
+		const message = this.plugin.i18n?.translate("mdbaseSafety.competingSettings", { paths, record: APP_SETTINGS_RECORD_PATH }) ??
+			`Other TaskNotes settings records found: ${paths}. TaskNotes is using ${APP_SETTINGS_RECORD_PATH} and ignoring the others. Copy any settings you want to keep into ${APP_SETTINGS_RECORD_PATH}, then delete the other files.`;
+		if (this.lastCompetingRecordsNotice === message) return;
+		this.lastCompetingRecordsNotice = message;
+		this.publishNotice(message);
+	}
+
+	private recordNotice(message: string): void {
+		if (this.lastRecordNotice === message) return;
+		this.lastRecordNotice = message;
+		this.publishNotice(message);
+	}
+
+	/**
+	 * Keep the TaskNotes settings record (_settings/dev.tasknotes.md) in step with
+	 * the plugin's app settings. Runs inside the type's metadata transaction, so a
+	 * migration writes the record in the same journalled step as the type.
+	 *
+	 * - No record: create it with every app setting (v4 data.json values, or the
+	 *   settings an earlier binding held, already applied to the plugin settings).
+	 * - First sight of an existing record: add only the fields it lacks.
+	 * - Changed elsewhere: apply it, or ask when the plugin changed too.
+	 * - Changed locally: write only the fields that changed.
+	 */
+	private async syncAppSettingsRecordSnapshot(existingCollection: ExistingCollection): Promise<void> {
+		if (!this.canonicalTypePath || this.canonicalReadBlocked || this.lastKnownTypeContent === null) return;
+		const path = APP_SETTINGS_RECORD_PATH;
+		const content = await this.metadataIO.read(path);
+		const local = appSettingsFromPluginSettings(this.plugin.settings);
+		if (content === null) {
+			const created = writeAppSettingsDocument(null, {}, {
+				frontmatter: newTaskNotesSettingsFrontmatter(completeTaskNotesAppSettingsChanges(local)),
+				type: TASKNOTES_SETTINGS_TYPE,
+				typeKey: this.recordTypeKey(existingCollection),
+			});
+			await this.writeFileIfUnchanged({ path, content: null }, created);
+			this.lastKnownRecordContent = created;
+			this.recordAbsentFieldsMerged = true;
+			this.rememberAppliedAppSettings();
+			return;
+		}
+		const frontmatter = this.parseRecord(content);
+		if (!frontmatter) {
+			this.recordNotice(`${path} could not be read, so TaskNotes left it unchanged and kept its current settings.`);
+			this.lastKnownRecordContent = content;
+			return;
+		}
+		const readOnly = resolveTaskNotesAppSettings(frontmatter).readOnly;
+		if (!this.recordAbsentFieldsMerged && (this.lastKnownRecordContent === null || this.lastKnownRecordContent === content)) {
+			// First sync of this record in the session. applyCanonicalState already
+			// applied what it holds (over an earlier binding and local settings), so
+			// the plugin settings now supply the fields the record lacks, plus any
+			// setting changed locally since then (this sync may be the first save).
+			this.recordAbsentFieldsMerged = true;
+			this.lastKnownRecordContent = content;
+			if (readOnly) {
+				this.recordNotice(`${path}: ${readOnly}`);
+				return;
+			}
+			const patch = {
+				...absentTaskNotesSettingsPatch(frontmatter, local),
+				...(this.localAppSettingsChanged()
+					? buildTaskNotesSettingsPatch(frontmatter, changedTaskNotesAppSettings(this.lastAppliedAppValues ?? local, local))
+					: {}),
+			};
+			if (Object.keys(patch).length > 0) await this.writeRecordPatch(content, patch);
+			this.rememberAppliedAppSettings();
+			return;
+		}
+		const externalChanged = content !== this.lastKnownRecordContent;
+		const localChanged = this.localAppSettingsChanged();
+		if (externalChanged && localChanged) {
+			const choice = await this.askConflict(path, false, true);
+			if (choice === "type") {
+				this.applyRecordToSettings(content, frontmatter);
+				return;
+			}
+		} else if (externalChanged) {
+			this.applyRecordToSettings(content, frontmatter);
+			return;
+		} else if (!localChanged) {
+			return;
+		}
+		if (readOnly) {
+			this.recordNotice(`${path}: ${readOnly}`);
+			this.lastKnownRecordContent = content;
+			return;
+		}
+		const changes = changedTaskNotesAppSettings(this.lastAppliedAppValues ?? local, local);
+		const patch = buildTaskNotesSettingsPatch(frontmatter, changes);
+		if (Object.keys(patch).length > 0) await this.writeRecordPatch(content, patch);
+		else this.lastKnownRecordContent = content;
+		this.rememberAppliedAppSettings();
+	}
+
+	private async writeRecordPatch(content: string, patch: Record<string, unknown>): Promise<void> {
+		const next = writeAppSettingsDocument(content, patch);
+		await this.writeFileIfUnchanged({ path: APP_SETTINGS_RECORD_PATH, content }, next);
+		this.lastKnownRecordContent = next;
+	}
+
+	private applyRecordToSettings(content: string, frontmatter: Record<string, unknown>): void {
+		const values = resolveTaskNotesAppSettings(frontmatter, {
+			fallback: appSettingsFromPluginSettings(this.plugin.settings),
+		}).values;
+		applyAppSettingsToPluginSettings(this.plugin.settings, values);
+		this.lastKnownRecordContent = content;
+		this.appSettingsAppliedFromRecord = true;
+		this.rememberAppliedAppSettings();
+	}
+
+	private recordTypeKey(existingCollection: ExistingCollection): string {
+		const keys = existingCollection.config?.settings?.explicit_type_keys;
+		return Array.isArray(keys) && typeof keys[0] === "string" && keys[0].trim() ? keys[0] : "mdbase_type";
 	}
 
 	private async writeCanonicalType(
 		path: string,
 		resources: TaskNotesMdbaseResources,
-		allowRepair: boolean
+		allowRepair: boolean,
+		comparedContent?: string | null
+	): Promise<boolean> {
+		const work = this.canonicalWritePromise.catch(() => false).then(() =>
+			this.writeCanonicalTypeSnapshot(path, resources, allowRepair, comparedContent)
+		);
+		this.canonicalWritePromise = work;
+		return work;
+	}
+
+	private async writeCanonicalTypeSnapshot(
+		path: string,
+		resources: TaskNotesMdbaseResources,
+		allowRepair: boolean,
+		comparedContent?: string | null
 	): Promise<boolean> {
 		const adapter = this.plugin.app.vault.adapter;
 		const exists = await adapter.exists(path);
 		let content = resources.typeDocument;
+		const snapshot: FileSnapshot = {
+			path,
+			content: comparedContent !== undefined ? comparedContent : (exists ? await adapter.read(path) : null),
+		};
 
-		if (exists) {
-			const existing = await adapter.read(path);
+		if (snapshot.content !== null) {
+			const existing = snapshot.content;
 			try {
 				const parsed = parseMdbaseTaskTypeDocument(existing);
-				const validation = validateCanonicalTaskType(parsed.type);
+				const validation = validateCanonicalTaskType(
+					withCurrentTaskNotesContract(parsed.type).type
+				);
 				if (!validation.valid && !allowRepair) {
 					this.reportInvalidCanonicalType(
 						`${path} is inconsistent: ${validation.issues.join("; ")}`
@@ -962,24 +1377,91 @@ export class MdbaseSpecService {
 
 		this.writeInProgress = true;
 		try {
-			if (exists) {
-				await adapter.write(path, content);
-			} else {
-				await this.plugin.app.vault.create(path, content);
-			}
+			await this.writeFileIfUnchanged(snapshot, content);
+		} catch (error) {
+			// Re-read the disk state through normal conflict reconciliation. Never
+			// retry with a fresh snapshot and stale settings after a failed CAS.
+			this.requestReconciliation();
+			throw error;
 		} finally {
 			this.writeInProgress = false;
 		}
 
 		const parsed = parseMdbaseTaskTypeDocument(content);
-		this.applyCanonicalState({ path, content, type: parsed.type });
+		this.applyCanonicalState({ path, content, type: parsed.type }, false);
+		return true;
+	}
+
+	/**
+	 * 5.0 betas did not recognize a task type that TaskNotes App had updated, and
+	 * wrote a second, earlier-version type beside it (named tasknotes-task, as the
+	 * default path was taken). When exactly that is present, keep the current type
+	 * and move the superseded ones to the migration backup folder. Anything else
+	 * with more than one TaskNotes type is left for the user.
+	 */
+	private async setAsideSupersededBetaTypes(typesFolder: string, collection: ExistingCollection): Promise<boolean> {
+		const adapter = this.plugin.app.vault.adapter;
+		if (typeof adapter.list !== "function" || !(await adapter.exists(typesFolder))) return true;
+		const states: CanonicalTypeState[] = [];
+		for (const path of await this.listMarkdownFilesRecursively(typesFolder)) {
+			const state = await this.readCanonicalTypeAtPath(path, false);
+			if (state) states.push(state);
+		}
+		// A type on the release before this one (rc.5) is current: this load upgrades it.
+		const latestPrevious = PREVIOUS_TASKNOTES_CONTRACT_VERSIONS[0];
+		const isCurrent = (state: CanonicalTypeState) => !state.outdated || state.previousVersion === latestPrevious;
+		const current = states.filter(isCurrent);
+		const superseded = states.filter(
+			(state) =>
+				!isCurrent(state) &&
+				state.type.name === "tasknotes-task" &&
+				isRecord(state.type["x-tasknotes-generator"])
+		);
+		if (current.length !== 1 || superseded.length === 0 || current.length + superseded.length !== states.length) {
+			return true;
+		}
+		const configuredKeys = collection.config?.settings?.explicit_type_keys;
+		if (configuredKeys !== undefined && (!Array.isArray(configuredKeys) || configuredKeys.some((key) => typeof key !== "string" || !key.trim()))) {
+			throw new Error("Invalid explicit_type_keys; cannot safely check duplicate type references.");
+		}
+		const reference = await findExplicitTypeReference(adapter, superseded, collection.config);
+		if (reference) {
+			this.publishNotice(this.plugin.i18n?.translate("mdbaseSafety.referenced", reference) ??
+				`TaskNotes kept ${reference.typePath}: ${reference.recordPath} explicitly references this type. Review its membership before moving the provider; task files were not changed.`);
+			return false;
+		}
+		const suffix = new Date().toISOString().replace(/[:.]/g, "-");
+		const baseFolder = `${MDBASE_MIGRATION_BACKUP_FOLDER}/superseded-types-${suffix}`;
+		let folder = baseFolder;
+		let attempt = 2;
+		while (await adapter.exists(folder)) folder = `${baseFolder}-${attempt++}`;
+		await this.ensureFolderPath(folder);
+		for (const state of superseded) {
+			const destination = `${folder}/${state.path}`;
+			await this.ensureFolderPath(destination.split("/").slice(0, -1).join("/"));
+			try {
+				await this.metadataIO.move({ path: state.path, content: state.content }, destination);
+			} catch (error) {
+				this.publishNotice(this.safetyNotice(`${String(error)}; backups: ${folder}`));
+				return false;
+			}
+		}
+		this.canonicalTypePath = current[0].path;
+		// App settings come from the canonical type's collection record only.
+		const withAppSettings = superseded.filter((state) => hasLegacyAppSettings(state.legacyBinding));
+		this.publishNotice(
+			`TaskNotes removed ${superseded.map((state) => state.path).join(", ")}, an earlier duplicate of ${current[0].path}. A copy is in ${folder}.` +
+				(withAppSettings.length > 0
+					? ` App settings it held (such as templates and archive moves) were not used: TaskNotes keeps them in ${APP_SETTINGS_RECORD_PATH}, alongside ${current[0].path}.`
+					: "")
+		);
 		return true;
 	}
 
 	private async backupInvalidType(path: string, content: string): Promise<void> {
 		const suffix = new Date().toISOString().replace(/[:.]/g, "-");
 		const backupPath = `${path}.tasknotes-backup-${suffix}`;
-		await this.plugin.app.vault.create(backupPath, content);
+		await this.metadataIO.replace({ path: backupPath, content: null }, content);
 		this.publishNotice(`TaskNotes backed up the invalid type to ${backupPath}.`);
 	}
 
@@ -1006,7 +1488,9 @@ export class MdbaseSpecService {
 	}
 
 	private isCanonicalPath(path: string): boolean {
-		if (path === "mdbase.yaml" || path === this.canonicalTypePath) return true;
+		if (path === "mdbase.yaml" || path === this.canonicalTypePath || path === APP_SETTINGS_RECORD_PATH) return true;
+		// Other records in the settings folder: a competing copy is reported.
+		if (path.startsWith(`${APP_SETTINGS_FOLDER}/`) && path.endsWith(".md")) return true;
 		return Boolean(
 			this.canonicalTypesFolder &&
 				path.startsWith(`${this.canonicalTypesFolder}/`) &&
@@ -1056,7 +1540,12 @@ export class MdbaseSpecService {
 			}
 			return;
 		}
+		if (getSpecFamily(collection.config?.spec_version) === "v0.2") {
+			await this.migrateGeneratedV02Collection(collection);
+			return;
+		}
 		if (getSpecFamily(collection.config?.spec_version) !== "v0.3") return;
+		await this.loadAppSettingsRecord();
 		const state = await this.readCanonicalType(collection);
 		if (!state) {
 			if (this.canonicalReadBlocked) return;
@@ -1078,6 +1567,15 @@ export class MdbaseSpecService {
 		}
 		if (state.content === this.lastKnownTypeContent) {
 			this.canonicalTypePath = state.path;
+			if (this.currentRecordContent !== this.lastKnownRecordContent) {
+				// Only the settings record changed (or disappeared).
+				this.appSettingsAppliedFromRecord = false;
+				await this.syncSettingsToCanonicalType(collection);
+				if (this.appSettingsAppliedFromRecord) {
+					await this.plugin.saveSettingsDataOnly();
+					await this.plugin.settingsLifecycleService?.onCanonicalSettingsChanged();
+				}
+			}
 			return;
 		}
 
@@ -1099,13 +1597,14 @@ export class MdbaseSpecService {
 		await this.plugin.settingsLifecycleService?.onCanonicalSettingsChanged();
 	}
 
-	private askConflict(path: string, invalidType: boolean): Promise<ConflictChoice> {
+	private askConflict(path: string, invalidType: boolean, settingsRecord = false): Promise<ConflictChoice> {
 		return new Promise((resolve) => {
 			new MdbaseConfigurationConflictModal(
 				this.plugin.app,
 				path,
 				invalidType,
-				resolve
+				resolve,
+				settingsRecord
 			).open();
 		});
 	}
@@ -1116,10 +1615,18 @@ export class MdbaseSpecService {
 			operation: "canonical-type-invalid",
 			...(error ? { error } : {}),
 		});
-		this.publishNotice(`${message} TaskNotes kept its last-known-good configuration.`);
+		this.publishNotice(`${message} ${(this.plugin.i18n ?? createI18nService()).translate("collectionCheck.keptConfiguration")}`);
+	}
+
+	private safetyNotice(details: string): string {
+		return metadataSafetyNotice(this.plugin, details);
 	}
 
 	private publishNotice(message: string): void {
+		if (this.deferredMetadataNotices) {
+			this.deferredMetadataNotices.push(message);
+			return;
+		}
 		if (this.plugin.emitter) {
 			publishUserNotice(this.plugin.emitter, message);
 		} else {
@@ -1133,6 +1640,10 @@ export class MdbaseSpecService {
 		this.canonicalResourcePaths.clear();
 		this.lastKnownTypeContent = null;
 		this.lastAppliedSettingsFingerprint = null;
+		this.lastKnownRecordContent = null;
+		this.recordAbsentFieldsMerged = false;
+		this.lastAppliedAppFingerprint = null;
+		this.lastAppliedAppValues = null;
 		this.canonicalReadBlocked = false;
 	}
 
@@ -1218,6 +1729,7 @@ export class MdbaseSpecService {
 
 	private async ensureFolderPath(folderPath: string): Promise<void> {
 		const vault = this.plugin.app.vault;
+		if (folderPath) await this.metadataIO.assertPhysical(folderPath);
 		const parts = folderPath.split("/").filter(Boolean);
 		let currentPath = "";
 
@@ -1234,41 +1746,20 @@ export class MdbaseSpecService {
 		snapshot: FileSnapshot,
 		content: string
 	): Promise<void> {
-		const vault = this.plugin.app.vault;
-		if (snapshot.content === null) {
-			const parent = snapshot.path.split("/").slice(0, -1).join("/");
-			if (parent) await this.ensureFolderPath(parent);
-			await vault.create(snapshot.path, content);
-			return;
-		}
-		const file = vault.getAbstractFileByPath?.(snapshot.path);
-		if (file instanceof TFile) {
-			await vault.process(file, (current) => {
-				if (current !== snapshot.content) {
-					throw new Error(`Refusing to overwrite a concurrent change to ${snapshot.path}`);
-				}
-				return content;
-			});
-			return;
-		}
-		if ((await vault.adapter.read(snapshot.path)) !== snapshot.content) {
+		if (this.metadataTransaction.stage(snapshot, content)) return;
+		if (await this.metadataIO.read(snapshot.path) !== snapshot.content) {
 			throw new Error(`Refusing to overwrite a concurrent change to ${snapshot.path}`);
 		}
-		await vault.adapter.write(snapshot.path, content);
+		const parent = snapshot.path.split("/").slice(0, -1).join("/");
+		if (parent) await this.ensureFolderPath(parent);
+		await this.metadataIO.replace(snapshot, content);
 	}
 
 	/**
 	 * Write a file, creating it if it doesn't exist or updating if it does.
 	 */
 	private async writeFile(path: string, content: string): Promise<void> {
-		const vault = this.plugin.app.vault;
-		const fileExists = await vault.adapter.exists(path);
-
-		if (fileExists) {
-			await vault.adapter.write(path, content);
-		} else {
-			await vault.create(path, content);
-		}
+		await this.writeFileIfUnchanged({ path, content: await this.metadataIO.read(path) }, content);
 	}
 
 	private async writeCanonicalSupportResources(
@@ -1282,15 +1773,42 @@ export class MdbaseSpecService {
 		const previousWriteState = this.writeInProgress;
 		this.writeInProgress = true;
 		try {
+			const snapshots = await this.snapshotFiles(entries.map(([path]) => path));
 			for (const [path, content] of entries) {
-				const parent = path.split("/").slice(0, -1).join("/");
-				if (parent) await this.ensureFolderPath(parent);
-				await this.writeFile(path, content);
+				const before = snapshots.find((item) => item.path === path)?.content ?? null;
+				if (before !== null && before !== content && !isKnownLegacySupport(before)) {
+					throw new Error(`Preserved customized mdbase support resource: ${path}`);
+				}
+			}
+			await this.assertSnapshotsUnchanged(snapshots);
+			for (const [path, content] of entries) {
+				const snapshot = snapshots.find((item) => item.path === path);
+				if (!snapshot) throw new Error(`Missing support snapshot: ${path}`);
+				if (snapshot.content !== content) {
+					// The enclosing metadata transaction backs up replaced support files.
+					if (snapshot.content !== null && !isKnownLegacySupport(snapshot.content)) {
+						await this.backupInvalidType(path, snapshot.content);
+					}
+					await this.writeFileIfUnchanged(snapshot, content);
+				}
 				this.canonicalResourcePaths.add(path);
+			}
+			// The settings record's contracts, schemas and type. These are shared
+			// with TaskNotes App (and the contracts with mdbase Reader): a file
+			// already present, identical or not, is left as it is.
+			for (const resource of this.appSettingsResources(resources)) {
+				const current = await this.metadataIO.read(resource.path);
+				if (current === null) await this.writeFileIfUnchanged({ path: resource.path, content: null }, resource.content);
 			}
 		} finally {
 			this.writeInProgress = previousWriteState;
 		}
+	}
+
+	private appSettingsResources(resources: TaskNotesMdbaseResources) {
+		const contractsFolder = resources.paths.contract.split("/").slice(0, -2).join("/");
+		const typesFolder = resources.paths.type.split("/").slice(0, -1).join("/");
+		return appSettingsSupportResources(contractsFolder, typesFolder);
 	}
 
 	/**
@@ -1324,7 +1842,7 @@ export class MdbaseSpecService {
 	 */
 	private buildTaskTypeDefV02(): string {
 		const settings = this.plugin.settings;
-		const fm = this.plugin.fieldMapper;
+		const fm = new FieldMapper(settings.fieldMapping);
 
 		const lines: string[] = [];
 		lines.push("---");
@@ -1578,7 +2096,7 @@ export class MdbaseSpecService {
 		const occurrenceTemplatePath =
 			settings.taskCreationDefaults?.occurrenceBodyTemplate?.trim() ?? "";
 
-		return buildTaskNotesMdbaseResources({
+		const resources = buildTaskNotesMdbaseResources({
 			typeName,
 			typesFolder,
 			contractsFolder,
@@ -1612,6 +2130,23 @@ export class MdbaseSpecService {
 				occurrenceTemplatePath,
 			},
 		});
+		const config = YAML.parseDocument(resources.configDocument);
+		config.setIn(["settings", "explicit_type_keys"], ["mdbase_type"]);
+		resources.typeDocument = applyTaskExclusions(resources.typeDocument, settings.excludedFolders || "");
+		resources.type = parseMdbaseTaskTypeDocument(resources.typeDocument).type;
+		const document = (source: string): string => {
+			const resource = canonicalTaskNotesResources.find((entry) => entry.source === source);
+			if (!resource) throw new Error(`Missing canonical TaskNotes resource: ${source}`);
+			return resource.document;
+		};
+		return {
+			...resources,
+			configDocument: addAppCollectionConfig(config.toString(), settings),
+			typeDocument: remapMdbaseTypeReferences(resources.typeDocument, new Map([["task", typeName]]), [], true),
+			contractDocument: document(`contracts/tasknotes.task/${TASKNOTES_CONTRACT_VERSION}.md`),
+			taskSchemaDocument: document(`schemas/tasknotes.task/${TASKNOTES_CONTRACT_VERSION}.schema.json`),
+			bindingSchemaDocument: document(`schemas/tasknotes.task.binding/${TASKNOTES_CONTRACT_VERSION}.schema.json`),
+		};
 	}
 
 	/**
@@ -1846,10 +2381,6 @@ function uniqueStrings(values: string[]): string[] {
 	return [...new Set(values.filter((value) => value.length > 0))];
 }
 
-function isUnmodifiedGeneratedV02Type(content: string, expected: string): boolean {
-	return content.replace(/\r\n/g, "\n") === expected.replace(/\r\n/g, "\n");
-}
-
 function parseMigrationJournal(value: unknown): MigrationJournal {
 	if (!isRecord(value) || typeof value.backupFolder !== "string") {
 		throw new Error("The pending migration record is malformed.");
@@ -1898,16 +2429,32 @@ function parseMigrationJournal(value: unknown): MigrationJournal {
 		DEFAULT_TYPES_FOLDER;
 	const contractsFolder = normalizeJournalFolder(migratedConfig.settings?.contracts_folder) ??
 		DEFAULT_CONTRACTS_FOLDER;
-	const expectedPaths = new Set([
+	const requiredPaths = [
 		"mdbase.yaml",
 		`${typesFolder}/task.md`,
-		`${contractsFolder}/tasknotes.task.md`,
 		"_schemas/tasknotes/tasknotes-task.schema.json",
 		"_schemas/tasknotes/tasknotes-task-binding.schema.json",
-	]);
+	];
+	// Journals from earlier releases hold the unversioned contract; rc.6 writes a
+	// versioned contract, the settings support resources and the settings record.
+	const legacyContract = `${contractsFolder}/tasknotes.task.md`;
+	const settingsPaths = [
+		APP_SETTINGS_RECORD_PATH,
+		...appSettingsSupportResources(contractsFolder, typesFolder).map(({ path }) => path),
+	];
+	const versionedContract = /^tasknotes\.task\/[^/]+\.md$/;
+	const allowed = (path: string) =>
+		requiredPaths.includes(path) ||
+		path === legacyContract ||
+		settingsPaths.includes(path) ||
+		(path.startsWith(`${contractsFolder}/`) && versionedContract.test(path.slice(contractsFolder.length + 1)));
+	const contracts = snapshotPaths.filter(
+		(path) => path === legacyContract || (path.startsWith(`${contractsFolder}/`) && versionedContract.test(path.slice(contractsFolder.length + 1)))
+	);
 	if (
-		snapshotPaths.length !== expectedPaths.size ||
-		snapshotPaths.some((path) => !expectedPaths.has(path))
+		requiredPaths.some((path) => !snapshotPaths.includes(path)) ||
+		contracts.length !== 1 ||
+		snapshotPaths.some((path) => !allowed(path))
 	) {
 		throw new Error("The pending migration includes files outside TaskNotes metadata.");
 	}

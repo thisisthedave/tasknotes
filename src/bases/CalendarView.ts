@@ -2,6 +2,7 @@ import TaskNotesPlugin from "../main";
 import { createElementInDocument } from "../utils/documentDom";
 import type { BasesEntry, BasesView, BasesViewFactory } from "obsidian";
 import { BasesViewBase } from "./BasesViewBase";
+import { installCanvasTimeGridScaleCorrection } from "./calendarCanvasScale";
 import type { TaskInfo } from "../types";
 import { identifyTaskNotesFromBasesData } from "./helpers";
 import type { TimeblockCreationResult } from "../modals/TimeblockCreationModal";
@@ -29,6 +30,7 @@ import {
 	handleTimeEntryCreation,
 	handleDateTitleClick,
 	getTargetDateForEvent,
+	getOccurrenceDateForEvent,
 	calculateTaskCreationValues,
 	generateTaskTooltip,
 	applyRecurringTaskStyling,
@@ -59,6 +61,7 @@ import { format } from "date-fns";
 import { TaskContextMenu } from "../components/TaskContextMenu";
 import { ICSEventContextMenu } from "../components/ICSEventContextMenu";
 import { parseDateToLocal, createUTCDateFromLocalCalendarDate } from "../utils/dateUtils";
+import { getCalendarDateDisplayOptions } from "./calendarDateDisplay";
 import {
 	resolveTaskListKeyboardAction,
 	type TaskListAction,
@@ -87,7 +90,7 @@ import {
 	getCalendarConfigValue as getCalendarConfigValueFromSnapshot,
 } from "./calendarConfigSnapshot";
 import { buildCalendarPropertyEvent } from "./calendarPropertyEvents";
-import { buildExternalCalendarEvents } from "./calendarExternalEvents";
+import { buildExternalCalendarEvents, setProviderCalendarToggle } from "./calendarExternalEvents";
 import {
 	decorateCalendarIcsEventElement,
 	getCalendarRelatedNoteTooltip,
@@ -187,7 +190,9 @@ export function getTaskNotesCalendarEventOrder(sortConfig: unknown): string {
 	if (!hasBasesCalendarSortConfig(sortConfig)) {
 		return DEFAULT_CALENDAR_EVENT_ORDER;
 	}
-	return `${TASKNOTES_CALENDAR_SORT_INDEX},${DEFAULT_CALENDAR_EVENT_ORDER}`;
+	// Bases ranks break ties at the same placement. They must not put a timed
+	// task ahead of an earlier appointment that has no Bases result index.
+	return `start,allDay,${TASKNOTES_CALENDAR_SORT_INDEX},-duration,title`;
 }
 
 function getCalendarEventSortPath(event: EventInput): string | null {
@@ -277,6 +282,18 @@ export function isTimeGridCalendarView(viewType: string): boolean {
 
 export function shouldHideCalendarTimeGrid(showTimeGrid: boolean, viewType: string): boolean {
 	return !showTimeGrid && isTimeGridCalendarView(viewType);
+}
+
+/**
+ * With the hourly grid hidden, the all-day row is the whole week/day view.
+ * FullCalendar's automatic limit there is a fixed few rows, so show every
+ * event unless the view sets an explicit limit.
+ */
+export function getTimeGridDayMaxEvents(
+	showTimeGrid: boolean,
+	dayMaxEvents: number | boolean
+): number | boolean {
+	return !showTimeGrid && dayMaxEvents === true ? false : dayMaxEvents;
 }
 
 export type CalendarHeightMode = "fill" | "auto";
@@ -459,6 +476,8 @@ export class CalendarView extends BasesViewBase {
 	type = "tasknotesCalendar";
 	calendar: Calendar | null = null; // Made public for factory access
 	private calendarEl: HTMLElement | null = null;
+	private canvasZoomObserver: MutationObserver | null = null;
+	private releaseCanvasTimeGridScaleCorrection: (() => void) | null = null;
 	// Grid modes (Month/Week/Day/Year/Custom) render FullCalendar's own event
 	// elements, not `.task-card`, so there is no roving-focus model to key
 	// hotkeys off of. These track the task under the mouse instead; hotkeys in
@@ -631,6 +650,8 @@ export class CalendarView extends BasesViewBase {
 		this._previousConfigSnapshot = this.getConfigSnapshot();
 		this._previousDataSignature = this.getDataSignature();
 		this._previousControllerViewName = this.getControllerViewName();
+		// Install before FullCalendar creates its first time-grid slat coordinates.
+		this.releaseCanvasTimeGridScaleCorrection = installCanvasTimeGridScaleCorrection();
 		// Call parent onload which sets up container and listeners
 		super.onload();
 	}
@@ -719,7 +740,7 @@ export class CalendarView extends BasesViewBase {
 	 * Used to detect user-initiated config changes.
 	 */
 	private getConfigSnapshot(): string {
-		return buildCalendarConfigSnapshot({
+		return `${this.plugin.settings.dateDisplayFormat}|${this.plugin.settings.calendarViewSettings.timeFormat}|${buildCalendarConfigSnapshot({
 			config: this.config,
 			icsCalendarIds:
 				this.plugin.icsSubscriptionService?.getSubscriptions().map((sub) => sub.id) ?? [],
@@ -731,7 +752,7 @@ export class CalendarView extends BasesViewBase {
 				this.plugin.microsoftCalendarService
 					?.getAvailableCalendars()
 					.map((calendar) => calendar.id) ?? [],
-		});
+		})}`;
 	}
 
 	/**
@@ -947,7 +968,11 @@ export class CalendarView extends BasesViewBase {
 				const calendars = this.plugin.googleCalendarService.getAvailableCalendars();
 				for (const cal of calendars) {
 					const key = `showGoogleCalendar_${cal.id}`;
-					this.googleCalendarToggles.set(cal.id, this.getConfigOption(key, true));
+					setProviderCalendarToggle(
+						this.googleCalendarToggles,
+						cal,
+						this.getConfigOption(key, true)
+					);
 				}
 			}
 
@@ -1268,6 +1293,10 @@ export class CalendarView extends BasesViewBase {
 		// Determine initial date
 		const initialDate = this._recreateTargetDate ?? this.determineInitialDate(taskNotes);
 
+		const dateDisplayOptions = getCalendarDateDisplayOptions(
+			this.plugin.settings.dateDisplayFormat
+		);
+
 		// Build calendar options
 		const calendarOptions: CalendarOptions = {
 			plugins: [
@@ -1280,7 +1309,10 @@ export class CalendarView extends BasesViewBase {
 			initialView: this.viewOptions.calendarView,
 			initialDate: initialDate,
 			headerToolbar: {
-				left: "prev,next today refreshCalendars",
+				// Refresh only reloads external calendars, so it is hidden when none are connected.
+				left: this.hasExternalCalendars()
+					? "prev,next today refreshCalendars"
+					: "prev,next today",
 				center: "title",
 				right: "multiMonthYear,dayGridMonth,timeGridWeek,timeGridCustom,timeGridDay,listWeek",
 			},
@@ -1317,7 +1349,16 @@ export class CalendarView extends BasesViewBase {
 					},
 				},
 			},
+			...dateDisplayOptions,
 			views: {
+				...dateDisplayOptions.views,
+				timeGrid: {
+					...dateDisplayOptions.views?.timeGrid,
+					dayMaxEvents: getTimeGridDayMaxEvents(
+						this.viewOptions.showTimeGrid,
+						this.viewOptions.dayMaxEvents
+					),
+				},
 				timeGridCustom: {
 					type: "timeGrid",
 					duration: { days: this.viewOptions.customDayCount },
@@ -1327,7 +1368,15 @@ export class CalendarView extends BasesViewBase {
 							count: this.viewOptions.customDayCount.toString(),
 						}
 					),
-					titleFormat: { year: "numeric", month: "short", day: "numeric" },
+					buttonHint: this.plugin.i18n.translate(
+						"views.basesCalendar.hints.customDays",
+						{
+							count: this.viewOptions.customDayCount.toString(),
+						}
+					),
+					titleFormat: this.plugin.settings.dateDisplayFormat === "iso"
+						? getCalendarDateDisplayOptions("iso").titleFormat
+						: { year: "numeric", month: "short", day: "numeric" },
 				},
 				listWeek: {
 					type: "list",
@@ -1438,6 +1487,7 @@ export class CalendarView extends BasesViewBase {
 		// Create calendar
 		this.calendar = new Calendar(this.calendarEl, calendarOptions);
 		this.calendar.render();
+		this.observeCanvasZoom();
 		this._recreateTargetDate = null;
 		this.applyLayoutClasses();
 
@@ -1520,6 +1570,14 @@ export class CalendarView extends BasesViewBase {
 		});
 	}
 
+	private hasExternalCalendars(): boolean {
+		return (
+			(this.plugin.icsSubscriptionService?.getSubscriptions().length ?? 0) > 0 ||
+			(this.plugin.googleCalendarService?.getAvailableCalendars().length ?? 0) > 0 ||
+			(this.plugin.microsoftCalendarService?.getAvailableCalendars().length ?? 0) > 0
+		);
+	}
+
 	private async refreshExternalCalendars(): Promise<void> {
 		try {
 			if (this.plugin.icsSubscriptionService) {
@@ -1600,12 +1658,6 @@ export class CalendarView extends BasesViewBase {
 	}
 
 	private getEffectiveHeightMode(): CalendarHeightMode {
-		if (
-			shouldHideCalendarTimeGrid(this.viewOptions.showTimeGrid, this.viewOptions.calendarView)
-		) {
-			return "auto";
-		}
-
 		return resolveEffectiveCalendarHeightMode(
 			this.viewOptions.heightMode,
 			this.viewOptions.calendarView,
@@ -1679,6 +1731,29 @@ export class CalendarView extends BasesViewBase {
 				});
 			}
 		});
+	}
+
+	private observeCanvasZoom(): void {
+		this.canvasZoomObserver?.disconnect();
+		const canvas = this.containerEl.closest(".canvas");
+		const win = this.containerEl.ownerDocument.defaultView;
+		if (!canvas || !win?.MutationObserver) return;
+
+		const getScale = (): number => {
+			const slat = this.calendarEl?.querySelector<HTMLElement>(".fc-timegrid-slot-lane");
+			return slat?.offsetHeight
+				? slat.getBoundingClientRect().height / slat.offsetHeight
+				: 1;
+		};
+		let lastScale = getScale();
+		this.canvasZoomObserver = new win.MutationObserver(() => {
+			const scale = getScale();
+			if (Math.abs(scale - lastScale) > 0.0001) {
+				lastScale = scale;
+				this.onResize();
+			}
+		});
+		this.canvasZoomObserver.observe(canvas, { attributes: true, attributeFilter: ["style"] });
 	}
 
 	private canUpdateCalendarSize(): boolean {
@@ -1922,6 +1997,39 @@ export class CalendarView extends BasesViewBase {
 					relatedNoteCountsByEventId,
 				})
 			);
+		}
+
+		// Resolve editability before FullCalendar receives the events. setProp in
+		// eventDidMount dispatches a whole-store update for every mounted element.
+		// List cards do not use drag/resize and previously bypassed that hook logic.
+		if ((this.calendar?.view?.type || this.viewOptions.calendarView) !== "listWeek") {
+			for (const event of allEvents) {
+				const props = event.extendedProps;
+				if (!props) continue;
+
+				let editable: boolean;
+				if (props.eventType === "timeblock" && props.timeblock) {
+					editable = true;
+				} else if (
+					props.taskInfo?.path &&
+					["scheduled", "recurring", "timeEntry", "due", "scheduledToDueSpan"].includes(
+						props.eventType
+					)
+				) {
+					editable =
+						props.eventType !== "scheduledToDueSpan" ||
+						!(
+							props.isRecurringInstance ||
+							props.isNextScheduledOccurrence ||
+							props.isPatternInstance
+						);
+				} else {
+					continue; // Keep property-based and external provider permissions.
+				}
+				event.editable = editable;
+				event.startEditable = editable;
+				event.durationEditable = editable;
+			}
 		}
 
 		return filterAllDayEventsForCalendarView(
@@ -2635,7 +2743,19 @@ export class CalendarView extends BasesViewBase {
 			this.calendar?.unselect();
 		});
 
-		if (info.jsEvent) {
+		const selectionEvent = info.jsEvent as Event | null;
+		if (selectionEvent && "changedTouches" in selectionEvent) {
+			// FullCalendar types jsEvent as MouseEvent, but touch selection ends with a TouchEvent.
+			// Obsidian's showAtMouseEvent reads mouse coordinates and places that menu off-screen.
+			const touchEvent = selectionEvent as TouchEvent;
+			const touch = touchEvent.changedTouches[0] ?? touchEvent.touches[0];
+			if (touch) {
+				menu.showAtPosition({ x: touch.clientX, y: touch.clientY });
+			} else {
+				const bounds = this.calendarEl?.getBoundingClientRect();
+				menu.showAtPosition({ x: bounds?.left ?? 0, y: bounds?.top ?? 0 });
+			}
+		} else if (info.jsEvent) {
 			menu.showAtMouseEvent(info.jsEvent);
 		} else {
 			menu.showAtPosition({ x: 0, y: 0 });
@@ -2657,16 +2777,7 @@ export class CalendarView extends BasesViewBase {
 			return;
 		}
 
-		const {
-			taskInfo,
-			timeblock,
-			icsEvent,
-			eventType,
-			relatedNoteCount,
-			isRecurringInstance,
-			isNextScheduledOccurrence,
-			isPatternInstance,
-		} = extendedProps;
+		const { taskInfo, timeblock, icsEvent, eventType, relatedNoteCount } = extendedProps;
 		suppressCalendarContextMenuOnMobile(arg.el);
 
 		const relatedNoteTotal = normalizeCalendarRelatedNoteCount(relatedNoteCount);
@@ -2713,11 +2824,6 @@ export class CalendarView extends BasesViewBase {
 			// Apply timeblock styling
 			applyTimeblockStyling(arg.el, timeblock);
 
-			// Ensure timeblocks are editable
-			if (arg.event.setProp) {
-				arg.event.setProp("editable", true);
-			}
-
 			// Add tooltip
 			const tooltipText = generateTimeblockTooltip(timeblock);
 			setTooltip(arg.el, tooltipText, { placement: "top" });
@@ -2747,26 +2853,6 @@ export class CalendarView extends BasesViewBase {
 					arg.el.classList.add(`fc-project-${sanitizedProject}`);
 				}
 			});
-
-			// Set editable based on event type
-			if (arg.event.setProp) {
-				switch (eventType) {
-					case "scheduled":
-					case "recurring":
-					case "timeEntry":
-					case "due":
-					case "scheduledToDueSpan":
-						arg.event.setProp(
-							"editable",
-							eventType !== "scheduledToDueSpan" ||
-								!(isRecurringInstance || isNextScheduledOccurrence || isPatternInstance)
-						);
-						break;
-					default:
-						// Non-task events (like ICS without provider) remain non-editable
-						break;
-				}
-			}
 
 			// Apply recurring task styling (handles completion styling as well)
 			applyRecurringTaskStyling(arg.el, extendedProps);
@@ -2806,7 +2892,7 @@ export class CalendarView extends BasesViewBase {
 					task: taskInfo,
 					plugin: this.plugin,
 					targetDate: targetDate,
-					occurrenceDate: taskInfo.recurrence ? targetDate : undefined,
+					occurrenceDate: getOccurrenceDateForEvent(taskInfo, arg),
 					promoteOccurrenceControls: Boolean(
 						taskInfo.recurrence ||
 							(taskInfo.recurrence_parent && taskInfo.occurrence_date)
@@ -3166,6 +3252,10 @@ export class CalendarView extends BasesViewBase {
 			this.calendar = null;
 		}
 
+		this.canvasZoomObserver?.disconnect();
+		this.canvasZoomObserver = null;
+		this.releaseCanvasTimeGridScaleCorrection?.();
+		this.releaseCanvasTimeGridScaleCorrection = null;
 		this.calendarEl = null;
 		this.currentTasks = [];
 	}

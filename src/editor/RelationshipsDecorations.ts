@@ -52,6 +52,7 @@ import {
 } from "obsidian";
 
 import TaskNotesPlugin from "../main";
+import { initializeRelationshipViewSelection } from "./relationshipViewSelection";
 import { EVENT_DEPENDENCY_CACHE_CHANGED } from "../utils/DependencyCache";
 import { FilterUtils } from "../utils/FilterUtils";
 import { getProjectPropertyFilter, matchesProjectProperty } from "../utils/projectFilterUtils";
@@ -301,6 +302,7 @@ async function createRelationshipsWidget(
 			notePath, // Source path provides context for 'this' keyword
 			component
 		);
+		initializeRelationshipViewSelection(plugin, notePath, basesContainer, component);
 	} catch (error) {
 		tasknotesLogger.error("[TaskNotes] Error rendering Bases view in relationships widget:", {
 			category: "internal",

@@ -19,6 +19,16 @@ TaskNotes also supports **Natural Language Creation**, which allows you to creat
 
 In most workflows, users combine both approaches: fast capture with natural language, then occasional structured edits in the modal when more precision is needed.
 
+### Natural Language Selector Rules
+
+Tag, context, project and custom-field selectors must start at the beginning of input or after whitespace (including tabs). `Task @work` extracts a context; `task@work` and `Task (@work)` remain literal. Boundaries use the original input: `Task @work+project` extracts `work` but keeps `+project` in the title. These selector rules preserve email addresses such as `jane+work@example.com`, URL fragments, and `C++programming`. Status/priority phrase matching and date parsing are separate; this is not a general URL or code shield.
+
+Only the first line is parsed; the remaining lines become details. Wikilinks, quoted spans (double quotes, single quotes or backticks), and backslash-escaped words are protected. For example, `[[Meeting @ Work]]`, `"[[Email@domain.com]]"`, and `\\oggi` are literal text. Quoting removes the surrounding quote delimiters; escaping removes the leading backslash.
+
+Repeated project prefixes remove only the first configured prefix: `++personal` selects project `+personal`. With a custom prefix `::`, `::::personal` selects `::personal`. Linked projects are returned before simple projects, preserving order within each group.
+
+Italian relative days `oggi`, `domani`, and `dopodomani` use the local calendar date. Bare words follow the default date setting; `entro oggi` and `per domani` set Due, while `programmato per oggi` sets Scheduled. This is partial Italian date support, not a complete Italian date grammar. Links, metadata, escaped words, and details containing these words are not converted to dates.
+
 ### Auto-Suggestions in Natural Language Input
 
 The natural language input field includes auto-suggestion functionality that activates when typing specific trigger characters:
@@ -145,7 +155,9 @@ blockedBy:
 - `reltype` is stored with each dependency and defaults to `FINISHTOSTART` for dependencies created in the UI.
 - `gap` is optional and uses ISO&nbsp;8601 duration syntax (for example `PT4H` or `P2D`).
 
-Whenever a dependency is added, TaskNotes updates the upstream note’s `blocking` list so the reverse relationship stays synchronized. Removing a dependency automatically clears both sides.
+TaskNotes stores each dependency in the dependent task’s `blockedBy` field and derives the reverse “Blocking” relationship from it. For example, if Task B is blocked by Task A, B stores a reference to A; A does not need a separate `blocking` frontmatter property. Editing “Blocking” updates the selected dependent tasks’ `blockedBy` fields. Removing a dependency also removes the derived reverse relationship.
+
+Dependencies are separate from project/subtask membership: adding a blocker does not require adding either task to the other’s `projects` field. To view tasks blocked by the current note, use the Relationships widget’s **Blocking** view, which finds them through Bases without a stored `blocking` property.
 
 ### Selecting dependencies in the UI
 
@@ -177,6 +189,25 @@ These settings let you align task files with existing vault conventions (for exa
 
 For configuration details, see [Task Defaults](../settings/task-defaults.md).  
 For template variables, see [Template Variables Reference](template-variables.md).
+
+## Completing Tasks
+
+You can record a task's completion — and choose the date it is recorded against — directly from the task context menu, without opening the task. Four actions are offered:
+
+- **Completed today** — records today's date.
+- **Completed on schedule** — records the task's scheduled date (for a recurring task, the scheduled date of the occurrence you clicked).
+- **Completed on due date** — records the due date.
+- **Completed on (pick date)** — opens a date picker and records the date you choose.
+
+An action is disabled when the date it needs is not set — for example *Completed on schedule* on a task with no scheduled date — rather than silently falling back to another date. Recurring tasks also get a **Skip instance** action alongside these.
+
+By default the actions are grouped under a single **Mark complete or skip** entry (**Mark complete** for non-recurring tasks). To show them directly in the menu instead — set off by dividers — turn off **Settings → Appearance & UI → Task cards → Group complete and skip actions in a submenu**.
+
+![Completion actions grouped under a submenu (default)](../assets/feature-completion-date-actions.png)
+
+With the submenu grouping turned off, the same actions appear directly in the menu:
+
+![Completion actions shown flat in the menu](../assets/feature-completion-date-actions-flat.png)
 
 ## Recurring Tasks
 

@@ -35,6 +35,8 @@ Task link overlays work in both Live Preview and Reading modes:
 - **Live Preview Mode**: Widgets hide when the cursor is within the wikilink range, allowing for easy editing.
 - **Reading Mode**: Widgets display with full functionality and integrate with the reading mode typography.
 
+On Obsidian mobile, long titles are ellipsized to fit the available line after the status and priority indicators, including in nested bullets. Enabled properties remain available in a horizontally scrollable strip that can flow onto the next line. Configure these properties under `Settings -> TaskNotes -> Features -> Inline Task Card Properties`.
+
 The overlays support drag-and-drop to calendar views and provide keyboard shortcuts for quick navigation (Ctrl/Cmd+Click to open the source file).
 
 ## Create New Inline Task Command
@@ -49,6 +51,8 @@ To turn the current line into a TaskNote, use `Convert to TaskNote` or the insta
 
 The **Instant Task Conversion** feature transforms lines in your notes into TaskNotes files. This works with both checkbox tasks and regular lines of text. Turn the feature on or off from `Settings -> TaskNotes -> Features` (`Show convert button next to checkboxes`). When enabled, a "convert" button appears next to content in edit mode. Clicking this button creates a new task note using the line text as the title and replaces the original line with a link to the new task file.
 This supports progressive conversion from draft notes to dedicated task files.
+
+With a selection, `Convert to TaskNote` uses the first selected line as the title and additional selected text as details. Text outside the selection is left in place. Selecting a whole line through the start of the next line (for example, Home then Shift+Down) does not include that next line in the conversion.
 
 ### Folder Configuration
 
@@ -148,7 +152,7 @@ For large notes, converting a small section first helps validate folder and file
 
 **New in v4**: The Relationships Widget consolidates what were previously three separate widgets (project subtasks, task dependencies, and blocking tasks) into a single dynamic interface.
 
-The widget appears in task notes and automatically displays up to five tabs based on available relationship data:
+The widget appears in task notes and provides up to five views:
 
 - **Subtasks Tab (Kanban)**: Shows tasks that reference the current note as a project. Uses Kanban layout for visual task management.
 - **Occurrences Tab (List)**: Shows materialized occurrence notes that reference the current recurring task as their parent. Uses list layout sorted by occurrence date.
@@ -158,7 +162,7 @@ The widget appears in task notes and automatically displays up to five tabs base
 
 ### Automatic Tab Management
 
-Tabs automatically show or hide based on the presence of relationship data. If a task has no subtasks, the Subtasks tab does not appear. If a recurring task has no materialized occurrence notes, the Occurrences tab does not appear. If there are no blocking relationships, those tabs remain hidden. This keeps the interface focused on relevant information.
+On first opening a note, the widget selects the first view with results, in the order configured in the Base. Empty views remain available in the selector. If you explicitly select a view, even an empty one, the widget remembers that choice for the note during the current plugin session. If every view is empty, it keeps the Base's default view.
 The widget layout changes with available data, so simple tasks show fewer sections.
 
 ### Features

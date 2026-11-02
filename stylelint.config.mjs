@@ -280,7 +280,7 @@ const noFixedPositionRule = createPlugin(noFixedPositionRuleName, (enabled) => {
 		}
 
 		const filePath = root.source?.input?.file ?? "";
-		if (filePath.includes("/docs-builder/")) {
+		if (filePath.replace(/\\/g, "/").includes("/docs-builder/")) {
 			return;
 		}
 

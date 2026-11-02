@@ -3,9 +3,7 @@ import { EditorView } from "@codemirror/view";
 import type TaskNotesPlugin from "../main";
 import {
 	EVENT_TASK_UPDATED,
-	POMODORO_STATS_VIEW_TYPE,
 	POMODORO_VIEW_TYPE,
-	STATS_VIEW_TYPE,
 	TaskInfo,
 } from "../types";
 import { RequestDeduplicator, PredictivePrefetcher } from "../utils/RequestDeduplicator";
@@ -27,8 +25,6 @@ import { StatusBarService } from "../ui/StatusBarService";
 import { NotificationService } from "../ui/NotificationService";
 import { ViewPerformanceService } from "../services/ViewPerformanceService";
 import { PomodoroView } from "../views/PomodoroView";
-import { PomodoroStatsView } from "../views/PomodoroStatsView";
-import { StatsView } from "../views/StatsView";
 import { ReleaseNotesView, RELEASE_NOTES_VIEW_TYPE } from "../views/ReleaseNotesView";
 import { RELEASE_NOTES_BUNDLE, CURRENT_VERSION } from "../releaseNotes";
 import { createTaskLinkOverlay, dispatchTaskUpdate } from "../editor/TaskLinkOverlay";
@@ -56,6 +52,7 @@ import { createTaskNotesLogger } from "../utils/tasknotesLogger";
 import { TASKNOTES_RUNTIME_LIFECYCLE_RAW_EVENTS } from "../api/runtime-api";
 import { showNotice } from "../ui/notifications";
 import { EVENT_USER_NOTICE, type UserNoticePayload } from "../core/userNotices";
+import { applyNewInstallRibbonDefaults, type RibbonConfiguration } from "./ribbonDefaults";
 
 const tasknotesLogger = createTaskNotesLogger({ tag: "Bootstrap/PluginBootstrap" });
 
@@ -112,6 +109,14 @@ export function registerTaskNotesIcon(): void {
 export async function initializeCoreServices(plugin: TaskNotesPlugin): Promise<void> {
 	plugin.api = new TaskNotesAPI(plugin);
 
+	// Legacy recognition runs before runtime services. Build from loaded settings,
+	// then rebuild below after the collection's canonical settings are imported.
+	plugin.fieldMapper = new FieldMapper(
+		plugin.settings.fieldMapping,
+		plugin.settings.userFields ?? [],
+		plugin.settings.customStatuses,
+		plugin.settings.customPriorities
+	);
 	const { MdbaseSpecService } = await import("../services/MdbaseSpecService");
 	plugin.mdbaseSpecService = new MdbaseSpecService(plugin);
 	await plugin.mdbaseSpecService.initialize();
@@ -180,11 +185,17 @@ export async function initializeCoreServices(plugin: TaskNotesPlugin): Promise<v
 }
 
 export function registerRibbonIcons(plugin: TaskNotesPlugin): void {
+	const firstInstall = plugin.isNewInstall;
 	plugin.addRibbonIcon(
-		"calendar-days",
-		plugin.i18n.translate("commands.openCalendarView"),
+		"tasknotes-simple",
+		plugin.i18n.translate("commands.createNewTask"),
+		() => plugin.openTaskCreationModal()
+	);
+	plugin.addRibbonIcon(
+		"check-square",
+		plugin.i18n.translate("commands.openTasksView"),
 		async () => {
-			await plugin.activateCalendarView();
+			await plugin.openBasesFileForCommand("open-tasks-view");
 		}
 	);
 
@@ -197,10 +208,10 @@ export function registerRibbonIcons(plugin: TaskNotesPlugin): void {
 	);
 
 	plugin.addRibbonIcon(
-		"check-square",
-		plugin.i18n.translate("commands.openTasksView"),
+		"calendar-days",
+		plugin.i18n.translate("commands.openCalendarView"),
 		async () => {
-			await plugin.openBasesFileForCommand("open-tasks-view");
+			await plugin.activateCalendarView();
 		}
 	);
 
@@ -220,21 +231,18 @@ export function registerRibbonIcons(plugin: TaskNotesPlugin): void {
 		await plugin.activatePomodoroView();
 	});
 
-	plugin.addRibbonIcon(
-		"bar-chart-3",
-		plugin.i18n.translate("commands.openPomodoroStats"),
-		async () => {
-			await plugin.activatePomodoroStatsView();
-		}
-	);
-
-	plugin.addRibbonIcon(
-		"tasknotes-simple",
-		plugin.i18n.translate("commands.createNewTask"),
-		() => {
-			plugin.openTaskCreationModal();
-		}
-	);
+	if (firstInstall) {
+		plugin.app.workspace.onLayoutReady(() => {
+			// Obsidian owns ribbon visibility and persists it in workspace configuration.
+			const workspace = plugin.app.workspace as unknown as {
+				leftRibbon?: RibbonConfiguration;
+			};
+			const optionalTitles = ["commands.openCalendarView", "commands.openAgendaView",
+				"commands.openKanbanView", "commands.openPomodoroView"];
+			const optionalIds = new Set(optionalTitles.map(key => `tasknotes:${plugin.i18n.translate(key)}`));
+			applyNewInstallRibbonDefaults(workspace.leftRibbon, firstInstall, optionalIds);
+		});
+	}
 }
 
 export function initializeCalendarProviders(plugin: TaskNotesPlugin): void {
@@ -247,11 +255,6 @@ export function initializeCalendarProviders(plugin: TaskNotesPlugin): void {
 }
 
 export async function registerBasesIntegration(plugin: TaskNotesPlugin): Promise<void> {
-	if (!plugin.settings?.enableBases) {
-		clearBasesRegistrationRetry(plugin);
-		return;
-	}
-
 	if (plugin.basesRegistered && areTaskNotesBasesViewsRegistered(plugin)) {
 		clearBasesRegistrationRetry(plugin);
 		return;
@@ -305,7 +308,6 @@ function clearBasesRegistrationRetry(plugin: TaskNotesPlugin): void {
 
 function scheduleBasesRegistrationRetry(plugin: TaskNotesPlugin): void {
 	if (
-		!plugin.settings?.enableBases ||
 		plugin.basesRegistrationRetryIntervalId !== null ||
 		areTaskNotesBasesViewsRegistered(plugin)
 	) {
@@ -347,6 +349,12 @@ export async function initializeHTTPAPI(plugin: TaskNotesPlugin): Promise<void> 
 		plugin.pomodoroService.setWebhookNotifier(plugin.apiService);
 		await plugin.apiService.start();
 		showNotice(`TaskNotes API started on port ${plugin.apiService.getPort()}`);
+		if (plugin.apiService.didGenerateAuthToken()) {
+			showNotice(
+				"TaskNotes created a new API token for this device. Copy it from Settings → TaskNotes → Integrations into your API and MCP clients.",
+				15000
+			);
+		}
 	} catch (error) {
 		tasknotesLogger.error("Failed to initialize HTTP API:", {
 			category: "provider",
@@ -397,8 +405,6 @@ export async function initializeAfterLayoutReady(plugin: TaskNotesPlugin): Promi
 
 function registerActiveViews(plugin: TaskNotesPlugin): void {
 	plugin.registerView(POMODORO_VIEW_TYPE, (leaf) => new PomodoroView(leaf, plugin));
-	plugin.registerView(POMODORO_STATS_VIEW_TYPE, (leaf) => new PomodoroStatsView(leaf, plugin));
-	plugin.registerView(STATS_VIEW_TYPE, (leaf) => new StatsView(leaf, plugin));
 	plugin.registerView(
 		RELEASE_NOTES_VIEW_TYPE,
 		(leaf) => new ReleaseNotesView(leaf, plugin, RELEASE_NOTES_BUNDLE, CURRENT_VERSION)

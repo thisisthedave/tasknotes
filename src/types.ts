@@ -6,8 +6,6 @@ export const MINI_CALENDAR_VIEW_TYPE = "tasknotes-mini-calendar-view";
 export const TASK_LIST_VIEW_TYPE = "tasknotes-task-list-view";
 export const AGENDA_VIEW_TYPE = "tasknotes-agenda-view";
 export const POMODORO_VIEW_TYPE = "tasknotes-pomodoro-view";
-export const POMODORO_STATS_VIEW_TYPE = "tasknotes-pomodoro-stats-view";
-export const STATS_VIEW_TYPE = "tasknotes-stats-view";
 export const KANBAN_VIEW_TYPE = "tasknotes-kanban-view";
 export const SUBTASK_WIDGET_VIEW_TYPE = "tasknotes-subtask-widget-view";
 
@@ -168,6 +166,8 @@ export type FilterOperator =
 export interface PropertyDefinition {
 	id: FilterProperty;
 	label: string;
+	aliases?: readonly string[];
+	frontmatterKey?: string;
 	category: "text" | "select" | "date" | "boolean" | "numeric" | "special";
 	supportedOperators: FilterOperator[];
 	valueInputType: "text" | "select" | "multi-select" | "date" | "number" | "none";
@@ -623,6 +623,8 @@ export interface PomodoroTimePeriod {
 }
 
 export interface PomodoroSession {
+	/** Start timestamp of the task timer created by this session, if owned. */
+	timeTrackingStartTime?: string;
 	id: string;
 	taskPath?: string; // optional, can run timer without task
 	startTime: string; // ISO datetime when session was first created
@@ -703,12 +705,14 @@ export interface FieldMapping {
 	contexts: string;
 	projects: string;
 	attachments: string;
+	assignees: string; // Links to person records (tasknotes.task 0.3.0-rc.5)
 	timeEstimate: string;
 	completedDate: string;
 	dateCreated: string;
 	dateModified: string;
 	recurrence: string; // RFC 5545 recurrence rule string
 	recurrenceAnchor: string; // User-configurable property name for recurrence_anchor field
+	recurrenceOriginalDate?: string; // Optional so settings saved before this field existed keep working; defaults to recurrence_original_date
 	recurrenceParent: string;
 	occurrenceDate: string;
 	occurrenceMaterialization: string;
@@ -869,6 +873,7 @@ export interface WebhookConfig {
 	createdAt: string;
 	lastTriggered?: string;
 	failureCount: number;
+	consecutiveFailures?: number;
 	successCount: number;
 	transformFile?: string; // Optional path to a JSON transformation file
 	corsHeaders?: boolean; // Whether to include custom headers (false for Discord, Slack, etc.)

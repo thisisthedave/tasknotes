@@ -9,6 +9,12 @@ function createPlugin(options: { dataFileExists: boolean; version?: string }) {
 				exists: jest.fn().mockResolvedValue(options.dataFileExists),
 			},
 		},
+		secretStorage: {
+			getSecret: jest.fn(() => null),
+			setSecret: jest.fn(),
+		},
+		loadLocalStorage: jest.fn(() => null),
+		saveLocalStorage: jest.fn(),
 	} as any;
 
 	const plugin = new TaskNotesPlugin(app);
@@ -38,8 +44,8 @@ describe("issue #1591 settings reset on update", () => {
 		const plugin = createPlugin({ dataFileExists: true });
 		plugin.loadData = jest.fn().mockResolvedValue(null);
 
-		await plugin.loadSettings();
-		await plugin.checkForVersionUpdate();
+		await expect(plugin.loadSettings()).rejects.toThrow("settings are unreadable");
+		await plugin.saveSettingsDataOnly();
 
 		expect(plugin.loadData).toHaveBeenCalledTimes(4);
 		expect(plugin.saveData).not.toHaveBeenCalled();

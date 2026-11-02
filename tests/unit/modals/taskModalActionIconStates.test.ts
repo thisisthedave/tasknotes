@@ -1,6 +1,8 @@
 const mockSetTooltip = jest.fn();
+const mockSetIcon = jest.fn();
 
 jest.mock("obsidian", () => ({
+	setIcon: mockSetIcon,
 	setTooltip: mockSetTooltip,
 }));
 
@@ -94,6 +96,69 @@ describe("taskModalActionIconStates", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		mockSetTooltip.mockClear();
+		mockSetIcon.mockClear();
+	});
+
+	it("shows the status as a circle, check circle, or configured icon like task cards (#2401)", () => {
+		const actionBar = createActionBar();
+		const statusIconElement = actionBar.querySelector('[data-type="status"] .icon');
+		const base = createState();
+		const withIcon = base.statusConfigs.map((config) =>
+			config.value === "open" ? { ...config, icon: "clock" } : config
+		);
+
+		updateTaskModalActionIconStates(actionBar, { translate }, base);
+		updateTaskModalActionIconStates(actionBar, { translate }, base);
+		updateTaskModalActionIconStates(actionBar, { translate }, createState({ status: "done" }));
+		updateTaskModalActionIconStates(
+			actionBar,
+			{ translate },
+			createState({ statusConfigs: withIcon })
+		);
+
+		expect(mockSetIcon.mock.calls).toEqual([
+			[statusIconElement, "circle"],
+			[statusIconElement, "circle-check"],
+			[statusIconElement, "clock"],
+		]);
+	});
+
+	it("refreshes visible values and clears them without duplicating labels or changing icons", () => {
+		const actionBar = createActionBar();
+		const context = { translate, formatDate: (value: string) => `Formatted ${value}` };
+		const priority = actionBar.querySelector<HTMLElement>('[data-type="priority"]')!;
+		const originalIcon = priority.querySelector(".icon");
+		const state = createState({
+			dueDate: "2026-05-20",
+			priority: "high",
+			recurrenceRule: "FREQ=WEEKLY",
+			recurrenceDisplayText: "Weekly",
+			reminderCount: 2,
+		});
+		state.priorityConfigs = state.priorityConfigs.map((config) =>
+			config.value === "high" ? { ...config, label: "Review <draft>" } : config
+		);
+
+		updateTaskModalActionIconStates(actionBar, context, state);
+		updateTaskModalActionIconStates(actionBar, context, { ...state, dueDate: "2026-05-21" });
+
+		expect(actionBar.querySelectorAll(".action-icon__value")).toHaveLength(6);
+		expect(
+			actionBar.querySelector('[data-type="due-date"] .action-icon__value')?.textContent
+		).toBe("modals.task.tooltips.dueValue:value=Formatted 2026-05-21");
+		expect(priority.querySelector(".action-icon__value")?.textContent).toBe("Review <draft>");
+		expect(priority.querySelector("draft")).toBeNull();
+		expect(priority.querySelector(".icon")).toBe(originalIcon);
+
+		updateTaskModalActionIconStates(actionBar, context, createState());
+		for (const label of actionBar.querySelectorAll(".action-icon__value")) {
+			// Status and priority always name their current value; other chips clear.
+			const dataType = label.parentElement?.dataset.type;
+			const expected =
+				dataType === "status" ? "Open" : dataType === "priority" ? "Normal" : "";
+			expect(label.textContent).toBe(expected);
+			expect(label.getAttribute("aria-hidden")).toBe("true");
+		}
 	});
 
 	it("marks date icons active and updates translated tooltips when values exist", () => {
@@ -173,16 +238,12 @@ describe("taskModalActionIconStates", () => {
 		expect(priorityIcon.querySelector<HTMLElement>(".icon")?.style.color).toBe(
 			"rgb(153, 153, 153)"
 		);
-		expect(mockSetTooltip).toHaveBeenCalledWith(
-			statusIcon,
-			"modals.task.actions.status",
-			{ placement: "top" }
-		);
-		expect(mockSetTooltip).toHaveBeenCalledWith(
-			priorityIcon,
-			"modals.task.actions.priority",
-			{ placement: "top" }
-		);
+		expect(mockSetTooltip).toHaveBeenCalledWith(statusIcon, "modals.task.actions.status", {
+			placement: "top",
+		});
+		expect(mockSetTooltip).toHaveBeenCalledWith(priorityIcon, "modals.task.actions.priority", {
+			placement: "top",
+		});
 	});
 
 	it("removes stale icon colors when no config color is available", () => {

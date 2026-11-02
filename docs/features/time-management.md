@@ -6,7 +6,15 @@ TaskNotes includes features for time tracking and productivity, such as a time t
 
 TaskNotes has a time tracker to record the time spent on each task. Time tracking information is stored in the `timeEntries` array within each task's YAML frontmatter. Each time entry includes a start time and an end time.
 
+Use **TaskNotes: Start time tracking for current task** and **TaskNotes: Stop time tracking for current task** from the Command Palette, hotkeys, or command-based plugins such as Buttons. These commands act on the currently open task note, not on a task link under the cursor, and do not open a selector. Starting an already running timer or stopping an inactive timer leaves entries unchanged and shows a notice. To track another task, use **TaskNotes: Start time tracking (select task)**.
+
 The time tracking interface includes controls to start and stop tracking in task views and task cards. TaskNotes prevents duplicate active sessions on the same task. Active sessions on different tasks can exist at the same time, and total time spent on each task is calculated from completed sessions.
+
+### Stop an Active Tracker Without Opening Its Note
+
+Use **TaskNotes: Stop active time tracking**, or the square stop button beside the tracking timer in the desktop status bar. With one active tracker, the action stops it directly. With several, it opens a selector containing active tasks so you can stop one; cancelling leaves every tracker running. The selector cannot create new tasks. Other trackers keep running.
+
+The command does not depend on the currently open note and can also be assigned a hotkey. The status bar's task title still opens the tracked note, while the stop button only stops tracking. If a task is deleted or its tracker stops before you choose it, no new time entry is created.
 
 ### Auto-Stop Time Tracking
 
@@ -14,7 +22,7 @@ TaskNotes can automatically stop time tracking when a task is marked as complete
 
 The auto-stop feature works by monitoring task status changes across all views and interfaces. When a task's status changes from any non-completed state to a completed state (as defined by the custom status configuration), any active time tracking session for that task is automatically terminated.
 
-**Configuration Options:** Configure these under `Settings -> TaskNotes -> Features` (Time Tracking section).
+**Configuration Options:** Configure these under `Settings → TaskNotes → Time & reminders` (Time Tracking section).
 
 - **Auto-stop tracking** - Enable or disable the automatic stopping behavior (enabled by default)
 - **Completion notification** - Show a notice when auto-stop occurs (disabled by default)
@@ -33,10 +41,8 @@ The feature integrates with the custom status system, so completion detection re
 
 TaskNotes also includes a Pomodoro timer, which is a tool for time management that uses a timer to break down work into intervals, separated by short breaks. The Pomodoro timer in TaskNotes has a dedicated view with controls to start, stop, and reset the timer.
 
-When a task is associated with a Pomodoro session, the time is automatically recorded in the task's time tracking data upon completion of the session.
+When a task is associated with a Pomodoro session, TaskNotes starts a task tracker if none is already running. Pomodoro only stops trackers it created; a pre-existing manual tracker is left running. After sleep or a delayed timer tick, a completed Pomodoro-owned tracker ends at the session's intended completion time, rather than the wake-up time.
 
-## Productivity Analytics
+## Recorded data
 
-The **Pomodoro Stats View** provides analytics and historical data about your Pomodoro sessions. This includes a history of completed sessions, as well as metrics like completion rates and total time spent on tasks. The data can be visualized to show productivity patterns over time.
-
-![Task Statistics](../assets/feature-task-statistics.png)
+Version 5 removes the Statistics and Pomodoro statistics dashboards and no longer generates a Pomodoro statistics Base. Time tracking, the timer, session storage settings, recorded history, and the API remain available. Existing statistics Base files are kept as ordinary user-editable Bases. No task notes or history are deleted. Close any old statistics dashboard tabs after upgrading.

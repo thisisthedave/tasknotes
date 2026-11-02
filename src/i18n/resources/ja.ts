@@ -1,7 +1,61 @@
 import { TranslationTree } from "../types";
 
 export const ja: TranslationTree = {
+	migrationRecognition: {
+		review: "TaskNotes は {path} を変更せずに保持しました。旧形式のメタデータが不足しているか、編集されているか、他の型が含まれています。同期を完了して再起動してください。解決しない場合は、バックアップしたコピーを mdbase で移行し、型を確認してから再試行してください。",
+		waiting:
+			"TaskNotes は {path} に mdbase.yaml のないメタデータを検出したため、別のコレクションを作成しませんでした。同期を完了するか、対応する設定をバックアップから復元してください。メタデータの到着時に移行を再試行します。",
+		support:
+			"TaskNotes はカスタマイズされた補助ファイル {path} を保持しました。生成されたバージョンをバックアップから復元するか、コピーを確認して mdbase で移行し、再起動してください。",
+	},
+	collectionCheck: {
+		repairChanged:
+			"タスクの型または使用可能なステータスが変更されたか、提案された修復が無効になりました。修復は行われていません。コレクションをもう一度確認してください。",
+		unresolvedUserField:
+			"管理対象のカスタムフィールド {field} の型を判定できません。設定を保存する前に、スキーマと保持されたフィールドの型を確認してください。既存の設定とメタデータは保持されています。",
+		membershipChanged:
+			"コレクションの確認後に所属条件またはレコードが変更されました。もう一度確認してください。",
+		title: "コレクションを確認",
+		invalidType:
+			"{path} に不整合があります: {issues}。再試行する前に implements.fields と binding を確認してください。プラグイン設定は保持されました。",
+		keptConfiguration: "TaskNotes は最後の正常な設定を保持しました。",
+
+		description:
+			"ノートを変更せずにタスクを検証します。作成日時がない場合はファイルの作成日時で補えます。無効なステータスは置き換え先を選ぶ必要があります。その他のエラーは手動で確認してください。",
+		count: "無効なレコード: {count}",
+		clean: "無効なタスクレコードはありません。",
+		check: "再確認",
+		fix: "バックアップして修正",
+		fixAll: "すべてのレコードで選択した変更をバックアップして適用",
+		chooseStatus: "置き換え先のステータスを選択",
+		confirm:
+			"以下の変更のみ適用しますか？変更前に元のノートを .tasknotes/migrations にバックアップします。未選択のステータスとその他のエラーは変更しません。",
+		fixed: "承認された変更を保存しました。バックアップは .tasknotes/migrations にあります。残りのエラーを確認してください。",
+		error: "コレクションの確認または修正を停止しました。未承認の変更は行っていません。",
+	},
+	mdbaseSafety: {
+		settingsSaved: "TaskNotesは設定を保存しましたが、正規のmdbase型を同期できませんでした。",
+		blocked:
+			"TaskNotes は mdbase メタデータの更新を停止しました。{details} 表示されたファイルと復旧用コピーを確認し、競合またはアクセス権を解決してから TaskNotes を再読み込みしてください。タスクファイルは変更されていません。",
+		multiple:
+			"TaskNotes の型が複数あります: {paths}。正規のプロバイダーを1つ残すか、他の型を型フォルダーの外へ移動してから TaskNotes を再読み込みしてください。TaskNotes は最後に確認された有効な設定を保持しました。",
+		competingSettings:
+			"TaskNotes の設定レコードが他にも見つかりました: {paths}。TaskNotes は {record} を使用し、他のレコードは無視します。残したい設定を {record} にコピーしてから、他のファイルを削除してください。",
+		referenced:
+			"TaskNotes は {typePath} を保持しました。{recordPath} がこの型を明示的に参照しています。プロバイダーを移動する前に型への所属を確認してください。タスクファイルは変更されていません。",
+	},
+	onboarding: {
+		title: "TaskNotes を始める",
+		intro: "タスクは保管庫内の Markdown ノートです。コマンドパレットで次の3つの手順を試してください。",
+		create: "実際のタスクを作成し、今日に予定を設定します。",
+		review: "「今日」ビューでタスクを確認します。",
+		complete:
+			"完了になるまで状態ボタンをクリックします。「今日」からは消えますが、ノートは保管庫に残ります。",
+		inbox: "日付を付けずに記録するには予定日を消します。受信トレイにはプロジェクト、予定日、期限のない未完了タスクが表示されます。",
+		settings: "必要になったら設定する",
+	},
 	common: {
+		settings: "設定",
 		appName: "TaskNotes",
 		new: "新規",
 		cancel: "キャンセル",
@@ -11,7 +65,8 @@ export const ja: TranslationTree = {
 		reorder: {
 			confirmLargeTitle: "大規模な並べ替えを確認",
 			confirmButton: "ノートを並べ替える",
-			confirmLargeMessage: "ここで並べ替えると、{scope} の永続的な手動順序を作るために {count} 件のノートの \"{field}\" が更新されます。同じ範囲内の非表示または絞り込み済みのノートも更新される場合があります。続行しますか？"
+			confirmLargeMessage:
+				'ここで並べ替えると、{scope} の永続的な手動順序を作るために {count} 件のノートの "{field}" が更新されます。同じ範囲内の非表示または絞り込み済みのノートも更新される場合があります。続行しますか？',
 		},
 		language: "言語",
 		systemDefault: "システムの既定",
@@ -25,7 +80,7 @@ export const ja: TranslationTree = {
 			es: "スペイン語",
 			ja: "日本語",
 			pt: "ポルトガル語（ブラジル）",
-			ko: "韓国語"
+			ko: "韓国語",
 		},
 		weekdays: {
 			sunday: "日曜日",
@@ -34,7 +89,7 @@ export const ja: TranslationTree = {
 			wednesday: "水曜日",
 			thursday: "木曜日",
 			friday: "金曜日",
-			saturday: "土曜日"
+			saturday: "土曜日",
 		},
 		months: {
 			january: "1月",
@@ -48,8 +103,8 @@ export const ja: TranslationTree = {
 			september: "9月",
 			october: "10月",
 			november: "11月",
-			december: "12月"
-		}
+			december: "12月",
+		},
 	},
 	views: {
 		agenda: {
@@ -61,7 +116,7 @@ export const ja: TranslationTree = {
 				previousPeriod: "前の期間",
 				nextPeriod: "次の期間",
 				goToToday: "今日に移動",
-				refreshCalendars: "カレンダー購読を更新"
+				refreshCalendars: "カレンダー購読を更新",
 			},
 			loading: "アジェンダを読み込み中...",
 			dayToggle: "日の切り替え",
@@ -71,64 +126,93 @@ export const ja: TranslationTree = {
 			notices: {
 				calendarNotReady: "カレンダーサービスはまだ準備できていません",
 				calendarRefreshed: "カレンダー購読が更新されました",
-				refreshFailed: "更新に失敗しました"
+				refreshFailed: "更新に失敗しました",
 			},
 			empty: {
 				noItemsScheduled: "予定されたアイテムがありません",
 				noItemsFound: "アイテムが見つかりませんでした",
-				helpText: "期限日または予定日のあるタスクを作成するか、ノートを追加してここに表示してください。"
+				helpText:
+					"期限日または予定日のあるタスクを作成するか、ノートを追加してここに表示してください。",
 			},
 			contextMenu: {
 				showOverdueSection: "期限切れセクションを表示",
 				showNotes: "ノートを表示",
-				calendarSubscriptions: "カレンダー購読"
+				calendarSubscriptions: "カレンダー購読",
 			},
 			periods: {
-				thisWeek: "今週"
+				thisWeek: "今週",
 			},
-			tipPrefix: "ヒント："
+			tipPrefix: "ヒント：",
 		},
 		taskList: {
 			title: "タスク",
 			expandAllGroups: "すべてのグループを展開",
 			collapseAllGroups: "すべてのグループを折りたたみ",
 			noTasksFound: "選択されたフィルターにタスクが見つかりませんでした。",
+			movement: {
+				parentAdd: "サブタスクとして追加",
+				parentChoose: "サブタスクの親を選択…",
+				parentPreview:
+					"{parent} のサブタスクとして追加します。他のプロジェクトは変更されません。",
+				parentSelf: "タスクを自身の親にすることはできません。",
+				parentCycle: "子孫タスクの下にタスクを追加することはできません。",
+				parentAlready: "すでに {parent} のサブタスクです。",
+				parentUnavailable: "両方のタスクが存在し、TaskNotes のタスクである必要があります。",
+				parentAssigned: "{parent} のサブタスクとして追加しました。",
+				handle: "タスクを移動",
+				moveTo: "グループに移動",
+				keepSubgroup: "現在のサブグループを維持",
+				moveUp: "上へ移動",
+				moveDown: "下へ移動",
+				moved: "タスクを移動しました。",
+				undo: "元に戻す",
+				undoConflict: "移動後にタスクが変更されたため、元に戻せません。",
+				undoFailed: "この移動を元に戻せませんでした。",
+				noValue: "値なし",
+				otherDestinations: "その他の移動先",
+				readOnly: "{properties} は変更できません。これらのグループは読み取り専用です。",
+				unresolved: "この移動先の {properties} の値を特定できません。",
+				noChange: "すでにこのグループにあります。",
+				failed: "タスクを移動できませんでした。タスクを確認して、もう一度お試しください。",
+			},
 			reorder: {
 				scope: {
 					ungrouped: "この未グループ化リスト",
-					group: "グループ \"{group}\""
-				}
+					group: 'グループ "{group}"',
+				},
 			},
 			errors: {
-				formulaGroupingReadOnly: "数式ベースのグループではタスクを並べ替えできません。数式の値は計算結果のため、直接変更できません。"
-			}
+				formulaGroupingReadOnly:
+					"数式ベースのグループではタスクを並べ替えできません。数式の値は計算結果のため、直接変更できません。",
+			},
 		},
 		notes: {
 			title: "ノート",
 			refreshButton: "更新",
 			refreshingButton: "更新中...",
 			notices: {
-				indexingDisabled: "ノートのインデックス作成が無効になっています"
+				indexingDisabled: "ノートのインデックス作成が無効になっています",
 			},
 			empty: {
 				noNotesFound: "ノートが見つかりませんでした",
-				helpText: "選択された日付のノートが見つかりません。ミニカレンダービューで別の日付を選択するか、ノートを作成してください。"
+				helpText:
+					"選択された日付のノートが見つかりません。ミニカレンダービューで別の日付を選択するか、ノートを作成してください。",
 			},
 			loading: "ノートを読み込み中...",
-			refreshButtonAriaLabel: "ノートリストを更新"
+			refreshButtonAriaLabel: "ノートリストを更新",
 		},
 		miniCalendar: {
 			title: "ミニカレンダー",
 			contextMenu: {
 				openDailyNote: "デイリーノートを開く",
-				openWeeklyNote: "ウィークリーノートを開く"
-			}
+				openWeeklyNote: "ウィークリーノートを開く",
+			},
 		},
 		advancedCalendar: {
 			title: "カレンダー",
 			filters: {
 				showFilters: "フィルターを表示",
-				hideFilters: "フィルターを非表示"
+				hideFilters: "フィルターを非表示",
 			},
 			viewOptions: {
 				calendarSubscriptions: "カレンダー購読",
@@ -138,17 +222,18 @@ export const ja: TranslationTree = {
 				dueDates: "期限日",
 				allDaySlot: "終日スロット",
 				scheduledTasks: "予定タスク",
-				recurringTasks: "繰り返しタスク"
+				recurringTasks: "繰り返しタスク",
 			},
 			buttons: {
 				refresh: "更新",
-				refreshHint: "カレンダー購読を更新"
+				refreshHint: "カレンダー購読を更新",
 			},
 			notices: {
 				icsServiceNotAvailable: "ICS購読サービスが利用できません",
 				calendarRefreshedAll: "すべてのカレンダー購読が正常に更新されました",
 				refreshFailed: "一部のカレンダー購読の更新に失敗しました",
-				timeblockSpecificTime: "タイムブロックには具体的な時間が必要です。週表示または日表示で時間範囲を選択してください。",
+				timeblockSpecificTime:
+					"タイムブロックには具体的な時間が必要です。週表示または日表示で時間範囲を選択してください。",
 				timeblockMoved: "タイムブロック「{title}」を{date}に移動しました",
 				timeblockUpdated: "タイムブロック「{title}」の時間を更新しました",
 				timeblockMoveFailed: "タイムブロックの移動に失敗しました：{message}",
@@ -159,7 +244,7 @@ export const ja: TranslationTree = {
 				endTimeAfterStart: "終了時刻は開始時刻より後である必要があります",
 				timeEntryNotFound: "時間エントリが見つかりません",
 				timeEntryDeleted: "時間エントリを削除しました",
-				deleteTimeEntryFailed: "時間エントリの削除に失敗しました"
+				deleteTimeEntryFailed: "時間エントリの削除に失敗しました",
 			},
 			timeEntry: {
 				estimatedSuffix: "見積",
@@ -169,16 +254,17 @@ export const ja: TranslationTree = {
 				createdPrefix: "作成：",
 				modifiedPrefix: "変更：",
 				duePrefix: "期限：",
-				scheduledPrefix: "予定："
+				scheduledPrefix: "予定：",
 			},
 			contextMenus: {
 				openTask: "タスクを開く",
 				deleteTimeEntry: "時間エントリを削除",
 				deleteTimeEntryTitle: "時間エントリを削除",
-				deleteTimeEntryConfirm: "この時間エントリ{duration}を削除してもよろしいですか？この操作は元に戻せません。",
+				deleteTimeEntryConfirm:
+					"この時間エントリ{duration}を削除してもよろしいですか？この操作は元に戻せません。",
 				deleteButton: "削除",
-				cancelButton: "キャンセル"
-			}
+				cancelButton: "キャンセル",
+			},
 		},
 		basesCalendar: {
 			title: "ベースカレンダー",
@@ -191,7 +277,7 @@ export const ja: TranslationTree = {
 				list: "一覧",
 				customDays: "{count}日",
 				listDays: "{count}日一覧",
-				refresh: "更新"
+				refresh: "更新",
 			},
 			hints: {
 				refresh: "カレンダー購読を更新",
@@ -203,7 +289,7 @@ export const ja: TranslationTree = {
 				day: "日表示",
 				year: "年表示",
 				list: "一覧表示",
-				customDays: "{count}日表示"
+				customDays: "{count}日表示",
 			},
 			settings: {
 				groups: {
@@ -217,11 +303,12 @@ export const ja: TranslationTree = {
 					propertyBasedEvents: "プロパティベースのイベント",
 					calendarSubscriptions: "カレンダー購読",
 					googleCalendars: "Google カレンダー",
-					microsoftCalendars: "Microsoft カレンダー"
+					microsoftCalendars: "Microsoft カレンダー",
 				},
 				dateNavigation: {
 					navigateToDate: "日付に移動",
-					navigateToDatePlaceholder: "YYYY-MM-DD（例：2025-01-15）- プロパティを使用する場合は空のままにする",
+					navigateToDatePlaceholder:
+						"YYYY-MM-DD（例：2025-01-15）- プロパティを使用する場合は空のままにする",
 					navigateToDateFromProperty: "プロパティから日付に移動",
 					navigateToDateFromPropertyPlaceholder: "日付プロパティを選択（オプション）",
 					propertyNavigationStrategy: "プロパティナビゲーション戦略",
@@ -229,8 +316,8 @@ export const ja: TranslationTree = {
 					strategies: {
 						first: "最初の結果",
 						earliest: "最も古い日付",
-						latest: "最新の日付"
-					}
+						latest: "最新の日付",
+					},
 				},
 				events: {
 					showScheduledTasks: "予定されたタスクを表示",
@@ -241,7 +328,7 @@ export const ja: TranslationTree = {
 					showTimeblocks: "タイムブロックを表示",
 					showPropertyBasedEvents: "プロパティベースのイベントを表示",
 					showCompletedRecurringInstances: "完了した繰り返しインスタンスを表示",
-					showSkippedRecurringInstances: "スキップした繰り返しインスタンスを表示"
+					showSkippedRecurringInstances: "スキップした繰り返しインスタンスを表示",
 				},
 				layout: {
 					calendarView: "カレンダービュー",
@@ -273,12 +360,12 @@ export const ja: TranslationTree = {
 					slotEventOverlap: "イベントの重なりを許可",
 					enableSearch: "検索ボックスを有効化",
 					eventMaxStack: "最大スタックイベント数（週/日表示、0 = 無制限）",
-					dayMaxEvents: "1日あたりの最大イベント数（月表示、0 = 自動）",
-					dayMaxEventRows: "1日あたりの最大イベント行数（月表示、0 = 無制限）",
+					dayMaxEvents: "1日あたりの最大イベント数（0 = 自動）",
+					dayMaxEventRows: "1日あたりの最大イベント行数（0 = 無制限）",
 					spanScheduledToDue: "予定日から期日までタスクを延長表示",
 					heightMode: "高さモード",
 					heightModeFill: "コンテナを埋める",
-					heightModeAuto: "自動高さ"
+					heightModeAuto: "自動高さ",
 				},
 				propertyBasedEvents: {
 					startDateProperty: "開始日プロパティ",
@@ -286,40 +373,45 @@ export const ja: TranslationTree = {
 					endDateProperty: "終了日プロパティ（オプション）",
 					endDatePropertyPlaceholder: "終了日時のプロパティを選択",
 					titleProperty: "タイトルプロパティ（オプション）",
-					titlePropertyPlaceholder: "イベントタイトルのプロパティを選択"
-				}
+					titlePropertyPlaceholder: "イベントタイトルのプロパティを選択",
+				},
 			},
 			notices: {
-				noDailyNoteForDate: "この日付のデイリーノートはありません。"
+				noDailyNoteForDate: "この日付のデイリーノートはありません。",
 			},
 			errors: {
-				failedToInitialize: "カレンダーの初期化に失敗しました"
-			}
+				failedToInitialize: "カレンダーの初期化に失敗しました",
+			},
 		},
 		kanban: {
 			title: "カンバン",
 			newTask: "新しいタスク",
 			addCard: "+ カードを追加",
 			noTasks: "タスクなし",
+			collapseSwimlane: "スイムレーンを折りたたむ",
+			expandSwimlane: "スイムレーンを展開",
 			uncategorized: "未分類",
 			noProject: "プロジェクトなし",
 			reorder: {
 				scope: {
-					column: "列 \"{group}\"",
-					columnInSwimlane: "スイムレーン \"{swimlane}\" の列 \"{group}\""
-				}
+					column: '列 "{group}"',
+					columnInSwimlane: 'スイムレーン "{swimlane}" の列 "{group}"',
+				},
 			},
 			notices: {
 				loadFailed: "カンバンボードの読み込みに失敗しました",
-				movedTask: "タスクを\"{0}\"に移動しました"
+				movedTask: 'タスクを"{0}"に移動しました',
 			},
 			errors: {
 				loadingBoard: "ボードの読み込みエラー。",
-				noGroupBy: "カンバンビューには「グループ化」プロパティの設定が必要です。「並び替え」ボタンをクリックし、「グループ化」でプロパティを選択してください。",
-				formulaGroupingReadOnly: "数式ベースの列間でタスクを移動することはできません。数式の値は計算されるため、直接変更することはできません。",
-				formulaSwimlaneReadOnly: "数式ベースのスイムレーン間でタスクを移動することはできません。数式の値は計算されるため、直接変更することはできません。"
+				noGroupBy:
+					"カンバンビューには「グループ化」プロパティの設定が必要です。「並び替え」ボタンをクリックし、「グループ化」でプロパティを選択してください。",
+				formulaGroupingReadOnly:
+					"数式ベースの列間でタスクを移動することはできません。数式の値は計算されるため、直接変更することはできません。",
+				formulaSwimlaneReadOnly:
+					"数式ベースのスイムレーン間でタスクを移動することはできません。数式の値は計算されるため、直接変更することはできません。",
 			},
-			columnTitle: "無題"
+			columnTitle: "無題",
 		},
 		pomodoro: {
 			title: "ポモドーロ",
@@ -333,9 +425,9 @@ export const ja: TranslationTree = {
 				breakPrompt: "素晴らしい仕事です！{length}休憩の時間です",
 				breakLength: {
 					short: "短い",
-					long: "長い"
+					long: "長い",
 				},
-				breakComplete: "休憩完了！次のポモドーロの準備はできましたか？"
+				breakComplete: "休憩完了！次のポモドーロの準備はできましたか？",
 			},
 			buttons: {
 				start: "開始",
@@ -351,131 +443,25 @@ export const ja: TranslationTree = {
 				selectDifferentTask: "別のタスクを選択",
 				startFocus: "フォーカスを開始",
 				addMinute: "1分追加",
-				subtractMinute: "1分減らす"
+				subtractMinute: "1分減らす",
 			},
 			notices: {
-				noTasks: "アーカイブされていないタスクが見つかりません。最初にタスクを作成してください。",
+				noTasks:
+					"アーカイブされていないタスクが見つかりません。最初にタスクを作成してください。",
 				loadFailed: "タスクの読み込みに失敗しました",
-				invalidDuration: "10、10:30、1:30:00 のような時間を入力してください。"
+				invalidDuration: "10、10:30、1:30:00 のような時間を入力してください。",
 			},
 			statsLabel: "今日完了",
 			meta: {
 				ready: "{time} 予定 · 今日 {count} 完了",
 				running: "残り {time} · {endTime} に終了",
 				paused: "{type} 一時停止中 · 残り {time}",
-				breakReady: "{type} 準備完了 · {time} 予定"
+				breakReady: "{type} 準備完了 · {time} 予定",
 			},
 			timer: {
 				editLabel: "タイマー時間を編集",
-				inputLabel: "タイマー時間"
-			}
-		},
-		pomodoroStats: {
-			title: "ポモドーロ統計",
-			heading: "ポモドーロ統計",
-			refresh: "更新",
-			sections: {
-				overview: "概要",
-				today: "今日",
-				week: "今週",
-				allTime: "全期間",
-				recent: "最近のセッション"
+				inputLabel: "タイマー時間",
 			},
-			overviewCards: {
-				todayPomos: {
-					label: "今日のポモ",
-					change: {
-						more: "昨日より{count}多い",
-						less: "昨日より{count}少ない"
-					}
-				},
-				totalPomos: {
-					label: "総ポモ数"
-				},
-				todayFocus: {
-					label: "今日のフォーカス",
-					change: {
-						more: "昨日より{duration}多い",
-						less: "昨日より{duration}少ない"
-					}
-				},
-				totalFocus: {
-					label: "総フォーカス時間"
-				}
-			},
-			stats: {
-				pomodoros: "ポモドーロ",
-				streak: "連続記録",
-				minutes: "分",
-				average: "平均長さ",
-				completion: "完了"
-			},
-			recents: {
-				empty: "まだセッションが記録されていません",
-				duration: "{minutes}分",
-				status: {
-					completed: "完了",
-					interrupted: "中断"
-				},
-				delete: "セッションを削除",
-				deleteAria: "Pomodoroセッションを削除",
-				deleteConfirmTitle: "Pomodoroセッションを削除しますか？",
-				deleteConfirmMessage: "これによりPomodoro履歴からセッションが削除されます。既存のタスク時間エントリは変更されません。",
-				deleteConfirmButton: "削除",
-				deleteSuccess: "Pomodoroセッションを削除しました",
-				deleteNotFound: "Pomodoroセッションが見つかりませんでした"
-			},
-			basesMigration: {
-				title: "Baseビューが必要ですか？",
-				description: "Pomodoro Baseビューはデイリーノートのfrontmatterを使用します。生成されたPomodoro統計Baseでこの履歴を見るには、設定でPomodoroデータを移行し、保存先をデイリーノートに設定してください。"
-			}
-		},
-		stats: {
-			title: "統計",
-			taskProjectStats: "タスクとプロジェクトの統計",
-			sections: {
-				filters: "フィルター",
-				overview: "概要",
-				today: "今日",
-				thisWeek: "今週",
-				thisMonth: "今月",
-				projectBreakdown: "プロジェクト内訳",
-				dateRange: "日付範囲"
-			},
-			filters: {
-				minTime: "最小時間（分）",
-				allTasks: "すべてのタスク",
-				activeOnly: "アクティブのみ",
-				completedOnly: "完了のみ"
-			},
-			refreshButton: "更新",
-			timeRanges: {
-				allTime: "全期間",
-				last7Days: "過去7日間",
-				last30Days: "過去30日間",
-				last90Days: "過去90日間",
-				customRange: "カスタム範囲"
-			},
-			resetFiltersButton: "フィルターをリセット",
-			dateRangeFrom: "開始",
-			dateRangeTo: "終了",
-			noProject: "プロジェクトなし",
-			cards: {
-				timeTrackedEstimated: "追跡時間 / 見積時間",
-				totalTasks: "総タスク数",
-				completionRate: "完了率",
-				activeProjects: "アクティブプロジェクト",
-				avgTimePerTask: "タスクあたりの平均時間"
-			},
-			labels: {
-				tasks: "タスク",
-				completed: "完了",
-				projects: "プロジェクト"
-			},
-			noProjectData: "プロジェクトデータがありません",
-			notAvailable: "N/A",
-			noTasks: "タスクが見つかりません",
-			loading: "読み込み中..."
 		},
 		releaseNotes: {
 			title: "TaskNotes {version} の新機能",
@@ -483,13 +469,234 @@ export const ja: TranslationTree = {
 			viewAllLink: "GitHubですべてのリリースノートを表示 →",
 			starMessage:
 				"どんなフィードバックも本当にありがたいです。何か違和感があれば、GitHubでお知らせください。TaskNotesが役に立ったら、スターもご検討ください。",
-			baseFilesNotice: "> [!info] デフォルトの `.base` ファイルについて\n> デフォルトで生成される `.base` テンプレートの変更で、既存の `.base` ファイルが上書きされることはありません。カスタマイズはそのまま保持されます。\n> 最新のテンプレート改善を反映したい場合は、**設定 → TaskNotes → 一般 → ビューとbaseファイル → ファイルを更新** からベースファイルを再生成してください。"
-		}
+			baseFilesNotice:
+				"> [!info] デフォルトの `.base` ファイルについて\n> デフォルトで生成される `.base` テンプレートの変更で、既存の `.base` ファイルが上書きされることはありません。カスタマイズはそのまま保持されます。\n> 最新のテンプレート改善を反映したい場合は、**設定 → TaskNotes → 外観と操作 → ビューとBaseファイル → ファイルを更新** からベースファイルを再生成してください。",
+		},
 	},
 	settings: {
+		native: {
+			enterValue: "値を入力してください。",
+			duplicateValue: "この値はすでに存在します。",
+			enterCalendarName: "カレンダー名を入力してください。",
+			chooseCalendarFile: "ローカルの .ics ファイルを選択してください。",
+			noDefaultHint: "既定値を設定しない場合は空欄にします。",
+			optionalNumber: "数値を入力するか、空欄にしてください。",
+			validDate: "YYYY-MM-DD 形式で有効な日付を入力してください。",
+			validTime: "00:00〜23:59 の時刻を入力してください。",
+			includedFolders: "対象フォルダー",
+			statuses: "ステータス",
+			priorities: "優先度",
+			allNotes: "すべてのノート",
+			nextInOrder: "順序内の次のステータス",
+			off: "オフ",
+			newProperty: "新しいプロパティ",
+			noKeySet: "キー未設定",
+			notSyncedYet: "未同期",
+			secretSaved: "シークレットを保存済み",
+			notConnected: "未接続",
+			connected: "接続済み",
+			defaultDueTime: "既定の期限時刻",
+			defaultScheduledTime: "既定の予定時刻",
+			reminderNumber: "リマインダー {number}",
+			displayRow: "表示行 {number}",
+			deleteEntry: "{name} を削除しますか？",
+			connectAccount: "{name} に接続",
+			disconnectAccount: "{name} の接続を解除",
+			forgetAccountCredentials: "{name} の認証情報を削除しますか？",
+			connectedSince: "接続日時：{date}",
+			tokenRefreshed: "トークン更新日時：{date}",
+			deliveryCounts: "成功：{success} · 失敗：{failure}",
+			minutesValue: "{minutes} 分",
+			saveError: "TaskNotes の設定を保存できませんでした：{error}",
+			numberRange: "{min} から {max} の数値を入力してください。",
+			taskFiles: "タスクファイル",
+			taskIdentificationFoldersFilenamesAndFrontmatter:
+				"タスクの識別、フォルダー、ファイル名、フロントマター。",
+			filenames: "ファイル名",
+			namesForTaskNotesAndRecurringOccurrences:
+				"タスクノートと繰り返しタスクの各回のファイル名。",
+			propertyMappingsStatusesPrioritiesAndCustomProperties:
+				"プロパティの対応付け、ステータス、優先度、カスタムプロパティ。",
+			defaultsTemplatesNaturalLanguageInputAndFormFields:
+				"既定値、テンプレート、自然言語入力、フォームのフィールド。",
+			defaults: "既定値",
+			valuesToUseWhenCreatingATask: "タスク作成時に使用する値。",
+			templates: "テンプレート",
+			taskBodiesAndRecurringOccurrenceNotes: "タスクの本文と繰り返しタスクの各回のノート。",
+			formFields: "フォームのフィールド",
+			chooseWhichFieldsAppearWhenCreatingAndEditingTasks:
+				"タスクの作成時と編集時に表示するフィールドを選択します。",
+			appearanceInteraction: "外観と操作",
+			taskCardsInlineTasksClickBehaviourAndViewDefaults:
+				"タスクカード、インラインタスク、クリック操作、ビューの既定値。",
+			calendarDefaults: "カレンダーの既定値",
+			defaultsForCalendarViewsIndividualBasesViewsMayOverride:
+				"カレンダービューの既定値です。各 Bases ビューで上書きできます。",
+			configureViewCommandsChangeFiltersSortingAndGroupingInside:
+				"ビューのコマンドを設定します。フィルター、並び順、グループ化は各 Base 内で変更してください。",
+			timeReminders: "時間とリマインダー",
+			notificationsTimeTrackingRecurrencePomodoroAndTimeblocking:
+				"通知、時間記録、繰り返し、ポモドーロ、タイムブロック。",
+			reminderDeliveryAndSounds: "リマインダーの配信とサウンド。",
+			timerDurationsSoundsHistoryAndMobilePlacement:
+				"タイマーの時間、サウンド、履歴、モバイルでの表示位置。",
+			calendarBlocksAndAttachments: "カレンダーのブロックと添付ファイル。",
+			calendarsIntegrations: "カレンダーと連携",
+			calendarAccountsSubscriptionsTaskExportAndInteroperability:
+				"カレンダーアカウント、購読、タスクのエクスポート、相互運用。",
+			advanced: "詳細設定",
+			indexingHTTPAPIWebhooksAndDiagnostics: "インデックス、HTTP API、Webhook、診断。",
+			defaultTaskCardPropertiesUpdated: "タスクカードの既定プロパティを更新しました",
+			invalidTimeFormatPleaseUseHhMmFormatE:
+				"時刻の形式が無効です。hh:mm 形式を使用してください（例：08:00）。",
+			invalidTimeHoursMustBe0023AndMinutes:
+				"時刻が無効です。時は 00〜23、分は 00〜59 で入力してください。",
+			invalidTimeFormatPleaseUseHhMmFormatE2:
+				"時刻の形式が無効です。hh:mm 形式を使用してください（例：26:00）。",
+			invalidTimeUse00004800ValuesAfter:
+				"時刻が無効です。00:00〜48:00 を使用してください。翌日は 24:00〜48:00 で指定します（例：翌日午前2時は 26:00）。",
+			enterAnHTTPOrHTTPSURL: "HTTP または HTTPS の URL を入力してください。",
+			connectionStatus: "接続状態",
+			oAuthCredentials: "OAuth 認証情報",
+			storedInObsidianSecretStorageNotTaskNotesSettings:
+				"TaskNotes の設定ではなく、Obsidian のシークレットストレージに保存されます。",
+			clientID: "クライアント ID",
+			clientSecret: "クライアントシークレット",
+			leaveEmptyToKeepTheSavedSecretEnterA:
+				"空欄なら保存済みの値を維持します。置き換える値を入力し、このフィールドから移動すると保存されます。",
+			forgetSavedCredentials: "保存済み認証情報を削除",
+			forgetCredentials: "認証情報を削除",
+			thisRemovesTheSavedClientIDAndClientSecret:
+				"Obsidian のシークレットストレージからクライアント ID とシークレットを削除します。",
+			connect: "接続",
+			calendarIntegrationIsUnavailableOnThisDevice:
+				"この端末ではカレンダー連携を利用できません。",
+			refreshCalendarEvents: "カレンダーの予定を更新",
+			calendarSyncServiceUnavailable: "カレンダー同期サービスを利用できません。",
+			disconnect: "接続解除",
+			calendarSubscriptionServiceUnavailable: "カレンダー購読サービスを利用できません。",
+			theCalendarSubscriptionWillBeRemovedLinkedNotesWill:
+				"カレンダーの購読を削除します。リンクされたノートは保持されます。",
+			source: "取得元",
+			calendarURL: "カレンダー URL",
+			hTTPHTTPSWebcalOrWebcalsURL: "HTTP、HTTPS、webcal、webcals の URL。",
+			aCSSColorOrThemeVariable: "CSS の色またはテーマ変数。",
+			refreshIntervalMinutes: "更新間隔（分）",
+			lastSync: "最終同期",
+			refreshSubscription: "購読を更新",
+			calendarFile: "カレンダーファイル",
+			anIcsFileInThisVault: "この保管庫内の .ics ファイル。",
+			noWebhooksConfiguredAddOneToSendTaskEvents:
+				"Webhook は未設定です。追加すると、タスクのイベントを外部サービスに送信できます。",
+			deleteWebhook: "Webhook を削除しますか？",
+			eventsWillNoLongerBeSentToThisEndpoint:
+				"このエンドポイントにはイベントが送信されなくなります。",
+			selectAtLeastOneEventBeforeEnablingThisWebhook:
+				"この Webhook を有効にする前に、イベントを1つ以上選択してください。",
+			anOptionalJsonTemplateInTheVaultLeaveEmpty:
+				"保管庫内の任意の .json テンプレート。空欄なら未加工のイベントデータを送信します。",
+			includeEventTypeSignatureAndDeliveryIDTurnOff:
+				"イベント種別、署名、配信 ID を含めます。CORS ポリシーが厳格なサービスでは無効にしてください。",
+			deliveryStatus: "配信状態",
+			signingSecret: "署名用シークレット",
+			useThisSecretToVerifyPayloadsInTheReceiving:
+				"受信側のアプリケーションでペイロードを検証するために使用します。",
+			copySecret: "シークレットをコピー",
+			signingSecretCopied: "署名用シークレットをコピーしました",
+			leaveEmptyToUseTheNormalTaskFilenameWith:
+				"空欄なら通常のタスクファイル名に一意の接尾辞を付けます。",
+			occurrenceFilenameTemplateProperty: "各回のファイル名テンプレートのプロパティ",
+			aPropertyOnTheParentTaskThatOverridesThe:
+				"各回のファイル名テンプレートを上書きする、親タスクのプロパティ。",
+			defaultsApplyToNewTasks: "既定値は新しいタスクに適用されます",
+			changingTheseValuesDoesNotUpdateExistingTaskNotes:
+				"これらの値を変更しても、既存のタスクノートは更新されません。",
+			hHMmLeaveEmptyForAnAllDayTask: "HH:mm。終日タスクの場合は空欄にします。",
+			separateContextsWithCommas: "コンテキストをカンマで区切ります。",
+			separateTagsWithCommas: "タグをカンマで区切ります。",
+			defaultTimeEstimateMinutes: "既定の見積もり時間（分）",
+			newTasksHaveNoDefaultProjects: "新しいタスクに既定のプロジェクトはありません。",
+			newTasksHaveNoDefaultReminders: "新しいタスクに既定のリマインダーはありません。",
+			relativeTo: "基準",
+			splitLayoutOnWideScreens: "広い画面で分割表示",
+			showTheDetailsEditorBesideTheFieldsOnScreens:
+				"幅 900px 以上の画面では、詳細エディターをフィールドの横に表示します。",
+			tabMovesFocusInDetailsEditor: "詳細エディターで Tab キーによるフォーカス移動",
+			whenOffTabIndentsTextInTheMarkdownEditor:
+				"無効の場合、Tab キーは Markdown エディター内のテキストを字下げします。",
+			syncCustomProperties: "カスタムプロパティを同期",
+			syncProperties: "プロパティを同期",
+			noFieldsInThisGroup: "このグループにはフィールドがありません。",
+			showWhenCreatingTasks: "タスク作成時に表示",
+			showWhenEditingTasks: "タスク編集時に表示",
+			resetFormFields: "フォームのフィールドをリセット",
+			restoreVisibilityGroupingAndOrderingCustomPropertiesAreKept:
+				"表示、グループ分け、順序を元に戻します。カスタムプロパティは保持されます。",
+			resetFields: "フィールドをリセット",
+			resetFormFields2: "フォームのフィールドをリセットしますか？",
+			yourCustomFieldLayoutWillBeReplacedWithThe:
+				"カスタムレイアウトを既定のレイアウトに置き換えます。",
+			inlineTaskCardProperties: "インラインタスクカードのプロパティ",
+			selectWhichPropertiesToShowInInlineTaskCards:
+				"インラインタスクカードに表示するプロパティを選択します。",
+			inlineTaskCardPropertiesUpdated: "インラインタスクカードのプロパティを更新しました",
+			attachmentSearchOrder: "添付ファイルの検索順序",
+			controlsHowFilesAreOrderedInTheAddAttachment:
+				"タイムブロックへの添付ファイル追加時に、検索結果のファイルを並べる順序を指定します。",
+			nameAToZ: "名前（A〜Z）",
+			nameZToA: "名前（Z〜A）",
+			pathAToZ: "パス（A〜Z）",
+			pathZToA: "パス（Z〜A）",
+			createdNewestFirst: "作成日時（新しい順）",
+			createdOldestFirst: "作成日時（古い順）",
+			modifiedNewestFirst: "更新日時（新しい順）",
+			modifiedOldestFirst: "更新日時（古い順）",
+			baseFile: "Base ファイル",
+			resetFileMapping: "ファイルの対応付けをリセット",
+			calendarSetupGuide: "カレンダー設定ガイド",
+			connectAGoogleOrMicrosoftCalendarUsingYourOwn:
+				"独自の OAuth アプリ認証情報を使って Google または Microsoft のカレンダーに接続します。",
+			enterAPropertyKey: "プロパティキーを入力してください。",
+			useAPropertyKeyWithoutSurroundingSpacesLineBreaks:
+				"前後の空白、改行、YAML の記号を含まないキーを使用してください。",
+			theTagsPropertyIsReservedByObsidian: "tags プロパティは Obsidian が予約しています。",
+			anotherPropertyAlreadyUsesThisKey: "別のプロパティがこのキーを使用しています。",
+			separateValuesWithCommas: "値をカンマで区切ります。",
+			propertyName: "プロパティ名",
+			propertyValue: "プロパティ値",
+			leaveEmptyToMatchAnyNoteWithThisProperty:
+				"空欄なら、このプロパティを持つすべてのノートに一致します。",
+			noValuesConfigured: "値が設定されていません。",
+			keepAtLeastOneConfiguredValue: "設定済みの値を1つ以上残してください。",
+			existingTaskNotesWillNotBeChangedTasksUsing:
+				"既存のタスクノートは変更されません。この値を使うタスクはフロントマターに値を保持します。",
+			storedInTaskNotesChangingThisDoesNotRename:
+				"タスクノートに保存されます。変更しても既存のノート内の値は改名されません。",
+			aCSSColorOrThemeVariableSuchAsVar:
+				"CSS の色またはテーマ変数（例：var(--text-accent)）。",
+			lucideIconNameLeaveEmptyForTheDefaultIndicator:
+				"Lucide アイコン名。空欄なら既定の表示を使用します。",
+			countsAsCompleted: "完了と見なす",
+			countsAsSkipped: "スキップ済みと見なす",
+			excludeFromStatusCycle: "ステータスの循環から除外",
+			automaticArchiving: "自動アーカイブ",
+			automaticallyArchive: "自動的にアーカイブ",
+			sortWeight: "並び替えの重み",
+			higherValuesSortFirst: "値が大きいものを先に表示します。",
+			thisRemovesThePropertyFromTaskNotesFormsNotFrom:
+				"TaskNotes のフォームから削除しますが、既存のノートからは削除しません。",
+			deleteProperty: "プロパティを削除",
+			changingThisKeyDoesNotMigrateExistingNotes:
+				"このキーを変更しても既存のノートは移行されません。",
+			changingThisMappingDoesNotRenamePropertiesInExisting:
+				"この対応付けを変更しても既存のノートのプロパティ名は変わりません。",
+			metadataIntegrationProperties: "メタデータと連携用プロパティ",
+			timestampsRecurrenceRecordsOrderingAndLinkedCalendarEvents:
+				"日時、繰り返しの記録、順序、リンクされたカレンダーの予定。",
+		},
 		header: {
 			documentation: "ドキュメント",
-			documentationUrl: "https://tasknotes.dev"
+			documentationUrl: "https://tasknotes.dev",
 		},
 		tabs: {
 			general: "一般",
@@ -498,126 +705,191 @@ export const ja: TranslationTree = {
 			defaults: "デフォルトとテンプレート",
 			appearance: "外観とUI",
 			features: "機能",
-			integrations: "統合"
+			integrations: "統合",
+		},
+		modalFields: {
+			header: "タスクモーダルのフィールド設定",
+			description:
+				"タスク作成モーダルと編集モーダルに表示するフィールドを設定します。フィールドをドラッグして各グループ内で並べ替えできます。",
+			splitLayout: {
+				name: "ワイド画面で分割レイアウト",
+				description:
+					"有効にすると、900px 以上の画面で詳細エディタが右側の列に表示されます。無効にすると、モーダルは積み重ねレイアウトを使用します。",
+			},
+			tabMovesFocus: {
+				name: "詳細エディタで Tab キーがフォーカスを移動",
+				description:
+					"有効にすると、Tab キーで詳細エディタから次のモーダルフィールドへ、Shift+Tab キーで前のフィールドへフォーカスが移動します。無効にすると、Tab キーと Shift+Tab キーは Markdown エディタのインデント動作を使用します。",
+			},
+			sync: {
+				name: "ユーザーフィールドを同期",
+				description:
+					"クリックして、タスクプロパティ設定のカスタムユーザーフィールドをこの設定に同期します。",
+				button: "ユーザーフィールドを同期",
+				notice: "ユーザーフィールドがモーダル設定に同期されました",
+			},
+			reset: {
+				name: "既定値にリセット",
+				description:
+					"すべてのフィールド設定を既定値にリセットします。カスタム設定はすべて削除されます。",
+				button: "既定値にリセット",
+				confirmTitle: "フィールド設定を既定値にリセット",
+				confirmMessage:
+					"フィールド設定を既定値にリセットしますか？カスタムフィールド設定はすべて削除されます。",
+				confirmText: "リセット",
+				cancelText: "キャンセル",
+				notice: "フィールド設定が既定値にリセットされました",
+			},
+			initError: "エラー: フィールド設定を初期化できませんでした",
+			manager: {
+				invalidConfig: "エラー: フィールド設定が無効です。既定値にリセットしてください。",
+				emptyGroup: "このグループにはフィールドがありません",
+				enabled: "有効:",
+				showInCreation: "作成時に表示：",
+				showInEdit: "編集時に表示：",
+				group: "グループ:",
+				fieldId: "ID: {id}",
+				fieldKey: "キー: {key}",
+				noKey: "キーが設定されていません",
+				fieldTypes: {
+					core: "コア",
+					user: "ユーザー",
+					dependency: "依存関係",
+					organization: "整理",
+				},
+			},
 		},
 		features: {
 			inlineTasks: {
 				header: "インラインタスク",
-				description: "ノート内のタスクリンクとチェックボックスからタスクへの変換の設定。"
+				description: "ノート内のタスクリンクとチェックボックスからタスクへの変換の設定。",
 			},
 			taskCreation: {
 				header: "タスク作成",
 				description: "タスク作成後の動作を設定します。",
 				openAfterCreate: {
 					name: "作成後にタスクを開く",
-					description: "通常の新規タスク作成モーダルで保存後に新しいタスクノートを開くかどうかを選択します。",
+					description:
+						"通常の新規タスク作成モーダルで保存後に新しいタスクノートを開くかどうかを選択します。",
 					options: {
 						none: "開かない",
 						sameTab: "同じタブで開く",
-						newTab: "新しいタブで開く"
-					}
-				}
+						newTab: "新しいタブで開く",
+					},
+				},
 			},
 			overlays: {
 				taskLinkToggle: {
 					name: "タスクリンクオーバーレイ",
-					description: "タスクリンクにホバーした際のインタラクティブオーバーレイを表示"
+					description: "タスクリンクにホバーした際のインタラクティブオーバーレイを表示",
 				},
 				aliasExclusion: {
 					name: "エイリアス付きリンクでオーバーレイを無効化",
-					description: "リンクにエイリアスが含まれている場合、タスクウィジェットを表示しない（例: [[タスク|エイリアス]]）。"
-				}
+					description:
+						"リンクにエイリアスが含まれている場合、タスクウィジェットを表示しない（例: [[タスク|エイリアス]]）。",
+				},
 			},
 			instantConvert: {
 				toggle: {
 					name: "チェックボックスの横に変換ボタンを表示",
-					description: "MarkdownチェックボックスをTaskNotesに変換するインラインボタンを表示する"
+					description:
+						"MarkdownチェックボックスをTaskNotesに変換するインラインボタンを表示する",
 				},
 				preserveCheckbox: {
 					name: "変換時にチェックボックスを残す",
-					description: "チェックボックスをTaskNoteリンクに変換するとき、元のMarkdownチェックボックス記号を残します"
+					description:
+						"チェックボックスをTaskNoteリンクに変換するとき、元のMarkdownチェックボックス記号を残します",
 				},
 				folder: {
 					name: "インライン作成タスクのフォルダ",
-					description: "インラインコマンドまたはチェックボックス変換から作成されるタスクの作成先フォルダです。空のままにするとデフォルトのタスクフォルダを使用します。現在のノートのフォルダには {{currentNotePath}}、現在のノート名のサブフォルダには {{currentNoteTitle}} を使用します。"
-				}
+					description:
+						"インラインコマンドまたはチェックボックス変換から作成されるタスクの作成先フォルダです。空のままにするとデフォルトのタスクフォルダを使用します。現在のノートのフォルダには {{currentNotePath}}、現在のノート名のサブフォルダには {{currentNoteTitle}} を使用します。",
+				},
 			},
 			nlp: {
 				header: "自然言語処理",
 				description: "テキスト入力から日付、優先度、その他のプロパティを解析します。",
 				enable: {
 					name: "自然言語タスク入力を有効にする",
-					description: "タスク作成時に自然言語から期限日、優先度、コンテキストを解析"
+					description: "タスク作成時に自然言語から期限日、優先度、コンテキストを解析",
 				},
 				defaultToScheduled: {
 					name: "デフォルトで予定に設定",
-					description: "NLPがコンテキストなしで日付を検出した場合、期限ではなく予定として扱う"
+					description:
+						"NLPがコンテキストなしで日付を検出した場合、期限ではなく予定として扱う",
+				},
+				enterToSubmit: {
+					name: "Enter でタスクを保存",
+					description:
+						"自然言語入力で Enter キーを押すとタスクを保存します。Shift+Enter で改行を挿入し、Ctrl/Cmd+Enter でも引き続き保存できます。",
 				},
 				language: {
 					name: "NLP言語",
-					description: "自然言語処理パターンと日付解析の言語"
+					description: "自然言語処理パターンと日付解析の言語",
 				},
 				statusTrigger: {
 					name: "ステータス提案トリガー",
-					description: "ステータス提案をトリガーするテキスト（無効にするには空白のままにする）"
-				}
+					description:
+						"ステータス提案をトリガーするテキスト（無効にするには空白のままにする）",
+				},
 			},
 			pomodoro: {
 				header: "ポモドーロタイマー",
 				description: "ポモドーロタイマーの作業/休憩間隔を設定します。",
 				workDuration: {
 					name: "作業時間",
-					description: "作業間隔の時間（分）"
+					description: "作業間隔の時間（分）",
 				},
 				shortBreak: {
 					name: "短い休憩時間",
-					description: "短い休憩の時間（分）"
+					description: "短い休憩の時間（分）",
 				},
 				longBreak: {
 					name: "長い休憩時間",
-					description: "長い休憩の時間（分）"
+					description: "長い休憩の時間（分）",
 				},
 				longBreakInterval: {
 					name: "長い休憩間隔",
-					description: "長い休憩前の作業セッション数"
+					description: "長い休憩前の作業セッション数",
 				},
 				autoStartBreaks: {
 					name: "自動休憩開始",
-					description: "作業セッション後に休憩タイマーを自動開始"
+					description: "作業セッション後に休憩タイマーを自動開始",
 				},
 				autoStartWork: {
 					name: "自動作業開始",
-					description: "休憩後に作業セッションを自動開始"
+					description: "休憩後に作業セッションを自動開始",
 				},
 				notifications: {
 					name: "ポモドーロ通知",
-					description: "ポモドーロセッション終了時に通知を表示"
+					description: "ポモドーロセッション終了時に通知を表示",
 				},
 				mobileSidebar: {
 					name: "モバイルサイドバー",
 					description: "モバイルデバイスでポモドーロタイマーを開く場所",
 					tab: "ノートパネル",
 					left: "左サイドバー",
-					right: "右サイドバー"
+					right: "右サイドバー",
 				},
 				statusBar: {
 					name: "ステータスバーにPomodoroを表示",
-					description: "ObsidianのステータスバーにアクティブなPomodoroカウントダウンを表示"
-				}
+					description:
+						"ObsidianのステータスバーにアクティブなPomodoroカウントダウンを表示",
+				},
 			},
 			uiLanguage: {
 				header: "インターフェース言語",
 				description: "TaskNotesのメニュー、通知、ビューの言語を変更します。",
 				dropdown: {
 					name: "UI言語",
-					description: "TaskNotesインターフェーステキストに使用する言語を選択"
-				}
+					description: "TaskNotesインターフェーステキストに使用する言語を選択",
+				},
 			},
 			pomodoroSound: {
 				enabledName: "サウンド有効",
 				enabledDesc: "ポモドーロセッション終了時にサウンドを再生",
 				volumeName: "サウンド音量",
-				volumeDesc: "ポモドーロサウンドの音量（0-100）"
+				volumeDesc: "ポモドーロサウンドの音量（0-100）",
 			},
 			dataStorage: {
 				name: "ポモドーロデータストレージ",
@@ -625,8 +897,8 @@ export const ja: TranslationTree = {
 				dailyNotes: "デイリーノート",
 				pluginData: "プラグインデータ",
 				notices: {
-					locationChanged: "ポモドーロストレージ場所を{location}に変更しました"
-				}
+					locationChanged: "ポモドーロストレージ場所を{location}に変更しました",
+				},
 			},
 			notifications: {
 				header: "通知",
@@ -645,62 +917,69 @@ export const ja: TranslationTree = {
 				soundPreviewDesc: "設定されたタスクリマインダー音を再生",
 				soundPreviewButton: "プレビュー",
 				testReminderName: "テストリマインダーを送信",
-				testReminderDesc: "現在の通知タイプとサウンド設定でテストリマインダーを送信します。",
-				testReminderButton: "テストを送信"
+				testReminderDesc:
+					"現在の通知タイプとサウンド設定でテストリマインダーを送信します。",
+				testReminderButton: "テストを送信",
 			},
 			overdue: {
 				hideCompletedName: "期限切れから完了タスクを非表示",
-				hideCompletedDesc: "期限切れタスク計算から完了タスクを除外"
+				hideCompletedDesc: "期限切れタスク計算から完了タスクを除外",
 			},
 			indexing: {
 				disableName: "ノートインデックス作成を無効にする",
-				disableDesc: "パフォーマンス向上のためノートコンテンツの自動インデックス作成を無効にする"
+				disableDesc:
+					"パフォーマンス向上のためノートコンテンツの自動インデックス作成を無効にする",
 			},
 			suggestions: {
 				debounceName: "提案デバウンス",
-				debounceDesc: "提案を表示する前の遅延（ミリ秒）"
+				debounceDesc: "提案を表示する前の遅延（ミリ秒）",
 			},
 			timeTracking: {
 				autoStopName: "時間追跡の自動停止",
 				autoStopDesc: "タスクが完了とマークされたときに時間追跡を自動停止",
 				stopNotificationName: "時間追跡停止通知",
-				stopNotificationDesc: "時間追跡が自動停止されたときに通知を表示"
+				stopNotificationDesc: "時間追跡が自動停止されたときに通知を表示",
 			},
 			recurring: {
 				maintainOffsetName: "繰り返しタスクで期限日オフセットを維持",
-				maintainOffsetDesc: "繰り返しタスクが完了したときに期限日と予定日の間のオフセットを保持",
+				maintainOffsetDesc:
+					"繰り返しタスクが完了したときに期限日と予定日の間のオフセットを保持",
 				resetCheckboxesName: "繰り返し時にチェックボックスをリセット",
-				resetCheckboxesDesc: "繰り返しタスクが完了して再スケジュールされたときに、タスク本文のすべてのmarkdownチェックボックスをリセット"
+				resetCheckboxesDesc:
+					"繰り返しタスクが完了して再スケジュールされたときに、タスク本文のすべてのmarkdownチェックボックスをリセット",
 			},
 			timeblocking: {
 				header: "タイムブロッキング",
-				description: "デイリーノートでの軽量スケジューリングのためのタイムブロック機能を設定します。カレンダービューでドラッグしてイベントを作成 - コンテキストメニューから'タイムブロック'を選択します。",
+				description:
+					"デイリーノートでの軽量スケジューリングのためのタイムブロック機能を設定します。カレンダービューでドラッグしてイベントを作成 - コンテキストメニューから'タイムブロック'を選択します。",
 				enableName: "タイムブロッキングを有効にする",
-				enableDesc: "デイリーノートでの軽量スケジューリングのためのタイムブロック機能を有効にする。有効にすると、カレンダーのドラッグコンテキストメニューに'タイムブロック'オプションが表示されます。",
+				enableDesc:
+					"デイリーノートでの軽量スケジューリングのためのタイムブロック機能を有効にする。有効にすると、カレンダーのドラッグコンテキストメニューに'タイムブロック'オプションが表示されます。",
 				showBlocksName: "タイムブロックを表示",
 				showBlocksDesc: "デイリーノートからのタイムブロックをデフォルトで表示",
 				defaultColorName: "デフォルトのタイムブロック色",
 				defaultColorDesc: "新しいタイムブロック作成時に使用されるデフォルトの色",
-				usage: "使用方法：カレンダーでドラッグしてイベントを作成します。コンテキストメニューから'タイムブロック'を選択します（タイムブロッキングが有効な場合のみ表示されます）。ドラッグして既存のタイムブロックを移動します。端を調整して時間を変更します。"
+				usage: "使用方法：カレンダーでドラッグしてイベントを作成します。コンテキストメニューから'タイムブロック'を選択します（タイムブロッキングが有効な場合のみ表示されます）。ドラッグして既存のタイムブロックを移動します。端を調整して時間を変更します。",
 			},
 			performance: {
 				header: "パフォーマンスと動作",
-				description: "プラグインのパフォーマンスと動作オプションを設定します。"
+				description: "プラグインのパフォーマンスと動作オプションを設定します。",
 			},
 			timeTrackingSection: {
 				header: "時間追跡",
-				description: "自動時間追跡の動作を設定します。"
+				description: "自動時間追跡の動作を設定します。",
 			},
 			recurringSection: {
 				header: "繰り返しタスク",
-				description: "繰り返しタスク管理の動作を設定します。"
+				description: "繰り返しタスク管理の動作を設定します。",
 			},
 			debugLogging: {
 				header: "デバッグログ",
 				description: "トラブルシューティングのためにデバッグログ出力を設定します。",
 				enableName: "デバッグログを有効化",
-				enableDesc: "ドラッグ・アンド・ドロップや表示の詳細な診断情報を開発者コンソールに記録します。トラブルシューティングに役立ちます。"
-			}
+				enableDesc:
+					"ドラッグ・アンド・ドロップや表示の詳細な診断情報を開発者コンソールに記録します。トラブルシューティングに役立ちます。",
+			},
 		},
 		defaults: {
 			header: {
@@ -708,80 +987,87 @@ export const ja: TranslationTree = {
 				dateDefaults: "日付デフォルト",
 				defaultReminders: "デフォルトリマインダー",
 				bodyTemplate: "ボディテンプレート",
-				instantTaskConversion: "インスタントタスク変換"
+				instantTaskConversion: "インスタントタスク変換",
 			},
 			description: {
-				basicDefaults: "タスク作成を高速化するために新しいタスクのデフォルト値を設定します。",
+				basicDefaults:
+					"タスク作成を高速化するために新しいタスクのデフォルト値を設定します。",
 				dateDefaults: "新しいタスクのデフォルト期限日と予定日を設定します。",
 				defaultReminders: "新しいタスクに追加されるデフォルトリマインダーを設定します。",
 				bodyTemplate: "新しいタスクコンテンツに使用するテンプレートファイルを設定します。",
-				instantTaskConversion: "テキストをタスクにインスタント変換する際の動作を設定します。"
+				instantTaskConversion:
+					"テキストをタスクにインスタント変換する際の動作を設定します。",
 			},
 			basicDefaults: {
 				defaultStatus: {
 					name: "デフォルトステータス",
-					description: "新しいタスクのデフォルトステータス"
+					description: "新しいタスクのデフォルトステータス",
 				},
 				defaultPriority: {
 					name: "デフォルト優先度",
-					description: "新しいタスクのデフォルト優先度"
+					description: "新しいタスクのデフォルト優先度",
 				},
 				defaultContexts: {
 					name: "デフォルトコンテキスト",
 					description: "デフォルトコンテキストのカンマ区切りリスト（例：@home、@work）",
-					placeholder: "@自宅, @仕事"
+					placeholder: "@自宅, @仕事",
 				},
 				defaultTags: {
 					name: "デフォルトタグ",
 					description: "デフォルトタグのカンマ区切りリスト（#なし）",
-					placeholder: "重要, 緊急"
+					placeholder: "重要, 緊急",
 				},
 				defaultProjects: {
 					name: "デフォルトプロジェクト",
 					description: "新しいタスクのデフォルトプロジェクトリンク",
 					selectButton: "プロジェクトを選択",
 					selectTooltip: "デフォルトでリンクするプロジェクトノートを選択",
-					removeTooltip: "デフォルトプロジェクトから{name}を削除"
+					removeTooltip: "デフォルトプロジェクトから{name}を削除",
 				},
 				useParentNoteForTaskCreation: {
 					name: "新しいタスクでアクティブノートをプロジェクトとして使用",
-					description: "コマンドパレットまたはリボンからタスク作成を開くとき、アクティブノートをプロジェクトとして自動的にリンクします"
+					description:
+						"コマンドパレットまたはリボンからタスク作成を開くとき、アクティブノートをプロジェクトとして自動的にリンクします",
 				},
 				useParentNoteAsProject: {
 					name: "インライン作成とインスタント変換で親ノートをプロジェクトとして使用",
-					description: "インラインタスク作成またはインスタントタスク変換を使うとき、元のノートをプロジェクトとして自動的にリンクします"
+					description:
+						"インラインタスク作成またはインスタントタスク変換を使うとき、元のノートをプロジェクトとして自動的にリンクします",
 				},
 				useParentHeaderAsProject: {
 					name: "インスタント変換時に親見出しをプロジェクトとして使用",
-					description: "インスタントタスク変換時に変換行の上にある最も近い見出しをプロジェクトとして自動的にリンク"
+					description:
+						"インスタントタスク変換時に変換行の上にある最も近い見出しをプロジェクトとして自動的にリンク",
 				},
 				defaultTimeEstimate: {
 					name: "デフォルト時間見積もり",
 					description: "デフォルト時間見積もり（分）（0 = デフォルトなし）",
-					placeholder: "60"
+					placeholder: "60",
 				},
 				defaultRecurrence: {
 					name: "デフォルト繰り返し",
-					description: "新しいタスクのデフォルト繰り返しパターン"
-				}
+					description: "新しいタスクのデフォルト繰り返しパターン",
+				},
 			},
 			dateDefaults: {
 				defaultDueDate: {
 					name: "デフォルト期限日",
-					description: "新しいタスクのデフォルト期限日"
+					description: "新しいタスクのデフォルト期限日",
 				},
 				defaultScheduledDate: {
 					name: "デフォルト予定日",
-					description: "新しいタスクのデフォルト予定日"
-				}
+					description: "新しいタスクのデフォルト予定日",
+				},
 			},
 			reminders: {
 				addReminder: {
 					name: "デフォルトリマインダーを追加",
-					description: "すべての新しいタスクに追加される新しいデフォルトリマインダーを作成",
-					buttonText: "リマインダーを追加"
+					description:
+						"すべての新しいタスクに追加される新しいデフォルトリマインダーを作成",
+					buttonText: "リマインダーを追加",
 				},
-				emptyState: "デフォルトリマインダーが設定されていません。リマインダーを追加して新しいタスクについて自動的に通知を受け取ります。",
+				emptyState:
+					"デフォルトリマインダーが設定されていません。リマインダーを追加して新しいタスクについて自動的に通知を受け取ります。",
 				emptyStateButton: "リマインダーを追加",
 				reminderDescription: "リマインダーの説明",
 				unnamedReminder: "名前なしリマインダー",
@@ -794,46 +1080,49 @@ export const ja: TranslationTree = {
 					direction: "方向：",
 					relatedTo: "関連先：",
 					date: "日付：",
-					time: "時間："
+					time: "時間：",
 				},
 				types: {
 					relative: "相対（タスク日付の前/後）",
-					absolute: "絶対（特定の日付/時間）"
+					absolute: "絶対（特定の日付/時間）",
 				},
 				units: {
 					minutes: "分",
 					hours: "時間",
-					days: "日"
+					days: "日",
 				},
 				directions: {
 					before: "前",
-					after: "後"
+					after: "後",
 				},
 				relatedTo: {
 					due: "期限日",
-					scheduled: "予定日"
-				}
+					scheduled: "予定日",
+				},
 			},
 			bodyTemplate: {
 				useBodyTemplate: {
 					name: "ボディテンプレートを使用",
-					description: "タスクボディコンテンツにテンプレートファイルを使用"
+					description: "タスクボディコンテンツにテンプレートファイルを使用",
 				},
 				bodyTemplateFile: {
 					name: "ボディテンプレートファイル",
-					description: "タスクボディコンテンツのテンプレートファイルへのパス。{{title}}、{{date}}、{{time}}、{{priority}}、{{status}}などのテンプレート変数をサポート。",
+					description:
+						"タスクボディコンテンツのテンプレートファイルへのパス。{{title}}、{{date}}、{{time}}、{{priority}}、{{status}}などのテンプレート変数をサポート。",
 					placeholder: "テンプレート/タスクテンプレート.md",
-					ariaLabel: "ボディテンプレートファイルへのパス"
+					ariaLabel: "ボディテンプレートファイルへのパス",
 				},
 				useOccurrenceBodyTemplate: {
 					name: "発生ノートテンプレートを使用",
-					description: "繰り返しタスクに occurrence_template がない場合、マテリアライズされた発生ノート用の別のフォールバックテンプレートを使用します"
+					description:
+						"繰り返しタスクに occurrence_template がない場合、マテリアライズされた発生ノート用の別のフォールバックテンプレートを使用します",
 				},
 				occurrenceBodyTemplateFile: {
 					name: "発生ノートテンプレートファイル",
-					description: "マテリアライズされた発生ノート用テンプレートファイルへのパス。繰り返しタスクの occurrence_template フィールドがこのフォールバックより優先されます。",
+					description:
+						"マテリアライズされた発生ノート用テンプレートファイルへのパス。繰り返しタスクの occurrence_template フィールドがこのフォールバックより優先されます。",
 					placeholder: "テンプレート/発生テンプレート.md",
-					ariaLabel: "発生ノートテンプレートファイルへのパス"
+					ariaLabel: "発生ノートテンプレートファイルへのパス",
 				},
 				variablesHeader: "テンプレート変数：",
 				variables: {
@@ -845,14 +1134,15 @@ export const ja: TranslationTree = {
 					status: "{{status}} - タスクステータス",
 					contexts: "{{contexts}} - タスクコンテキスト",
 					tags: "{{tags}} - タスクタグ",
-					projects: "{{projects}} - タスクプロジェクト"
-				}
+					projects: "{{projects}} - タスクプロジェクト",
+				},
 			},
 			instantConversion: {
 				useDefaultsOnInstantConvert: {
 					name: "インスタント変換でタスクデフォルトを使用",
-					description: "テキストをタスクにインスタント変換する際にデフォルトタスク設定を適用"
-				}
+					description:
+						"テキストをタスクにインスタント変換する際にデフォルトタスク設定を適用",
+				},
 			},
 			options: {
 				noDefault: "デフォルトなし",
@@ -863,8 +1153,8 @@ export const ja: TranslationTree = {
 				daily: "毎日",
 				weekly: "毎週",
 				monthly: "毎月",
-				yearly: "毎年"
-			}
+				yearly: "毎年",
+			},
 		},
 		general: {
 			taskStorage: {
@@ -872,16 +1162,18 @@ export const ja: TranslationTree = {
 				description: "タスクの保存場所と識別方法を設定します。",
 				defaultFolder: {
 					name: "デフォルトタスクフォルダー",
-					description: "新しいタスクのデフォルト保存場所です。{{currentNotePath}}、{{currentNoteTitle}}、{{projectFilePath}} などのフォルダテンプレート変数と、YYYY/MM/DD などのDaily Notes形式の日付トークンをサポートします。"
+					description:
+						"新しいタスクのデフォルト保存場所です。{{currentNotePath}}、{{currentNoteTitle}}、{{projectFilePath}} などのフォルダテンプレート変数と、YYYY/MM/DD などのDaily Notes形式の日付トークンをサポートします。",
 				},
 				moveArchived: {
 					name: "アーカイブしたタスクをフォルダーに移動",
-					description: "アーカイブしたタスクを自動的にアーカイブフォルダーに移動"
+					description: "アーカイブしたタスクを自動的にアーカイブフォルダーに移動",
 				},
 				archiveFolder: {
 					name: "アーカイブフォルダー",
-					description: "アーカイブ時にタスクを移動するフォルダー。{{year}}、{{month}}、{{priority}}などのテンプレート変数をサポートします。"
-				}
+					description:
+						"アーカイブ時にタスクを移動するフォルダー。{{year}}、{{month}}、{{priority}}などのテンプレート変数をサポートします。",
+				},
 			},
 			taskIdentification: {
 				header: "タスク識別",
@@ -891,98 +1183,112 @@ export const ja: TranslationTree = {
 					description: "タグまたはフロントマタープロパティでタスクを識別するかを選択",
 					options: {
 						tag: "タグ",
-						property: "プロパティ"
-					}
+						property: "プロパティ",
+					},
 				},
 				taskTag: {
 					name: "タスクタグ",
-					description: "ノートをタスクとして識別するタグ（#なし）。これを変更しても既存の .base ビューのフィルターは古いタグのままです。デフォルトの Base ファイルを更新するか、それらのフィルターを編集してください。"
+					description:
+						"ノートをタスクとして識別するタグ（#なし）。これを変更しても既存の .base ビューのフィルターは古いタグのままです。デフォルトの Base ファイルを更新するか、それらのフィルターを編集してください。",
 				},
 				hideIdentifyingTags: {
 					name: "タスクカードで識別タグを非表示",
-					description: "有効にすると、タスク識別タグに一致するタグ（'task/project'のような階層的一致を含む）がタスクカード表示から非表示になります"
+					description:
+						"有効にすると、タスク識別タグに一致するタグ（'task/project'のような階層的一致を含む）がタスクカード表示から非表示になります",
 				},
 				hideIdentifyingTagsMode: {
 					name: "非表示にするタグの範囲",
-					description: "識別タグを非表示にするとき、ネストしたタグも非表示にするかを選択します。",
+					description:
+						"識別タグを非表示にするとき、ネストしたタグも非表示にするかを選択します。",
 					options: {
 						all: "タスクタグとネストしたタグ",
-						exactOnly: "完全一致のタスクタグのみ"
-					}
+						exactOnly: "完全一致のタスクタグのみ",
+					},
 				},
+				propertyNamePlaceholder: "プロパティ名を入力",
+				propertyValuePlaceholder: "プロパティ値を入力",
+				incompletePropertyWarning:
+					"プロパティ名と値の両方を入力してください。例のテキストは保存された設定ではありません。両方を設定するまで、TaskNotes はタスクを識別できません。既存の .base フィルターもこの設定に合わせてください。",
 				taskProperty: {
 					name: "タスクプロパティ名",
-					description: "フロントマタープロパティ名（例：\"category\"）"
+					description: 'フロントマタープロパティ名（例："category"）',
 				},
 				taskPropertyValue: {
 					name: "タスクプロパティ値",
-					description: "ノートをタスクとして識別する値（例：\"task\"）"
-				}
+					description: 'ノートをタスクとして識別する値（例："task"）',
+				},
 			},
 			folderManagement: {
 				header: "フォルダー管理",
 				excludedFolders: {
 					name: "除外フォルダー",
-					description: "タスクのインデックス作成とプロジェクト候補から除外するフォルダーのカンマ区切りリスト"
-				}
+					description:
+						"タスクのインデックス作成とプロジェクト候補から除外するフォルダーのカンマ区切りリスト",
+				},
 			},
 			frontmatter: {
 				header: "Frontmatter",
 				description: "frontmatterプロパティでのリンクのフォーマット方法を設定します。",
 				useMarkdownLinks: {
 					name: "frontmatterでmarkdownリンクを使用",
-					description: "frontmatterプロパティでwikilink（[[link]]）の代わりにmarkdownリンク（[text](path)）を生成します。\n\n⚠️ 正しく機能するには'obsidian-frontmatter-markdown-links'プラグインが必要です。"
-				}
+					description:
+						"frontmatterプロパティでwikilink（[[link]]）の代わりにmarkdownリンク（[text](path)）を生成します。\n\n⚠️ 正しく機能するには'obsidian-frontmatter-markdown-links'プラグインが必要です。",
+				},
 			},
 			taskInteraction: {
 				header: "タスクインタラクション",
 				description: "タスクをクリックする際の動作を設定します。",
 				singleClick: {
 					name: "シングルクリックアクション",
-					description: "タスクカードをシングルクリックした際に実行するアクション"
+					description: "タスクカードをシングルクリックした際に実行するアクション",
 				},
 				doubleClick: {
 					name: "ダブルクリックアクション",
-					description: "タスクカードをダブルクリックした際に実行するアクション"
+					description: "タスクカードをダブルクリックした際に実行するアクション",
 				},
 				actions: {
 					edit: "タスクを編集",
 					openNote: "ノートを開く",
-					none: "アクションなし"
-				}
+					none: "アクションなし",
+				},
 			},
 			releaseNotes: {
 				header: "リリースノート",
 				description: "現在のバージョン：{version}",
 				showOnUpdate: {
 					name: "更新後にリリースノートを表示",
-					description: "TaskNotesが新しいバージョンに更新されたときに自動的にリリースノートを開く"
+					description:
+						"TaskNotesが新しいバージョンに更新されたときに自動的にリリースノートを開く",
 				},
 				checkForUpdates: {
 					name: "起動時に新しいリリースを確認",
-					description: "TaskNotes の起動時に GitHub を一度だけ確認し、互換性のある新しいリリースが利用可能な場合に通知を表示します"
+					description:
+						"TaskNotes の起動時に GitHub を一度だけ確認し、互換性のある新しいリリースが利用可能な場合に通知を表示します",
 				},
 				viewButton: {
 					name: "リリースノートを表示",
 					description: "TaskNotesの最新バージョンの新機能を確認する",
-					buttonText: "リリースノートを表示"
-				}
-			}
+					buttonText: "リリースノートを表示",
+				},
+			},
 		},
 		taskProperties: {
 			sections: {
 				coreProperties: "コアプロパティ",
-				corePropertiesDesc: "ステータスと優先度は、タスクの状態と重要度を定義するコアプロパティです。",
+				corePropertiesDesc:
+					"ステータスと優先度は、タスクの状態と重要度を定義するコアプロパティです。",
 				dateProperties: "日付プロパティ",
 				datePropertiesDesc: "タスクの期限と予定日を設定します。",
 				organizationProperties: "整理プロパティ",
-				organizationPropertiesDesc: "コンテキスト、プロジェクト、タグでタスクを整理します。",
+				organizationPropertiesDesc:
+					"コンテキスト、プロジェクト、タグでタスクを整理します。",
 				taskDetails: "タスク詳細",
 				taskDetailsDesc: "時間見積もり、繰り返し、リマインダーなどの追加詳細。",
 				metadataProperties: "メタデータプロパティ",
 				metadataPropertiesDesc: "タスク履歴を追跡するためのシステム管理プロパティ。",
 				featureProperties: "機能プロパティ",
-				featurePropertiesDesc: "ポモドーロタイマーやカレンダー同期など、特定のTaskNotes機能で使用されるプロパティ。"
+				featurePropertiesDesc:
+					"ポモドーロタイマーやカレンダー同期など、特定のTaskNotes機能で使用されるプロパティ。",
 			},
 			propertyCard: {
 				propertyKey: "プロパティキー:",
@@ -990,111 +1296,135 @@ export const ja: TranslationTree = {
 				nlpTrigger: "NLPトリガー:",
 				triggerChar: "トリガー文字:",
 				triggerEmpty: "トリガーは空にできません",
-				triggerTooLong: "トリガーが長すぎます（最大10文字）"
+				triggerTooLong: "トリガーが長すぎます（最大10文字）",
 			},
 			properties: {
 				status: {
 					name: "ステータス",
-					description: "タスクの現在の状態を追跡します（例：todo、進行中、完了）。ステータスはタスクが完了として表示されるかどうかを決定し、自動アーカイブをトリガーできます。"
+					description:
+						"タスクの現在の状態を追跡します（例：todo、進行中、完了）。ステータスはタスクが完了として表示されるかどうかを決定し、自動アーカイブをトリガーできます。",
 				},
 				priority: {
 					name: "優先度",
-					description: "タスクの重要度を示します。ソートとフィルタリングに使用されます。Basesビューでは値がアルファベット順にソートされるため、1-、2-のようなプレフィックスを使用して順序を制御してください。"
+					description:
+						"タスクの重要度を示します。ソートとフィルタリングに使用されます。Basesビューでは値がアルファベット順にソートされるため、1-、2-のようなプレフィックスを使用して順序を制御してください。",
 				},
 				due: {
 					name: "期限日",
-					description: "タスクを完了しなければならない締め切り。期限を過ぎたタスクは期限切れとして表示されます。フロントマターに日付として保存されます。"
+					description:
+						"タスクを完了しなければならない締め切り。期限を過ぎたタスクは期限切れとして表示されます。フロントマターに日付として保存されます。",
 				},
 				scheduled: {
 					name: "予定日",
-					description: "タスクに取り組む予定の日時。期限日とは異なり、これは開始予定時刻を表します。タスクは予定日時にカレンダーに表示されます。"
+					description:
+						"タスクに取り組む予定の日時。期限日とは異なり、これは開始予定時刻を表します。タスクは予定日時にカレンダーに表示されます。",
 				},
 				contexts: {
 					name: "コンテキスト",
-					description: "タスクを実行できる場所や条件（例：@自宅、@オフィス、@電話）。現在の状況に応じてタスクをフィルタリングするのに便利です。リストとして保存されます。"
+					description:
+						"タスクを実行できる場所や条件（例：@自宅、@オフィス、@電話）。現在の状況に応じてタスクをフィルタリングするのに便利です。リストとして保存されます。",
 				},
 				projects: {
 					name: "プロジェクト",
-					description: "このタスクが属するプロジェクトノートへのリンク。ウィキリンクとして保存されます（例：[[プロジェクト名]]）。タスクは複数のプロジェクトに所属できます。"
+					description:
+						"このタスクが属するプロジェクトノートへのリンク。ウィキリンクとして保存されます（例：[[プロジェクト名]]）。タスクは複数のプロジェクトに所属できます。",
 				},
 				tags: {
 					name: "タグ",
-					description: "タスクを分類するためのネイティブObsidianタグ。フロントマターのtagsプロパティに保存され、Obsidianのタグ機能と連携します。"
+					description:
+						"タスクを分類するためのネイティブObsidianタグ。フロントマターのtagsプロパティに保存され、Obsidianのタグ機能と連携します。",
 				},
 				timeEstimate: {
 					name: "時間見積もり",
-					description: "タスク完了までの推定分数。タイムブロッキングとワークロード計画に使用されます。タスクカードとカレンダーイベントに表示されます。"
+					description:
+						"タスク完了までの推定分数。タイムブロッキングとワークロード計画に使用されます。タスクカードとカレンダーイベントに表示されます。",
 				},
 				recurrence: {
 					name: "繰り返し",
-					description: "繰り返しタスクのパターン（毎日、毎週、毎月、毎年、またはカスタムRRULE）。繰り返しタスクが完了すると、予定日は自動的に次の発生日に更新されます。"
+					description:
+						"繰り返しタスクのパターン（毎日、毎週、毎月、毎年、またはカスタムRRULE）。繰り返しタスクが完了すると、予定日は自動的に次の発生日に更新されます。",
 				},
 				recurrenceAnchor: {
 					name: "繰り返しアンカー",
-					description: "次の発生日の計算方法を制御します：'scheduled'は予定日を使用、'completion'は実際の完了日を使用します。"
+					description:
+						"次の発生日の計算方法を制御します：'scheduled'は予定日を使用、'completion'は実際の完了日を使用します。",
 				},
 				reminders: {
 					name: "リマインダー",
-					description: "期限日または予定日の前にトリガーされる通知。タイミングとオプションの説明を含むリマインダーオブジェクトのリストとして保存されます。"
+					description:
+						"期限日または予定日の前にトリガーされる通知。タイミングとオプションの説明を含むリマインダーオブジェクトのリストとして保存されます。",
 				},
 				title: {
 					name: "タイトル",
-					description: "タスク名。フロントマターまたはファイル名に保存できます（「タイトルをファイル名に保存」が有効な場合）。"
+					description:
+						"タスク名。フロントマターまたはファイル名に保存できます（「タイトルをファイル名に保存」が有効な場合）。",
 				},
 				dateCreated: {
 					name: "作成日",
-					description: "タスクが最初に作成されたタイムスタンプ。自動的に設定され、作成順でのソートに使用されます。"
+					description:
+						"タスクが最初に作成されたタイムスタンプ。自動的に設定され、作成順でのソートに使用されます。",
 				},
 				dateModified: {
 					name: "更新日",
-					description: "タスクへの最後の変更のタイムスタンプ。タスクプロパティが変更されると自動的に更新されます。"
+					description:
+						"タスクへの最後の変更のタイムスタンプ。タスクプロパティが変更されると自動的に更新されます。",
 				},
 				completedDate: {
 					name: "完了日",
-					description: "タスクが完了としてマークされたタイムスタンプ。ステータスが完了状態に変わると自動的に設定されます。"
+					description:
+						"タスクが完了としてマークされたタイムスタンプ。ステータスが完了状態に変わると自動的に設定されます。",
 				},
 				archiveTag: {
 					name: "アーカイブタグ",
-					description: "アーカイブ時にタスクに追加されるタグ。アーカイブされたタスクを識別するために使用され、アーカイブフォルダへのファイル移動をトリガーできます。"
+					description:
+						"アーカイブ時にタスクに追加されるタグ。アーカイブされたタスクを識別するために使用され、アーカイブフォルダへのファイル移動をトリガーできます。",
 				},
 				timeEntries: {
 					name: "時間エントリー",
-					description: "このタスクの時間追跡セッションの記録。各エントリには開始と終了のタイムスタンプが保存されます。合計時間の計算に使用されます。"
+					description:
+						"このタスクの時間追跡セッションの記録。各エントリには開始と終了のタイムスタンプが保存されます。合計時間の計算に使用されます。",
 				},
 				completeInstances: {
 					name: "完了インスタンス",
-					description: "繰り返しタスクの完了履歴。各インスタンスが完了した日付を保存して、重複完了を防ぎます。"
+					description:
+						"繰り返しタスクの完了履歴。各インスタンスが完了した日付を保存して、重複完了を防ぎます。",
 				},
 				skippedInstances: {
 					name: "スキップインスタンス",
-					description: "繰り返しタスクのスキップされた発生。完了ではなくスキップされたインスタンスの日付を保存します。"
+					description:
+						"繰り返しタスクのスキップされた発生。完了ではなくスキップされたインスタンスの日付を保存します。",
 				},
 				blockedBy: {
 					name: "ブロック元",
-					description: "このタスクの前に完了する必要があるタスクへのリンク。ウィキリンクとして保存されます。ブロックされたタスクは視覚的なインジケーターを表示します。"
+					description:
+						"このタスクの前に完了する必要があるタスクへのリンク。ウィキリンクとして保存されます。ブロックされたタスクは視覚的なインジケーターを表示します。",
 				},
 				sortOrder: {
 					name: "手動順序",
-					description: "ドラッグ＆ドロップで手動並べ替えを行うために使用するフロントマターのプロパティ。ビューはこのプロパティでソートされている必要があります。"
+					description:
+						"ドラッグ＆ドロップで手動並べ替えを行うために使用するフロントマターのプロパティ。ビューはこのプロパティでソートされている必要があります。",
 				},
 				pomodoros: {
 					name: "ポモドーロ",
-					description: "完了したポモドーロセッションのカウント。データ保存が「デイリーノート」に設定されている場合、これはタスクファイルではなくデイリーノートに書き込まれます。"
+					description:
+						"完了したポモドーロセッションのカウント。データ保存が「デイリーノート」に設定されている場合、これはタスクファイルではなくデイリーノートに書き込まれます。",
 				},
 				icsEventId: {
 					name: "ICSイベントID",
-					description: "ノートをICSカレンダーイベントにリンクする一意の識別子。カレンダーイベントからノートを作成する際に自動的に追加されます。"
+					description:
+						"ノートをICSカレンダーイベントにリンクする一意の識別子。カレンダーイベントからノートを作成する際に自動的に追加されます。",
 				},
 				icsEventTag: {
 					name: "ICSイベントタグ",
-					description: "ICSカレンダーイベントから作成されたノートを識別するタグ。カレンダー生成ノートを通常のタスクと区別するために使用されます。"
-				}
+					description:
+						"ICSカレンダーイベントから作成されたノートを識別するタグ。カレンダー生成ノートを通常のタスクと区別するために使用されます。",
+				},
 			},
 			statusCard: {
-				valuesHeader: "ステータス値"
+				valuesHeader: "ステータス値",
 			},
 			priorityCard: {
-				valuesHeader: "優先度値"
+				valuesHeader: "優先度値",
 			},
 			projectsCard: {
 				defaultProjects: "デフォルトプロジェクト:",
@@ -1105,48 +1435,56 @@ export const ja: TranslationTree = {
 				noDefaultProjects: "デフォルトプロジェクトが選択されていません",
 				autosuggestFilters: "オートサジェストフィルター",
 				customizeDisplay: "表示をカスタマイズ",
-				filtersOn: "フィルター有効"
+				filtersOn: "フィルター有効",
 			},
 			titleCard: {
 				storeTitleInFilename: "タイトルをファイル名に保存:",
 				storedInFilename: "ファイル名に保存",
-				filenameUpdatesWithTitle: "タスクタイトルが変更されると、ファイル名は自動的に更新されます。",
+				filenameUpdatesWithTitle:
+					"タスクタイトルが変更されると、ファイル名は自動的に更新されます。",
 				filenameFormat: "ファイル名形式:",
 				customTemplate: "カスタムテンプレート:",
-				legacySyntaxWarning: "{title}のような単一波括弧構文は非推奨です。本文テンプレートとの一貫性のために、{{title}}のような二重波括弧構文を使用してください。",
+				legacySyntaxWarning:
+					"{title}のような単一波括弧構文は非推奨です。本文テンプレートとの一貫性のために、{{title}}のような二重波括弧構文を使用してください。",
 				occurrenceFilenameTemplate: "オカレンスのファイル名テンプレート",
 				occurrenceFilenameTemplateHelp:
 					"繰り返しタスクから実体化されたオカレンス用のファイル名テンプレートです。空欄にすると、既存の名前（親タスクのタイトルと連番のサフィックス）が維持されます。{{occurrenceDate}}、{{occurrenceWeek}}、{{occurrenceMonth}}、{{occurrenceYear}}、{{occurrenceMonthName}}のいずれかを使って粒度を明示的に選択してください。通常のファイル名変数もすべて使用できます。親タスクは、下で設定するフロントマターのプロパティを使ってこのテンプレートを上書きできます。",
 				occurrenceFilenameProperty: "オカレンステンプレートの上書きプロパティ",
 				occurrenceFilenamePropertyHelp:
-					"繰り返し親タスクで、そのオカレンスのファイル名テンプレートを上書きするフロントマタープロパティの名前です。"
+					"繰り返し親タスクで、そのオカレンスのファイル名テンプレートを上書きするフロントマタープロパティの名前です。",
 			},
 			tagsCard: {
-				nativeObsidianTags: "ネイティブObsidianタグを使用"
+				nativeObsidianTags: "ネイティブObsidianタグを使用",
 			},
 			remindersCard: {
-				defaultReminders: "デフォルトリマインダー"
+				defaultReminders: "デフォルトリマインダー",
 			},
 			taskStatuses: {
 				header: "タスクステータス",
-				description: "タスクで利用可能なステータスオプションをカスタマイズします。これらのステータスはタスクライフサイクルを制御し、タスクがいつ完了と見なされるかを決定します。",
+				description:
+					"タスクで利用可能なステータスオプションをカスタマイズします。これらのステータスはタスクライフサイクルを制御し、タスクがいつ完了と見なされるかを決定します。",
 				howTheyWork: {
 					title: "ステータスの動作：",
-					value: "値：タスクファイルに保存される内部識別子（例：\"in-progress\"）",
-					label: "ラベル：インターフェースに表示される表示名（例：\"進行中\"）",
+					value: '値：タスクファイルに保存される内部識別子（例："in-progress"）',
+					label: 'ラベル：インターフェースに表示される表示名（例："進行中"）',
 					color: "色：ステータスドットとバッジの視覚的インジケーター色",
-					icon: "アイコン：カラードットの代わりに表示するオプションのLucideアイコン名（例：\"check\"、\"circle\"、\"clock\"）。lucide.devでアイコンを閲覧",
-					completed: "完了：チェックすると、このステータスのタスクは完了と見なされ、異なってフィルタリングされる場合があります",
-					autoArchive: "自動アーカイブ：有効にすると、指定された遅延後にタスクが自動的にアーカイブされます（1-1440分）",
-					orderNote: "以下の順序は、タスクステータスバッジをクリックしてステータスを切り替える際のシーケンスを決定します。"
+					icon: 'アイコン：カラードットの代わりに表示するオプションのLucideアイコン名（例："check"、"circle"、"clock"）。lucide.devでアイコンを閲覧',
+					completed:
+						"完了：チェックすると、このステータスのタスクは完了と見なされ、異なってフィルタリングされる場合があります",
+					autoArchive:
+						"自動アーカイブ：有効にすると、指定された遅延後にタスクが自動的にアーカイブされます（1-1440分）",
+					orderNote:
+						"以下の順序は、タスクステータスバッジをクリックしてステータスを切り替える際のシーケンスを決定します。",
 				},
 				addNew: {
 					name: "新しいステータスを追加",
 					description: "タスクの新しいステータスオプションを作成",
-					buttonText: "ステータスを追加"
+					buttonText: "ステータスを追加",
 				},
-				validationNote: "注意：少なくとも2つのステータスが必要で、少なくとも1つのステータスが\"完了\"としてマークされている必要があります。",
-				emptyState: "カスタムステータスが設定されていません。ステータスを追加して開始してください。",
+				validationNote:
+					'注意：少なくとも2つのステータスが必要で、少なくとも1つのステータスが"完了"としてマークされている必要があります。',
+				emptyState:
+					"カスタムステータスが設定されていません。ステータスを追加して開始してください。",
 				emptyStateButton: "ステータスを追加",
 				fields: {
 					value: "値：",
@@ -1157,72 +1495,79 @@ export const ja: TranslationTree = {
 					excludeFromCycle: "循環時にスキップ：",
 					nextStatus: "次のステータス：",
 					autoArchive: "自動アーカイブ：",
-					delayMinutes: "遅延（分）："
+					delayMinutes: "遅延（分）：",
 				},
 				placeholders: {
 					value: "進行中",
 					label: "進行中",
 					icon: "check, circle, clock",
-					nextStatusDefault: "ステータス順を使用"
+					nextStatusDefault: "ステータス順を使用",
 				},
 				badges: {
-					completed: "完了"
+					completed: "完了",
 				},
-				deleteConfirm: "ステータス\"{label}\"を削除してもよろしいですか？"
+				deleteConfirm: 'ステータス"{label}"を削除してもよろしいですか？',
 			},
 			taskPriorities: {
 				header: "タスク優先度",
-				description: "タスクで利用可能な優先度レベルをカスタマイズします。v4.0+では、優先度はBasesビューで値のアルファベット順にソートされます。",
+				description:
+					"タスクで利用可能な優先度レベルをカスタマイズします。v4.0+では、優先度はBasesビューで値のアルファベット順にソートされます。",
 				howTheyWork: {
 					title: "優先度の動作：",
-					value: "値：タスクファイルに保存される内部識別子。Basesビューでのソート順を制御するには、\"1-urgent\"、\"2-high\"のようなプレフィックスを使用します。",
-					label: "表示ラベル：インターフェースに表示される表示名（例：\"高優先度\"）",
+					value: '値：タスクファイルに保存される内部識別子。Basesビューでのソート順を制御するには、"1-urgent"、"2-high"のようなプレフィックスを使用します。',
+					label: '表示ラベル：インターフェースに表示される表示名（例："高優先度"）',
 					color: "色：優先度ドットとバッジの視覚的インジケーター色",
 					icon: "アイコン：タスクカードで優先度ドットの代わりに表示する任意の Lucide アイコン",
 					weight: "重み：並び替え用の数値（重みが高いほどリストで先に表示）",
-					weightNote: "タスクは優先度の重みで自動的に降順で並び替えられます（最高重みが最初）。重みは任意の正の数値です。"
+					weightNote:
+						"タスクは優先度の重みで自動的に降順で並び替えられます（最高重みが最初）。重みは任意の正の数値です。",
 				},
 				addNew: {
 					name: "新しい優先度を追加",
 					description: "タスクの新しい優先度レベルを作成",
-					buttonText: "優先度を追加"
+					buttonText: "優先度を追加",
 				},
-				validationNote: "注意：少なくとも1つの優先度が必要です。優先度はBasesビューで値のアルファベット順にソートされます。",
-				emptyState: "カスタム優先度が設定されていません。優先度を追加して開始してください。",
+				validationNote:
+					"注意：少なくとも1つの優先度が必要です。優先度はBasesビューで値のアルファベット順にソートされます。",
+				emptyState:
+					"カスタム優先度が設定されていません。優先度を追加して開始してください。",
 				emptyStateButton: "優先度を追加",
 				fields: {
 					value: "値：",
 					label: "ラベル：",
 					color: "色：",
 					icon: "アイコン：",
-					weight: "重み："
+					weight: "重み：",
 				},
 				placeholders: {
 					value: "高",
 					label: "高優先度",
-					icon: "alert-circle"
+					icon: "alert-circle",
 				},
 				weightLabel: "重み：{weight}",
 				deleteConfirm: "少なくとも1つの優先度が必要です",
-				deleteTooltip: "優先度を削除"
+				deleteTooltip: "優先度を削除",
 			},
 			fieldMapping: {
 				header: "フィールドマッピング",
-				warning: "⚠️ 警告：TaskNotesはこれらのプロパティ名を読み書きします。タスク作成後にこれらを変更すると不整合が生じる可能性があります。",
-				description: "TaskNotesが各フィールドに使用するフロントマタープロパティを設定します。",
+				warning:
+					"⚠️ 警告：TaskNotesはこれらのプロパティ名を読み書きします。タスク作成後にこれらを変更すると不整合が生じる可能性があります。",
+				description:
+					"TaskNotesが各フィールドに使用するフロントマタープロパティを設定します。",
 				resetButton: {
 					name: "フィールドマッピングをリセット",
 					description: "すべてのフィールドマッピングをデフォルト値にリセット",
-					buttonText: "デフォルトにリセット"
+					buttonText: "デフォルトにリセット",
 				},
 				notices: {
 					resetSuccess: "フィールドマッピングをデフォルトにリセットしました",
 					resetFailure: "フィールドマッピングのリセットに失敗しました",
-					updateFailure: "{label}のフィールドマッピング更新に失敗しました。再試行してください。"
+					updateFailure:
+						"{label}のフィールドマッピング更新に失敗しました。再試行してください。",
 				},
 				table: {
 					fieldHeader: "TaskNotesフィールド",
-					propertyHeader: "あなたのプロパティ名"
+					propertyHeader: "あなたのプロパティ名",
 				},
 				fields: {
 					title: "タイトル",
@@ -1245,48 +1590,55 @@ export const ja: TranslationTree = {
 					pomodoros: "ポモドーロ",
 					icsEventId: "ICSイベントID",
 					icsEventTag: "ICSイベントタグ",
-					reminders: "リマインダー"
-				}
+					reminders: "リマインダー",
+				},
 			},
 			customUserFields: {
+				validation: {
+					emptyKey: "プロパティキーを入力してください。",
+					duplicateKey: "別のプロパティがこのキーを使用しています。",
+				},
 				header: "カスタムユーザーフィールド",
-				description: "すべてのビューで型認識フィルターオプションとして表示されるカスタムフロントマタープロパティを定義します。各行：表示名、プロパティ名、タイプ。",
+				description:
+					"すべてのビューで型認識フィルターオプションとして表示されるカスタムフロントマタープロパティを定義します。各行：表示名、プロパティ名、タイプ。",
 				addNew: {
 					name: "新しいユーザーフィールドを追加",
 					description: "フィルターとビューに表示される新しいカスタムフィールドを作成",
-					buttonText: "ユーザーフィールドを追加"
+					buttonText: "ユーザーフィールドを追加",
 				},
-				emptyState: "カスタムユーザーフィールドが設定されていません。フィールドを追加してタスクのカスタムプロパティを作成してください。",
+				emptyState:
+					"カスタムユーザーフィールドが設定されていません。フィールドを追加してタスクのカスタムプロパティを作成してください。",
 				emptyStateButton: "ユーザーフィールドを追加",
 				fields: {
 					displayName: "表示名：",
 					propertyKey: "プロパティキー：",
 					type: "タイプ：",
-					defaultValue: "デフォルト値："
+					defaultValue: "デフォルト値：",
 				},
 				placeholders: {
 					displayName: "表示名",
 					propertyKey: "プロパティ名",
 					defaultValue: "デフォルト値",
-					defaultValueList: "デフォルト値（カンマ区切り）"
+					defaultValueList: "デフォルト値（カンマ区切り）",
 				},
 				types: {
 					text: "テキスト",
 					number: "数値",
 					boolean: "ブール",
 					date: "日付",
-					list: "リスト"
+					list: "リスト",
 				},
 				defaultNames: {
 					unnamedField: "名前なしフィールド",
-					noKey: "キーなし"
+					noKey: "キーなし",
 				},
 				deleteTooltip: "フィールドを削除",
 				autosuggestFilters: {
 					header: "自動提案フィルター",
-					description: "タスク作成時にカスタムユーザーフィールドの自動提案をフィルターします。各フィールドに対して、提案される値を特定のタグ、フォルダー、またはプロパティ値を持つノートに制限できます。"
-				}
-			}
+					description:
+						"タスク作成時にカスタムユーザーフィールドの自動提案をフィルターします。各フィールドに対して、提案される値を特定のタグ、フォルダー、またはプロパティ値を持つノートに制限できます。",
+				},
+			},
 		},
 		appearance: {
 			taskCards: {
@@ -1294,12 +1646,17 @@ export const ja: TranslationTree = {
 				description: "すべてのビューでタスクカードの表示方法を設定します。",
 				defaultVisibleProperties: {
 					name: "デフォルト表示プロパティ",
-					description: "タスクカードにデフォルトで表示するプロパティを選択します。"
+					description: "タスクカードにデフォルトで表示するプロパティを選択します。",
+				},
+				completionSubmenu: {
+					name: "完了とスキップの操作をサブメニューにまとめる",
+					description:
+						"完了とスキップの操作をタスクのコンテキストメニュー内のサブメニューに表示します。無効にすると、メニューに直接表示されます。",
 				},
 				propertyGroups: {
 					coreProperties: "コアプロパティ",
 					organization: "組織",
-					customProperties: "カスタムプロパティ"
+					customProperties: "カスタムプロパティ",
 				},
 				properties: {
 					status: "ステータスドット",
@@ -1317,15 +1674,16 @@ export const ja: TranslationTree = {
 					contexts: "コンテキスト",
 					tags: "タグ",
 					blocked: "ブロック中",
-					blocking: "ブロックしている"
-				}
+					blocking: "ブロックしている",
+				},
 			},
 			taskFilenames: {
 				header: "タスクファイル名",
 				description: "タスクファイル作成時の命名方法を設定します。",
 				storeTitleInFilename: {
 					name: "ファイル名にタイトルを保存",
-					description: "タスクタイトルをファイル名として使用。タスクタイトルが変更されるとファイル名も更新されます（推奨）。"
+					description:
+						"タスクタイトルをファイル名として使用。タスクタイトルが変更されるとファイル名も更新されます（推奨）。",
 				},
 				filenameFormat: {
 					name: "ファイル名形式",
@@ -1335,17 +1693,25 @@ export const ja: TranslationTree = {
 						zettel: "Zettelkasten形式（YYMMDD + 午前0時からのbase36秒）",
 						timestamp: "完全タイムスタンプ（YYYY-MM-DD-HHMMSS）",
 						custom: "カスタムテンプレート",
-						uuid: "UUID v4"
-					}
+						uuid: "UUID v4",
+					},
 				},
 				customTemplate: {
 					name: "カスタムファイル名テンプレート",
-					description: "カスタムファイル名のテンプレートです。利用可能な変数: {{title}}, {{titleLower}}, {{titleUpper}}, {{titleSnake}}, {{titleKebab}}, {{titleCamel}}, {{titlePascal}}, {{date}}, {{shortDate}}, {{time}}, {{time12}}, {{time24}}, {{timestamp}}, {{dateTime}}, {{year}}, {{month}}, {{monthName}}, {{monthNameShort}}, {{day}}, {{dayName}}, {{dayNameShort}}, {{hour}}, {{hour12}}, {{minute}}, {{second}}, {{milliseconds}}, {{ms}}, {{ampm}}, {{week}}, {{quarter}}, {{unix}}, {{unixMs}}, {{timezone}}, {{timezoneShort}}, {{utcOffset}}, {{utcOffsetShort}}, {{utcZ}}, {{zettel}}, {{uuid}}, {{nano}}, {{priority}}, {{priorityShort}}, {{status}}, {{statusShort}}, {{dueDate}}, {{scheduledDate}}",
+					description:
+						"カスタムファイル名のテンプレートです。利用可能な変数: {{title}}, {{titleLower}}, {{titleUpper}}, {{titleSnake}}, {{titleKebab}}, {{titleCamel}}, {{titlePascal}}, {{date}}, {{shortDate}}, {{time}}, {{time12}}, {{time24}}, {{timestamp}}, {{dateTime}}, {{year}}, {{month}}, {{monthName}}, {{monthNameShort}}, {{day}}, {{dayName}}, {{dayNameShort}}, {{hour}}, {{hour12}}, {{minute}}, {{second}}, {{milliseconds}}, {{ms}}, {{ampm}}, {{week}}, {{quarter}}, {{unix}}, {{unixMs}}, {{timezone}}, {{timezoneShort}}, {{utcOffset}}, {{utcOffsetShort}}, {{utcZ}}, {{zettel}}, {{uuid}}, {{nano}}, {{priority}}, {{priorityShort}}, {{status}}, {{statusShort}}, {{dueDate}}, {{scheduledDate}}",
 					placeholder: "{{date}}-{{title}}-{{dueDate}}",
-					helpText: "注意：{{dueDate}}と{{scheduledDate}}はYYYY-MM-DD形式で、設定されていない場合は空になります。"
-				}
+					helpText:
+						"注意：{{dueDate}}と{{scheduledDate}}はYYYY-MM-DD形式で、設定されていない場合は空になります。",
+				},
 			},
 			displayFormatting: {
+				dateFormat: {
+					name: "日付の表示形式",
+					description:
+						"TaskNotes全体の日付表示を選択します。保存された日付と独自のBases数式は変更されません。時刻の表示形式は別に設定します。",
+					options: { default: "既定" },
+				},
 				header: "表示形式",
 				description: "プラグイン全体での日付、時間、その他のデータの表示方法を設定します。",
 				timeFormat: {
@@ -1353,9 +1719,9 @@ export const ja: TranslationTree = {
 					description: "プラグイン全体で12時間または24時間形式で時間を表示",
 					options: {
 						twelveHour: "12時間（AM/PM）",
-						twentyFourHour: "24時間"
-					}
-				}
+						twentyFourHour: "24時間",
+					},
+				},
 			},
 			calendarView: {
 				header: "カレンダービュー",
@@ -1368,72 +1734,75 @@ export const ja: TranslationTree = {
 						weekTimeline: "週タイムライン",
 						dayTimeline: "日タイムライン",
 						yearView: "年ビュー",
-						customMultiDay: "カスタム複数日"
-					}
+						customMultiDay: "カスタム複数日",
+					},
 				},
 				customDayCount: {
 					name: "カスタムビュー日数",
 					description: "カスタム複数日ビューで表示する日数",
-					placeholder: "3"
+					placeholder: "3",
 				},
 				firstDayOfWeek: {
 					name: "週の最初の日",
-					description: "週ビューで最初の列にする曜日"
+					description: "週ビューで最初の列にする曜日",
 				},
 				showWeekends: {
 					name: "週末を表示",
-					description: "カレンダービューで週末を表示"
+					description: "カレンダービューで週末を表示",
 				},
 				showWeekNumbers: {
 					name: "週番号を表示",
-					description: "カレンダービューで週番号を表示"
+					description: "カレンダービューで週番号を表示",
 				},
 				showTodayHighlight: {
 					name: "今日のハイライトを表示",
-					description: "カレンダービューで現在の日をハイライト"
+					description: "カレンダービューで現在の日をハイライト",
 				},
 				showCurrentTimeIndicator: {
 					name: "現在時刻インジケーターを表示",
-					description: "タイムラインビューで現在時刻を示すラインを表示"
+					description: "タイムラインビューで現在時刻を示すラインを表示",
 				},
 				selectionMirror: {
 					name: "選択ミラー",
-					description: "ドラッグして時間範囲を選択する際に視覚的プレビューを表示"
+					description: "ドラッグして時間範囲を選択する際に視覚的プレビューを表示",
 				},
 				calendarLocale: {
 					name: "カレンダーロケール",
-					description: "日付形式とカレンダーシステムのカレンダーロケール（例：\"en\"、\"fa\"はFarsi/Persian、\"de\"はGerman）。ブラウザーから自動検出するには空白のままにします。",
+					description:
+						'日付形式とカレンダーシステムのカレンダーロケール（例："en"、"fa"はFarsi/Persian、"de"はGerman）。ブラウザーから自動検出するには空白のままにします。',
 					placeholder: "自動検出",
-					invalidLocale: "無効なロケールです。有効な言語タグを入力してください（例：'ja'、'en'、'fr-FR'）。"
-				}
+					invalidLocale:
+						"無効なロケールです。有効な言語タグを入力してください（例：'ja'、'en'、'fr-FR'）。",
+				},
 			},
 			defaultEventVisibility: {
 				header: "デフォルトイベント表示",
-				description: "カレンダーを開く際にデフォルトで表示されるイベントタイプを設定します。ユーザーはカレンダービューでこれらをオン/オフできます。",
+				description:
+					"カレンダーを開く際にデフォルトで表示されるイベントタイプを設定します。ユーザーはカレンダービューでこれらをオン/オフできます。",
 				showScheduledTasks: {
 					name: "予定タスクを表示",
-					description: "予定日のあるタスクをデフォルトで表示"
+					description: "予定日のあるタスクをデフォルトで表示",
 				},
 				showDueDates: {
 					name: "期限日を表示",
-					description: "タスクの期限日をデフォルトで表示"
+					description: "タスクの期限日をデフォルトで表示",
 				},
 				showDueWhenScheduled: {
 					name: "予定がある場合も期限日を表示",
-					description: "既に予定日があるタスクでも期限日を表示"
+					description: "既に予定日があるタスクでも期限日を表示",
 				},
 				showTimeEntries: {
 					name: "時間エントリを表示",
-					description: "完了した時間追跡エントリをデフォルトで表示"
+					description: "完了した時間追跡エントリをデフォルトで表示",
 				},
 				showRecurringTasks: {
 					name: "繰り返しタスクを表示",
-					description: "繰り返しタスクインスタンスをデフォルトで表示"
+					description: "繰り返しタスクインスタンスをデフォルトで表示",
 				},
 				showICSEvents: {
 					name: "ICSイベントを表示",
-					description: "ICS購読からのイベントをデフォルトで表示"
-				}
+					description: "ICS購読からのイベントをデフォルトで表示",
+				},
 			},
 			timeSettings: {
 				header: "時間設定",
@@ -1444,151 +1813,159 @@ export const ja: TranslationTree = {
 					options: {
 						fifteenMinutes: "15分",
 						thirtyMinutes: "30分",
-						sixtyMinutes: "60分"
-					}
+						sixtyMinutes: "60分",
+					},
 				},
 				startTime: {
 					name: "開始時刻",
 					description: "タイムラインビューで表示される最早時刻（HH:MM形式）",
-					placeholder: "06:00"
+					placeholder: "06:00",
 				},
 				endTime: {
 					name: "終了時刻",
-					description: "タイムラインビューに表示する最も遅い時刻 (HH:MM形式)。26:00 を午前2時として表示するなど、24:00を超える値で翌日早朝の時間を表示できます。",
-					placeholder: "26:00"
+					description:
+						"タイムラインビューに表示する最も遅い時刻 (HH:MM形式)。26:00 を午前2時として表示するなど、24:00を超える値で翌日早朝の時間を表示できます。",
+					placeholder: "26:00",
 				},
 				initialScrollTime: {
 					name: "初期スクロール時刻",
 					description: "タイムラインビューを開く際にスクロールする時刻（HH:MM形式）",
-					placeholder: "09:00"
+					placeholder: "09:00",
 				},
 				eventMinHeight: {
 					name: "イベント最小高さ",
 					description: "タイムラインビューでのイベントの最小高さ（ピクセル）",
-					placeholder: "15"
-				}
+					placeholder: "15",
+				},
 			},
 			uiElements: {
 				header: "UI要素",
 				description: "様々なUI要素の表示を設定します。",
 				showTrackedTasksInStatusBar: {
 					name: "ステータスバーに追跡タスクを表示",
-					description: "Obsidianのステータスバーに現在追跡中のタスクを表示"
+					description: "Obsidianのステータスバーに現在追跡中のタスクを表示",
 				},
 				showProjectSubtasksWidget: {
 					name: "プロジェクトサブタスクウィジェットを表示",
-					description: "現在のプロジェクトノートのサブタスクを表示するウィジェットを表示"
+					description: "現在のプロジェクトノートのサブタスクを表示するウィジェットを表示",
 				},
 				projectSubtasksPosition: {
 					name: "プロジェクトサブタスク位置",
 					description: "プロジェクトサブタスクウィジェットの位置",
 					options: {
 						top: "ノートの上部",
-						bottom: "ノートの下部"
-					}
+						bottom: "ノートの下部",
+					},
 				},
 				showRelationshipsWidget: {
 					name: "関係ウィジェットを表示",
-					description: "現在のノートのすべての関係（サブタスク、プロジェクト、依存関係）を表示するウィジェットを表示"
+					description:
+						"現在のノートのすべての関係（サブタスク、プロジェクト、依存関係）を表示するウィジェットを表示",
 				},
 				relationshipsPosition: {
 					name: "関係の位置",
 					description: "関係ウィジェットを配置する場所",
 					options: {
 						top: "ノートの上部",
-						bottom: "ノートの下部"
-					}
+						bottom: "ノートの下部",
+					},
 				},
 				showTaskCardInNote: {
 					name: "ノート内にタスクカードを表示",
-					description: "タスクノートを開いたときにタスクプロパティを表示するインタラクティブカードを表示"
+					description:
+						"タスクノートを開いたときにタスクプロパティを表示するインタラクティブカードを表示",
 				},
 				showCompletedTaskStrikethrough: {
 					name: "完了したタスクのタイトルに取り消し線を表示",
-					description: "完了したタスクカードのタイトルに線を引きます。完了タスクを読みやすくするにはオフにします"
+					description:
+						"完了したタスクカードのタイトルに線を引きます。完了タスクを読みやすくするにはオフにします",
 				},
 				showExpandableSubtasks: {
 					name: "展開可能サブタスクを表示",
-					description: "タスクカードでサブタスクセクションの展開/折りたたみを許可"
+					description: "タスクカードでサブタスクセクションの展開/折りたたみを許可",
 				},
 				expandSubtasksByDefault: {
 					name: "サブタスクを既定で展開",
-					description: "タスクカードを表示するときにプロジェクトのサブタスクを展開して表示します"
+					description:
+						"タスクカードを表示するときにプロジェクトのサブタスクを展開して表示します",
 				},
 				subtaskChevronPosition: {
 					name: "サブタスクシェブロン位置",
 					description: "タスクカードの展開/折りたたみシェブロンの位置",
 					options: {
 						left: "左側",
-						right: "右側"
-					}
+						right: "右側",
+					},
 				},
-				viewsButtonAlignment: {
-					name: "ビューボタン配置",
-					description: "タスクインターフェースのビュー/フィルターボタンの配置",
-					options: {
-						left: "左側",
-						right: "右側"
-					}
-				}
 			},
 			projectAutosuggest: {
 				header: "プロジェクト自動提案",
 				description: "タスク作成時のプロジェクト提案の表示方法をカスタマイズします。",
 				requiredTags: {
 					name: "必須タグ",
-					description: "これらのタグのいずれかを持つノートのみを表示（カンマ区切り）。すべてのノートを表示するには空白のままにします。",
-					placeholder: "プロジェクト, アクティブ, 重要"
+					description:
+						"これらのタグのいずれかを持つノートのみを表示（カンマ区切り）。すべてのノートを表示するには空白のままにします。",
+					placeholder: "プロジェクト, アクティブ, 重要",
 				},
 				includeFolders: {
 					name: "含めるフォルダー",
-					description: "これらのフォルダー内のノートのみを表示（カンマ区切りパス）。すべてのフォルダーを表示するには空白のままにします。",
-					placeholder: "プロジェクト/, 仕事/アクティブ, 個人"
+					description:
+						"これらのフォルダー内のノートのみを表示（カンマ区切りパス）。すべてのフォルダーを表示するには空白のままにします。",
+					placeholder: "プロジェクト/, 仕事/アクティブ, 個人",
 				},
 				requiredPropertyKey: {
 					name: "必須プロパティキー",
-					description: "このフロントマタープロパティが下記の値と一致するノートのみを表示。無視するには空白のままにします。",
-					placeholder: "タイプ"
+					description:
+						"このフロントマタープロパティが下記の値と一致するノートのみを表示。無視するには空白のままにします。",
+					placeholder: "タイプ",
 				},
 				requiredPropertyValue: {
 					name: "必須プロパティ値",
-					description: "プロパティがこの値と等しいノートのみが提案されます。プロパティの存在を要求するには空白のままにします。",
-					placeholder: "プロジェクト"
+					description:
+						"プロパティがこの値と等しいノートのみが提案されます。プロパティの存在を要求するには空白のままにします。",
+					placeholder: "プロジェクト",
 				},
 				customizeDisplay: {
 					name: "提案表示をカスタマイズ",
-					description: "プロジェクト提案の表示方法と表示情報を設定する高度なオプションを表示。"
+					description:
+						"プロジェクト提案の表示方法と表示情報を設定する高度なオプションを表示。",
 				},
 				enableFuzzyMatching: {
 					name: "ファジーマッチングを有効にする",
-					description: "プロジェクト検索でタイプミスと部分一致を許可。大きなボルトでは遅くなる可能性があります。"
+					description:
+						"プロジェクト検索でタイプミスと部分一致を許可。大きなボルトでは遅くなる可能性があります。",
 				},
 				displayRowsHelp: "各プロジェクト提案に表示する最大3行の情報を設定します。",
 				displayRows: {
 					row1: {
 						name: "行1",
-						description: "形式：{property|flags}。プロパティ：title、aliases、file.path、file.parent。フラグ：n(Label)はラベルを表示、sは検索可能にします。例：{title|n(Title)|s}",
-						placeholder: "{title|n(タイトル)}"
+						description:
+							"形式：{property|flags}。プロパティ：title、aliases、file.path、file.parent。フラグ：n(Label)はラベルを表示、sは検索可能にします。例：{title|n(Title)|s}",
+						placeholder: "{title|n(タイトル)}",
 					},
 					row2: {
 						name: "行2（オプション）",
-						description: "一般的なパターン：{aliases|n(Aliases)}、{file.parent|n(Folder)}、literal:カスタムテキスト",
-						placeholder: "{aliases|n(エイリアス)}"
+						description:
+							"一般的なパターン：{aliases|n(Aliases)}、{file.parent|n(Folder)}、literal:カスタムテキスト",
+						placeholder: "{aliases|n(エイリアス)}",
 					},
 					row3: {
 						name: "行3（オプション）",
-						description: "{file.path|n(Path)}やカスタムフロントマターフィールドなどの追加情報",
-						placeholder: "{file.path|n(パス)}"
-					}
+						description:
+							"{file.path|n(Path)}やカスタムフロントマターフィールドなどの追加情報",
+						placeholder: "{file.path|n(パス)}",
+					},
 				},
 				quickReference: {
 					header: "クイックリファレンス",
-					properties: "利用可能プロパティ：title、aliases、file.path、file.parent、または任意のフロントマターフィールド",
-					labels: "ラベル追加：{title|n(Title)} → \"Title: My Project\"",
+					properties:
+						"利用可能プロパティ：title、aliases、file.path、file.parent、または任意のフロントマターフィールド",
+					labels: 'ラベル追加：{title|n(Title)} → "Title: My Project"',
 					searchable: "検索可能にする：{description|s}は+検索に説明を含めます",
 					staticText: "静的テキスト：literal:My Custom Label",
-					alwaysSearchable: "ファイル名、タイトル、エイリアスはデフォルトで常に検索可能です。"
-				}
+					alwaysSearchable:
+						"ファイル名、タイトル、エイリアスはデフォルトで常に検索可能です。",
+				},
 			},
 			dataStorage: {
 				name: "ストレージ場所",
@@ -1596,44 +1973,50 @@ export const ja: TranslationTree = {
 				pluginData: "プラグインデータ（推奨）",
 				dailyNotes: "デイリーノート",
 				notices: {
-					locationChanged: "ポモドーロストレージ場所を{location}に変更しました"
-				}
+					locationChanged: "ポモドーロストレージ場所を{location}に変更しました",
+				},
 			},
 			notifications: {
-				description: "タスクリマインダー通知とアラートを設定します。"
+				description: "タスクリマインダー通知とアラートを設定します。",
 			},
 			performance: {
-				description: "プラグインのパフォーマンスと動作オプションを設定します。"
+				description: "プラグインのパフォーマンスと動作オプションを設定します。",
 			},
 			timeTrackingSection: {
-				description: "自動時間追跡動作を設定します。"
+				description: "自動時間追跡動作を設定します。",
 			},
 			recurringSection: {
-				description: "繰り返しタスク管理の動作を設定します。"
-			}
+				description: "繰り返しタスク管理の動作を設定します。",
+			},
 		},
 		integrations: {
 			mobileCalendar: {
 				disable: {
 					name: "モバイルでカレンダー連携を無効化",
-					description: "Obsidian Mobile で Google、Microsoft、ICS カレンダーの読み込みをスキップします。デスクトップのカレンダー連携は変更されません。"
+					description:
+						"Obsidian Mobile で Google、Microsoft、ICS カレンダーの読み込みをスキップします。デスクトップのカレンダー連携は変更されません。",
 				},
 				status: {
 					name: "このモバイル端末ではカレンダー連携が無効です",
-					description: "カレンダーの読み込みを再開するには、この設定をオフにして Obsidian Mobile を再読み込みしてください。"
-				}
+					description:
+						"カレンダーの読み込みを再開するには、この設定をオフにして Obsidian Mobile を再読み込みしてください。",
+				},
 			},
 			basesIntegration: {
 				header: "Bases統合",
-				description: "Obsidian Basesプラグインとの統合を設定します。これは実験的機能で、現在非公開のObsidian APIに依存しています。動作が変更または破損する可能性があります。",
+				description:
+					"Obsidian Basesプラグインとの統合を設定します。これは実験的機能で、現在非公開のObsidian APIに依存しています。動作が変更または破損する可能性があります。",
 				enable: {
 					name: "Bases統合を有効にする",
-					description: "TaskNotesビューをObsidian Basesプラグイン内で使用できるようにします。これが機能するにはBasesプラグインが有効である必要があります。"
+					description:
+						"TaskNotesビューをObsidian Basesプラグイン内で使用できるようにします。これが機能するにはBasesプラグインが有効である必要があります。",
 				},
 				viewCommands: {
 					header: "ビューとBaseファイル",
-					description: "TaskNotesはObsidian Basesファイル（.base）を使用してビューを表示します。これらのファイルは起動時に存在しない場合に自動的に生成され、現在の設定（タスク識別、フィールドマッピング、ステータスなど）で構成されます。",
-					descriptionRegen: "設定を変更してもBaseファイルは自動更新されません。新しい設定を適用するには、下の「ファイルを更新」を使用するか、既存の.baseファイルを削除してObsidianを再起動するか、手動で編集してください。",
+					description:
+						"TaskNotesはObsidian Basesファイル（.base）を使用してビューを表示します。これらのファイルは起動時に存在しない場合に自動的に生成され、現在の設定（タスク識別、フィールドマッピング、ステータスなど）で構成されます。",
+					descriptionRegen:
+						"設定を変更してもBaseファイルは自動更新されません。新しい設定を適用するには、下の「ファイルを更新」を使用するか、既存の.baseファイルを削除してObsidianを再起動するか、手動で編集してください。",
 					docsLink: "利用可能な数式とカスタマイズオプションのドキュメントを表示",
 					docsLinkUrl: "https://tasknotes.dev/views/default-base-templates",
 					commands: {
@@ -1643,57 +2026,64 @@ export const ja: TranslationTree = {
 						advancedCalendar: "高度なカレンダービューを開く",
 						agenda: "アジェンダビューを開く",
 						relationships: "関係ウィジェット",
-						pomodoroStats: "Pomodoro統計Base"
 					},
 					fileLabel: "ファイル：{path}",
 					resetButton: "リセット",
 					resetTooltip: "デフォルトパスにリセット",
-					pomodoroDailyNotesHint: "生成されたPomodoro統計BaseはデイリーノートからPomodoro履歴を読み取ります。履歴がまだプラグインデータに保存されている場合は、このBaseファイルを使う前に設定で移行してください。"
 				},
 				autoCreateDefaultFiles: {
 					name: "デフォルトファイルを自動作成",
-					description: "起動時に不足しているデフォルトのBaseビューファイルを自動的に作成します。削除したサンプルファイルが再作成されないようにするには無効にしてください。"
+					description:
+						"起動時に不足しているデフォルトのBaseビューファイルを自動的に作成します。削除したサンプルファイルが再作成されないようにするには無効にしてください。",
 				},
 				createDefaultFiles: {
 					name: "デフォルトファイルを作成",
-					description: "TaskNotes/Views/ディレクトリにデフォルトの.baseファイルを作成します。既存のファイルは上書きされません。",
-					buttonText: "ファイルを作成"
+					description:
+						"TaskNotes/Views/ディレクトリにデフォルトの.baseファイルを作成します。既存のファイルは上書きされません。",
+					buttonText: "ファイルを作成",
 				},
 				exportV3Views: {
 					name: "V3保存ビューをBasesにエクスポート",
-					description: "TaskNotes v3のすべての保存ビューを、複数のビューを持つ単一の.baseファイルに変換します。これは、v3フィルター設定を新しいBasesシステムに移行するのに役立ちます。",
+					description:
+						"TaskNotes v3のすべての保存ビューを、複数のビューを持つ単一の.baseファイルに変換します。これは、v3フィルター設定を新しいBasesシステムに移行するのに役立ちます。",
 					buttonText: "V3ビューをエクスポート",
 					noViews: "エクスポートする保存ビューがありません",
 					fileExists: "ファイルが既に存在します",
-					confirmOverwrite: "\"{fileName}\"という名前のファイルが既に存在します。上書きしますか？",
+					confirmOverwrite:
+						'"{fileName}"という名前のファイルが既に存在します。上書きしますか？',
 					success: "{count}個の保存ビューを{filePath}にエクスポートしました",
-					error: "ビューのエクスポートに失敗しました：{message}"
+					error: "ビューのエクスポートに失敗しました：{message}",
 				},
 				notices: {
-					enabled: "Bases統合が有効になりました。設定を完了するためにObsidianを再起動してください。",
-					disabled: "Bases統合が無効になりました。削除を完了するためにObsidianを再起動してください。"
+					enabled:
+						"Bases統合が有効になりました。設定を完了するためにObsidianを再起動してください。",
+					disabled:
+						"Bases統合が無効になりました。削除を完了するためにObsidianを再起動してください。",
 				},
 				updateDefaultFiles: {
 					name: "デフォルトファイルを更新",
-					description: "現在のTaskNotes設定から生成されたテンプレートで、設定済みのデフォルト.baseファイルを上書きします。",
+					description:
+						"現在のTaskNotes設定から生成されたテンプレートで、設定済みのデフォルト.baseファイルを上書きします。",
 					buttonText: "ファイルを更新",
 					confirmTitle: "デフォルトBaseファイルを更新",
-					confirmMessage: "設定済みのデフォルト.baseファイルを新しく生成したテンプレートで上書きします。これらのファイルの手動編集は置き換えられます。",
-					confirmText: "ファイルを更新"
-				}
+					confirmMessage:
+						"設定済みのデフォルト.baseファイルを新しく生成したテンプレートで上書きします。これらのファイルの手動編集は置き換えられます。",
+					confirmText: "ファイルを更新",
+				},
 			},
 			calendarSubscriptions: {
 				header: "カレンダー購読",
-				description: "ICS/iCal URLを介して外部カレンダーを購読し、タスクと一緒にイベントを表示します。",
+				description:
+					"ICS/iCal URLを介して外部カレンダーを購読し、タスクと一緒にイベントを表示します。",
 				defaultNoteTemplate: {
 					name: "デフォルトノートテンプレート",
 					description: "ICSイベントから作成されるノートのテンプレートファイルへのパス",
-					placeholder: "テンプレート/イベントテンプレート.md"
+					placeholder: "テンプレート/イベントテンプレート.md",
 				},
 				defaultNoteFolder: {
 					name: "デフォルトノートフォルダー",
 					description: "ICSイベントから作成されるノートのフォルダー",
-					placeholder: "カレンダー/イベント"
+					placeholder: "カレンダー/イベント",
 				},
 				filenameFormat: {
 					name: "ICSノートファイル名形式",
@@ -1702,41 +2092,44 @@ export const ja: TranslationTree = {
 						title: "イベントタイトル",
 						zettel: "Zettelkasten形式",
 						timestamp: "タイムスタンプ",
-						custom: "カスタムテンプレート"
-					}
+						custom: "カスタムテンプレート",
+					},
 				},
 				customTemplate: {
 					name: "カスタムICSファイル名テンプレート",
 					description: "カスタムICSイベントファイル名のテンプレート",
-					placeholder: "{date}-{title}"
+					placeholder: "{date}-{title}",
 				},
 				useICSEndAsDue: {
 					name: "ICSイベント終了時刻をタスク期日として使用",
-					description: "有効にすると、カレンダーイベントから作成されたタスクの期日がイベントの終了時刻に設定されます。終日イベントの場合、期日はイベントの日付に設定されます。時間指定イベントの場合、期日に終了時刻が含まれます。"
+					description:
+						"有効にすると、カレンダーイベントから作成されたタスクの期日がイベントの終了時刻に設定されます。終日イベントの場合、期日はイベントの日付に設定されます。時間指定イベントの場合、期日に終了時刻が含まれます。",
 				},
 				recurringEventRelatedNotesMode: {
 					name: "繰り返しイベントの関連ノート",
-					description: "外部カレンダーイベントの1回の繰り返しにリンクしたノートを、読み込まれたシリーズ全体に表示するか、選択したインスタンスのみに表示するかを選択します。",
+					description:
+						"外部カレンダーイベントの1回の繰り返しにリンクしたノートを、読み込まれたシリーズ全体に表示するか、選択したインスタンスのみに表示するかを選択します。",
 					options: {
 						series: "シリーズ全体",
-						instance: "選択したインスタンスのみ"
-					}
-				}
+						instance: "選択したインスタンスのみ",
+					},
+				},
 			},
 			subscriptionsList: {
 				header: "カレンダー購読リスト",
 				addSubscription: {
 					name: "カレンダー購読を追加",
 					description: "ICS/iCal URLまたはローカルファイルから新しいカレンダー購読を追加",
-					buttonText: "購読を追加"
+					buttonText: "購読を追加",
 				},
 				refreshAll: {
 					name: "すべての購読を更新",
 					description: "有効なすべてのカレンダー購読を手動で更新",
-					buttonText: "すべて更新"
+					buttonText: "すべて更新",
 				},
 				newCalendarName: "新しいカレンダー",
-				emptyState: "カレンダー購読が設定されていません。購読を追加して外部カレンダーを同期してください。",
+				emptyState:
+					"カレンダー購読が設定されていません。購読を追加して外部カレンダーを同期してください。",
 				notices: {
 					addSuccess: "新しいカレンダー購読が追加されました - 詳細を設定してください",
 					addFailure: "購読の追加に失敗しました",
@@ -1744,11 +2137,11 @@ export const ja: TranslationTree = {
 					refreshSuccess: "すべてのカレンダー購読が正常に更新されました",
 					refreshFailure: "一部のカレンダー購読の更新に失敗しました",
 					updateFailure: "購読の更新に失敗しました",
-					deleteSuccess: "購読\"{name}\"を削除しました",
+					deleteSuccess: '購読"{name}"を削除しました',
 					deleteFailure: "購読の削除に失敗しました",
 					enableFirst: "最初に購読を有効にしてください",
-					refreshSubscriptionSuccess: "\"{name}\"を更新しました",
-					refreshSubscriptionFailure: "購読の更新に失敗しました"
+					refreshSubscriptionSuccess: '"{name}"を更新しました',
+					refreshSubscriptionFailure: "購読の更新に失敗しました",
 				},
 				labels: {
 					enabled: "有効：",
@@ -1757,17 +2150,17 @@ export const ja: TranslationTree = {
 					url: "URL：",
 					filePath: "ファイルパス：",
 					color: "色：",
-					refreshMinutes: "更新（分）："
+					refreshMinutes: "更新（分）：",
 				},
 				typeOptions: {
 					remote: "リモートURL",
-					local: "ローカルファイル"
+					local: "ローカルファイル",
 				},
 				placeholders: {
 					calendarName: "カレンダー名",
 					url: "ICS/iCal のURL",
 					filePath: "ローカルファイルパス（例：Calendar.ics）",
-					localFile: "カレンダー.ics"
+					localFile: "カレンダー.ics",
 				},
 				statusLabels: {
 					enabled: "有効",
@@ -1777,44 +2170,45 @@ export const ja: TranslationTree = {
 					remoteCalendar: "リモートカレンダー",
 					localFileCalendar: "ローカルファイル",
 					synced: "{timeAgo}に同期",
-					error: "エラー"
+					error: "エラー",
 				},
 				actions: {
 					refreshNow: "今すぐ更新",
-					deleteSubscription: "購読を削除"
+					deleteSubscription: "購読を削除",
 				},
 				refreshNow: "今すぐ更新",
 				confirmDelete: {
 					title: "購読を削除",
-					message: "購読\"{name}\"を削除してもよろしいですか？この操作は元に戻せません。",
-					confirmText: "削除"
-				}
+					message: '購読"{name}"を削除してもよろしいですか？この操作は元に戻せません。',
+					confirmText: "削除",
+				},
 			},
 			autoExport: {
 				header: "自動ICSエクスポート",
 				description: "すべてのタスクを自動的にICSファイルにエクスポートします。",
 				enable: {
 					name: "自動エクスポートを有効にする",
-					description: "すべてのタスクでICSファイルを自動的に更新し続ける"
+					description: "すべてのタスクでICSファイルを自動的に更新し続ける",
 				},
 				filePath: {
 					name: "エクスポートファイルパス",
 					description: "ICSファイルを保存するパス（ボルトルートからの相対パス）",
-					placeholder: "tasknotes-カレンダー.ics"
+					placeholder: "tasknotes-カレンダー.ics",
 				},
 				interval: {
 					name: "更新間隔（5から1440分の間）",
 					description: "エクスポートファイルを更新する頻度",
-					placeholder: "60"
+					placeholder: "60",
 				},
 				useDuration: {
 					name: "タスクの所要時間をイベントの長さに使用",
-					description: "有効にすると、カレンダーイベントの終了時刻に期日ではなくタスクの見積時間（所要時間）を使用します。これは、予定 + 所要時間が作業計画を表し、期日が締め切りを表すGTDワークフローに便利です。"
+					description:
+						"有効にすると、カレンダーイベントの終了時刻に期日ではなくタスクの見積時間（所要時間）を使用します。これは、予定 + 所要時間が作業計画を表し、期日が締め切りを表すGTDワークフローに便利です。",
 				},
 				exportNow: {
 					name: "今すぐエクスポート",
 					description: "即座にエクスポートを手動でトリガー",
-					buttonText: "今すぐエクスポート"
+					buttonText: "今すぐエクスポート",
 				},
 				status: {
 					title: "エクスポートステータス：",
@@ -1822,45 +2216,55 @@ export const ja: TranslationTree = {
 					nextExport: "次のエクスポート：{time}",
 					noExports: "まだエクスポートされていません",
 					notScheduled: "スケジュールされていません",
-					notInitialized: "自動エクスポートサービスが初期化されていません - Obsidianを再起動してください",
-					serviceNotInitialized: "サービスが初期化されていません - Obsidianを再起動してください"
+					notInitialized:
+						"自動エクスポートサービスが初期化されていません - Obsidianを再起動してください",
+					serviceNotInitialized:
+						"サービスが初期化されていません - Obsidianを再起動してください",
 				},
 				notices: {
-					reloadRequired: "自動エクスポートの変更を有効にするためにObsidianを再読み込みしてください。",
+					reloadRequired:
+						"自動エクスポートの変更を有効にするためにObsidianを再読み込みしてください。",
 					exportSuccess: "タスクが正常にエクスポートされました",
-					exportFailure: "エクスポートに失敗しました - 詳細はコンソールを確認してください",
-					serviceUnavailable: "自動エクスポートサービスが利用できません"
+					exportFailure:
+						"エクスポートに失敗しました - 詳細はコンソールを確認してください",
+					serviceUnavailable: "自動エクスポートサービスが利用できません",
 				},
 				excludeCompleted: {
 					name: "完了したタスクを除外",
-					description: "有効にすると、完了したタスクはICSエクスポートから除外されます。完了ステータスはタスクステータス設定から取得されます。"
+					description:
+						"有効にすると、完了したタスクはICSエクスポートから除外されます。完了ステータスはタスクステータス設定から取得されます。",
 				},
 				excludeArchived: {
 					name: "アーカイブ済みタスクを除外",
-					description: "有効にすると、アーカイブ済みタスクはICSエクスポートから除外されます。"
+					description:
+						"有効にすると、アーカイブ済みタスクはICSエクスポートから除外されます。",
 				},
 				requireDueDate: {
 					name: "期限日を必須にする",
-					description: "有効にすると、期限日のあるタスクだけがICSエクスポートに含まれます。"
+					description:
+						"有効にすると、期限日のあるタスクだけがICSエクスポートに含まれます。",
 				},
 				requireScheduledDate: {
 					name: "予定日を必須にする",
-					description: "有効にすると、予定日のあるタスクだけがICSエクスポートに含まれます。"
-				}
+					description:
+						"有効にすると、予定日のあるタスクだけがICSエクスポートに含まれます。",
+				},
 			},
 			googleCalendarExport: {
 				header: "タスクをGoogleカレンダーにエクスポート",
-				description: "タスクを自動的にGoogleカレンダーのイベントとして同期します。上記でGoogleカレンダーが接続されている必要があります。",
+				description:
+					"タスクを自動的にGoogleカレンダーのイベントとして同期します。上記でGoogleカレンダーが接続されている必要があります。",
 				enable: {
 					name: "タスクエクスポートを有効にする",
-					description: "有効にすると、日付のあるタスクが自動的にGoogleカレンダーにイベントとして同期されます。"
+					description:
+						"有効にすると、日付のあるタスクが自動的にGoogleカレンダーにイベントとして同期されます。",
 				},
 				targetCalendar: {
 					name: "ターゲットカレンダー",
 					description: "タスクイベントを作成するカレンダーを選択します。",
 					placeholder: "カレンダーを選択...",
 					connectFirst: "先にGoogleカレンダーを接続してください",
-					primarySuffix: "（メイン）"
+					primarySuffix: "（メイン）",
 				},
 				syncTrigger: {
 					name: "同期トリガー",
@@ -1868,72 +2272,89 @@ export const ja: TranslationTree = {
 					options: {
 						scheduled: "予定日",
 						due: "期限",
-						both: "両方（予定日優先）"
-					}
+						both: "両方（予定日優先）",
+					},
 				},
 				allDayEvents: {
 					name: "終日イベントとして作成",
-					description: "有効にすると、タスクは終日イベントとして作成されます。無効にすると、時間見積もりを期間として使用します。"
+					description:
+						"有効にすると、タスクは終日イベントとして作成されます。無効にすると、時間見積もりを期間として使用します。",
+				},
+				showAllDayAsFree: {
+					name: "終日のタスク予定を予定なしとして表示",
+					description:
+						"終日としてエクスポートされたタスクは、終日に変換されたものも含め、空き時間を妨げません。時刻のある予定は「予定あり」のままです。既存の予定への変更を適用するには、すべてのタスクの同期を実行してください。",
 				},
 				defaultDuration: {
 					name: "デフォルトのイベント期間",
-					description: "時間指定イベントの期間（分）（タスクに時間見積もりがない場合に使用）。"
+					description:
+						"時間指定イベントの期間（分）（タスクに時間見積もりがない場合に使用）。",
 				},
 				eventTitleTemplate: {
 					name: "イベントタイトルテンプレート",
-					description: "イベントタイトルのテンプレート。使用可能な変数：{{title}}、{{status}}、{{priority}}",
-					placeholder: "{{title}}"
+					description:
+						"イベントタイトルのテンプレート。使用可能な変数：{{title}}、{{status}}、{{priority}}",
+					placeholder: "{{title}}",
 				},
 				includeDescription: {
 					name: "説明にタスク詳細を含める",
-					description: "イベントの説明にタスクのメタデータ（優先度、ステータス、タグなど）を追加します。"
+					description:
+						"イベントの説明にタスクのメタデータ（優先度、ステータス、タグなど）を追加します。",
 				},
 				includeObsidianLink: {
 					name: "Obsidianリンクを含める",
-					description: "イベントの説明にObsidianのタスクへのリンクを追加します。"
+					description: "イベントの説明にObsidianのタスクへのリンクを追加します。",
 				},
 				defaultReminder: {
 					name: "デフォルトリマインダー",
-					description: "時刻付きGoogle Calendarイベントにポップアップリマインダーを追加します。イベント前の分数をカンマ区切りで入力します。空欄にするとカレンダーのデフォルトを使用します。一般的な値: 15, 30, 60, 1440。"
+					description:
+						"時刻付きGoogle Calendarイベントにポップアップリマインダーを追加します。イベント前の分数をカンマ区切りで入力します。空欄にするとカレンダーのデフォルトを使用します。一般的な値: 15, 30, 60, 1440。",
 				},
 				automaticSyncBehavior: {
-					header: "自動同期動作"
+					header: "自動同期動作",
 				},
 				syncOnCreate: {
 					name: "タスク作成時に同期",
-					description: "新しいタスクが作成されたときに自動的にカレンダーイベントを作成します。"
+					description:
+						"新しいタスクが作成されたときに自動的にカレンダーイベントを作成します。",
 				},
 				syncOnUpdate: {
 					name: "タスク更新時に同期",
-					description: "タスクが変更されたときに自動的にカレンダーイベントを更新します。"
+					description: "タスクが変更されたときに自動的にカレンダーイベントを更新します。",
 				},
 				syncOnComplete: {
 					name: "タスク完了時に同期",
-					description: "タスクが完了したときにカレンダーイベントを更新します（タイトルにチェックマークを追加）。"
+					description:
+						"タスクが完了したときにカレンダーイベントを更新します（タイトルにチェックマークを追加）。",
 				},
 				syncOnDelete: {
 					name: "タスク削除時にイベントを削除",
-					description: "対応するタスクが削除されたときにカレンダーイベントを削除します。"
+					description: "対応するタスクが削除されたときにカレンダーイベントを削除します。",
 				},
 				manualSyncActions: {
-					header: "手動同期アクション"
+					header: "手動同期アクション",
 				},
 				syncAllTasks: {
 					name: "すべてのタスクを同期",
-					description: "すべての既存タスクをGoogleカレンダーに同期します。まだ同期されていないタスクのイベントが作成されます。",
-					buttonText: "すべて同期"
+					description:
+						"すべての既存タスクをGoogleカレンダーに同期します。まだ同期されていないタスクのイベントが作成されます。",
+					buttonText: "すべて同期",
 				},
 				unlinkAllTasks: {
 					name: "すべてのタスクのリンクを解除",
-					description: "カレンダーイベントを削除せずに、すべてのタスクとイベントのリンクを解除します。",
+					description:
+						"カレンダーイベントを削除せずに、すべてのタスクとイベントのリンクを解除します。",
 					buttonText: "すべてリンク解除",
 					confirmTitle: "すべてのタスクのリンクを解除",
-					confirmMessage: "これにより、タスクとカレンダーイベント間のすべてのリンクが削除されます。カレンダーイベントは残りますが、タスクが変更されても更新されなくなります。よろしいですか？",
-					confirmButtonText: "すべてリンク解除"
+					confirmMessage:
+						"これにより、タスクとカレンダーイベント間のすべてのリンクが削除されます。カレンダーイベントは残りますが、タスクが変更されても更新されなくなります。よろしいですか？",
+					confirmButtonText: "すべてリンク解除",
 				},
 				notices: {
-					notEnabled: "Googleカレンダーエクスポートが有効になっていません。設定 > 統合で設定してください。",
-					notEnabledOrConfigured: "Googleカレンダーエクスポートが有効または設定されていません",
+					notEnabled:
+						"Googleカレンダーエクスポートが有効になっていません。設定 > 統合で設定してください。",
+					notEnabledOrConfigured:
+						"Googleカレンダーエクスポートが有効または設定されていません",
 					serviceNotAvailable: "タスクカレンダー同期サービスが利用できません",
 					syncResults: "同期済み：{synced}、失敗：{failed}、スキップ：{skipped}",
 					taskSynced: "タスクをGoogleカレンダーに同期しました",
@@ -1941,11 +2362,12 @@ export const ja: TranslationTree = {
 					notATask: "現在のファイルはタスクではありません",
 					noDateToSync: "タスクに同期する予定日または期限がありません",
 					syncFailed: "タスクのGoogleカレンダーへの同期に失敗しました：{message}",
-					connectionExpired: "Google カレンダーの接続が期限切れです。設定 > 統合で再接続してください。",
+					connectionExpired:
+						"Google カレンダーの接続が期限切れです。設定 > 統合で再接続してください。",
 					syncingTasks: "{total}件のタスクをGoogleカレンダーに同期中...",
 					syncComplete: "同期完了：{synced}件同期、{failed}件失敗、{skipped}件スキップ",
 					eventsDeletedAndUnlinked: "すべてのイベントが削除され、リンク解除されました",
-					tasksUnlinked: "すべてのタスクリンクが削除されました"
+					tasksUnlinked: "すべてのタスクリンクが削除されました",
 				},
 				eventDescription: {
 					untitledTask: "無題のタスク",
@@ -1957,72 +2379,76 @@ export const ja: TranslationTree = {
 					tags: "タグ：{value}",
 					contexts: "コンテキスト：{value}",
 					projects: "プロジェクト：{value}",
-					openInObsidian: "Obsidianで開く"
-				}
+					openInObsidian: "Obsidianで開く",
+				},
 			},
 			httpApi: {
 				header: "HTTP API",
 				description: "外部統合と自動化のためのHTTP APIを有効にします。",
 				enable: {
 					name: "HTTP APIを有効にする",
-					description: "APIアクセス用のローカルHTTPサーバーを開始"
+					description: "APIアクセス用のローカルHTTPサーバーを開始",
 				},
 				port: {
 					name: "APIポート",
 					description: "HTTP APIサーバーのポート番号",
-					placeholder: "3000"
+					placeholder: "3000",
 				},
 				authToken: {
 					name: "API認証トークン",
-					description: "API認証に必要なトークン（認証なしの場合は空白のままにする）",
-					placeholder: "あなたのシークレットトークン"
+					description:
+						"TaskNotesのトークンです。AIプロバイダーのAPIキーではありません。生成するにはHTTP APIを有効にし、この欄を空にしてObsidianを再起動してください。生成されたトークンをクライアントのBearer認証設定にコピーします。トークンを変更したら、各クライアントの設定も更新してください。トークンはdata.jsonではなくこのデバイスに安全に保存されるため、同期している各デバイスはそれぞれ独自のトークンを持ちます。",
+					placeholder: "あなたのシークレットトークン",
 				},
 				mcp: {
 					enable: {
 						name: "MCP サーバーを有効にする",
-						description: "Model Context Protocol を介して /mcp エンドポイントで TaskNotes ツールを公開します。HTTP API を有効にする必要があります。"
-					}
+						description:
+							"Model Context Protocol を介して /mcp エンドポイントで TaskNotes ツールを公開します。HTTP API を有効にする必要があります。",
+					},
 				},
 				endpoints: {
 					header: "利用可能なAPIエンドポイント",
 					expandIcon: "▶",
-					collapseIcon: "▼"
-				}
+					collapseIcon: "▼",
+				},
 			},
 			webhooks: {
 				header: "Webhook",
 				description: {
-					overview: "WebhookはTaskNotesイベントが発生したときに外部サービスにリアルタイム通知を送信します。",
-					usage: "自動化ツール、同期サービス、またはカスタムアプリケーションと統合するためにWebhookを設定します。"
+					overview:
+						"WebhookはTaskNotesイベントが発生したときに外部サービスにリアルタイム通知を送信します。",
+					usage: "自動化ツール、同期サービス、またはカスタムアプリケーションと統合するためにWebhookを設定します。",
 				},
 				addWebhook: {
 					name: "Webhookを追加",
 					description: "新しいWebhookエンドポイントを登録",
-					buttonText: "Webhookを追加"
+					buttonText: "Webhookを追加",
 				},
 				emptyState: {
-					message: "Webhookが設定されていません。Webhookを追加してリアルタイム通知を受信してください。",
-					buttonText: "Webhookを追加"
+					message:
+						"Webhookが設定されていません。Webhookを追加してリアルタイム通知を受信してください。",
+					buttonText: "Webhookを追加",
 				},
 				labels: {
 					active: "アクティブ：",
 					url: "URL：",
 					events: "イベント：",
-					transform: "変換："
+					transform: "変換：",
 				},
 				placeholders: {
 					url: "Webhook のURL",
 					noEventsSelected: "イベントが選択されていません",
-					rawPayload: "Rawペイロード（変換なし）"
+					rawPayload: "Rawペイロード（変換なし）",
 				},
 				statusLabels: {
 					active: "アクティブ",
 					inactive: "非アクティブ",
-					created: "{timeAgo}に作成"
+					created: "{timeAgo}に作成",
 				},
 				actions: {
 					editEvents: "イベントを編集",
-					delete: "削除"
+					delete: "削除",
 				},
 				editEvents: "イベントを編集",
 				notices: {
@@ -2031,96 +2457,99 @@ export const ja: TranslationTree = {
 					disabled: "Webhookが無効になりました",
 					created: "Webhookが正常に作成されました",
 					deleted: "Webhookが削除されました",
-					updated: "Webhookが更新されました"
+					updated: "Webhookが更新されました",
 				},
 				confirmDelete: {
 					title: "Webhookを削除",
-					message: "このWebhookを削除してもよろしいですか？\n\nURL：{url}\n\nこの操作は元に戻せません。",
-					confirmText: "削除"
+					message:
+						"このWebhookを削除してもよろしいですか？\n\nURL：{url}\n\nこの操作は元に戻せません。",
+					confirmText: "削除",
 				},
 				cardHeader: "Webhook",
 				cardFields: {
 					active: "アクティブ：",
 					url: "URL：",
 					events: "イベント：",
-					transform: "変換："
+					transform: "変換：",
 				},
 				eventsDisplay: {
-					noEvents: "イベントが選択されていません"
+					noEvents: "イベントが選択されていません",
 				},
 				transformDisplay: {
-					noTransform: "Rawペイロード（変換なし）"
+					noTransform: "Rawペイロード（変換なし）",
 				},
 				secretModal: {
 					title: "Webhookシークレットが生成されました",
-					description: "Webhookシークレットが生成されました。再度表示することはできないため、このシークレットを保存してください：",
+					description:
+						"Webhookシークレットが生成されました。再度表示することはできないため、このシークレットを保存してください：",
 					usage: "受信アプリケーションでWebhookペイロードを検証するためにこのシークレットを使用してください。",
-					gotIt: "了解"
+					gotIt: "了解",
 				},
 				editModal: {
 					title: "Webhookを編集",
-					eventsHeader: "購読するイベント"
+					eventsHeader: "購読するイベント",
 				},
 				events: {
 					taskCreated: {
 						label: "タスク作成",
-						description: "新しいタスクが作成されたとき"
+						description: "新しいタスクが作成されたとき",
 					},
 					taskUpdated: {
 						label: "タスク更新",
-						description: "タスクが変更されたとき"
+						description: "タスクが変更されたとき",
 					},
 					taskCompleted: {
 						label: "タスク完了",
-						description: "タスクが完了とマークされたとき"
+						description: "タスクが完了とマークされたとき",
 					},
 					taskDeleted: {
 						label: "タスク削除",
-						description: "タスクが削除されたとき"
+						description: "タスクが削除されたとき",
 					},
 					taskArchived: {
 						label: "タスクアーカイブ",
-						description: "タスクがアーカイブされたとき"
+						description: "タスクがアーカイブされたとき",
 					},
 					taskUnarchived: {
 						label: "タスクアーカイブ解除",
-						description: "タスクのアーカイブが解除されたとき"
+						description: "タスクのアーカイブが解除されたとき",
 					},
 					timeStarted: {
 						label: "時間開始",
-						description: "時間追跡が開始されたとき"
+						description: "時間追跡が開始されたとき",
 					},
 					timeStopped: {
 						label: "時間停止",
-						description: "時間追跡が停止されたとき"
+						description: "時間追跡が停止されたとき",
 					},
 					pomodoroStarted: {
 						label: "ポモドーロ開始",
-						description: "ポモドーロセッションが開始されたとき"
+						description: "ポモドーロセッションが開始されたとき",
 					},
 					pomodoroCompleted: {
 						label: "ポモドーロ完了",
-						description: "ポモドーロセッションが終了したとき"
+						description: "ポモドーロセッションが終了したとき",
 					},
 					pomodoroInterrupted: {
 						label: "ポモドーロ中断",
-						description: "ポモドーロセッションが停止されたとき"
+						description: "ポモドーロセッションが停止されたとき",
 					},
 					recurringCompleted: {
 						label: "繰り返しインスタンス完了",
-						description: "繰り返しタスクインスタンスが完了したとき"
+						description: "繰り返しタスクインスタンスが完了したとき",
 					},
 					reminderTriggered: {
 						label: "リマインダー起動",
-						description: "タスクリマインダーがアクティブになったとき"
-					}
+						description: "タスクリマインダーがアクティブになったとき",
+					},
 				},
 				modals: {
 					secretGenerated: {
 						title: "Webhookシークレットが生成されました",
-						description: "Webhookシークレットが生成されました。再度表示することはできないため、このシークレットを保存してください：",
+						description:
+							"Webhookシークレットが生成されました。再度表示することはできないため、このシークレットを保存してください：",
 						usage: "受信アプリケーションでWebhookペイロードを検証するためにこのシークレットを使用してください。",
-						buttonText: "了解"
+						buttonText: "了解",
 					},
 					edit: {
 						title: "Webhookを編集",
@@ -2129,20 +2558,22 @@ export const ja: TranslationTree = {
 						headersSection: "ヘッダー設定",
 						transformFile: {
 							name: "変換ファイル",
-							description: "Webhookペイロードを変換するボルト内の.jsonテンプレートファイルへのパス",
-							placeholder: "simple-template.json"
+							description:
+								"Webhookペイロードを変換するボルト内の.jsonテンプレートファイルへのパス",
+							placeholder: "simple-template.json",
 						},
 						customHeaders: {
 							name: "カスタムヘッダーを含める",
-							description: "TaskNotesヘッダー（イベントタイプ、署名、配信ID）を含める。Discord、Slack、および厳格なCORSポリシーを持つその他のサービスではオフにしてください。"
+							description:
+								"TaskNotesヘッダー（イベントタイプ、署名、配信ID）を含める。Discord、Slack、および厳格なCORSポリシーを持つその他のサービスではオフにしてください。",
 						},
 						buttons: {
 							cancel: "キャンセル",
-							save: "変更を保存"
+							save: "変更を保存",
 						},
 						notices: {
-							selectAtLeastOneEvent: "少なくとも1つのイベントを選択してください"
-						}
+							selectAtLeastOneEvent: "少なくとも1つのイベントを選択してください",
+						},
 					},
 					add: {
 						title: "Webhookを追加",
@@ -2152,16 +2583,18 @@ export const ja: TranslationTree = {
 						url: {
 							name: "Webhook のURL",
 							description: "Webhookペイロードが送信されるエンドポイント",
-							placeholder: "https://your-service.com/webhook"
+							placeholder: "https://your-service.com/webhook",
 						},
 						transformFile: {
 							name: "変換ファイル",
-							description: "Webhookペイロードを変換するボルト内の.jsonテンプレートファイルへのパス",
-							placeholder: "simple-template.json"
+							description:
+								"Webhookペイロードを変換するボルト内の.jsonテンプレートファイルへのパス",
+							placeholder: "simple-template.json",
 						},
 						customHeaders: {
 							name: "カスタムヘッダーを含める",
-							description: "TaskNotesヘッダー（イベントタイプ、署名、配信ID）を含める。Discord、Slack、および厳格なCORSポリシーを持つその他のサービスではオフにしてください。"
+							description:
+								"TaskNotesヘッダー（イベントタイプ、署名、配信ID）を含める。Discord、Slack、および厳格なCORSポリシーを持つその他のサービスではオフにしてください。",
 						},
 						transformHelp: {
 							title: "JSON変換テンプレートを使用してWebhookペイロードをカスタマイズできます：",
@@ -2173,83 +2606,97 @@ export const ja: TranslationTree = {
 							leaveEmpty: "空白のまま：",
 							leaveEmptyDescription: " Rawデータを送信",
 							example: "例：",
-							exampleFile: "simple-template.json"
+							exampleFile: "simple-template.json",
 						},
 						buttons: {
 							cancel: "キャンセル",
-							add: "Webhookを追加"
+							add: "Webhookを追加",
 						},
 						notices: {
 							urlRequired: "Webhook URLが必要です",
-							selectAtLeastOneEvent: "少なくとも1つのイベントを選択してください"
-						}
-					}
-				}
+							selectAtLeastOneEvent: "少なくとも1つのイベントを選択してください",
+						},
+					},
+				},
 			},
 			otherIntegrations: {
 				header: "その他のプラグイン統合",
-				description: "他のObsidianプラグインとの統合を設定します。"
+				description: "他のObsidianプラグインとの統合を設定します。",
 			},
 			mdbaseSpec: {
 				header: "mdbaseタスク契約",
 				learnMore: "mdbase-spec について詳しく見る",
 				enable: {
 					name: "正規のmdbase設定を使用",
-					description: "TaskNotesのデータ契約を公開し、それを実装するmdbase型を移植可能な信頼できる情報源として使用します。ファイルの編集はTaskNotesを更新し、移植可能な設定の変更は型のバインディングを更新します。"
-				}
+					description:
+						"TaskNotes データコントラクトを公開し、それを実装する mdbase タイプと TaskNotes 設定レコードをポータブルな信頼できる情報源にします。ファイルの編集は TaskNotes に反映されます。設定の変更はタイプのバインディングに、テンプレート、アーカイブ移動、ステータスの循環などのアプリの動作は設定レコードに書き込まれます。",
+				},
 			},
 			timeFormats: {
 				justNow: "たった今",
 				minutesAgo: "{minutes}分前",
 				hoursAgo: "{hours}時間前",
-				daysAgo: "{days}日前"
-			}
-		}
+				daysAgo: "{days}日前",
+			},
+		},
 	},
 	notices: {
 		languageChanged: "言語を{language}に変更しました。",
+		recurringCompletion: {
+			completed: "完了した繰り返し: {date}",
+			incomplete: "未完了に変更: {date}",
+			next: "次回: {date}",
+			noNext: "次回の繰り返しはありません",
+			undo: "元に戻す",
+			undone: "繰り返しタスクの変更を元に戻しました。",
+			conflict: "元に戻せません。この回または予定が変更されています。",
+			failed: "繰り返しタスクの変更を元に戻せませんでした。",
+		},
 		releaseAvailable: {
 			message: "TaskNotes {version} が利用可能です。",
-			action: "コミュニティプラグインで開く"
+			action: "コミュニティプラグインで開く",
 		},
 		exportTasksFailed: "タスクのICSファイルエクスポートに失敗しました",
 		icsNoteCreatedSuccess: "ノートが正常に作成されました",
 		icsCreationModalOpenFailed: "作成モーダルを開けませんでした",
-		icsNoteLinkSuccess: "ノート\"{fileName}\"をICSイベントにリンクしました",
+		icsNoteLinkSuccess: 'ノート"{fileName}"をICSイベントにリンクしました',
 		icsTaskCreatedSuccess: "タスクが作成されました：{title}",
 		icsRelatedItemsRefreshed: "関連ノートが更新されました",
 		icsFileNotFound: "ファイルが見つからないか無効です",
 		icsFileOpenFailed: "ファイルを開けませんでした",
-		timeblockAttachmentExists: "\"{fileName}\"は既に添付されています",
-		timeblockAttachmentAdded: "\"{fileName}\"を添付ファイルとして追加しました",
-		timeblockAttachmentRemoved: "\"{fileName}\"を添付ファイルから削除しました",
-		timeblockFileTypeNotSupported: "\"{fileName}\"を開けません - ファイルタイプがサポートされていません",
+		timeblockAttachmentExists: '"{fileName}"は既に添付されています',
+		timeblockAttachmentAdded: '"{fileName}"を添付ファイルとして追加しました',
+		timeblockAttachmentRemoved: '"{fileName}"を添付ファイルから削除しました',
+		timeblockFileTypeNotSupported:
+			'"{fileName}"を開けません - ファイルタイプがサポートされていません',
 		timeblockTitleRequired: "タイムブロックのタイトルを入力してください",
-		timeblockUpdatedSuccess: "タイムブロック\"{title}\"が正常に更新されました",
-		timeblockUpdateFailed: "タイムブロックの更新に失敗しました。詳細はコンソールを確認してください。",
-		timeblockDeletedSuccess: "タイムブロック\"{title}\"が正常に削除されました",
-		timeblockDeleteFailed: "タイムブロックの削除に失敗しました。詳細はコンソールを確認してください。",
+		timeblockUpdatedSuccess: 'タイムブロック"{title}"が正常に更新されました',
+		timeblockUpdateFailed:
+			"タイムブロックの更新に失敗しました。詳細はコンソールを確認してください。",
+		timeblockDeletedSuccess: 'タイムブロック"{title}"が正常に削除されました',
+		timeblockDeleteFailed:
+			"タイムブロックの削除に失敗しました。詳細はコンソールを確認してください。",
 		timeblockRequiredFieldsMissing: "すべての必須フィールドを入力してください",
 		agendaLoadingFailed: "アジェンダの読み込みエラー。更新してみてください。",
-		statsLoadingFailed: "プロジェクト詳細の読み込みエラー。"
+		statsLoadingFailed: "プロジェクト詳細の読み込みエラー。",
 	},
 	commands: {
 		openCalendarView: "ミニカレンダービューを開く",
 		openAdvancedCalendarView: "カレンダービューを開く",
+		openToday: "今日を開く",
+		openInbox: "受信トレイを開く",
 		openTasksView: "タスクビューを開く",
 		openNotesView: "ノートビューを開く",
 		openAgendaView: "アジェンダビューを開く",
 		openPomodoroView: "ポモドーロタイマーを開く",
 		openKanbanView: "カンバンボードを開く",
 		updateDefaultBaseFiles: "既定の Base ファイルを更新",
-		openPomodoroStats: "ポモドーロ統計を開く",
-		openStatisticsView: "タスクとプロジェクト統計を開く",
 		createNewTask: "新しいタスクを作成",
 		convertCurrentNoteToTask: {
 			name: "現在のノートをタスクに変換",
 			noActiveFile: "変換するアクティブなファイルがありません",
 			alreadyTask: "このノートはすでにタスクです",
-			success: "'{title}'をタスクに変換しました"
+			success: "'{title}'をタスクに変換しました",
 		},
 		convertToTaskNote: "チェックボックスタスクをTaskNoteに変換",
 		convertAllTasksInNote: "ノート内のすべてのタスクを変換",
@@ -2263,6 +2710,9 @@ export const ja: TranslationTree = {
 		refreshCache: "キャッシュを更新",
 		exportAllTasksIcs: "すべてのタスクをICSファイルとしてエクスポート",
 		viewReleaseNotes: "リリースノートを表示",
+		startTimeTrackingCurrentTask: "現在のタスクの時間追跡を開始",
+		stopTimeTrackingCurrentTask: "現在のタスクの時間追跡を停止",
+		stopActiveTimeTracking: "実行中の時間追跡を停止",
 		startTimeTrackingWithSelector: "時間追跡を開始（タスクを選択）",
 		editTimeEntries: "時間エントリを編集（タスクを選択）",
 		createOrOpenTask: "タスクを作成または開く",
@@ -2275,20 +2725,34 @@ export const ja: TranslationTree = {
 		cycleCurrentTaskStatus: "現在のタスクのステータスを切り替え",
 		cycleCurrentTaskPriority: "現在のタスクの優先度を切り替え",
 		addProjectToCurrentTask: "現在のタスクにプロジェクトを追加",
-		addSubtaskToCurrentNote: "現在のノートにサブタスクを追加"
+		addSubtaskToCurrentNote: "現在のノートにサブタスクを追加",
+	},
+	dateTimePicker: {
+		today: "今日",
+		tomorrow: "明日",
+		nextWeek: "来週",
+		date: "日付",
+		time: "時刻（任意）",
+		clearDate: "日付をクリア",
+		select: "選択",
+		naturalLanguagePlaceholder: "明日の午後3時",
+		naturalLanguageLabel: "自然言語での日付",
+		applyNaturalLanguage: "自然言語の日付を適用",
+		openNativePicker: "システムの日付選択を開く",
+		invalidInput: "このテキストから日付を見つけられませんでした。",
 	},
 	modals: {
 		deviceCode: {
 			title: "Googleカレンダー認証",
 			instructions: {
-				intro: "Googleカレンダーに接続するには、以下の手順に従ってください："
+				intro: "Googleカレンダーに接続するには、以下の手順に従ってください：",
 			},
 			steps: {
 				open: "開く",
 				inBrowser: "ブラウザで",
 				enterCode: "プロンプトが表示されたら、このコードを入力してください：",
 				signIn: "Googleアカウントでサインインしてアクセスを許可",
-				returnToObsidian: "Obsidianに戻る（このウィンドウは自動的に閉じます）"
+				returnToObsidian: "Obsidianに戻る（このウィンドウは自動的に閉じます）",
 			},
 			codeLabel: "あなたのコード：",
 			copyCodeAriaLabel: "コードをコピー",
@@ -2296,7 +2760,7 @@ export const ja: TranslationTree = {
 			openBrowserButton: "ブラウザを開く",
 			cancelButton: "キャンセル",
 			expiresMinutesSeconds: "コードは{minutes}分{seconds}秒で期限切れ",
-			expiresSeconds: "コードは{seconds}秒で期限切れ"
+			expiresSeconds: "コードは{seconds}秒で期限切れ",
 		},
 		icsEventInfo: {
 			calendarEventHeading: "カレンダーイベント",
@@ -2314,7 +2778,7 @@ export const ja: TranslationTree = {
 			createFromEventLabel: "イベントから作成",
 			createFromEventDesc: "このカレンダーイベントから新しいノートまたはタスクを作成",
 			linkExistingLabel: "既存をリンク",
-			linkExistingDesc: "既存のノートをこのカレンダーイベントにリンク"
+			linkExistingDesc: "既存のノートをこのカレンダーイベントにリンク",
 		},
 		timeblockInfo: {
 			editHeading: "タイムブロックを編集",
@@ -2334,7 +2798,7 @@ export const ja: TranslationTree = {
 			addAttachmentTooltip: "ファジー検索を使用してファイルまたはノートを選択",
 			deleteButton: "タイムブロックを削除",
 			saveButton: "変更を保存",
-			deleteConfirmationTitle: "タイムブロックを削除"
+			deleteConfirmationTitle: "タイムブロックを削除",
 		},
 		timeblockCreation: {
 			heading: "タイムブロックを作成",
@@ -2358,7 +2822,7 @@ export const ja: TranslationTree = {
 			attachmentsDesc: "このタイムブロックにリンクするファイルまたはノート",
 			addAttachmentButton: "添付ファイルを追加",
 			addAttachmentTooltip: "ファジー検索を使用してファイルまたはノートを選択",
-			createButton: "タイムブロックを作成"
+			createButton: "タイムブロックを作成",
 		},
 		calendarEventCreation: {
 			heading: "カレンダーイベントを作成",
@@ -2378,7 +2842,7 @@ export const ja: TranslationTree = {
 			titleRequired: "イベントのタイトルは必須です",
 			noCalendarSelected: "カレンダーが選択されていません",
 			success: "カレンダーイベント「{title}」を作成しました",
-			error: "カレンダーイベントの作成に失敗しました：{message}"
+			error: "カレンダーイベントの作成に失敗しました：{message}",
 		},
 		icsNoteCreation: {
 			heading: "ICSイベントから作成",
@@ -2396,7 +2860,7 @@ export const ja: TranslationTree = {
 			useTemplateDesc: "コンテンツ作成時にテンプレートを適用",
 			templatePathLabel: "テンプレートパス",
 			templatePathDesc: "テンプレートファイルへのパス",
-			templatePathPlaceholder: "テンプレート/ICSノートテンプレート.md"
+			templatePathPlaceholder: "テンプレート/ICSノートテンプレート.md",
 		},
 		unscheduledTasksSelector: {
 			title: "予定されていないタスク",
@@ -2404,12 +2868,13 @@ export const ja: TranslationTree = {
 			instructions: {
 				navigate: "移動",
 				schedule: "予定を設定",
-				dismiss: "閉じる"
-			}
+				dismiss: "閉じる",
+			},
 		},
 		migration: {
 			title: "新しい繰り返しシステムに移行",
-			description: "TaskNotesは繰り返しに業界標準のRRULEパターンを使用するようになり、より複雑なスケジュールと他のアプリとの互換性が向上しました。",
+			description:
+				"TaskNotesは繰り返しに業界標準のRRULEパターンを使用するようになり、より複雑なスケジュールと他のアプリとの互換性が向上しました。",
 			tasksFound: "{count}件の古い繰り返しパターンを持つタスクが検出されました",
 			noMigrationNeeded: "移行が必要なタスクはありません",
 			warnings: {
@@ -2417,38 +2882,40 @@ export const ja: TranslationTree = {
 				backup: "移行前にボルトをバックアップしてください",
 				conversion: "古い繰り返しパターンは新しい形式に変換されます",
 				normalUsage: "移行中も通常通りTaskNotesを使用できます",
-				permanent: "この変更は永続的で、自動的に元に戻すことはできません"
+				permanent: "この変更は永続的で、自動的に元に戻すことはできません",
 			},
 			benefits: {
 				title: "新システムの利点：",
 				powerfulPatterns: "複雑な繰り返しパターン（例：「毎月第2火曜日」）",
 				performance: "繰り返しタスクのパフォーマンスが向上",
 				compatibility: "他のアプリと互換性のある標準繰り返し形式",
-				nlp: "自然言語処理のサポート強化"
+				nlp: "自然言語処理のサポート強化",
 			},
 			progress: {
 				title: "移行進捗",
 				preparing: "移行を準備中...",
 				completed: "移行が正常に完了しました",
-				failed: "移行に失敗しました"
+				failed: "移行に失敗しました",
 			},
 			buttons: {
 				migrate: "移行を開始",
-				completed: "閉じる"
+				completed: "閉じる",
 			},
 			errors: {
-				title: "移行中のエラー："
+				title: "移行中のエラー：",
 			},
 			notices: {
-				completedWithErrors: "移行は一部エラーで完了しました。上記のエラーリストを確認してください。",
+				completedWithErrors:
+					"移行は一部エラーで完了しました。上記のエラーリストを確認してください。",
 				success: "すべてのタスクが正常に移行されました！",
-				failed: "移行に失敗しました。詳細はコンソールを確認してください。"
+				failed: "移行に失敗しました。詳細はコンソールを確認してください。",
 			},
 			prompt: {
-				message: "TaskNotesは古い繰り返し形式を使用しているタスクを検出しました。今すぐ新しいシステムに移行しますか？",
+				message:
+					"TaskNotesは古い繰り返し形式を使用しているタスクを検出しました。今すぐ新しいシステムに移行しますか？",
 				migrateNow: "今すぐ移行",
-				remindLater: "後で通知"
-			}
+				remindLater: "後で通知",
+			},
 		},
 		task: {
 			titlePlaceholder: "何をする必要がありますか？",
@@ -2471,7 +2938,7 @@ export const ja: TranslationTree = {
 				message: "未保存の変更があります。保存しますか？",
 				save: "変更を保存",
 				discard: "変更を破棄",
-				cancel: "編集を続ける"
+				cancel: "編集を続ける",
 			},
 			dependencies: {
 				blockedBy: "ブロック元",
@@ -2479,7 +2946,7 @@ export const ja: TranslationTree = {
 				placeholder: "[[タスクノート]]",
 				addTaskButton: "タスクを追加",
 				selectTaskTooltip: "ファジー検索を使用してタスクノートを選択",
-				removeTaskTooltip: "タスクを削除"
+				removeTaskTooltip: "タスクを削除",
 			},
 			organization: {
 				projects: "プロジェクト",
@@ -2492,8 +2959,8 @@ export const ja: TranslationTree = {
 				removeSubtaskTooltip: "サブタスクを削除",
 				notices: {
 					noEligibleSubtasks: "サブタスクとして割り当て可能なタスクがありません",
-					subtaskSelectFailed: "サブタスクセレクターを開けませんでした"
-				}
+					subtaskSelectFailed: "サブタスクセレクターを開けませんでした",
+				},
 			},
 			customFieldsLabel: "カスタムフィールド",
 			actions: {
@@ -2502,11 +2969,11 @@ export const ja: TranslationTree = {
 				status: "ステータスを設定",
 				priority: "優先度を設定",
 				recurrence: "繰り返しを設定",
-				reminders: "リマインダーを設定"
+				reminders: "リマインダーを設定",
 			},
 			buttons: {
 				openNote: "ノートを開く",
-				save: "保存"
+				save: "保存",
 			},
 			tooltips: {
 				dueValue: "期限：{value}",
@@ -2515,18 +2982,18 @@ export const ja: TranslationTree = {
 				priorityValue: "優先度：{value}",
 				recurrenceValue: "繰り返し：{value}",
 				remindersSingle: "1件のリマインダーが設定されました",
-				remindersPlural: "{count}件のリマインダーが設定されました"
+				remindersPlural: "{count}件のリマインダーが設定されました",
 			},
 			dateMenu: {
 				dueTitle: "期限日を設定",
-				scheduledTitle: "予定日を設定"
+				scheduledTitle: "予定日を設定",
 			},
 			userFields: {
 				textPlaceholder: "{field}を入力...",
 				numberPlaceholder: "0",
 				datePlaceholder: "YYYY-MM-DD",
 				listPlaceholder: "項目1, 項目2, 項目3",
-				pickDate: "{field}日付を選択"
+				pickDate: "{field}日付を選択",
 			},
 			recurrence: {
 				daily: "毎日",
@@ -2543,8 +3010,8 @@ export const ja: TranslationTree = {
 				custom: "カスタム",
 				countSuffix: "{count}回",
 				untilSuffix: "{date}まで",
-				ordinal: "{number}{suffix}"
-			}
+				ordinal: "{number}{suffix}",
+			},
 		},
 		taskSelector: {
 			title: "タスクを選択",
@@ -2552,52 +3019,54 @@ export const ja: TranslationTree = {
 			instructions: {
 				navigate: "移動",
 				select: "選択",
-				dismiss: "キャンセル"
+				dismiss: "キャンセル",
 			},
 			notices: {
-				noteNotFound: "ノート\"{name}\"が見つかりませんでした"
+				noteNotFound: 'ノート"{name}"が見つかりませんでした',
 			},
 			dueDate: {
 				overdue: "期限：{date}（期限切れ）",
-				today: "期限：今日"
-			}
+				today: "期限：今日",
+			},
 		},
 		taskSelectorWithCreate: {
 			title: "タスクを作成または開く",
 			placeholder: "タスクを検索または入力して新規作成...",
 			instructions: {
-				create: "で新しいタスクを作成"
+				create: "で新しいタスクを作成",
 			},
 			footer: {
-				createLabel: " で作成: "
+				createLabel: " で作成: ",
 			},
 			notices: {
 				emptyQuery: "タスクの説明を入力してください",
-				invalidTitle: "有効なタスクタイトルを認識できませんでした"
-			}
+				invalidTitle: "有効なタスクタイトルを認識できませんでした",
+			},
 		},
 		taskCreation: {
 			title: "タスクを作成",
 			actions: {
 				fillFromNaturalLanguage: "自然言語からフォームを埋める",
 				hideDetailedOptions: "詳細オプションを非表示",
-				showDetailedOptions: "詳細オプションを表示"
+				showDetailedOptions: "詳細オプションを表示",
 			},
 			nlPlaceholder: "明日午後3時に食料品を買う @家 #用事",
 			notices: {
 				titleRequired: "タスクタイトルを入力してください",
-				success: "タスク\"{title}\"が正常に作成されました",
-				successShortened: "タスク\"{title}\"が正常に作成されました（長さのためファイル名が短縮されました）",
+				success: 'タスク"{title}"が正常に作成されました',
+				successShortened:
+					'タスク"{title}"が正常に作成されました（長さのためファイル名が短縮されました）',
 				failure: "タスクの作成に失敗しました：{message}",
 				blockingUnresolved: "解決できませんでした：{entries}",
-				openCreatedTaskFailure: "タスクは作成されましたが、タスクノートを開けませんでした。"
-			}
+				openCreatedTaskFailure:
+					"タスクは作成されましたが、タスクノートを開けませんでした。",
+			},
 		},
 		taskEdit: {
 			title: "タスクを編集",
 			sections: {
 				completions: "完了",
-				taskInfo: "タスク情報"
+				taskInfo: "タスク情報",
 			},
 			metadata: {
 				totalTrackedTime: "総追跡時間：",
@@ -2605,16 +3074,16 @@ export const ja: TranslationTree = {
 				scheduled: "予定：",
 				created: "作成：",
 				modified: "変更：",
-				file: "ファイル："
+				file: "ファイル：",
 			},
 			buttons: {
 				archive: "アーカイブ",
-				unarchive: "アーカイブ解除"
+				unarchive: "アーカイブ解除",
 			},
 			notices: {
 				titleRequired: "タスクタイトルを入力してください",
 				noChanges: "保存する変更がありません",
-				updateSuccess: "タスク\"{title}\"が正常に更新されました",
+				updateSuccess: 'タスク"{title}"が正常に更新されました',
 				updateFailure: "タスクの更新に失敗しました：{message}",
 				dependenciesUpdateSuccess: "依存関係が更新されました",
 				blockingUnresolved: "解決できませんでした：{entries}",
@@ -2623,26 +3092,28 @@ export const ja: TranslationTree = {
 				archiveSuccess: "タスクが正常に{action}されました",
 				archiveFailure: "タスクのアーカイブに失敗しました",
 				deleteSuccess: "タスク「{title}」を削除しました",
-				deleteFailure: "タスクの削除に失敗しました: {message}"
+				deleteFailure: "タスクの削除に失敗しました: {message}",
 			},
 			archiveAction: {
 				archived: "アーカイブ",
-				unarchived: "アーカイブ解除"
+				unarchived: "アーカイブ解除",
 			},
 			deleteConfirmation: {
 				title: "タスクを削除",
-				message: "「{title}」を削除してもよろしいですか？タスクノートはObsidianのゴミ箱に移動されます。",
-				confirm: "タスクを削除"
-			}
+				message:
+					"「{title}」を削除してもよろしいですか？タスクノートはObsidianのゴミ箱に移動されます。",
+				confirm: "タスクを削除",
+			},
 		},
 		storageLocation: {
 			title: {
 				migrate: "ポモドーロデータを移行しますか？",
-				switch: "デイリーノートストレージに切り替えますか？"
+				switch: "デイリーノートストレージに切り替えますか？",
 			},
 			message: {
-				migrate: "これにより、既存のポモドーロセッションデータがデイリーノートのフロントマターに移行されます。データは日付でグループ化され、各デイリーノートに保存されます。",
-				switch: "ポモドーロセッションデータは、プラグインデータファイルではなくデイリーノートのフロントマターに保存されます。"
+				migrate:
+					"これにより、既存のポモドーロセッションデータがデイリーノートのフロントマターに移行されます。データは日付でグループ化され、各デイリーノートに保存されます。",
+				switch: "ポモドーロセッションデータは、プラグインデータファイルではなくデイリーノートのフロントマターに保存されます。",
 			},
 			whatThisMeans: "これが意味すること：",
 			bullets: {
@@ -2651,36 +3122,37 @@ export const ja: TranslationTree = {
 				storedInNotes: "データはデイリーノートのフロントマターに保存されます",
 				migrateData: "既存のプラグインデータは移行され、その後クリアされます",
 				futureSessions: "今後のセッションはデイリーノートに保存されます",
-				dataLongevity: "これによりノートとのデータの永続性が向上します"
+				dataLongevity: "これによりノートとのデータの永続性が向上します",
 			},
 			finalNote: {
-				migrate: "⚠️ 必要に応じてバックアップを取ってください。この変更は自動的に元に戻すことはできません。",
-				switch: "将来いつでもプラグインストレージに戻すことができます。"
+				migrate:
+					"⚠️ 必要に応じてバックアップを取ってください。この変更は自動的に元に戻すことはできません。",
+				switch: "将来いつでもプラグインストレージに戻すことができます。",
 			},
 			buttons: {
 				migrate: "データを移行",
-				switch: "ストレージを切り替え"
-			}
+				switch: "ストレージを切り替え",
+			},
 		},
 		dueDate: {
 			title: "期限日を設定",
 			taskLabel: "タスク：{title}",
 			sections: {
 				dateTime: "期限日と時間",
-				quickOptions: "クイックオプション"
+				quickOptions: "クイックオプション",
 			},
 			descriptions: {
-				dateTime: "このタスクをいつ完了すべきかを設定"
+				dateTime: "このタスクをいつ完了すべきかを設定",
 			},
 			inputs: {
 				date: {
 					ariaLabel: "タスクの期限日",
-					placeholder: "YYYY-MM-DD"
+					placeholder: "YYYY-MM-DD",
 				},
 				time: {
 					ariaLabel: "タスクの期限時間（オプション）",
-					placeholder: "HH:MM"
-				}
+					placeholder: "HH:MM",
+				},
 			},
 			quickOptions: {
 				today: "今日",
@@ -2692,32 +3164,32 @@ export const ja: TranslationTree = {
 				now: "今",
 				nowAriaLabel: "期限日と時間を今に設定",
 				clear: "クリア",
-				clearAriaLabel: "期限日をクリア"
+				clearAriaLabel: "期限日をクリア",
 			},
 			errors: {
 				invalidDateTime: "有効な日付と時間の形式を入力してください",
-				updateFailed: "期限日の更新に失敗しました。再試行してください。"
-			}
+				updateFailed: "期限日の更新に失敗しました。再試行してください。",
+			},
 		},
 		scheduledDate: {
 			title: "予定日を設定",
 			taskLabel: "タスク：{title}",
 			sections: {
 				dateTime: "予定日と時間",
-				quickOptions: "クイックオプション"
+				quickOptions: "クイックオプション",
 			},
 			descriptions: {
-				dateTime: "このタスクに取り組む予定を設定"
+				dateTime: "このタスクに取り組む予定を設定",
 			},
 			inputs: {
 				date: {
 					ariaLabel: "タスクの予定日",
-					placeholder: "YYYY-MM-DD"
+					placeholder: "YYYY-MM-DD",
 				},
 				time: {
 					ariaLabel: "タスクの予定時間（オプション）",
-					placeholder: "HH:MM"
-				}
+					placeholder: "HH:MM",
+				},
 			},
 			quickOptions: {
 				today: "今日",
@@ -2729,12 +3201,12 @@ export const ja: TranslationTree = {
 				now: "今",
 				nowAriaLabel: "予定日と時間を今に設定",
 				clear: "クリア",
-				clearAriaLabel: "予定日をクリア"
+				clearAriaLabel: "予定日をクリア",
 			},
 			errors: {
 				invalidDateTime: "有効な日付と時間の形式を入力してください",
-				updateFailed: "予定日の更新に失敗しました。再試行してください。"
-			}
+				updateFailed: "予定日の更新に失敗しました。再試行してください。",
+			},
 		},
 		timeEntryEditor: {
 			title: "時間エントリ - {taskTitle}",
@@ -2757,20 +3229,23 @@ export const ja: TranslationTree = {
 			noTasksWithEntries: "編集する時間エントリを持つタスクがありません",
 			validation: {
 				missingStartTime: "開始時刻は必須です",
-				endBeforeStart: "終了時刻は開始時刻より後である必要があります"
-			}
+				endBeforeStart: "終了時刻は開始時刻より後である必要があります",
+			},
 		},
 		timeTracking: {
+			noActiveTasks: "実行中の時間追跡セッションが見つかりません",
+			stopFailed: "実行中の時間追跡セッションを読み込めませんでした",
 			noTasksAvailable: "時間を追跡できるタスクがありません",
 			started: "時間追跡を開始しました：{taskTitle}",
-			startFailed: "時間追跡の開始に失敗しました"
+			startFailed: "時間追跡の開始に失敗しました",
 		},
 		timeEntry: {
-			mustHaveSpecificTime: "時間エントリには具体的な時間が必要です。週表示または日表示で時間範囲を選択してください。",
+			mustHaveSpecificTime:
+				"時間エントリには具体的な時間が必要です。週表示または日表示で時間範囲を選択してください。",
 			noTasksAvailable: "時間エントリを作成できるタスクがありません",
 			created: "{taskTitle}の時間エントリを作成しました（{duration}分）",
-			createFailed: "時間エントリの作成に失敗しました"
-		}
+			createFailed: "時間エントリの作成に失敗しました",
+		},
 	},
 	contextMenus: {
 		task: {
@@ -2801,7 +3276,7 @@ export const ja: TranslationTree = {
 			renamePlaceholder: "新しい名前を入力",
 			delete: "削除",
 			deleteTitle: "ファイル削除",
-			deleteMessage: "\"{name}\"を削除してもよろしいですか？",
+			deleteMessage: '"{name}"を削除してもよろしいですか？',
 			deleteConfirm: "削除",
 			copyPath: "パスをコピー",
 			copyUrl: "Obsidian URLをコピー",
@@ -2815,12 +3290,13 @@ export const ja: TranslationTree = {
 				syncToGoogle: "Googleカレンダーに同期",
 				syncToGoogleNotConfigured: "Googleカレンダー同期が設定されていません",
 				syncToGoogleSuccess: "タスクをGoogleカレンダーに同期しました",
-				syncToGoogleFailed: "Googleカレンダーへの同期に失敗しました"
+				syncToGoogleFailed: "Googleカレンダーへの同期に失敗しました",
 			},
 			recurrence: "繰り返し",
 			clearRecurrence: "繰り返しをクリア",
 			customRecurrence: "カスタム繰り返し...",
 			createSubtask: "サブタスクを作成",
+			more: "その他",
 			dependencies: {
 				title: "依存関係",
 				addBlockedBy: "「ブロック元」を追加…",
@@ -2839,8 +3315,8 @@ export const ja: TranslationTree = {
 					blockingRemoved: "依存タスクが削除されました",
 					unresolved: "解決できませんでした：{entries}",
 					noEligibleTasks: "一致するタスクが利用できません",
-					updateFailed: "依存関係の更新に失敗しました"
-				}
+					updateFailed: "依存関係の更新に失敗しました",
+				},
 			},
 			organization: {
 				title: "組織",
@@ -2859,29 +3335,48 @@ export const ja: TranslationTree = {
 					subtaskSelectFailed: "サブタスクセレクターを開けませんでした",
 					noEligibleSubtasks: "サブタスクとして割り当て可能なタスクがありません",
 					currentTaskNotFound: "現在のタスクファイルが見つかりませんでした",
-					updateContextsFailed: "コンテキストの更新に失敗しました"
+					updateContextsFailed: "コンテキストの更新に失敗しました",
 				},
 				contexts: "コンテキスト",
 				addContext: "コンテキストを追加…",
 				contextPlaceholder: "コンテキスト",
 				contextSelected: "✓ {context}",
-				clearContexts: "コンテキストをクリア"
+				clearContexts: "コンテキストをクリア",
 			},
 			subtasks: {
 				loading: "サブタスクを読み込み中...",
 				noSubtasks: "サブタスクが見つかりません",
-				loadFailed: "サブタスクの読み込みに失敗しました"
+				loadFailed: "サブタスクの読み込みに失敗しました",
 			},
 			markComplete: "この日付で完了としてマーク",
 			markIncomplete: "この日付で未完了としてマーク",
 			skipInstance: "インスタンスをスキップ",
 			unskipInstance: "インスタンスのスキップを解除",
+			completion: {
+				submenu: "完了としてマークまたはスキップ",
+				submenuCompleteOnly: "完了としてマーク",
+				completeToday: "今日完了",
+				completeAsScheduled: "予定日に完了",
+				completeOnDue: "期限日に完了",
+				completeOnPicked: "指定日に完了（日付を選択）",
+				markIncomplete: "未完了としてマーク",
+				noScheduledDate: "このタスクには予定日が設定されていません",
+				noDueDate: "このタスクには期限日が設定されていません",
+				noPickedDate: "日付が選択されていません",
+				noCompletedStatus: "完了ステータスが設定されていません",
+				pickDateTitle: "完了日を選択",
+				completeFailure: "タスクの完了状態を更新できませんでした: {message}",
+				clearInstancesConfirmTitle: "記録されたインスタンスを消去しますか？",
+				clearInstancesConfirmMessage:
+					"予定を変更すると、新しい日付以降に完了またはスキップとして記録された次のインスタンスが消去されます: {dates}。これらは完了またはスキップとしてマークされなくなります。続行しますか？",
+				clearInstancesConfirmButton: "予定を変更して消去",
+			},
 			quickReminders: {
 				atTime: "イベント時刻に",
 				fiveMinutes: "5分前",
 				fifteenMinutes: "15分前",
 				oneHour: "1時間前",
-				oneDay: "1日前"
+				oneDay: "1日前",
 			},
 			notices: {
 				toggleCompletionFailure: "繰り返しタスクの完了切り替えに失敗しました：{message}",
@@ -2895,22 +3390,22 @@ export const ja: TranslationTree = {
 				archiveFailure: "タスクアーカイブの切り替えに失敗しました：{message}",
 				copyTitleSuccess: "タスクタイトルをクリップボードにコピーしました",
 				copyFailure: "クリップボードへのコピーに失敗しました",
-				renameSuccess: "\"{name}\"に名前変更しました",
+				renameSuccess: '"{name}"に名前変更しました',
 				renameFailure: "ファイルの名前変更に失敗しました",
 				copyPathSuccess: "ファイルパスをクリップボードにコピーしました",
 				copyUrlSuccess: "Obsidian URLをクリップボードにコピーしました",
 				updateRecurrenceFailure: "タスク繰り返しの更新に失敗しました：{message}",
-				updateTagsFailed: "タグの更新に失敗しました"
+				updateTagsFailed: "タグの更新に失敗しました",
 			},
 			tags: "タグ",
 			addTag: "タグを追加…",
 			removeTag: "{tag} を削除",
 			removeTagInput: "タグを削除…",
 			tagPlaceholder: "タグまたは #tag",
-			clearTags: "タグをクリア"
+			clearTags: "タグをクリア",
 		},
 		priority: {
-			clearPriority: "優先度をクリア"
+			clearPriority: "優先度をクリア",
 		},
 		ics: {
 			showDetails: "詳細を表示",
@@ -2932,9 +3427,9 @@ export const ja: TranslationTree = {
 				taskCreateFailure: "イベントからのタスク作成に失敗しました",
 				noteCreated: "ノートが正常に作成されました",
 				creationFailure: "作成モーダルを開けませんでした",
-				linkSuccess: "ノート\"{name}\"をイベントにリンクしました",
+				linkSuccess: 'ノート"{name}"をイベントにリンクしました',
 				linkFailure: "ノートのリンクに失敗しました",
-				linkSelectionFailure: "ノート選択を開けませんでした"
+				linkSelectionFailure: "ノート選択を開けませんでした",
 			},
 			markdown: {
 				titleFallback: "無題のイベント",
@@ -2943,22 +3438,22 @@ export const ja: TranslationTree = {
 				location: "**場所：** {value}",
 				descriptionHeading: "### 説明",
 				url: "**URL：** {value}",
-				at: " {time}に"
-			}
+				at: " {time}に",
+			},
 		},
 		date: {
 			increment: {
 				plusOneDay: "+1日",
 				minusOneDay: "-1日",
 				plusOneWeek: "+1週",
-				minusOneWeek: "-1週"
+				minusOneWeek: "-1週",
 			},
 			basic: {
 				today: "今日",
 				tomorrow: "明日",
 				thisWeekend: "今週末",
 				nextWeek: "来週",
-				nextMonth: "来月"
+				nextMonth: "来月",
 			},
 			weekdaysLabel: "平日",
 			selected: "✓ {label}",
@@ -2968,33 +3463,39 @@ export const ja: TranslationTree = {
 				title: "日時を設定",
 				dateLabel: "日付",
 				timeLabel: "時間（オプション）",
-				select: "選択"
-			}
-		}
+				select: "選択",
+			},
+		},
 	},
 	services: {
 		pomodoro: {
 			notices: {
 				alreadyRunning: "ポモドーロが既に実行中です",
-				resumeCurrentSession: "新しいセッションを開始する代わりに現在のセッションを再開してください",
+				resumeCurrentSession:
+					"新しいセッションを開始する代わりに現在のセッションを再開してください",
 				timerAlreadyRunning: "タイマーが既に実行中です",
-				resumeSessionInstead: "新しいセッションを開始する代わりに現在のセッションを再開してください",
+				resumeSessionInstead:
+					"新しいセッションを開始する代わりに現在のセッションを再開してください",
 				shortBreakStarted: "短い休憩を開始しました",
 				longBreakStarted: "長い休憩を開始しました",
 				paused: "ポモドーロが一時停止されました",
 				resumed: "ポモドーロが再開されました",
 				stoppedAndReset: "ポモドーロが停止およびリセットされました",
-				migrationSuccess: "{count}件のポモドーロセッションがデイリーノートに正常に移行されました。",
-				migrationFailure: "ポモドーロデータの移行に失敗しました。再試行するか、詳細についてはコンソールを確認してください。"
-			}
+				migrationSuccess:
+					"{count}件のポモドーロセッションがデイリーノートに正常に移行されました。",
+				migrationFailure:
+					"ポモドーロデータの移行に失敗しました。再試行するか、詳細についてはコンソールを確認してください。",
+			},
 		},
 		icsSubscription: {
 			notices: {
-				calendarNotFound: "カレンダー\"{name}\"が見つかりません（404）。ICS URLが正しく、カレンダーが公開アクセス可能であることを確認してください。",
-				calendarAccessDenied: "カレンダー\"{name}\"のアクセスが拒否されました（500）。これはMicrosoft Outlookサーバーの制限によるものかもしれません。カレンダー設定からICS URLを再生成してみてください。",
-				fetchRemoteFailed: "リモートカレンダー\"{name}\"の取得に失敗しました：{error}",
-				readLocalFailed: "ローカルカレンダー\"{name}\"の読み込みに失敗しました：{error}"
-			}
+				calendarNotFound:
+					'カレンダー"{name}"が見つかりません（404）。ICS URLが正しく、カレンダーが公開アクセス可能であることを確認してください。',
+				calendarAccessDenied:
+					'カレンダー"{name}"のアクセスが拒否されました（500）。これはMicrosoft Outlookサーバーの制限によるものかもしれません。カレンダー設定からICS URLを再生成してみてください。',
+				fetchRemoteFailed: 'リモートカレンダー"{name}"の取得に失敗しました：{error}',
+				readLocalFailed: 'ローカルカレンダー"{name}"の読み込みに失敗しました：{error}',
+			},
 		},
 		calendarExport: {
 			notices: {
@@ -3002,8 +3503,8 @@ export const ja: TranslationTree = {
 				noTasksToExport: "エクスポートするタスクが見つかりません",
 				downloadSuccess: "{count}件のタスクを含む{filename}をダウンロードしました",
 				downloadFailed: "カレンダーファイルのダウンロードに失敗しました",
-				singleDownloadSuccess: "{filename}をダウンロードしました"
-			}
+				singleDownloadSuccess: "{filename}をダウンロードしました",
+			},
 		},
 		filter: {
 			groupLabels: {
@@ -3016,7 +3517,7 @@ export const ja: TranslationTree = {
 					tomorrow: "明日",
 					nextSevenDays: "次の7日間",
 					later: "後で",
-					none: "期限日なし"
+					none: "期限日なし",
 				},
 				scheduled: {
 					past: "過去の予定",
@@ -3024,22 +3525,23 @@ export const ja: TranslationTree = {
 					tomorrow: "明日",
 					nextSevenDays: "次の7日間",
 					later: "後で",
-					none: "予定日なし"
-				}
+					none: "予定日なし",
+				},
 			},
 			errors: {
-				noDatesProvided: "日付が提供されていません"
+				noDatesProvided: "日付が提供されていません",
 			},
 			folders: {
-				root: "（ルート）"
-			}
+				root: "（ルート）",
+			},
 		},
 		instantTaskConvert: {
 			notices: {
 				noCheckboxTasks: "現在のノートにチェックボックスタスクが見つかりません。",
 				convertingTasks: "{count}件のタスクを変換中...",
 				conversionSuccess: "✅ {count}件のタスクをTaskNotesに正常に変換しました！",
-				partialConversion: "{successCount}件のタスクが変換されました。{failureCount}件が失敗しました。",
+				partialConversion:
+					"{successCount}件のタスクが変換されました。{failureCount}件が失敗しました。",
 				batchConversionFailed: "バッチ変換の実行に失敗しました。再試行してください。",
 				invalidParameters: "無効な入力パラメーター。",
 				emptyLine: "現在の行が空であるか、有効なコンテンツが含まれていません。",
@@ -3047,17 +3549,19 @@ export const ja: TranslationTree = {
 				invalidTaskData: "無効なタスクデータ。",
 				replaceLineFailed: "タスク行の置換に失敗しました。",
 				conversionComplete: "タスクが変換されました：{title}",
-				conversionCompleteShortened: "タスクが変換されました：\"{title}\"（長さのためファイル名が短縮されました）",
-				fileExists: "この名前のファイルが既に存在します。再試行するかタスクの名前を変更してください。",
-				conversionFailed: "タスクの変換に失敗しました。再試行してください。"
-			}
+				conversionCompleteShortened:
+					'タスクが変換されました："{title}"（長さのためファイル名が短縮されました）',
+				fileExists:
+					"この名前のファイルが既に存在します。再試行するかタスクの名前を変更してください。",
+				conversionFailed: "タスクの変換に失敗しました。再試行してください。",
+			},
 		},
 		icsNote: {
 			notices: {
 				templateNotFound: "テンプレートが見つかりません：{path}",
 				templateProcessError: "テンプレートの処理エラー：{template}",
-				linkedToEvent: "ノートをICSイベントにリンクしました：{title}"
-			}
+				linkedToEvent: "ノートをICSイベントにリンクしました：{title}",
+			},
 		},
 		task: {
 			notices: {
@@ -3065,26 +3569,43 @@ export const ja: TranslationTree = {
 				templateReadError: "タスクボディテンプレートの読み込みエラー：{template}",
 				occurrenceTemplateNotFound: "発生ノートテンプレートが見つかりません：{path}",
 				occurrenceTemplateReadError: "発生ノートテンプレートの読み込みエラー：{template}",
-				moveTaskFailed: "{operation}タスクの移動に失敗しました：{error}"
-			}
+				moveTaskFailed: "{operation}タスクの移動に失敗しました：{error}",
+			},
 		},
 		autoExport: {
 			notices: {
-				exportFailed: "TaskNotes自動エクスポートに失敗しました：{error}"
-			}
-		}
+				exportFailed: "TaskNotes自動エクスポートに失敗しました：{error}",
+			},
+		},
+		notification: {
+			missed: {
+				prefixToday: "見逃したリマインダー（{time}）",
+				prefixOnDay: "見逃したリマインダー（{day} {time}）",
+				message: "{prefix}：{text}",
+				dueWas: "{title}の期限は{when}でした",
+				dueIs: "{title}の期限は{when}です",
+				scheduledWas: "{title}は{when}に予定されていました",
+				scheduledIs: "{title}は{when}に予定されています",
+				whenTodayAt: "{time}",
+				whenOnDayAt: "{day} {time}",
+				whenOnDay: "{day}",
+				whenToday: "今日",
+				summaryTitle: "見逃したTaskNotesリマインダー：{count}件",
+				summaryMore: "{titles} ほか{count}件",
+			},
+		},
 	},
 	ui: {
 		icsCard: {
 			untitledEvent: "無題のイベント",
 			allDay: "終日",
 			calendarEvent: "カレンダーイベント",
-			calendarFallback: "カレンダー"
+			calendarFallback: "カレンダー",
 		},
 		noteCard: {
 			createdLabel: "作成：",
 			dailyBadge: "デイリー",
-			dailyTooltip: "デイリーノート"
+			dailyTooltip: "デイリーノート",
 		},
 		taskCard: {
 			labels: {
@@ -3095,7 +3616,7 @@ export const ja: TranslationTree = {
 				created: "作成",
 				modified: "更新",
 				blocked: "ブロック",
-				blocking: "ブロック中"
+				blocking: "ブロック中",
 			},
 			blockedBadge: "ブロック中",
 			blockedBadgeTooltip: "このタスクは他のタスクを待っています",
@@ -3108,7 +3629,8 @@ export const ja: TranslationTree = {
 			recurrenceTooltip: "{label}: {value}",
 			reminderTooltipOne: "リマインダーが1件設定されています (クリックして管理)",
 			reminderTooltipMany: "{count}件のリマインダーが設定されています (クリックして管理)",
-			projectTooltip: "このタスクはプロジェクトとして使用されています（クリックでサブタスクを表示/非表示）",
+			projectTooltip:
+				"このタスクはプロジェクトとして使用されています（クリックでサブタスクを表示/非表示）",
 			projectIndicatorTooltip: "このタスクはプロジェクトとして使用されています",
 			expandSubtasks: "サブタスクを展開",
 			collapseSubtasks: "サブタスクを折りたたむ",
@@ -3120,17 +3642,21 @@ export const ja: TranslationTree = {
 			scheduledTodayAt: "{label}: 今日 {time}",
 			scheduledPast: "{label}: {display} (過去)",
 			scheduledLabel: "{label}: {display}",
+			relativeYesterday: "昨日",
+			relativeTomorrow: "明日",
+			relativeDaysAgo: "{count}日前",
+			relativeDayAtTime: "{day} {time}",
 			loadingDependencies: "依存関係を読み込み中…",
 			blockingEmpty: "依存タスクはありません",
 			blockingLoadError: "依存関係の読み込みに失敗しました",
 			googleCalendarSyncTooltip: "Googleカレンダーに同期済み",
-			detailsTooltip: "タスクに詳細があります"
+			detailsTooltip: "タスクに詳細があります",
 		},
 		propertyEventCard: {
-			unknownFile: "不明なファイル"
+			unknownFile: "不明なファイル",
 		},
 		filterHeading: {
-			allViewName: "すべて"
+			allViewName: "すべて",
 		},
 		filterBar: {
 			saveView: "ビューを保存",
@@ -3197,7 +3723,7 @@ export const ja: TranslationTree = {
 			loadSavedView: "保存されたビューを読み込み：{name}",
 			deleteView: "ビューを削除",
 			deleteViewTitle: "ビューを削除",
-			deleteViewMessage: "ビュー\"{name}\"を削除してもよろしいですか？",
+			deleteViewMessage: 'ビュー"{name}"を削除してもよろしいですか？',
 			manageAllReminders: "すべてのリマインダーを管理...",
 			clearAllReminders: "すべてのリマインダーをクリア",
 			customRecurrence: "カスタム繰り返し...",
@@ -3211,7 +3737,7 @@ export const ja: TranslationTree = {
 				createdDate: "作成日",
 				tags: "タグ",
 				ascending: "昇順",
-				descending: "降順"
+				descending: "降順",
 			},
 			group: {
 				none: "なし",
@@ -3222,13 +3748,13 @@ export const ja: TranslationTree = {
 				dueDate: "期限日",
 				scheduledDate: "予定日",
 				tags: "タグ",
-				completedDate: "完了日"
+				completedDate: "完了日",
 			},
 			subgroupLabel: "サブグループ",
 			notices: {
-				propertiesMenuFailed: "プロパティメニューの表示に失敗しました"
-			}
-		}
+				propertiesMenuFailed: "プロパティメニューの表示に失敗しました",
+			},
+		},
 	},
 	components: {
 		dateContextMenu: {
@@ -3241,7 +3767,7 @@ export const ja: TranslationTree = {
 			nextMonth: "来月",
 			setDateTime: "日時を設定",
 			dateLabel: "日付",
-			timeLabel: "時間（オプション）"
+			timeLabel: "時間（オプション）",
 		},
 		subgroupMenuBuilder: {
 			none: "なし",
@@ -3253,7 +3779,7 @@ export const ja: TranslationTree = {
 			scheduledDate: "予定日",
 			tags: "タグ",
 			completedDate: "完了日",
-			subgroup: "サブグループ"
+			subgroup: "サブグループ",
 		},
 		propertyVisibilityDropdown: {
 			coreProperties: "コアプロパティ",
@@ -3276,8 +3802,8 @@ export const ja: TranslationTree = {
 				contexts: "コンテキスト",
 				tags: "タグ",
 				blocked: "ブロック中",
-				blocking: "ブロックしている"
-			}
+				blocking: "ブロックしている",
+			},
 		},
 		reminderContextMenu: {
 			remindBeforeDue: "期限前にリマインド...",
@@ -3289,8 +3815,8 @@ export const ja: TranslationTree = {
 				fiveMinutesBefore: "5分前",
 				fifteenMinutesBefore: "15分前",
 				oneHourBefore: "1時間前",
-				oneDayBefore: "1日前"
-			}
+				oneDayBefore: "1日前",
+			},
 		},
 		recurrenceContextMenu: {
 			daily: "毎日",
@@ -3338,14 +3864,14 @@ export const ja: TranslationTree = {
 					daily: "毎日",
 					weekly: "毎週",
 					monthly: "毎月",
-					yearly: "毎年"
+					yearly: "毎年",
 				},
 				weekPositions: {
 					first: "第1",
 					second: "第2",
 					third: "第3",
 					fourth: "第4",
-					last: "最終"
+					last: "最終",
 				},
 				weekdays: {
 					monday: "月曜日",
@@ -3354,7 +3880,7 @@ export const ja: TranslationTree = {
 					thursday: "木曜日",
 					friday: "金曜日",
 					saturday: "土曜日",
-					sunday: "日曜日"
+					sunday: "日曜日",
 				},
 				weekdaysShort: {
 					mon: "月",
@@ -3363,11 +3889,11 @@ export const ja: TranslationTree = {
 					thu: "木",
 					fri: "金",
 					sat: "土",
-					sun: "日"
+					sun: "日",
 				},
 				cancel: "キャンセル",
-				save: "保存"
-			}
-		}
-	}
+				save: "保存",
+			},
+		},
+	},
 };

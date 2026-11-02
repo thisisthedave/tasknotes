@@ -1,9 +1,7 @@
 # Task Properties Settings
 
-This tab configures all task properties. Each property is displayed as a card containing its configuration options.
+Open **Settings → TaskNotes → Properties** to configure property mappings and definitions. Open a property to edit its settings and NLP trigger in inline groups. Advanced filters have a separate detail page. Built-in default values are under **Task creation → Defaults**.
 
-
-![Task Properties Settings](../assets/settings-task-properties.png)
 
 !!! tip "Looking for property type documentation?"
     See the [Property Types Reference](property-types-reference.md) for detailed documentation on the expected data types (text, list, date, etc.) for each frontmatter property.
@@ -16,7 +14,7 @@ Each property card contains:
 - **Default**: The default value applied to new tasks (where applicable)
 - **NLP trigger**: Toggle and character configuration for natural language parsing (where applicable)
 - **Property-specific settings**: Additional configuration options specific to that property
-This tab defines the task schema used by creation flows, NLP parsing, views, and API payloads.
+These settings define the task schema used by creation flows, NLP parsing, views, and API payloads.
 
 Property keys are YAML/frontmatter keys. TaskNotes can read and write keys that contain spaces or punctuation, but hand-written Bases filters and formulas must reference those keys with bracket syntax, for example `note["TN-status"]`, rather than dot syntax such as `note.TN-status`.
 
@@ -27,7 +25,7 @@ Property keys are YAML/frontmatter keys. TaskNotes can read and write keys that 
 The task title property. Configuration options:
 
 - **Property key**: Frontmatter field name (default: `title`)
-- **Store title in filename**: When enabled, the task title is stored in the filename instead of frontmatter. The filename updates when the title changes.
+- **Store title in filename**: When enabled, the task title is stored in the filename instead of frontmatter when the filename can represent it. Long, sanitized, or duplicate filenames may require a title property to preserve the full text. Editing titles or other properties preserves the full title whenever the resulting filename cannot represent it exactly. The filename updates when the title changes; if the rename fails, the previous title and properties remain unchanged.
 - **Filename format**: When "Store title in filename" is disabled, choose how filenames are generated:
     - Title-based
     - Zettelkasten-style

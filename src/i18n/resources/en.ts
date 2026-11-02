@@ -1,7 +1,48 @@
 import { TranslationTree } from "../types";
 
 export const en: TranslationTree = {
+	migrationRecognition: {
+		review: "TaskNotes preserved {path}: legacy metadata is missing, edited, or includes other types. Finish syncing and restart; otherwise migrate a backed-up copy with mdbase and review the type before retrying.",
+		waiting: "TaskNotes found metadata in {path} without mdbase.yaml and did not create another collection. Finish syncing or restore the matching configuration from a backup; migration will retry when metadata arrives.",
+		support: "TaskNotes preserved customized support file {path}. Restore the generated version from a backup or review and migrate a copy with mdbase, then restart.",
+	},
+	collectionCheck: {
+		unresolvedUserField: "Cannot resolve owned user field {field}. Review its schema and retained field type before saving settings. Existing settings and metadata were preserved.",
+		membershipChanged: "Collection membership or record changed since collection check; check again.",
+		repairChanged: "The task type or allowed status values changed, or the proposed repair is no longer valid. Nothing was repaired; check the collection again.",
+		title: "Check collection",
+		invalidType: "{path} is inconsistent: {issues}. Review its implements.fields and binding before retrying; plugin settings were kept.",
+		keptConfiguration: "TaskNotes kept its last-known-good configuration.",
+		description: "Check task records without changing notes. Missing creation dates can be filled from file creation time. Invalid statuses require your choice. Other errors need manual review.",
+		count: "Invalid records: {count}",
+		clean: "No invalid task records found.",
+		check: "Check again",
+		fix: "Back up and fix",
+		fixAll: "Back up and fix selected changes in all records",
+		chooseStatus: "Choose a replacement status",
+		confirm: "Apply only the changes listed below; original notes will be backed up in {backupFolder} before each change, and unselected statuses and other errors will remain unchanged?",
+		fixed: "Approved changes saved; backups are in {backupFolder}, please check remaining errors.",
+		error: "Collection check or repair stopped. No unapproved changes were made.",
+	},
+	mdbaseSafety: {
+		settingsSaved: "TaskNotes saved your settings, but could not synchronize the canonical mdbase type.",
+		blocked: "TaskNotes stopped the mdbase metadata update. {details} Review the listed file and recovery copies, resolve the conflict or permissions, then reload TaskNotes. Task files were not changed.",
+		multiple: "Multiple TaskNotes types: {paths}. Keep one canonical provider or move the others out of the types folder, then reload TaskNotes. TaskNotes kept its last-known-good configuration.",
+		competingSettings:
+			"Other TaskNotes settings records found: {paths}. TaskNotes is using {record} and ignoring the others. Copy any settings you want to keep into {record}, then delete the other files.",
+		referenced: "TaskNotes kept {typePath}: {recordPath} explicitly references this type. Review its membership before moving the provider; task files were not changed.",
+	},
+	onboarding: {
+		title: "Start here with TaskNotes",
+		intro: "Tasks are Markdown notes in your vault. Use the command palette for these three steps.",
+		create: "Create a real task and schedule it for today.",
+		review: "Find your task in `Today`.",
+		complete: "Click the status control until the task is `Done`. It leaves `Today`, but its note stays in your vault.",
+		inbox: "For undated capture, clear the scheduled date. The inbox shows incomplete tasks with no project, scheduled date, or due date.",
+		settings: "Settings, when you need them",
+	},
 	common: {
+		settings: "Settings",
 		appName: "TaskNotes",
 		new: "New",
 		cancel: "Cancel",
@@ -95,6 +136,31 @@ export const en: TranslationTree = {
 			expandAllGroups: "Expand all groups",
 			collapseAllGroups: "Collapse all groups",
 			noTasksFound: "No tasks found for the selected filters.",
+			movement: {
+				parentAdd: "Add as subtask",
+				parentChoose: "Add as subtask of…",
+				parentPreview: "Add as subtask of {parent}. Other projects stay unchanged.",
+				parentSelf: "A task cannot be its own parent.",
+				parentCycle: "Cannot add a task under one of its descendants.",
+				parentAlready: "Already a subtask of {parent}.",
+				parentUnavailable: "Both tasks must still exist and be TaskNotes tasks.",
+				parentAssigned: "Added as a subtask of {parent}.",
+				handle: "Move task",
+				moveTo: "Move to a group",
+				keepSubgroup: "Keep current subgroup",
+				moveUp: "Move up",
+				moveDown: "Move down",
+				moved: "Task moved.",
+				undo: "Undo",
+				undoConflict: "Cannot undo: this task changed after the move.",
+				undoFailed: "Could not undo this move.",
+				noValue: "No value",
+				otherDestinations: "Other destinations",
+				readOnly: "Cannot change {properties}: these groups are read-only.",
+				unresolved: "Cannot determine the {properties} values for this destination.",
+				noChange: "Already in this group.",
+				failed: "Could not move the task. Check the task and try again.",
+			},
 			reorder: {
 				scope: {
 					ungrouped: "this ungrouped list",
@@ -283,8 +349,8 @@ export const en: TranslationTree = {
 					slotEventOverlap: "Allow events to overlap",
 					enableSearch: "Enable search box",
 					eventMaxStack: "Max stacked events (week/day view, 0 = unlimited)",
-					dayMaxEvents: "Max events per day (month view, 0 = auto)",
-					dayMaxEventRows: "Max event rows per day (month view, 0 = unlimited)",
+					dayMaxEvents: "Max events per day (0 = auto)",
+					dayMaxEventRows: "Max event rows per day (0 = unlimited)",
 					spanScheduledToDue: "Span tasks between scheduled and due dates",
 				},
 				propertyBasedEvents: {
@@ -308,6 +374,8 @@ export const en: TranslationTree = {
 			newTask: "New task",
 			addCard: "+ Add a card",
 			noTasks: "No tasks",
+			collapseSwimlane: "Collapse swimlane",
+			expandSwimlane: "Expand swimlane",
 			uncategorized: "Uncategorized",
 			noProject: "No project",
 			reorder: {
@@ -380,115 +448,6 @@ export const en: TranslationTree = {
 			},
 			statsLabel: "completed today",
 		},
-		pomodoroStats: {
-			title: "Pomodoro stats",
-			heading: "Pomodoro statistics",
-			refresh: "Refresh",
-			basesMigration: {
-				title: "Want a base view?",
-				description:
-					"Pomodoro base views use daily notes frontmatter; to see this history in the generated Pomodoro statistics base, migrate Pomodoro data in settings, then set storage to daily notes.",
-			},
-			sections: {
-				overview: "Overview",
-				today: "Today",
-				week: "This week",
-				allTime: "All time",
-				recent: "Recent sessions",
-			},
-			overviewCards: {
-				todayPomos: {
-					label: "Today's pomos",
-					change: {
-						more: "{count} more than yesterday",
-						less: "{count} fewer than yesterday",
-					},
-				},
-				totalPomos: {
-					label: "Total pomos",
-				},
-				todayFocus: {
-					label: "Today's focus",
-					change: {
-						more: "{duration} more than yesterday",
-						less: "{duration} less than yesterday",
-					},
-				},
-				totalFocus: {
-					label: "Total focus duration",
-				},
-			},
-			stats: {
-				pomodoros: "Pomodoros",
-				streak: "Streak",
-				minutes: "Minutes",
-				average: "Avg length",
-				completion: "Completion",
-			},
-			recents: {
-				empty: "No sessions recorded yet",
-				duration: "{minutes} min",
-				delete: "Delete session",
-				deleteAria: "Delete Pomodoro session",
-				deleteConfirmTitle: "Delete Pomodoro session?",
-				deleteConfirmMessage:
-					"This removes the session from Pomodoro history. Existing task time entries are not changed.",
-				deleteConfirmButton: "Delete",
-				deleteSuccess: "Pomodoro session deleted",
-				deleteNotFound: "Pomodoro session was not found",
-				status: {
-					completed: "Completed",
-					interrupted: "Interrupted",
-				},
-			},
-		},
-		stats: {
-			title: "Statistics",
-			taskProjectStats: "Task & project statistics",
-			sections: {
-				filters: "Filters",
-				overview: "Overview",
-				today: "Today",
-				thisWeek: "This week",
-				thisMonth: "This month",
-				projectBreakdown: "Project breakdown",
-				dateRange: "Date range",
-			},
-			filters: {
-				minTime: "Min time (minutes)",
-				allTasks: "All tasks",
-				activeOnly: "Active only",
-				completedOnly: "Completed only",
-			},
-			refreshButton: "Refresh",
-			timeRanges: {
-				allTime: "All time",
-				last7Days: "Last 7 days",
-				last30Days: "Last 30 days",
-				last90Days: "Last 90 days",
-				customRange: "Custom range",
-			},
-			resetFiltersButton: "Reset filters",
-			dateRangeFrom: "From",
-			dateRangeTo: "To",
-			noProject: "No project",
-			cards: {
-				timeTrackedEstimated: "Time tracked / estimated",
-				totalTasks: "Total tasks",
-				completionRate: "Completion rate",
-				activeProjects: "Active projects",
-				avgTimePerTask: "Avg time per task",
-			},
-			labels: {
-				tasks: "Tasks",
-				completed: "Completed",
-				projects: "Projects",
-			},
-			noProjectData: "No project data available",
-			notAvailable: "N/A",
-			noTasks: "No tasks found",
-			loading: "Loading...",
-		},
 		releaseNotes: {
 			title: "What's new in TaskNotes {version}",
 			header: "What's new in TaskNotes {version}",
@@ -496,10 +455,230 @@ export const en: TranslationTree = {
 			starMessage:
 				"We really appreciate all feedback. If something does not feel right, please let us know on GitHub. If you find TaskNotes useful, please consider giving it a star.",
 			baseFilesNotice:
-				"> [!info] About default `.base` files\n> Updates to default generated `.base` templates do not overwrite your existing `.base` files, so your customizations stay safe.\n> If you want the newest template improvements, regenerate base files in **Settings → TaskNotes → General → Views & base files → Update files**.",
+				"> [!info] About default `.base` files\n> Updates to default generated `.base` templates do not overwrite your existing `.base` files, so your customizations stay safe.\n> If you want the newest template improvements, regenerate base files in **Settings → TaskNotes → Appearance & interaction → Views & base files → Update files**.",
 		},
 	},
 	settings: {
+		native: {
+			enterValue: "Enter a value.",
+			duplicateValue: "This value already exists.",
+			enterCalendarName: "Enter a calendar name.",
+			chooseCalendarFile: "Choose a local .ics file.",
+			noDefaultHint: "Leave empty for no default.",
+			optionalNumber: "Enter a number or leave empty.",
+			validDate: "Enter a valid date in YYYY-MM-DD format.",
+			validTime: "Enter a time from 00:00 to 23:59.",
+			includedFolders: "Included folders",
+			statuses: "Statuses",
+			priorities: "Priorities",
+			allNotes: "All notes",
+			nextInOrder: "Next in order",
+			off: "Off",
+			newProperty: "New property",
+			noKeySet: "No key set",
+			notSyncedYet: "Not synced yet",
+			secretSaved: "Secret saved",
+			notConnected: "Not connected",
+			connected: "Connected",
+			defaultDueTime: "Default due time",
+			defaultScheduledTime: "Default scheduled time",
+			reminderNumber: "Reminder {number}",
+			displayRow: "Display row {number}",
+			deleteEntry: "Delete {name}?",
+			connectAccount: "Connect {name}",
+			disconnectAccount: "Disconnect {name}",
+			forgetAccountCredentials: "Forget credentials for {name}?",
+			connectedSince: "Connected: {date}",
+			tokenRefreshed: "Token refreshed: {date}",
+			deliveryCounts: "Successful: {success} · Failed: {failure}",
+			minutesValue: "{minutes} minutes",
+			saveError: "Could not save TaskNotes settings: {error}",
+			numberRange: "Enter a number between {min} and {max}.",
+			taskFiles: "Task files",
+			taskIdentificationFoldersFilenamesAndFrontmatter:
+				"Task identification, folders, filenames, and frontmatter.",
+			filenames: "Filenames",
+			namesForTaskNotesAndRecurringOccurrences:
+				"Names for task notes and recurring occurrences.",
+			propertyMappingsStatusesPrioritiesAndCustomProperties:
+				"Property mappings, statuses, priorities, and custom properties.",
+			defaultsTemplatesNaturalLanguageInputAndFormFields:
+				"Defaults, templates, natural-language input, and form fields.",
+			defaults: "Defaults",
+			valuesToUseWhenCreatingATask: "Values to use when creating a task.",
+			templates: "Templates",
+			taskBodiesAndRecurringOccurrenceNotes: "Task bodies and recurring occurrence notes.",
+			formFields: "Form fields",
+			chooseWhichFieldsAppearWhenCreatingAndEditingTasks:
+				"Choose which fields appear when creating and editing tasks.",
+			appearanceInteraction: "Appearance & interaction",
+			taskCardsInlineTasksClickBehaviourAndViewDefaults:
+				"Task cards, inline tasks, click behaviour, and view defaults.",
+			calendarDefaults: "Calendar defaults",
+			defaultsForCalendarViewsIndividualBasesViewsMayOverride:
+				"Defaults for calendar views. Individual Bases views may override these settings.",
+			configureViewCommandsChangeFiltersSortingAndGroupingInside:
+				"Configure view commands. Change filters, sorting, and grouping inside each Bases view.",
+			timeReminders: "Time & reminders",
+			notificationsTimeTrackingRecurrencePomodoroAndTimeblocking:
+				"Notifications, time tracking, recurrence, Pomodoro, and timeblocking.",
+			reminderDeliveryAndSounds: "Reminder delivery and sounds.",
+			timerDurationsSoundsHistoryAndMobilePlacement:
+				"Timer durations, sounds, history, and mobile placement.",
+			calendarBlocksAndAttachments: "Calendar blocks and attachments.",
+			calendarsIntegrations: "Calendars & integrations",
+			calendarAccountsSubscriptionsTaskExportAndInteroperability:
+				"Calendar accounts, subscriptions, task export, and interoperability.",
+			advanced: "Advanced",
+			indexingHTTPAPIWebhooksAndDiagnostics: "Indexing, HTTP API, webhooks, and diagnostics.",
+			defaultTaskCardPropertiesUpdated: "Default task card properties updated",
+			invalidTimeFormatPleaseUseHhMmFormatE:
+				"Invalid time format. Please use hh:mm format (e.g., 08:00)",
+			invalidTimeHoursMustBe0023AndMinutes:
+				"Invalid time. Hours must be 00-23 and minutes must be 00-59",
+			invalidTimeFormatPleaseUseHhMmFormatE2:
+				"Invalid time format. Please use hh:mm format (e.g., 26:00)",
+			invalidTimeUse00004800ValuesAfter:
+				"Invalid time. Use 00:00-48:00; values after midnight use 24:00-48:00, such as 26:00 for 2 am next day",
+			enterAnHTTPOrHTTPSURL: "Enter an HTTP or HTTPS URL.",
+			connectionStatus: "Connection status",
+			oAuthCredentials: "Application credentials",
+			storedInObsidianSecretStorageNotTaskNotesSettings:
+				"Stored in Obsidian secret storage, not TaskNotes settings.",
+			clientID: "Client ID",
+			clientSecret: "Client secret",
+			leaveEmptyToKeepTheSavedSecretEnterA:
+				"Leave empty to keep the saved secret. Enter a replacement, then leave this field to save it.",
+			forgetSavedCredentials: "Forget saved credentials",
+			forgetCredentials: "Forget credentials",
+			thisRemovesTheSavedClientIDAndClientSecret:
+				"This removes the saved client ID and client secret from Obsidian secret storage.",
+			connect: "Connect",
+			calendarIntegrationIsUnavailableOnThisDevice:
+				"Calendar integration is unavailable on this device.",
+			refreshCalendarEvents: "Refresh calendar events",
+			calendarSyncServiceUnavailable: "Calendar sync service unavailable.",
+			disconnect: "Disconnect",
+			calendarSubscriptionServiceUnavailable: "Calendar subscription service unavailable.",
+			theCalendarSubscriptionWillBeRemovedLinkedNotesWill:
+				"The calendar subscription will be removed. Linked notes will be kept.",
+			source: "Source",
+			calendarURL: "Calendar URL",
+			hTTPHTTPSWebcalOrWebcalsURL: "HTTP, HTTPS, webcal, or webcals URL.",
+			aCSSColorOrThemeVariable: "A CSS color or theme variable.",
+			refreshIntervalMinutes: "Refresh interval (minutes)",
+			lastSync: "Last sync",
+			refreshSubscription: "Refresh subscription",
+			calendarFile: "Calendar file",
+			anIcsFileInThisVault: "An .ics file in this vault.",
+			noWebhooksConfiguredAddOneToSendTaskEvents:
+				"No webhooks configured. Add one to send task events to another service.",
+			deleteWebhook: "Delete webhook?",
+			eventsWillNoLongerBeSentToThisEndpoint:
+				"Events will no longer be sent to this endpoint.",
+			selectAtLeastOneEventBeforeEnablingThisWebhook:
+				"Select at least one event before enabling this webhook.",
+			anOptionalJsonTemplateInTheVaultLeaveEmpty:
+				"An optional .json template in the vault. Leave empty to send raw event data.",
+			includeEventTypeSignatureAndDeliveryIDTurnOff:
+				"Include event type, signature, and delivery ID. Turn off for services with strict CORS policies.",
+			deliveryStatus: "Delivery status",
+			signingSecret: "Signing secret",
+			useThisSecretToVerifyPayloadsInTheReceiving:
+				"Use this secret to verify payloads in the receiving application.",
+			copySecret: "Copy secret",
+			signingSecretCopied: "Signing secret copied",
+			leaveEmptyToUseTheNormalTaskFilenameWith:
+				"Leave empty to use the normal task filename with a unique suffix.",
+			occurrenceFilenameTemplateProperty: "Occurrence filename template property",
+			aPropertyOnTheParentTaskThatOverridesThe:
+				"A property on the parent task that overrides the occurrence filename template.",
+			defaultsApplyToNewTasks: "Defaults apply to new tasks",
+			changingTheseValuesDoesNotUpdateExistingTaskNotes:
+				"Changing these values does not update existing task notes.",
+			hHMmLeaveEmptyForAnAllDayTask: "HH:mm. Leave empty for an all-day task.",
+			separateContextsWithCommas: "Separate contexts with commas.",
+			separateTagsWithCommas: "Separate tags with commas.",
+			defaultTimeEstimateMinutes: "Default time estimate (minutes)",
+			newTasksHaveNoDefaultProjects: "New tasks have no default projects.",
+			newTasksHaveNoDefaultReminders: "New tasks have no default reminders.",
+			relativeTo: "Relative to",
+			splitLayoutOnWideScreens: "Split layout on wide screens",
+			showTheDetailsEditorBesideTheFieldsOnScreens:
+				"Show the details editor beside the fields on screens 900px or wider.",
+			tabMovesFocusInDetailsEditor: "Tab moves focus in details editor",
+			whenOffTabIndentsTextInTheMarkdownEditor:
+				"When off, the tab key indents text in the Markdown editor.",
+			syncCustomProperties: "Sync custom properties",
+			syncProperties: "Sync properties",
+			noFieldsInThisGroup: "No fields in this group.",
+			showWhenCreatingTasks: "Show when creating tasks",
+			showWhenEditingTasks: "Show when editing tasks",
+			resetFormFields: "Reset form fields",
+			restoreVisibilityGroupingAndOrderingCustomPropertiesAreKept:
+				"Restore visibility, grouping, and ordering. Custom properties are kept.",
+			resetFields: "Reset fields",
+			resetFormFields2: "Reset form fields?",
+			yourCustomFieldLayoutWillBeReplacedWithThe:
+				"Your custom field layout will be replaced with the default layout.",
+			inlineTaskCardProperties: "Inline task card properties",
+			selectWhichPropertiesToShowInInlineTaskCards:
+				"Select which properties to show in inline task cards.",
+			inlineTaskCardPropertiesUpdated: "Inline task card properties updated",
+			attachmentSearchOrder: "Attachment search order",
+			controlsHowFilesAreOrderedInTheAddAttachment:
+				"Controls file order when searching for timeblock attachments.",
+			nameAToZ: "Name (ascending)",
+			nameZToA: "Name (descending)",
+			pathAToZ: "Path (ascending)",
+			pathZToA: "Path (descending)",
+			createdNewestFirst: "Created (newest first)",
+			createdOldestFirst: "Created (oldest first)",
+			modifiedNewestFirst: "Modified (newest first)",
+			modifiedOldestFirst: "Modified (oldest first)",
+			baseFile: "Base file",
+			resetFileMapping: "Reset file mapping",
+			calendarSetupGuide: "Calendar setup guide",
+			connectAGoogleOrMicrosoftCalendarUsingYourOwn:
+				"Connect a Google or Microsoft calendar using credentials from your own developer application.",
+			enterAPropertyKey: "Enter a property key.",
+			useAPropertyKeyWithoutSurroundingSpacesLineBreaks:
+				"Use a property key without surrounding spaces, line breaks, or YAML punctuation.",
+			theTagsPropertyIsReservedByObsidian: "The tags property is reserved by Obsidian.",
+			anotherPropertyAlreadyUsesThisKey: "Another property already uses this key.",
+			separateValuesWithCommas: "Separate values with commas.",
+			propertyName: "Property name",
+			propertyValue: "Property value",
+			leaveEmptyToMatchAnyNoteWithThisProperty:
+				"Leave empty to match any note with this property.",
+			noValuesConfigured: "No values configured.",
+			keepAtLeastOneConfiguredValue: "Keep at least one configured value.",
+			existingTaskNotesWillNotBeChangedTasksUsing:
+				"Existing task notes will not be changed. Tasks using this value keep it in their frontmatter.",
+			storedInTaskNotesChangingThisDoesNotRename:
+				"Stored in task notes. Changing this does not rename values in existing notes.",
+			aCSSColorOrThemeVariableSuchAsVar:
+				"A CSS color or theme variable, such as var(--text-accent).",
+			lucideIconNameLeaveEmptyForTheDefaultIndicator:
+				"Lucide icon name. Leave empty for the default indicator.",
+			countsAsCompleted: "Counts as completed",
+			countsAsSkipped: "Counts as skipped",
+			excludeFromStatusCycle: "Exclude from status cycle",
+			automaticArchiving: "Automatic archiving",
+			automaticallyArchive: "Automatically archive",
+			sortWeight: "Sort weight",
+			higherValuesSortFirst: "Higher values sort first.",
+			thisRemovesThePropertyFromTaskNotesFormsNotFrom:
+				"This removes the property from TaskNotes forms, not from existing notes.",
+			deleteProperty: "Delete property",
+			changingThisKeyDoesNotMigrateExistingNotes:
+				"Changing this key does not migrate existing notes.",
+			changingThisMappingDoesNotRenamePropertiesInExisting:
+				"Changing this mapping does not rename properties in existing notes.",
+			metadataIntegrationProperties: "Metadata & integration properties",
+			timestampsRecurrenceRecordsOrderingAndLinkedCalendarEvents:
+				"Timestamps, recurrence records, ordering, and linked calendar events.",
+		},
 		header: {
 			documentation: "Documentation",
 			documentationUrl: "https://tasknotes.dev",
@@ -508,11 +687,63 @@ export const en: TranslationTree = {
 			general: "General",
 			taskProperties: "Task properties",
 			modalFields: "Modal fields",
+			keyboardShortcuts: "Keyboard shortcuts",
 			defaults: "Defaults & templates",
 			appearance: "Appearance & UI",
 			features: "Features",
-			keyboardShortcuts: "Keyboard shortcuts",
 			integrations: "Integrations",
+		},
+		modalFields: {
+			header: "Task modal fields configuration",
+			description:
+				"Configure which fields appear in task creation and edit modals. Drag fields to reorder them within each group.",
+			splitLayout: {
+				name: "Split layout on wide screens",
+				description:
+					"When enabled, the details editor appears in a right column on screens 900px or wider. When disabled, the modal uses a stacked layout.",
+			},
+			tabMovesFocus: {
+				name: "Tab moves focus in details editor",
+				description:
+					"When enabled, Tab moves from the details editor to the next modal field and Shift+Tab moves to the previous field. When disabled, Tab and Shift+Tab use the markdown editor's indentation behavior.",
+			},
+			sync: {
+				name: "Sync user fields",
+				description:
+					"Click to sync custom user fields from task properties settings into this configuration.",
+				button: "Sync user fields",
+				notice: "User fields synced to modal configuration",
+			},
+			reset: {
+				name: "Reset to defaults",
+				description:
+					"Reset all field configurations to their default values. This will remove any custom configurations.",
+				button: "Reset to defaults",
+				confirmTitle: "Reset field configuration",
+				confirmMessage:
+					"Are you sure you want to reset field configuration to defaults? This will remove any custom field configurations.",
+				confirmText: "Reset",
+				cancelText: "Cancel",
+				notice: "Field configuration reset to defaults",
+			},
+			initError: "Error: Could not initialize field configuration",
+			manager: {
+				invalidConfig: "Error: Invalid field configuration. Please reset to defaults.",
+				emptyGroup: "No fields in this group",
+				enabled: "Enabled:",
+				showInCreation: "Show in creation:",
+				showInEdit: "Show in edit:",
+				group: "Group:",
+				fieldId: "ID: {id}",
+				fieldKey: "Key: {key}",
+				noKey: "No key set",
+				fieldTypes: {
+					core: "Core",
+					user: "User",
+					dependency: "Dependency",
+					organization: "Organization",
+				},
+			},
 		},
 		keyboardShortcuts: {
 			header: "Task card keyboard shortcuts",
@@ -622,6 +853,11 @@ export const en: TranslationTree = {
 					name: "Default to scheduled",
 					description:
 						"When NLP detects a date without context, treat it as scheduled rather than due",
+				},
+				enterToSubmit: {
+					name: "Enter saves task",
+					description:
+						"In the natural language input, press Enter to save the task. Shift+Enter inserts a newline, and Ctrl/Cmd+Enter still saves.",
 				},
 				language: {
 					name: "NLP language",
@@ -1005,6 +1241,9 @@ export const en: TranslationTree = {
 						exactOnly: "Exact task tag only",
 					},
 				},
+				propertyNamePlaceholder: "Enter property name",
+				propertyValuePlaceholder: "Enter property value",
+				incompletePropertyWarning: "Enter both a property name and value. Example text is not saved configuration. TaskNotes cannot identify tasks until both are set. Existing .base filters must match these settings.",
 				taskProperty: {
 					name: "Task property name",
 					description: 'The frontmatter property name (e.g., "category")',
@@ -1045,8 +1284,7 @@ export const en: TranslationTree = {
 				groupDropBehavior: {
 					name: "List-property drag behavior",
 					description:
-						// eslint-disable-next-line obsidianmd/ui/sentence-case-locale-module -- Platform and key names are proper nouns.
-						"Choose whether dragging a task between list-property groups (for example, projects or tags) moves it to the destination or adds the destination while keeping its current groups. Hold Ctrl on Windows or Linux, or Option on macOS, to add with the modifier mode.",
+						"Choose how dragging between list-property groups changes task groups. The add option keeps existing groups. A modifier key enables adding while using move mode.",
 					options: {
 						replace: "Move to the destination group",
 						add: "Add to the destination group",
@@ -1397,6 +1635,10 @@ export const en: TranslationTree = {
 				},
 			},
 			customUserFields: {
+				validation: {
+					emptyKey: "Enter a property key.",
+					duplicateKey: "Another property already uses this key.",
+				},
 				header: "Custom user fields",
 				description:
 					"Define custom frontmatter properties to appear as type-aware filter options across views. Each row: Display name, property name, type.",
@@ -1446,6 +1688,11 @@ export const en: TranslationTree = {
 				defaultVisibleProperties: {
 					name: "Default visible properties",
 					description: "Choose which properties appear on task cards by default.",
+				},
+				completionSubmenu: {
+					name: "Group complete and skip actions in a submenu",
+					description:
+						"Nest the complete and skip actions under a submenu in the task context menu. Turn off to show them directly in the menu.",
 				},
 				propertyGroups: {
 					coreProperties: "Core properties",
@@ -1500,6 +1747,12 @@ export const en: TranslationTree = {
 				},
 			},
 			displayFormatting: {
+				dateFormat: {
+					name: "Date format",
+					description:
+						"Choose how dates appear throughout TaskNotes. Stored dates and custom Bases formulas are unchanged. Time format is set separately.",
+					options: { default: "Default" },
+				},
 				header: "Display formatting",
 				description:
 					"Configure how dates, times, and other data are displayed across the plugin.",
@@ -1674,14 +1927,6 @@ export const en: TranslationTree = {
 						right: "Right side",
 					},
 				},
-				viewsButtonAlignment: {
-					name: "Views button alignment",
-					description: "Alignment of the views/filters button in the task interface",
-					options: {
-						left: "Left side",
-						right: "Right side",
-					},
-				},
 			},
 			projectAutosuggest: {
 				header: "Project autosuggest",
@@ -1803,8 +2048,6 @@ export const en: TranslationTree = {
 						"TaskNotes uses Obsidian Bases files (.base) to power its views. These files are generated automatically on startup if they don't exist, configured with your current settings (task identification, field mappings, statuses, etc.).",
 					descriptionRegen:
 						'Base files are not automatically updated when you change settings. To apply new settings, use "Update files" below, delete the existing .base files and restart Obsidian, or edit them manually.',
-					pomodoroDailyNotesHint:
-						"The generated Pomodoro statistics base reads Pomodoro history from daily notes; if your history is still stored in plugin data, migrate it in settings before using that base file.",
 					docsLink: "View documentation for available formulas and customization options",
 					docsLinkUrl: "https://tasknotes.dev/views/default-base-templates",
 					commands: {
@@ -1813,7 +2056,6 @@ export const en: TranslationTree = {
 						tasks: "Open tasks view",
 						advancedCalendar: "Open advanced calendar view",
 						agenda: "Open agenda view",
-						pomodoroStats: "Pomodoro statistics base",
 						relationships: "Relationships widget",
 					},
 					fileLabel: "File: {path}",
@@ -2005,7 +2247,8 @@ export const en: TranslationTree = {
 				},
 				requireDueDate: {
 					name: "Require due date",
-					description: "When enabled, only tasks with a due date are included in ICS exports.",
+					description:
+						"When enabled, only tasks with a due date are included in ICS exports.",
 				},
 				requireScheduledDate: {
 					name: "Require scheduled date",
@@ -2063,6 +2306,11 @@ export const en: TranslationTree = {
 					name: "Create as all-day events",
 					description:
 						"When enabled, tasks are created as all-day events. When disabled, uses time estimate for duration.",
+				},
+				showAllDayAsFree: {
+					name: "Show all-day task events as free",
+					description:
+						"All-day task exports do not block availability, including tasks converted to all-day. Timed events stay busy. Run sync all tasks to apply changes to existing events.",
 				},
 				defaultDuration: {
 					name: "Default event duration",
@@ -2174,7 +2422,8 @@ export const en: TranslationTree = {
 				},
 				authToken: {
 					name: "API authentication token",
-					description: "Token required for API authentication (leave empty for no auth)",
+					description:
+						"TaskNotes token, not your AI provider's API key. To generate one, enable HTTP API, leave this field empty, and restart Obsidian. Then copy the generated token into your client's bearer authentication settings. Update clients whenever this token changes. The token is stored securely on this device and is not saved in data.json, so each synced device has its own token.",
 					placeholder: "your-secret-token",
 				},
 				mcp: {
@@ -2406,7 +2655,7 @@ export const en: TranslationTree = {
 				enable: {
 					name: "Use canonical mdbase configuration",
 					description:
-						"Publish the TaskNotes data contract and make its implementing mdbase type the portable source of truth. File edits update TaskNotes, and portable settings changes update the type binding.",
+						"Publish the TaskNotes data contract and make its implementing mdbase type, with the TaskNotes settings record, the portable source of truth. File edits update TaskNotes. Settings changes update the type binding, or the settings record for app behaviour such as templates, archive moves and status cycling.",
 				},
 			},
 			timeFormats: {
@@ -2419,6 +2668,16 @@ export const en: TranslationTree = {
 	},
 	notices: {
 		languageChanged: "Language changed to {language}.",
+		recurringCompletion: {
+			completed: "Completed occurrence: {date}",
+			incomplete: "Marked incomplete: {date}",
+			next: "Next: {date}",
+			noNext: "No next occurrence",
+			undo: "Undo",
+			undone: "Recurring task change undone.",
+			conflict: "Cannot undo: this occurrence or its schedule has changed.",
+			failed: "Could not undo the recurring task change.",
+		},
 		releaseAvailable: {
 			message: "TaskNotes {version} is available.",
 			action: "Open in community plugins",
@@ -2452,14 +2711,14 @@ export const en: TranslationTree = {
 	commands: {
 		openCalendarView: "Open mini calendar view",
 		openAdvancedCalendarView: "Open calendar view",
+		openToday: "Open today",
+		openInbox: "Open inbox",
 		openTasksView: "Open tasks view",
 		openNotesView: "Open notes view",
 		openAgendaView: "Open agenda view",
 		openPomodoroView: "Open Pomodoro timer",
 		openKanbanView: "Open Kanban board",
 		updateDefaultBaseFiles: "Update default base files",
-		openPomodoroStats: "Open Pomodoro statistics",
-		openStatisticsView: "Open task & project statistics",
 		createNewTask: "Create new task",
 		convertCurrentNoteToTask: {
 			name: "Convert current note to task",
@@ -2487,11 +2746,28 @@ export const en: TranslationTree = {
 		syncAllTasksGoogleCalendar: "Sync all tasks to Google Calendar",
 		syncCurrentTaskGoogleCalendar: "Sync current task to Google Calendar",
 		viewReleaseNotes: "View release notes",
+		startTimeTrackingCurrentTask: "Start time tracking for current task",
+		stopTimeTrackingCurrentTask: "Stop time tracking for current task",
+		stopActiveTimeTracking: "Stop active time tracking",
 		startTimeTrackingWithSelector: "Start time tracking (select task)",
 		editTimeEntries: "Edit time entries (select task)",
 		createOrOpenTask: "Create or open task",
 		createOrOpenTaskWithTracking: "Create or open task and start time tracking",
 		rolloverOverdueScheduledTasks: "Postpone overdue scheduled tasks to today",
+	},
+	dateTimePicker: {
+		today: "Today",
+		tomorrow: "Tomorrow",
+		nextWeek: "Next week",
+		date: "Date",
+		time: "Time (optional)",
+		clearDate: "Clear date",
+		select: "Select",
+		naturalLanguagePlaceholder: "Tomorrow at 3pm",
+		naturalLanguageLabel: "Natural language date",
+		applyNaturalLanguage: "Apply natural language date",
+		openNativePicker: "Open native date picker",
+		invalidInput: "Could not find a date in that text.",
 	},
 	modals: {
 		deviceCode: {
@@ -2987,6 +3263,8 @@ export const en: TranslationTree = {
 			noTasksAvailable: "No tasks available to track time for",
 			started: "Started tracking time for: {taskTitle}",
 			startFailed: "Failed to start time tracking",
+			noActiveTasks: "No active time tracking session found",
+			stopFailed: "Failed to load active time tracking sessions",
 		},
 		timeEntry: {
 			mustHaveSpecificTime:
@@ -3051,6 +3329,7 @@ export const en: TranslationTree = {
 			clearRecurrence: "Clear recurrence",
 			customRecurrence: "Custom recurrence...",
 			createSubtask: "Create subtask",
+			more: "More",
 			dependencies: {
 				title: "Dependencies",
 				addBlockedBy: "Add “blocked by”…",
@@ -3106,6 +3385,25 @@ export const en: TranslationTree = {
 			markIncomplete: "Mark incomplete for this date",
 			skipInstance: "Skip instance",
 			unskipInstance: "Unskip instance",
+			completion: {
+				submenu: "Mark complete or skip",
+				submenuCompleteOnly: "Mark complete",
+				completeToday: "Completed today",
+				completeAsScheduled: "Completed on schedule",
+				completeOnDue: "Completed on due date",
+				completeOnPicked: "Completed on (pick date)",
+				markIncomplete: "Mark incomplete",
+				noScheduledDate: "No scheduled date on this task",
+				noDueDate: "No due date on this task",
+				noPickedDate: "No date selected",
+				noCompletedStatus: "No completed status configured",
+				pickDateTitle: "Complete on date",
+				completeFailure: "Failed to update task completion: {message}",
+				clearInstancesConfirmTitle: "Clear recorded instances?",
+				clearInstancesConfirmMessage:
+					"Rescheduling will clear these recorded completed/skipped instances on or after the new date: {dates}. They will no longer be marked complete or skipped. Continue?",
+				clearInstancesConfirmButton: "Reschedule and clear",
+			},
 			quickReminders: {
 				atTime: "At time of event",
 				fiveMinutes: "5 minutes before",
@@ -3294,8 +3592,7 @@ export const en: TranslationTree = {
 				templateNotFound: "Task body template not found: {path}",
 				templateReadError: "Error reading task body template: {template}",
 				occurrenceTemplateNotFound: "Occurrence note template not found: {path}",
-				occurrenceTemplateReadError:
-					"Error reading occurrence note template: {template}",
+				occurrenceTemplateReadError: "Error reading occurrence note template: {template}",
 				moveTaskFailed: "Failed to move {operation} task: {error}",
 			},
 		},
@@ -3308,6 +3605,21 @@ export const en: TranslationTree = {
 			notices: {
 				// NotificationService uses Notice for in-app notifications
 				// but the message comes from the reminder content, so no hardcoded strings to translate
+			},
+			missed: {
+				prefixToday: "Missed reminder ({time})",
+				prefixOnDay: "Missed reminder ({day}, {time})",
+				message: "{prefix}: {text}",
+				dueWas: "{title} was due {when}",
+				dueIs: "{title} is due {when}",
+				scheduledWas: "{title} was scheduled {when}",
+				scheduledIs: "{title} is scheduled {when}",
+				whenTodayAt: "at {time}",
+				whenOnDayAt: "on {day} at {time}",
+				whenOnDay: "on {day}",
+				whenToday: "today",
+				summaryTitle: "{count} missed TaskNotes reminders",
+				summaryMore: "{titles} and {count} more",
 			},
 		},
 	},
@@ -3358,6 +3670,10 @@ export const en: TranslationTree = {
 			scheduledTodayAt: "{label}: Today at {time}",
 			scheduledPast: "{label}: {display} (past)",
 			scheduledLabel: "{label}: {display}",
+			relativeYesterday: "Yesterday",
+			relativeTomorrow: "Tomorrow",
+			relativeDaysAgo: "{count} days ago",
+			relativeDayAtTime: "{day} at {time}",
 			loadingDependencies: "Loading dependencies...",
 			blockingEmpty: "No dependent tasks",
 			blockingLoadError: "Failed to load dependencies",

@@ -202,6 +202,7 @@ export const DEFAULT_GOOGLE_CALENDAR_EXPORT: GoogleCalendarExportSettings = {
 	eventColorId: null, // Use calendar default color
 	syncTrigger: "scheduled", // Default to scheduled date
 	createAsAllDay: true, // All-day events by default
+	showAllDayAsFree: false, // Preserve Busy availability unless explicitly enabled
 	defaultEventDuration: 60, // 1 hour if timed events
 	includeObsidianLink: true, // Include link back to Obsidian
 	defaultReminderMinutes: null, // No reminder override by default (user opts in)
@@ -249,12 +250,13 @@ export const DEFAULT_NLP_TRIGGERS: NLPTriggersConfig = {
 };
 
 export const DEFAULT_SETTINGS: TaskNotesSettings = {
+	dateDisplayFormat: "default",
 	tasksFolder: "TaskNotes/Tasks",
 	moveArchivedTasks: false,
 	archiveFolder: "TaskNotes/Archive",
 	taskTag: "task",
 	taskIdentificationMethod: "tag", // Default to tag-based identification
-	hideIdentifyingTagsInCards: false, // Default to showing all tags (backward compatibility)
+	hideIdentifyingTagsInCards: true, // The identifying tag is on every task, so cards hide it by default
 	hideIdentifyingTagsMode: "all", // Default to existing exact + hierarchical hiding behavior
 	taskPropertyName: "",
 	taskPropertyValue: "",
@@ -295,10 +297,9 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	taskModalTabMovesFocus: true,
 	enableNaturalLanguageInput: true,
 	nlpDefaultToScheduled: true,
+	nlpEnterToSubmit: false,
 	nlpLanguage: "en", // Default to English
 	uiLanguage: "system",
-	// NLP status suggestion trigger (deprecated)
-	statusSuggestionTrigger: "*",
 	// NLP triggers
 	nlpTriggers: DEFAULT_NLP_TRIGGERS,
 
@@ -340,6 +341,7 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	// Task card in note defaults
 	showTaskCardInNote: true,
 	showCompletedTaskStrikethrough: true,
+	completionMenuAsSubmenu: true,
 	// Task card expandable subtasks defaults
 	showExpandableSubtasks: true,
 	expandSubtasksByDefault: false,
@@ -386,7 +388,6 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 	// Default visible properties for inline task cards (more compact by default)
 	inlineVisibleProperties: ["status", "priority", "due", "scheduled", "recurrence"],
 	// Bases integration defaults
-	enableBases: true,
 	enableMdbaseSpec: false,
 	autoCreateDefaultBasesFiles: true, // Auto-create missing default Base files on startup
 	// Command-to-file mappings for view commands (v4)
@@ -396,7 +397,6 @@ export const DEFAULT_SETTINGS: TaskNotesSettings = {
 		"open-tasks-view": "TaskNotes/Views/tasks-default.base",
 		"open-advanced-calendar-view": "TaskNotes/Views/calendar-default.base",
 		"open-agenda-view": "TaskNotes/Views/agenda-default.base",
-		"pomodoro-stats-base": "TaskNotes/Views/pomodoro-stats.base",
 		relationships: "TaskNotes/Views/relationships.base",
 	},
 	// Recurring task behavior defaults

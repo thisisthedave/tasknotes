@@ -46,6 +46,8 @@ Materialized occurrence notes add two system fields to the occurrence note:
 - **Date-only**: `DTSTART:20250804;FREQ=DAILY`
 - **Date and time**: `DTSTART:20250804T090000Z;FREQ=DAILY`
 
+Standard multiline rules are also supported, with `DTSTART` and `RRULE` on separate lines. Updating a completion anchor changes the date without discarding the existing clock, timezone parameters, or `RRULE`, `RDATE` and `EXDATE` lines. Date-only anchors remain date-only.
+
 ## Recurring Task Due Date
 
 When a recurring task is completed, `scheduled` advances to the next occurrence. By default, `due` does not change.
@@ -209,6 +211,10 @@ Materialized occurrence notes keep `occurrence_date` as their identity. If you d
 
 Each occurrence can be completed or skipped independently (task cards, calendar menus, task edit modal completion calendar).
 
+Checking off a recurring task shows a notification with the occurrence date and the next scheduled date, both including the year. **Undo** remains available for 15 seconds and reverses that specific checkoff, including its scheduling changes and any checklist reset. Undo refuses to overwrite later changes to the occurrence or schedule. Materialized occurrence notes are retained when undoing their completion, as with manually marking them incomplete. Notifications and Undo apply to interactive recurring checkoffs, not API calls.
+
+When you complete an occurrence from the context menu, you can choose which date it is recorded against — today, the occurrence's scheduled date, its due date, or a date you pick (see [Completing Tasks](task-management.md#completing-tasks)). Completion-anchored recurrences resolve *on schedule* to the newly scheduled date, an explicit re-anchor.
+
 Completed instances are stored in:
 
 ```yaml
@@ -224,6 +230,10 @@ skipped_instances: ["2025-08-05"]
 When completion changes, `scheduled` updates to the next uncompleted instance. If a materialized occurrence note exists for a date, that note's own status takes precedence for that occurrence, and TaskNotes reconciles the parent compatibility lists during completion, uncompletion, skip, and unskip actions.
 
 This means completion history and next-action planning stay synchronized automatically, without manually advancing recurring tasks.
+
+### Rescheduling clears later instances
+
+When you change a recurring task's scheduled date (from the context menu or the scheduled-date field), TaskNotes restarts the timeline from the new date: it clears every completed and skipped instance dated **on or after** that date, while keeping older instances as history. This reactivates occurrences you had completed or skipped off-schedule so they can be acted on again. Because clearing is destructive, TaskNotes asks you to confirm first — listing the dates that will be cleared — and cancelling leaves both the schedule and the recorded instances untouched.
 
 ## Flexible Scheduling
 
@@ -259,7 +269,9 @@ Recurring task logic uses a UTC anchor approach:
 - Display adapts to local timezone
 - Prevents common off-by-one date issues
 
-In other words, calculations stay stable internally while display remains local, which avoids drift when traveling or sharing vaults across timezones.
+The recurrence editor preserves the anchor's calendar date and clock components when opening and saving a rule; it does not reinterpret an existing anchor through the device's timezone. Timed anchors are serialized as `YYYYMMDDTHHMMSSZ`, including seconds. Existing anchors without `Z` are normalized on save using the same clock components, rather than silently shifting their time.
+
+Completing an instance of a **completion-anchored** task moves the anchor to the selected completion day while retaining its existing clock components. Date-only anchors remain date-only. Completing a **scheduled-anchored** task leaves its anchor unchanged. This time-preserving behavior applies to instance completion; explicitly replacing the recurrence rule can still remove or change its time.
 
 ## Backward Compatibility
 

@@ -108,7 +108,11 @@ export function createDueTaskEvent(
 	let endDate: string | undefined;
 	if (hasTime) {
 		const start = parseDateToLocal(startDate);
-		const end = new Date(start.getTime() + 30 * 60 * 1000);
+		// Due events are deadline markers, not work durations. Keep the visual
+		// marker within its due day; FullCalendar treats midnight as exclusive.
+		const nextMidnight = new Date(start);
+		nextMidnight.setHours(24, 0, 0, 0);
+		const end = new Date(Math.min(start.getTime() + 30 * 60 * 1000, nextMidnight.getTime()));
 		endDate = format(end, "yyyy-MM-dd'T'HH:mm");
 	}
 
@@ -293,9 +297,31 @@ function hasFinishedTimeEntry(entry: TimeEntry): entry is TimeEntry & { endTime:
 	return typeof entry.endTime === "string" && entry.endTime.length > 0;
 }
 
+function isTimeEntryInVisibleRange(
+	entry: TimeEntry & { endTime: string },
+	visibleStart?: Date,
+	visibleEnd?: Date
+): boolean {
+	if (!visibleStart || !visibleEnd) return true;
+
+	try {
+		const start = parseDateToLocal(entry.startTime).getTime();
+		const end = parseDateToLocal(entry.endTime).getTime();
+		// Leave malformed dates to FullCalendar, as with other calendar events.
+		if (Number.isNaN(start) || Number.isNaN(end)) return true;
+
+		// Both intervals have exclusive ends; touching a boundary is not overlap.
+		return start < visibleEnd.getTime() && end > visibleStart.getTime();
+	} catch {
+		return true;
+	}
+}
+
 export function createTimeEntryTaskEvents(
 	task: TaskInfo,
-	context: CalendarTaskEventContext
+	context: CalendarTaskEventContext,
+	visibleStart?: Date,
+	visibleEnd?: Date
 ): CalendarTaskEvent[] {
 	if (!task.timeEntries) return [];
 
@@ -303,7 +329,11 @@ export function createTimeEntryTaskEvents(
 
 	return task.timeEntries
 		.map((entry, index) => ({ entry, index }))
-		.filter(({ entry }) => hasFinishedTimeEntry(entry))
+		.filter(
+			({ entry }) =>
+				hasFinishedTimeEntry(entry) &&
+				isTimeEntryInVisibleRange(entry, visibleStart, visibleEnd)
+		)
 		.map(({ entry, index }) => ({
 			id: `timeentry-${task.path}-${index}`,
 			title: task.title,

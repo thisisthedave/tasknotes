@@ -1,3 +1,4 @@
+import { parse } from "yaml";
 import { generateBasesFileTemplate } from "../../../src/templates/defaultBasesFiles";
 
 const createMockPlugin = (settingsOverride: Record<string, unknown> = {}) => {
@@ -48,14 +49,84 @@ const createMockPlugin = (settingsOverride: Record<string, unknown> = {}) => {
 };
 
 describe("defaultBasesFiles", () => {
+	const commands = [
+		"open-tasks-view", "open-kanban-view", "open-advanced-calendar-view",
+		"open-agenda-view", "open-calendar-view", "relationships",
+	];
+
+	it.each(["Client's work", 'Client "quoted"', "Client\\work", "Client\nwork"])(
+		"round-trips punctuation in priority/status values and labels: %s", (text) => {
+			const plugin = createMockPlugin({
+				customPriorities: [{ value: text, label: text, weight: 0 }],
+				customStatuses: [{ value: text, label: text, isCompleted: true }],
+			});
+			const literal = JSON.stringify(text);
+			for (const command of commands) {
+				const base = parse(generateBasesFileTemplate(command, plugin as any));
+				expect(base.formulas.priorityWeight).toBe(`if(priority==${literal},0,999)`);
+				expect(base.formulas.priorityCategory).toBe(`if(priority==${literal},${literal},"No priority")`);
+				expect(base.formulas.isOverdue).toContain(`status != ${literal}`);
+				if (command === "open-tasks-view") {
+					const notBlocked = base.views.find((view: any) => view.name === "Not Blocked");
+					expect(notBlocked.filters.and[1].or[0].and).toContain(`status != ${literal}`);
+					expect(notBlocked.filters.and[2].or[1]).toContain(`.properties.status != ${literal}`);
+				}
+			}
+		}
+	);
+
+	it("lands on Today and includes an active undated, project-free Inbox and archive history", () => {
+		const { parse } = require("yaml");
+		const base = parse(generateBasesFileTemplate("open-tasks-view", createMockPlugin({
+			fieldMapping: { archiveTag: "history/archived" },
+		}) as any));
+		expect(base.views[0].name).toBe("Today");
+		for (const name of ["Today", "Overdue", "This Week", "Unscheduled", "Inbox", "Not Blocked"]) {
+			const view = base.views.find((view: any) => view.name === name);
+			expect(view.filters.and).toContain('file.hasTag("history/archived") != true');
+		}
+		const inbox = base.views.find((view: any) => view.name === "Inbox");
+		expect(inbox.filters.and).toEqual(expect.arrayContaining([
+			"projects.isEmpty()", "due.isEmpty()", "scheduled.isEmpty()",
+		]));
+		expect(inbox.filters.and.some((filter: any) => filter.or)).toBe(true);
+		expect(base.views.find((view: any) => view.name === "Archived").filters.and)
+			.toContain('file.hasTag("history/archived")');
+		expect(base.filters.and).not.toContain('file.hasTag("history/archived") != true');
+	});
+
+	it.each(["open-kanban-view", "open-calendar-view", "open-advanced-calendar-view", "open-agenda-view"])(
+		"excludes archived tasks in %s", (commandId) => {
+			expect(generateBasesFileTemplate(commandId, createMockPlugin() as any))
+				.toContain('file.hasTag("archived") != true');
+		}
+	);
+
 	it("adds manual-order sorting to the default kanban template", () => {
 		const template = generateBasesFileTemplate("open-kanban-view", createMockPlugin() as any);
 
 		expect(template).toContain('name: "Kanban Board"');
 		expect(template).toContain("sort:\n      - column: tasknotes_manual_order\n        direction: DESC");
 		expect(template).toContain("groupBy:\n      property: status");
-		expect(template).toContain("config:\n      columnWidth: 280\n      hideEmptyColumns: false");
-		expect(template).not.toContain("    options:\n      columnWidth: 280");
+		const view = parse(template).views[0];
+		expect(view.columnWidth).toBe(280);
+		expect(view.hideEmptyColumns).toBe(false);
+		expect(view.config).toBeUndefined();
+		expect(view.options).toBeUndefined();
+	});
+
+	it.each(commands)("writes custom settings directly on generated %s views", (command) => {
+		const base = parse(generateBasesFileTemplate(command, createMockPlugin() as any));
+		for (const view of base.views) {
+			expect(view.config).toBeUndefined();
+			expect(view.options).toBeUndefined();
+		}
+		if (command === "open-advanced-calendar-view") {
+			expect(base.views[0]).toMatchObject({ calendarView: "timeGridWeek", showDue: true, firstDay: 1 });
+		}
+		if (command === "open-agenda-view") {
+			expect(base.views[0]).toMatchObject({ showPropertyBasedEvents: false, showOverdueOnToday: true });
+		}
 	});
 
 	it("adds a dedicated manual-order task list view while preserving urgency views", () => {
@@ -101,7 +172,7 @@ describe("defaultBasesFiles", () => {
 		const dependencyFileExpression = 'file(if(value.isType("object"), value.uid, value))';
 		const dependencyLinkExpression = `${dependencyFileExpression}.asLink()`;
 
-		expect(tasksTemplate).toContain(
+		expect(parse(tasksTemplate).views.find((view: any) => view.name === "Not Blocked").filters.and[2].or[1]).toBe(
 			`list(blockedBy).filter(${dependencyFileExpression}.properties.status != "done").isEmpty()`
 		);
 		expect(relationshipsTemplate).toContain(
@@ -118,7 +189,7 @@ describe("defaultBasesFiles", () => {
 	it("adds a due-in countdown to the default agenda template", () => {
 		const template = generateBasesFileTemplate("open-agenda-view", createMockPlugin() as any);
 
-		expect(template).toContain('dueIn: \'if(due.isEmpty(), "", if(formula.daysUntilDue == 0');
+		expect(parse(template).formulas.dueIn).toContain('if(due.isEmpty(), "", if(formula.daysUntilDue == 0');
 		expect(template).toContain("formula.dueIn:\n    displayName: Due in");
 		expect(template).toContain("      - due\n      - formula.dueIn\n      - file.name");
 		expect(template).toContain('calendarView: "listWeek"');
@@ -218,20 +289,18 @@ describe("defaultBasesFiles", () => {
 		expect(template).not.toContain('note["Task Type"] == "true"');
 	});
 
-	it("uses the same quoted property reference for property existence filters", () => {
+	it.each([["Task Type", ""], ["", "task"], ["", ""], [" ", "task"], ["category", " "]])("matches no tasks with incomplete property identification (%s, %s) (#2363)", (name, value) => {
 		const template = generateBasesFileTemplate(
 			"open-tasks-view",
 			createMockPlugin({
 				taskIdentificationMethod: "property",
-				taskPropertyName: "Task Type",
-				taskPropertyValue: "",
+				taskPropertyName: name,
+				taskPropertyValue: value,
 			}) as any
 		);
-
-		expect(template).toContain(
-			'note["Task Type"] && note["Task Type"] != "" && note["Task Type"] != null'
-		);
-		expect(template).not.toContain("note.Task Type");
+		expect(template).toContain('    - "false"');
+		expect(template).not.toContain('file.hasTag("task")');
+		expect(template).not.toContain('note["Task Type"] &&');
 	});
 
 	it("adds excluded folder filters to generated task Bases", () => {
@@ -320,11 +389,11 @@ describe("defaultBasesFiles", () => {
 
 		// Pin full bodies of the affected formulas so a regression in any single
 		// clause (lower bound, upper bound, due half, scheduled half) breaks the test.
-		expect(template).toContain(
-			`isDueThisWeek: '(due.isEmpty() == false) && date(due).format("YYYY-MM-DD") >= today().format("YYYY-MM-DD") && date(due).format("YYYY-MM-DD") <= (today() + "7 days").format("YYYY-MM-DD")'`
+		expect(parse(template).formulas.isDueThisWeek).toBe(
+			`(due.isEmpty() == false) && date(due).format("YYYY-MM-DD") >= today().format("YYYY-MM-DD") && date(due).format("YYYY-MM-DD") <= (today() + "7 days").format("YYYY-MM-DD")`
 		);
-		expect(template).toContain(
-			`isThisWeek: '((due.isEmpty() == false) && date(due).format("YYYY-MM-DD") >= today().format("YYYY-MM-DD") && date(due).format("YYYY-MM-DD") <= (today() + "7 days").format("YYYY-MM-DD")) || ((scheduled.isEmpty() == false) && date(scheduled).format("YYYY-MM-DD") >= today().format("YYYY-MM-DD") && date(scheduled).format("YYYY-MM-DD") <= (today() + "7 days").format("YYYY-MM-DD"))'`
+		expect(parse(template).formulas.isThisWeek).toBe(
+			`((due.isEmpty() == false) && date(due).format("YYYY-MM-DD") >= today().format("YYYY-MM-DD") && date(due).format("YYYY-MM-DD") <= (today() + "7 days").format("YYYY-MM-DD")) || ((scheduled.isEmpty() == false) && date(scheduled).format("YYYY-MM-DD") >= today().format("YYYY-MM-DD") && date(scheduled).format("YYYY-MM-DD") <= (today() + "7 days").format("YYYY-MM-DD"))`
 		);
 
 		// Negative guards against any reappearance of the time-naive shape on a
@@ -348,13 +417,13 @@ describe("defaultBasesFiles", () => {
 		// is preserved.
 		const template = generateBasesFileTemplate("open-tasks-view", createMockPlugin() as any);
 
-		expect(template).toContain(
-			`urgencyScore: 'if(due.isEmpty() && scheduled.isEmpty(), formula.priorityWeight, formula.priorityWeight + max(0, 10 - if(formula.daysUntilNext, formula.daysUntilNext, 0)) + (1 - ((number(date(formula.nextDate)) - number(date(date(formula.nextDate).format("YYYY-MM-DD")))) / 86400000)))'`
+		expect(parse(template).formulas.urgencyScore).toBe(
+			`if(due.isEmpty() && scheduled.isEmpty(), formula.priorityWeight, formula.priorityWeight + max(0, 10 - if(formula.daysUntilNext, formula.daysUntilNext, 0)) + (1 - ((number(date(formula.nextDate)) - number(date(date(formula.nextDate).format("YYYY-MM-DD")))) / 86400000)))`
 		);
 
 		// Guard against the time-naive form returning
-		expect(template).not.toMatch(
-			/urgencyScore: 'if\(!due && !scheduled, formula\.priorityWeight, formula\.priorityWeight \+ max\(0, 10 - formula\.daysUntilNext\)\)'/
+		expect(parse(template).formulas.urgencyScore).not.toBe(
+			'if(!due && !scheduled, formula.priorityWeight, formula.priorityWeight + max(0, 10 - formula.daysUntilNext))'
 		);
 	});
 
@@ -363,11 +432,11 @@ describe("defaultBasesFiles", () => {
 
 		expect(template).toContain("due.isEmpty()");
 		expect(template).toContain("scheduled.isEmpty()");
-		expect(template).toContain(
-			`nextDateCategory: 'if(due.isEmpty() && scheduled.isEmpty(), "No date"`
+		expect(parse(template).formulas.nextDateCategory).toContain(
+			`if(due.isEmpty() && scheduled.isEmpty(), "No date"`
 		);
-		expect(template).toContain(
-			`hasDate: '(due.isEmpty() == false) || (scheduled.isEmpty() == false)'`
+		expect(parse(template).formulas.hasDate).toBe(
+			`(due.isEmpty() == false) || (scheduled.isEmpty() == false)`
 		);
 		expect(template).not.toContain("!due");
 		expect(template).not.toContain("!scheduled");
@@ -395,17 +464,7 @@ describe("defaultBasesFiles", () => {
 		expect(boost("2026-04-28T09:00:00Z")).toBeGreaterThan(boost("2026-04-28T17:00:00Z"));
 	});
 
-	it("generates a Pomodoro statistics Base from daily-note Pomodoro frontmatter", () => {
-		const template = generateBasesFileTemplate("pomodoro-stats-base", createMockPlugin() as any);
-
-		expect(template).toContain("# Pomodoro statistics");
-		expect(template).toContain('file.hasProperty("pomodoros")');
-		expect(template).toContain('note["pomodoros"]');
-		expect(template).toContain('name: "Daily"');
-		expect(template).toContain('name: "Monthly"');
-		expect(template).toContain("groupBy:\n      property: formula.pomodoroMonth");
-		expect(template).toContain("formula.completedPomos: Sum");
-		expect(template).toContain("formula.focusMinutes: Sum");
-		expect(template).not.toContain('file.hasTag("task")');
+	it("does not generate retired Pomodoro statistics Bases", () => {
+		expect(generateBasesFileTemplate("pomodoro-stats-base", createMockPlugin() as any)).toBe("");
 	});
 });

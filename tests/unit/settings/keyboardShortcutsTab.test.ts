@@ -3,7 +3,7 @@ import {
 	formatShortcutOwnerLabel,
 	partitionShortcutOwners,
 	pushKeyboardShortcutCaptureScope,
-} from "../../../src/settings/tabs/keyboardShortcutsTab";
+} from "../../../src/settings/native/keyboardShortcutsTab";
 import type { UserMappedField } from "../../../src/types/settings";
 
 describe("keyboard shortcut owner labels", () => {
