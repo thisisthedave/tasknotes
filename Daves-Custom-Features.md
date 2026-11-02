@@ -4,9 +4,13 @@ The legacy implementation is on:
 
 * `task-view-keyboard-and-project-mgmt`
 
-It was developed against TaskNotes 3.2.x and must be adapted to the current TaskNotes 4.x architecture. Treat the branch as a behavioral reference and source of tests, not as code that must be merged or copied unchanged.
+It was developed against TaskNotes 3.2.x and must be adapted to the current TaskNotes 5.x architecture. Treat the branch as a behavioral reference and source of tests, not as code that must be merged or copied unchanged.
 
-## Features to port
+## Port status
+
+The keyboard-first task-card interactions, configurable shortcuts, keyboard property editing, list-property drag behavior, and selected-task multi-drag described here have been adapted to the v5 architecture on this branch. Their descriptions remain the behavioral reference; consult the current implementation and view documentation before making further changes. Jira integration and any remaining feature gaps still require individual review.
+
+## Custom feature inventory
 
 ### 1. Keyboard-first task-list interaction
 
@@ -18,7 +22,7 @@ Keyboard behavior remains active and predictable when context menus, filters, an
 
 Task-list shortcuts are configurable in settings. The implementation includes shortcut parsing, defaults, persistence, localized settings labels, and a dedicated shortcut-editing UI.
 
-Port this feature using the current settings and input architecture rather than preserving the legacy implementation structure.
+This feature is ported using the current v5 settings and input architecture rather than the legacy implementation structure.
 
 ### 3. Jira integration
 
@@ -102,4 +106,4 @@ For each slice:
 7. Run typecheck, relevant tests, lint, and build.
 8. Review the resulting diff before committing.
 
-Do not merge the full legacy branch into current main. Cherry-pick only small, isolated commits when their implementation remains compatible with the current architecture.
+Do not merge the full legacy branch into the v5 branch. Cherry-pick only small, isolated commits when their implementation remains compatible with the current architecture.

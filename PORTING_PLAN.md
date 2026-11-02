@@ -13,17 +13,20 @@ Disposition meanings:
 - **Drop**: obsolete, superseded, or too tightly tied to removed architecture.
 - **Upstream**: current `main` already provides the behavior independently; retain upstream and add only missing deltas.
 
+## Current status on the v5 keyboard branch
+
+This file records the original comparison and porting decisions; its initial executive summary and implementation slices are historical. Since that inventory was written, the keyboard focus/action layer, configurable task-card shortcuts, keyboard property editing, list-property group behavior, and selected-task multi-drag have been implemented in the v5 architecture. Do not repeat slices D-F without first checking the current code and tests. Jira integration remains the primary unported feature; assess story-point specialization separately against v5 user fields.
+
 No application code was changed as part of this investigation.
 
 ## Executive summary and recommended sequence
 
 1. **Jira integration** remains substantially absent and should be redesigned as a self-contained integration slice.
-2. **Keyboard-first task-list operation** remains only partly covered. Upstream has batch selection but not the legacy persistent focus model or action key map. Redesign it around `src/bases/TaskListView.ts`, `TaskSelectionService`, and current command/action coordinators.
-3. **Configurable task-list shortcuts** are absent. Add them only after the action layer is separated from keystroke recognition.
-4. **Story points** are absent as a first-class field, but v5 user fields overlap strongly. Decide whether a dedicated story-points experience is still worth maintaining before implementation.
-5. **Manual ordering, parent-note project defaults, modal save shortcuts, batch actions, and several correctness fixes** have upstream equivalents and should not be copied from the legacy branch.
+2. **Keyboard-first task-list operation and configurable shortcuts** have since been ported; extend the current implementation only for verified remaining behavior.
+3. **Story points** are absent as a first-class field, but v5 user fields overlap strongly. Decide whether a dedicated story-points experience is still worth maintaining before implementation.
+4. **Manual ordering, parent-note project defaults, modal save shortcuts, batch actions, and several correctness fixes** have upstream equivalents and should not be copied from the legacy branch.
 
-The safest delivery order is: Jira core mapping tests → Jira UI/import flow → keyboard focus/navigation → keyboard task actions → shortcut settings → any approved story-points specialization.
+The remaining delivery order is: Jira core mapping tests → Jira UI/import flow → any approved story-points specialization.
 
 ---
 

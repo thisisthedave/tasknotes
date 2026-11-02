@@ -1,100 +1,81 @@
-# TaskNotes development guidance
+# TaskNotes - Agent Development Guide
 
-## Project context
+This is an Obsidian plugin. The plugin ID is `tasknotes`.
 
-@README.md describes the project, its purpose, and how to use it. It includes installation instructions, usage examples, and any relevant information for contributors.
-@Tasknotes-Development-Guidelines.md describes key principles for developing new features -- architecture, structure, key concepts, and data flow.
+## Build & Test
 
-This repository is a fork of TaskNotes.
+Test using Playwright/CDP against an isolated Obsidian instance: a separate `--user-data-dir` profile and test vault, never the user's normal instance. Use `e2e/obsidian.ts`, which launches an isolated instance by default and verifies the vault path. Do not enable instance reuse; concurrent sessions need separate profiles, vaults, and debug ports.
 
-The current main branch tracks the latest upstream TaskNotes release.
-The branch containing the legacy custom implementation is:
+```bash
+npm run e2e:setup # One-time setup
+OBSIDIAN_PLUGIN_PATH="$PWD/tasknotes-e2e-vault/.obsidian/plugins/tasknotes" npm run build:test
+TASKNOTES_E2E_REUSE_OBSIDIAN=0 npm run e2e -- e2e/tasknotes.spec.ts
+```
 
-- task-view-keyboard-and-project-mgmt
+After changes, rebuild and restart or reload the plugin in the isolated instance. For ad hoc testing, explicitly target your test vault with `OBSIDIAN_PLUGIN_PATH`, verify its path over CDP, and clean up only your own instance.
 
-The legacy branch was based on TaskNotes 3.2.x.
-Current main is TaskNotes 4.11.x.
+When reproducing a reported bug by hand, record the session if your environment can, and write a short summary: the steps with times, what happened, a control case that works, and the cause if you found it. Turn a confirmed repro into `e2e/issues/issue-<number>-<slug>.spec.ts`.
 
-We are porting selected features to the new architecture rather than
-merging the legacy branch wholesale.
+## Other Build Commands
 
-## Porting priorities
+```bash
+npm test              # Run unit tests (Jest)
+npm run lint          # Lint source files
+npm run typecheck     # TypeScript type checking only
+npm run build         # Production build (without copying to vault)
+```
 
-1. Jira integration
-2. Keyboard navigation
-3. Remaining custom features, handled individually
+Ensure all code changes pass linting checks. Do not weaken linting rules in order to get changes to pass.
 
-Preserve current upstream behavior unless a requested feature explicitly
-changes it.
+---
 
-Prefer adapting features to the current architecture over copying old
-classes or abstractions unchanged.
+When you make changes, update docs/releases/unreleased.md. If your changes are related to a GitHub issue or PR, include acknowledgement of the individual who opened the issue or submitted the PR. Do not update unreleased.md for the addition of tests; unreleased.md is user-facing.
 
-@Daves-Custom-Features.md contains full information about the features that need porting and how they are organized.
+You may update `.ops/` files locally as you work on items, but do not commit `.ops/` files. `.ops/` is local-only working state.
 
-## Development rules
+## Investigating issues
 
-Before editing:
+Reproduce issues in an isolated Obsidian instance first. If you have a theory about the cause, test it.
 
-- Inspect the current implementation.
-- Inspect the corresponding legacy implementation and its Git history.
-- Describe the proposed porting approach.
-- Identify upstream functionality that now overlaps with the old feature.
+Not all reported issues will require changes to the code, and not all feature requests need to be implemented; Bases are very powerful, but can be difficult to navigate. If something is not working, or is being asked for, figure out if it is--or can be--achieved through Bases first.
 
-While editing:
-- For any new class, module, or function, always write a doc comment for the entity explaining
-  its main responsibilities, and pre/post conditions if appropriate.
-- Whenever adding new functionality, add a comment at the point in code that is the fulcrum of the
-  new feature explaining what it is doing and why.
+## Prepare a release — no publication implied
 
-After editing, run the most relevant checks:
+When asked to prepare a release:
 
-- npm run typecheck
-- npm test -- --runInBand
-- npm run lint
-- npm run build
+1. Use a dedicated release worktree and committed source changes. Preserve unrelated dirty/untracked files and unpushed work in the canonical checkout; never reset, stash or clean them to prepare a release. Do not create a PR.
+2. Follow @I18N_GUIDE.md. Translations must be current and in their target languages, not English placeholders.
+3. Run ALL tests, strict lint, typecheck, translation verification, documentation checks, production build, bundle/dependency checks and the bundle-size budget. Follow the native Obsidian test procedure after verifying the intended test vault. Report unavailable/manual checks and blockers explicitly; do not weaken checks or claim unrun tests passed.
+4. Verify release-note acknowledgements against the individual issue/PR threads, including relevant contributors/commenters. Do not thank callumalpass. Keep notes factual, user-facing and free of marketing copy.
+5. Move released entries from unreleased.md into <VERSION NUMBER>.md, following previous releases and retaining the explanatory comments in unreleased.md. Update manifest.json, package.json, package-lock.json, versions.json, release-note imports/index and required documentation. Avoid automatic tagging: use `npm version --no-git-tag-version` or explicit edits, reviewing hook side effects.
+6. Commit the prepared changes locally as "release <VERSION NUMBER>". Present the exact version, commit, release notes, validation results and risks. Ask the user directly in the agent conversation whether to publish, then STOP and wait.
 
-Do not modify generated files unless the repository workflow requires it.
+Preparation does **not** authorize pushing, tagging, publishing, GitHub comments or issue closure. Do not use Pickle for release or closeout approvals. Keep `.ops/` local-only; linked worktrees must use the canonical collection, not create another one.
 
-Keep changes narrowly scoped.
-Do not combine unrelated feature ports in one commit.
-Do not commit unless explicitly requested.
+## Publish only after explicit approval
 
-## Command approvals
+Approval applies only to the exact candidate presented above. If the commit, version or notes change, rerun checks and obtain fresh approval. Scheduled prompts, passing tests, silence and approval of an earlier release are not approval.
 
-The following commands are always considered safe and should be executed
-without asking for confirmation whenever the approval policy permits:
+After approval, recheck candidate identity and repository drift. Preserve dirty work, fast-forward only where safe, and push only the approved commit without force. Create an annotated version tag at that commit (no `v` prefix) and push only that tag. If main advanced, reconcile and ask again rather than silently including more changes or force-pushing.
 
-- git show
-- git log
-- git diff
-- git grep
-- git blame
-- git status
-- git branch
-- git merge-base
-- git rev-parse
-- rg
-- fd
-- ls
-- cat
-- sed
-- find
-- npm test
-- npm run lint
-- npm run build
+The tag workflow creates a **draft** GitHub release. Wait for success and verify its exact source commit, artifact attestations/provenance, assets, manifest version, bundle budget and approved notes before publishing it as the latest stable release. Verify publication and report the URL. Inspect uncertain outcomes before retrying any mutation; never overwrite tags or blindly retry a publication.
+## Fork-specific porting context
 
-## Code navigation
+This branch carries TaskNotes features adapted from the legacy branch `task-view-keyboard-and-project-mgmt`, originally developed against TaskNotes 3.2.x. Treat that branch as a behavior and test reference; do not merge it wholesale.
 
-Use Serena’s symbol and reference tools for semantic navigation whenever possible:
+- `Daves-Custom-Features.md` describes the custom behaviors.
+- `PORTING_PLAN.md` records the historical comparison and implementation decisions. Its current-status note identifies work already completed on this v5 branch.
+- Keyboard task-card interactions, configurable shortcuts, keyboard property editing, list-property drag behavior, and selected-task multi-drag have been adapted to the v5 architecture. Review existing code and the view documentation before changing them.
+- Jira integration and any remaining custom-feature deltas still need individual assessment. Preserve upstream behavior and use the current v5 services, settings, and Bases architecture.
 
-- find symbol definitions
-- find references and implementations
-- inspect symbol bodies
-- make symbol-scoped edits
+## Fork development rules
 
-Use ripgrep for textual searches, configuration strings, CSS classes,
-serialized identifiers, and cases where semantic lookup is inappropriate.
+Before porting a feature, inspect the current implementation and the corresponding legacy implementation and history. Describe the proposed approach and identify overlapping upstream functionality before editing.
 
-## Internationalization
-Localize all user-facing strings. Refer to the internationalization guide @I18N_GUIDE.md.
+For each new class, module, or function, add a doc comment describing its responsibility and relevant preconditions or postconditions. When adding functionality, comment at its key implementation point to explain what it does and why.
+
+Keep changes narrowly scoped. Do not combine unrelated feature ports in one commit, and do not commit unless explicitly requested. Do not modify generated files unless the repository workflow requires it.
+
+After code changes, run the relevant checks, including `npm run typecheck`, `npm test -- --runInBand`, `npm run lint`, and `npm run build`. Localize all user-facing strings according to `I18N_GUIDE.md`.
+
+Use Serena symbol and reference tools for code navigation when available. Use ripgrep for textual searches, configuration strings, CSS classes, and serialized identifiers.
