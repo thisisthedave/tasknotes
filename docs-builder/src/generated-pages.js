@@ -1,9 +1,11 @@
 import fs from "fs/promises";
 import path from "path";
+import { fileURLToPath } from "url";
 import { build as bundle } from "esbuild";
 import ts from "typescript";
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+// Convert the module URL with Node's platform-aware helper so Windows drive letters and escaped spaces resolve correctly.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 function frontmatter(title, description, sourceFiles) {
 	return [

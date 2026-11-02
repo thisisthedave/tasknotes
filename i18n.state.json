@@ -2020,6 +2020,10 @@
       "source": "efe6795d4c7e0e06a8950f51c2a37070e27989b1",
       "translation": "bf23216f1ae17a4b6404808f07c514f32c16399d"
     },
+    "settings.tabs.keyboardShortcuts": {
+      "source": "266695479a949eec44dea9db4e15fba00163f04e",
+      "translation": "58262f7de46a85036055146df26bc2b7a4accc3d"
+    },
     "settings.tabs.defaults": {
       "source": "791c4dc17d9b67ba065e8e94d65f1c4d54638e6a",
       "translation": "7cf4bdea0ab8675d0b6d8d747042ce35d6779f82"
@@ -2032,54 +2036,310 @@
       "source": "fc338f87a058158eb824b53705961801516a9460",
       "translation": "c5f23a4eba091c54c9fe0afeca4dbfa596554fd5"
     },
-    "settings.tabs.keyboardShortcuts": null,
     "settings.tabs.integrations": {
       "source": "a7881cac6e64abca5eafd172df6eb31fe0b84c88",
       "translation": "a5126e7c9412cef1a03d744ebed395eb7214db26"
     },
-    "settings.keyboardShortcuts.header": null,
-    "settings.keyboardShortcuts.description": null,
-    "settings.keyboardShortcuts.actionDescription": null,
-    "settings.keyboardShortcuts.add": null,
-    "settings.keyboardShortcuts.remove": null,
-    "settings.keyboardShortcuts.captureHint": null,
-    "settings.keyboardShortcuts.recording": null,
-    "settings.keyboardShortcuts.confirmTitle": null,
-    "settings.keyboardShortcuts.confirmMessage": null,
-    "settings.keyboardShortcuts.confirm": null,
-    "settings.keyboardShortcuts.resetAction": null,
-    "settings.keyboardShortcuts.resetAll": null,
-    "settings.keyboardShortcuts.resetAllDescription": null,
-    "settings.keyboardShortcuts.conflict": null,
-    "settings.keyboardShortcuts.duplicateTitle": null,
-    "settings.keyboardShortcuts.duplicateMessage": null,
-    "settings.keyboardShortcuts.replace": null,
-    "settings.keyboardShortcuts.actions.navigate-next": null,
-    "settings.keyboardShortcuts.actions.navigate-previous": null,
-    "settings.keyboardShortcuts.actions.jump-first": null,
-    "settings.keyboardShortcuts.actions.jump-last": null,
-    "settings.keyboardShortcuts.actions.clear-focus-and-selection": null,
-    "settings.keyboardShortcuts.actions.toggle-select": null,
-    "settings.keyboardShortcuts.actions.select-all": null,
-    "settings.keyboardShortcuts.actions.copy-task-titles": null,
-    "settings.keyboardShortcuts.actions.toggle-archive": null,
-    "settings.keyboardShortcuts.actions.create-task": null,
-    "settings.keyboardShortcuts.actions.focus-search": null,
-    "settings.keyboardShortcuts.actions.edit-task": null,
-    "settings.keyboardShortcuts.actions.open-context-menu": null,
-    "settings.keyboardShortcuts.actions.open-task-notes": null,
-    "settings.keyboardShortcuts.actions.edit-due": null,
-    "settings.keyboardShortcuts.actions.edit-scheduled": null,
-    "settings.keyboardShortcuts.actions.edit-priority": null,
-    "settings.keyboardShortcuts.actions.mark-complete": null,
-    "settings.keyboardShortcuts.actions.edit-status": null,
-    "settings.keyboardShortcuts.actions.edit-recurrence": null,
-    "settings.keyboardShortcuts.actions.add-tags": null,
-    "settings.keyboardShortcuts.actions.add-context": null,
-    "settings.keyboardShortcuts.actions.add-project": null,
-    "settings.keyboardShortcuts.actions.delete-tasks": null,
-    "settings.keyboardShortcuts.addUserField": null,
-    "settings.keyboardShortcuts.addUserFieldDescription": null,
+    "settings.modalFields.header": {
+      "source": "463769fb01686447dfedbb494aa058ba8f025686",
+      "translation": "1c8884243cf0c85914baa66e6f2c68becd360b06"
+    },
+    "settings.modalFields.description": {
+      "source": "15ec3cb1720d8b370a1e04d4ca7a0b3ddd8567fc",
+      "translation": "86be7519e3afe1f7cbc90aca847ee96df5387b48"
+    },
+    "settings.modalFields.splitLayout.name": {
+      "source": "60564be9095b0be664a9d1ea663ac74e5ccef220",
+      "translation": "18ae8c2d4e5cdedc39503ec0ae97529e4e43e2b4"
+    },
+    "settings.modalFields.splitLayout.description": {
+      "source": "c37507b5356b91ddc9b2ecffb71ed8aa9bd99bc5",
+      "translation": "9b39ccfb994f3d9eae6689397b34efaebc42b033"
+    },
+    "settings.modalFields.tabMovesFocus.name": {
+      "source": "6d204daa67216709d1eb3f9c6f72b0d5289ee66b",
+      "translation": "2e361736b4089daddc836b4446cea66db9f117e4"
+    },
+    "settings.modalFields.tabMovesFocus.description": {
+      "source": "2f4053ebbcf6766caa54489d1f64196cb4b1d65f",
+      "translation": "889a6f713a55b4f3ffad61bb12d18ca0f9bd05ad"
+    },
+    "settings.modalFields.sync.name": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "fe8449f8f95f8191bc3897b265d697eb4d0dcf41"
+    },
+    "settings.modalFields.sync.description": {
+      "source": "d5ff882897bbaa153719e8cd96f42c1884977a9c",
+      "translation": "b6c693a72869a8f17fe9b05a56a0ca686527640b"
+    },
+    "settings.modalFields.sync.button": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "fe8449f8f95f8191bc3897b265d697eb4d0dcf41"
+    },
+    "settings.modalFields.sync.notice": {
+      "source": "9e18b026eb848fc00a0f405979ab0999ee69be0f",
+      "translation": "2453520487be5b54f5ffb7fa055213652be27f2e"
+    },
+    "settings.modalFields.reset.name": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "25c66b592a36fe0ae75dbf2bbadf30184d9acb95"
+    },
+    "settings.modalFields.reset.description": {
+      "source": "af2b7f65f817989f953ee108fa2ac0a3eff97670",
+      "translation": "8a854a06d4912af03ab58655161a98ce630e57b9"
+    },
+    "settings.modalFields.reset.button": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "25c66b592a36fe0ae75dbf2bbadf30184d9acb95"
+    },
+    "settings.modalFields.reset.confirmTitle": {
+      "source": "b4dfd2ca17670f8eacf7a8fe142e22522f450b40",
+      "translation": "13012892aa18c7cf1adc3ca8ed99262c86d96ed9"
+    },
+    "settings.modalFields.reset.confirmMessage": {
+      "source": "b8b0d02597a163dd9e687912551e2052b26b5234",
+      "translation": "233a0c8d5e642bb67a1edeff2600d605a6a35859"
+    },
+    "settings.modalFields.reset.confirmText": {
+      "source": "44c57abd888a66b36d4b7c902134063e4a097223",
+      "translation": "a4565af537e249212aafed5c76f83455d6918604"
+    },
+    "settings.modalFields.reset.cancelText": {
+      "source": "77dfd2135f4db726c47299bb55be26f7f4525a46",
+      "translation": "07af7cb30fca13091b0c2f0831dc8283e9f24965"
+    },
+    "settings.modalFields.reset.notice": {
+      "source": "998a1e127a85d5e119fa538c08e07eacc044ad68",
+      "translation": "294db27eda4e037c13d6433ef7fa5eef9b3f7596"
+    },
+    "settings.modalFields.initError": {
+      "source": "813bc1f0be1c2c8d047659e061029b41300e43ef",
+      "translation": "766f11b01181a27f3e3a7907b33c3ca4672379bc"
+    },
+    "settings.modalFields.manager.invalidConfig": {
+      "source": "e4d5672cae6c369bd1cd23a8c950e044319a6662",
+      "translation": "337eafc4d6036ab874774353a4875c78ccd838cb"
+    },
+    "settings.modalFields.manager.emptyGroup": {
+      "source": "f2ef4e6d48d44c229ecb83b3d3e799df8a8eb367",
+      "translation": "7134291c895e9630f07ae3ea3a97f62292c22d9c"
+    },
+    "settings.modalFields.manager.enabled": {
+      "source": "f1b45b4b3bf49e9b92c8251ac538f4cfff36209a",
+      "translation": "17dc08a74fc36573037e8289fc1191d92c8a37c0"
+    },
+    "settings.modalFields.manager.showInCreation": {
+      "source": "b8e50d533a687b109bf799f060eafd36221d094a",
+      "translation": "d7aeeca4e22b12c44dd2aed29c37c7c5c49d3ff1"
+    },
+    "settings.modalFields.manager.showInEdit": {
+      "source": "1933e97174ad50029164292cdf98e28d9f951a76",
+      "translation": "8afbf33982d23d7ab63b7d4cd58a5bac5f1402f4"
+    },
+    "settings.modalFields.manager.group": {
+      "source": "c04773b71e46b5ce75774be4f01e3902119b03f8",
+      "translation": "1f5a2cef6105d11689329ef2b18cd5fb774cf5e6"
+    },
+    "settings.modalFields.manager.fieldId": {
+      "source": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1",
+      "translation": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1"
+    },
+    "settings.modalFields.manager.fieldKey": {
+      "source": "ac49e227c79e530ebc416022e7d86a93765313e3",
+      "translation": "50c7bae61ef45c80b7cb3a22367cbdefe5bfa789"
+    },
+    "settings.modalFields.manager.noKey": {
+      "source": "367b4a155f777aae3242c44f81ca50aae3a6dee6",
+      "translation": "dda0d52e1883640d89ebdeaad8069c4e787371a6"
+    },
+    "settings.modalFields.manager.fieldTypes.core": {
+      "source": "68836c550ee20fae0e06b2994e76a40348d2fc30",
+      "translation": "db0ed9a8c975ccd2eb1ac28b718db0a7b0580969"
+    },
+    "settings.modalFields.manager.fieldTypes.user": {
+      "source": "9f8a2389a20ca0752aa9e95093515517e90e194c",
+      "translation": "f054b12e1a9104c4baca11ed44b7f24bd25a2df5"
+    },
+    "settings.modalFields.manager.fieldTypes.dependency": {
+      "source": "ce311abe7bbcb35898a8ac0bf7c2dca01106d8f6",
+      "translation": "b9735c32c3681d26b56607d8fe948361bab3abe3"
+    },
+    "settings.modalFields.manager.fieldTypes.organization": {
+      "source": "519255ae1f74ffc5ddd29979295c7572f048ad81",
+      "translation": "6e99c1d3b1502c090dcd07ad2e7110ed5c0118a9"
+    },
+    "settings.keyboardShortcuts.header": {
+      "source": "3fedd656b7907df71597d5fd3d00de0bc273d1c4",
+      "translation": "7924b1180ff94596fb4b5d6dc636c8ba1a81cf0d"
+    },
+    "settings.keyboardShortcuts.description": {
+      "source": "bfd1d4089875cb53d4d40763ab6dbf8ed25ec7a2",
+      "translation": "e4a90d8a94485cc38b4f8ff132771f1ec10c07ff"
+    },
+    "settings.keyboardShortcuts.actionDescription": {
+      "source": "b0620d440c1bfec2ca80935171d7691818ea002e",
+      "translation": "70f9bb061268a5dc28a9f66d54045acc921f4997"
+    },
+    "settings.keyboardShortcuts.add": {
+      "source": "8b908560b10b3da34c4d5586108f0491dbd8855f",
+      "translation": "b3159922f53945dcf32023ed3c5ee30d7cfcefb2"
+    },
+    "settings.keyboardShortcuts.remove": {
+      "source": "0e000d01cc293b590d5c64862cad91bbf76489f1",
+      "translation": "c6d8b4c4c07f80e9850411742e4cf2278d62adc9"
+    },
+    "settings.keyboardShortcuts.captureHint": {
+      "source": "d71568c24bcac6f4afa4e72cbc4c0a7c0e0c9426",
+      "translation": "8d61149ef11b0dc6aa38d802f84fcc3cf71ca09a"
+    },
+    "settings.keyboardShortcuts.recording": {
+      "source": "98b8167e219d62a3861686ed819db30c69eac809",
+      "translation": "1fcdad3146b72251b26b703db0457b8861315518"
+    },
+    "settings.keyboardShortcuts.confirmTitle": {
+      "source": "aee8a9be17d8f68e4e791a5af4b7679a8c7415f8",
+      "translation": "b6c4fe8a9a627d0c9af5ec78b9130bf4dde7c89c"
+    },
+    "settings.keyboardShortcuts.confirmMessage": {
+      "source": "ecda59f41be584195485db7e44879ad1c71892c9",
+      "translation": "586a4249ae642ff022ccb1fe4010c436ccdd52dc"
+    },
+    "settings.keyboardShortcuts.confirm": {
+      "source": "61cc55aa0453184734c3fa0b621eda6fa874bd83",
+      "translation": "f0d37b9d26bb92f2554874ecc8046b05ad015655"
+    },
+    "settings.keyboardShortcuts.resetAction": {
+      "source": "a484a49884b0960a2c0312f1530ab30dd2a00d99",
+      "translation": "9da08f0a5bb8a5d0f22f80a7571b1c81360bc00e"
+    },
+    "settings.keyboardShortcuts.resetAll": {
+      "source": "cdaa7ba41263eb1d4bd2be803a6ce7b2435fa6b1",
+      "translation": "8cf99020401d48e7f4c1f3c8e3500c0daa3a72ec"
+    },
+    "settings.keyboardShortcuts.resetAllDescription": {
+      "source": "ccea6c2e0713e07f5c5d6f1fb6d05e16db7e7b05",
+      "translation": "70f707e412ae0365dec3f42228559331256a4f8c"
+    },
+    "settings.keyboardShortcuts.conflict": {
+      "source": "e6f952f6c9af5a621240ab78b67b09ac57341150",
+      "translation": "088127fe4a307629f9dfa084afba7e9ed63edef5"
+    },
+    "settings.keyboardShortcuts.duplicateTitle": {
+      "source": "fafff5ca4a1e594f4ef879ad5ad6737579380826",
+      "translation": "7ce88bd094d4915ccc097850c7d27329e9480cd9"
+    },
+    "settings.keyboardShortcuts.duplicateMessage": {
+      "source": "d879576f38c2be6b61803bd89bc60467663b3581",
+      "translation": "7b4e5e2ac101881cead567a399bcffc4bc9d6a1b"
+    },
+    "settings.keyboardShortcuts.replace": {
+      "source": "a7cf7b25a703b308887c7f1d100c4326ef20ac46",
+      "translation": "0556e76a16ceb6c7c5314703565ccf0a618247ab"
+    },
+    "settings.keyboardShortcuts.actions.navigate-next": {
+      "source": "79aca4bc3e93782027c4b1a816a6d90147ef773c",
+      "translation": "b22bbe4ba8167f772ff9f402fb29a4e461024bbe"
+    },
+    "settings.keyboardShortcuts.actions.navigate-previous": {
+      "source": "1a8e9715cc69f9ba4aafe88c18da9d1df2b1145d",
+      "translation": "eb0c7f37b87d8a177d34c3f01e4fdaac1209b3a7"
+    },
+    "settings.keyboardShortcuts.actions.jump-first": {
+      "source": "727e80658259f01259f220f7f613d9e1875c0979",
+      "translation": "39c5843fbfca2fbc3493260d026baeef791c3576"
+    },
+    "settings.keyboardShortcuts.actions.jump-last": {
+      "source": "7d84df2bbf7de545d1649f3258f2cd83bdb8a167",
+      "translation": "56b863a22cd55b882a67c3b7e503e71d421a486e"
+    },
+    "settings.keyboardShortcuts.actions.clear-focus-and-selection": {
+      "source": "029660c154900884b2beb3682f2d1f3b6db1a162",
+      "translation": "99e5f9b894659ee896a2cd77aabdaf8cf293250a"
+    },
+    "settings.keyboardShortcuts.actions.toggle-select": {
+      "source": "7b96fbd541821b4e1bf62b73426577c22d80d7c7",
+      "translation": "f044f51841a1c41a6237aee5e4c754dafa8e4379"
+    },
+    "settings.keyboardShortcuts.actions.select-all": {
+      "source": "ed45a52fc7e6617b02f579ca9387687013bf9497",
+      "translation": "b09cc3a4846366b0b9bc49f3b453a7e4bc9bbc6b"
+    },
+    "settings.keyboardShortcuts.actions.copy-task-titles": {
+      "source": "3872aa3135d4ce4539906f51b4f703974f03d87b",
+      "translation": "25cb3f6edc63f1a9506c6f79b3ff16efbcf57d07"
+    },
+    "settings.keyboardShortcuts.actions.toggle-archive": {
+      "source": "825f484bb9bf0857b94bed53810b917c00319d50",
+      "translation": "8e5f75dd1f835db6e275cd354091cb85586dcfc3"
+    },
+    "settings.keyboardShortcuts.actions.create-task": {
+      "source": "f1f1450ff80aeab91cb0853329e2b454904866e2",
+      "translation": "488d83103a8236915faa3e85250e6f7a4be0ee0b"
+    },
+    "settings.keyboardShortcuts.actions.focus-search": {
+      "source": "4c50e4cc8f632550e30c2e328cc5aaaba2ba38b4",
+      "translation": "e4e8c372ea93c57712301ae248830dfbfda5f19d"
+    },
+    "settings.keyboardShortcuts.actions.edit-task": {
+      "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
+      "translation": "be02f3392dd894bf6d897e8d076e137b6d45092e"
+    },
+    "settings.keyboardShortcuts.actions.open-context-menu": {
+      "source": "6c16e06070c95cf43cd041a19910605ba3283686",
+      "translation": "ca7c0db665b1bc0b82bed3f3fdd5b7cab78d258f"
+    },
+    "settings.keyboardShortcuts.actions.open-task-notes": {
+      "source": "fbd1aa98301dadc1150aea34db34c2d99cad2063",
+      "translation": "c8af2b28cce336c5ebd1fd6d6087f04a61a976e3"
+    },
+    "settings.keyboardShortcuts.actions.edit-due": {
+      "source": "3fc38cbf2d3ac4d799d8de76edbb438e4bfff385",
+      "translation": "030b91c08190cdb3641d93b8cdba802c0f9a6670"
+    },
+    "settings.keyboardShortcuts.actions.edit-scheduled": {
+      "source": "305b14722146b4a9e6e179117634159cac74cde9",
+      "translation": "cc1e6dcc3f9ac9f4368eb5410785680ca6e4276c"
+    },
+    "settings.keyboardShortcuts.actions.edit-priority": {
+      "source": "1c7d6d645c7a926a01073e9de0d7734e8709e609",
+      "translation": "134e15ee328d1a7e46cfaba028466be35a58e83f"
+    },
+    "settings.keyboardShortcuts.actions.mark-complete": {
+      "source": "0c018491b96aadfff5ebeb45434a2945bdd12741",
+      "translation": "245b06fe4ef82fded114f407f1e2d750804a7441"
+    },
+    "settings.keyboardShortcuts.actions.edit-status": {
+      "source": "5ce5926a2ad6ab7245915ed31f5b7e22aac248e0",
+      "translation": "22feea6550b15d9a118656156fba1d4b57fe372b"
+    },
+    "settings.keyboardShortcuts.actions.edit-recurrence": {
+      "source": "fa219424af91af97c6840dc113a9a352be944f0e",
+      "translation": "32e0fc0274c4be5f4632d601ff1c4e38bfb26046"
+    },
+    "settings.keyboardShortcuts.actions.add-tags": {
+      "source": "1dd02addd0de918d132176c95f135b77bf5eb0a4",
+      "translation": "f307b1608bb814677129dc0dab0f11fb4784c265"
+    },
+    "settings.keyboardShortcuts.actions.add-context": {
+      "source": "08dae0bb10f5fe62e0690120e879d382a19d7aab",
+      "translation": "4605bc66c873939b62844667cb54d16fcd0de850"
+    },
+    "settings.keyboardShortcuts.actions.add-project": {
+      "source": "2470e8667bfae5270588f1574daf0d7cd7a89c41",
+      "translation": "9eec2fbf43cb2ddc8ece2e75e199d5e899031147"
+    },
+    "settings.keyboardShortcuts.actions.delete-tasks": {
+      "source": "c25eb923d2de14b426e095b6b921d59ffc263000",
+      "translation": "a3003a89ef367dd3aa4f4a4d3c87b6f5ec2c5660"
+    },
+    "settings.keyboardShortcuts.addUserField": {
+      "source": "987991424835f2af04f31917e0743036bc17677f",
+      "translation": "b9ac0f12e426016f99500462d38d71fb900dd084"
+    },
+    "settings.keyboardShortcuts.addUserFieldDescription": {
+      "source": "b9cb91cbe4c008c1c83ae5f72e79a6a9cfaaa2be",
+      "translation": "0dc87da2687635d4432bce36f3e7efff311278b6"
+    },
     "settings.features.inlineTasks.header": {
       "source": "a0f498bf59b33369a6a0aca916b487fd04ea40a7",
       "translation": "f98acefe1cdc9c888903a42f94689b0e6d7bef41"
@@ -3112,11 +3372,26 @@
       "source": "da2d900ba2974dde90a7c9b3744359f33043415e",
       "translation": "a6ded3a1f1196f191ef32976bbfc3fd3ceb97e81"
     },
-    "settings.general.taskInteraction.groupDropBehavior.name": null,
-    "settings.general.taskInteraction.groupDropBehavior.description": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replace": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.add": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": null,
+    "settings.general.taskInteraction.groupDropBehavior.name": {
+      "source": "594a13d04608b9fc5bc7a1d18e2a3ff0ecf8de0f",
+      "translation": "f0aaeb77ed9bfdaa03e1305e1f8c67030666acbb"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.description": {
+      "source": "4e3698613ba53d069533f3f5fc8fd560f163ce6e",
+      "translation": "6ef225e566185c07f043f43ca5f430192d3af6b5"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replace": {
+      "source": "88dfbf0e4144d8386399ff19c8bcac06530b0be8",
+      "translation": "6f741287b1900ab76ba25ef4200c9caa19e9c041"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.add": {
+      "source": "acb1678a253322aa33effe9c6171a30bb39ebd56",
+      "translation": "80432c7c0347f9abe0427b68872d8efc0b35052e"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": {
+      "source": "4da18f4aae22fa12834bfd87996d1acf34124cc8",
+      "translation": "7cca1446883af66ef2394ab5b62d5b6ec7b06e99"
+    },
     "settings.general.taskInteraction.actions.edit": {
       "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
       "translation": "be02f3392dd894bf6d897e8d076e137b6d45092e"
@@ -11871,6 +12146,10 @@
       "source": "efe6795d4c7e0e06a8950f51c2a37070e27989b1",
       "translation": "e3c984db64a3b6eef9e61e680368529cd576969a"
     },
+    "settings.tabs.keyboardShortcuts": {
+      "source": "266695479a949eec44dea9db4e15fba00163f04e",
+      "translation": "e915670c03317e7f50488667ba7f4d33b59e4e54"
+    },
     "settings.tabs.defaults": {
       "source": "791c4dc17d9b67ba065e8e94d65f1c4d54638e6a",
       "translation": "7f1eb566d087942d9f0996d203b3bf126610d85c"
@@ -11883,54 +12162,310 @@
       "source": "fc338f87a058158eb824b53705961801516a9460",
       "translation": "2d11e4ac40f26bfed27c58007396a58483fc95e6"
     },
-    "settings.tabs.keyboardShortcuts": null,
     "settings.tabs.integrations": {
       "source": "a7881cac6e64abca5eafd172df6eb31fe0b84c88",
       "translation": "6082310864faed1ba917afb4164aae29fb80803a"
     },
-    "settings.keyboardShortcuts.header": null,
-    "settings.keyboardShortcuts.description": null,
-    "settings.keyboardShortcuts.actionDescription": null,
-    "settings.keyboardShortcuts.add": null,
-    "settings.keyboardShortcuts.remove": null,
-    "settings.keyboardShortcuts.captureHint": null,
-    "settings.keyboardShortcuts.recording": null,
-    "settings.keyboardShortcuts.confirmTitle": null,
-    "settings.keyboardShortcuts.confirmMessage": null,
-    "settings.keyboardShortcuts.confirm": null,
-    "settings.keyboardShortcuts.resetAction": null,
-    "settings.keyboardShortcuts.resetAll": null,
-    "settings.keyboardShortcuts.resetAllDescription": null,
-    "settings.keyboardShortcuts.conflict": null,
-    "settings.keyboardShortcuts.duplicateTitle": null,
-    "settings.keyboardShortcuts.duplicateMessage": null,
-    "settings.keyboardShortcuts.replace": null,
-    "settings.keyboardShortcuts.actions.navigate-next": null,
-    "settings.keyboardShortcuts.actions.navigate-previous": null,
-    "settings.keyboardShortcuts.actions.jump-first": null,
-    "settings.keyboardShortcuts.actions.jump-last": null,
-    "settings.keyboardShortcuts.actions.clear-focus-and-selection": null,
-    "settings.keyboardShortcuts.actions.toggle-select": null,
-    "settings.keyboardShortcuts.actions.select-all": null,
-    "settings.keyboardShortcuts.actions.copy-task-titles": null,
-    "settings.keyboardShortcuts.actions.toggle-archive": null,
-    "settings.keyboardShortcuts.actions.create-task": null,
-    "settings.keyboardShortcuts.actions.focus-search": null,
-    "settings.keyboardShortcuts.actions.edit-task": null,
-    "settings.keyboardShortcuts.actions.open-context-menu": null,
-    "settings.keyboardShortcuts.actions.open-task-notes": null,
-    "settings.keyboardShortcuts.actions.edit-due": null,
-    "settings.keyboardShortcuts.actions.edit-scheduled": null,
-    "settings.keyboardShortcuts.actions.edit-priority": null,
-    "settings.keyboardShortcuts.actions.mark-complete": null,
-    "settings.keyboardShortcuts.actions.edit-status": null,
-    "settings.keyboardShortcuts.actions.edit-recurrence": null,
-    "settings.keyboardShortcuts.actions.add-tags": null,
-    "settings.keyboardShortcuts.actions.add-context": null,
-    "settings.keyboardShortcuts.actions.add-project": null,
-    "settings.keyboardShortcuts.actions.delete-tasks": null,
-    "settings.keyboardShortcuts.addUserField": null,
-    "settings.keyboardShortcuts.addUserFieldDescription": null,
+    "settings.modalFields.header": {
+      "source": "463769fb01686447dfedbb494aa058ba8f025686",
+      "translation": "0e30eb4440bba845e74e2b53c903a8753cea4fb3"
+    },
+    "settings.modalFields.description": {
+      "source": "15ec3cb1720d8b370a1e04d4ca7a0b3ddd8567fc",
+      "translation": "a7b8cc9ca58cf64922067e377d560c387fb87c5e"
+    },
+    "settings.modalFields.splitLayout.name": {
+      "source": "60564be9095b0be664a9d1ea663ac74e5ccef220",
+      "translation": "d897749102aefcfefcd83b1b35645fbf73c87ef8"
+    },
+    "settings.modalFields.splitLayout.description": {
+      "source": "c37507b5356b91ddc9b2ecffb71ed8aa9bd99bc5",
+      "translation": "a3cd772ae2275eeb10790306c2cce3f408456805"
+    },
+    "settings.modalFields.tabMovesFocus.name": {
+      "source": "6d204daa67216709d1eb3f9c6f72b0d5289ee66b",
+      "translation": "5f92f0b2f5d2b810dd48045f91aedc161c217de5"
+    },
+    "settings.modalFields.tabMovesFocus.description": {
+      "source": "2f4053ebbcf6766caa54489d1f64196cb4b1d65f",
+      "translation": "9c291ce54df0a67324b7229f8d6854091d99d0c6"
+    },
+    "settings.modalFields.sync.name": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "a46cad52c56b97534118ac146e3f6caa5813d31d"
+    },
+    "settings.modalFields.sync.description": {
+      "source": "d5ff882897bbaa153719e8cd96f42c1884977a9c",
+      "translation": "9f270ea4708e441f87a7399d8f0ae348dfc01b06"
+    },
+    "settings.modalFields.sync.button": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "a46cad52c56b97534118ac146e3f6caa5813d31d"
+    },
+    "settings.modalFields.sync.notice": {
+      "source": "9e18b026eb848fc00a0f405979ab0999ee69be0f",
+      "translation": "7a533685872d5da96588ec2caaa82c523416aa33"
+    },
+    "settings.modalFields.reset.name": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "a7933939f20524a980c41a0ee141e4110f05b81a"
+    },
+    "settings.modalFields.reset.description": {
+      "source": "af2b7f65f817989f953ee108fa2ac0a3eff97670",
+      "translation": "8521bdb7bffb1b3f7ad816b295c3f4e847dc969b"
+    },
+    "settings.modalFields.reset.button": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "a7933939f20524a980c41a0ee141e4110f05b81a"
+    },
+    "settings.modalFields.reset.confirmTitle": {
+      "source": "b4dfd2ca17670f8eacf7a8fe142e22522f450b40",
+      "translation": "cc5af4309fb2a7a4a919c01938b5dd1dafa88c3f"
+    },
+    "settings.modalFields.reset.confirmMessage": {
+      "source": "b8b0d02597a163dd9e687912551e2052b26b5234",
+      "translation": "ed1cd01ae8da8dfb99b167129aa046d64e12d507"
+    },
+    "settings.modalFields.reset.confirmText": {
+      "source": "44c57abd888a66b36d4b7c902134063e4a097223",
+      "translation": "1d3af0366511001349bfedd65d728f476e337206"
+    },
+    "settings.modalFields.reset.cancelText": {
+      "source": "77dfd2135f4db726c47299bb55be26f7f4525a46",
+      "translation": "c111e0ab9ddb1dfb79f8a12c741ba6dbdb07992a"
+    },
+    "settings.modalFields.reset.notice": {
+      "source": "998a1e127a85d5e119fa538c08e07eacc044ad68",
+      "translation": "be45fbc0477703a00bf419dd073c5afcdc42d82e"
+    },
+    "settings.modalFields.initError": {
+      "source": "813bc1f0be1c2c8d047659e061029b41300e43ef",
+      "translation": "71a8b5a00ed0dc650922d43d52d11d71c1101f70"
+    },
+    "settings.modalFields.manager.invalidConfig": {
+      "source": "e4d5672cae6c369bd1cd23a8c950e044319a6662",
+      "translation": "3577011b8a612dc124a58bb7f6ed180c33e88b3f"
+    },
+    "settings.modalFields.manager.emptyGroup": {
+      "source": "f2ef4e6d48d44c229ecb83b3d3e799df8a8eb367",
+      "translation": "eec67c16aeaca7957ec250e984145fea33699561"
+    },
+    "settings.modalFields.manager.enabled": {
+      "source": "f1b45b4b3bf49e9b92c8251ac538f4cfff36209a",
+      "translation": "06e0dcd77c434d5daf5b3b67244fea50ee0dd50e"
+    },
+    "settings.modalFields.manager.showInCreation": {
+      "source": "b8e50d533a687b109bf799f060eafd36221d094a",
+      "translation": "1b07c2de08fc1b735471227a3bd231ef17dd944b"
+    },
+    "settings.modalFields.manager.showInEdit": {
+      "source": "1933e97174ad50029164292cdf98e28d9f951a76",
+      "translation": "da1d2bcd01b3a70b97308e8b2303681f9f02f3c7"
+    },
+    "settings.modalFields.manager.group": {
+      "source": "c04773b71e46b5ce75774be4f01e3902119b03f8",
+      "translation": "ad3a74f3e9d7ae17762720f301f06dc921933038"
+    },
+    "settings.modalFields.manager.fieldId": {
+      "source": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1",
+      "translation": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1"
+    },
+    "settings.modalFields.manager.fieldKey": {
+      "source": "ac49e227c79e530ebc416022e7d86a93765313e3",
+      "translation": "e9272b2b1a26cf08f95bec43ca6c8d704e8b7298"
+    },
+    "settings.modalFields.manager.noKey": {
+      "source": "367b4a155f777aae3242c44f81ca50aae3a6dee6",
+      "translation": "34eb9aab1704adeb43736b54a2109bef5577cb4e"
+    },
+    "settings.modalFields.manager.fieldTypes.core": {
+      "source": "68836c550ee20fae0e06b2994e76a40348d2fc30",
+      "translation": "f3b86b13dbbc1f25f1ed8bc04e7a1e250f26a965"
+    },
+    "settings.modalFields.manager.fieldTypes.user": {
+      "source": "9f8a2389a20ca0752aa9e95093515517e90e194c",
+      "translation": "3f2ecdef3c6c3b614e34115a95b25944cfa4198a"
+    },
+    "settings.modalFields.manager.fieldTypes.dependency": {
+      "source": "ce311abe7bbcb35898a8ac0bf7c2dca01106d8f6",
+      "translation": "f7542aa6aee095b9dd421d76d3559086beb575dd"
+    },
+    "settings.modalFields.manager.fieldTypes.organization": {
+      "source": "519255ae1f74ffc5ddd29979295c7572f048ad81",
+      "translation": "b42872a07b3eeb193a65e6374a714db3cb20a825"
+    },
+    "settings.keyboardShortcuts.header": {
+      "source": "3fedd656b7907df71597d5fd3d00de0bc273d1c4",
+      "translation": "bf7d136fd74b7ca8638f3a8ae28f0f3bbe7b9d74"
+    },
+    "settings.keyboardShortcuts.description": {
+      "source": "bfd1d4089875cb53d4d40763ab6dbf8ed25ec7a2",
+      "translation": "eebe6539902be4d57bc4f6ad1151ae242f9dbf9f"
+    },
+    "settings.keyboardShortcuts.actionDescription": {
+      "source": "b0620d440c1bfec2ca80935171d7691818ea002e",
+      "translation": "f8c6e1c15a2328f74b8ade4a85d41949769e2488"
+    },
+    "settings.keyboardShortcuts.add": {
+      "source": "8b908560b10b3da34c4d5586108f0491dbd8855f",
+      "translation": "41da5f9d9e0d3f3e1353cef3bd9037a6221071ec"
+    },
+    "settings.keyboardShortcuts.remove": {
+      "source": "0e000d01cc293b590d5c64862cad91bbf76489f1",
+      "translation": "16c852c10fe07779fb8cb8684fd9a7816882c68a"
+    },
+    "settings.keyboardShortcuts.captureHint": {
+      "source": "d71568c24bcac6f4afa4e72cbc4c0a7c0e0c9426",
+      "translation": "081572d4e0ae8c4fdfdd8a83bedcb0f7c7cb94ba"
+    },
+    "settings.keyboardShortcuts.recording": {
+      "source": "98b8167e219d62a3861686ed819db30c69eac809",
+      "translation": "6d16a84c9a105e02ec405e55acba4e73bb7c2dd7"
+    },
+    "settings.keyboardShortcuts.confirmTitle": {
+      "source": "aee8a9be17d8f68e4e791a5af4b7679a8c7415f8",
+      "translation": "68d46b47f49f4d017e8f4f067ff3b017b32c1603"
+    },
+    "settings.keyboardShortcuts.confirmMessage": {
+      "source": "ecda59f41be584195485db7e44879ad1c71892c9",
+      "translation": "d670185a5f19a92a6060715cf430feefc63b9c88"
+    },
+    "settings.keyboardShortcuts.confirm": {
+      "source": "61cc55aa0453184734c3fa0b621eda6fa874bd83",
+      "translation": "41261d093150199de11788622c139ef70e6e5267"
+    },
+    "settings.keyboardShortcuts.resetAction": {
+      "source": "a484a49884b0960a2c0312f1530ab30dd2a00d99",
+      "translation": "29afc98b8418512c1bfdd75fbba5bd5307319085"
+    },
+    "settings.keyboardShortcuts.resetAll": {
+      "source": "cdaa7ba41263eb1d4bd2be803a6ce7b2435fa6b1",
+      "translation": "b526c36464c4f551ac67d13ab698fd7debae6991"
+    },
+    "settings.keyboardShortcuts.resetAllDescription": {
+      "source": "ccea6c2e0713e07f5c5d6f1fb6d05e16db7e7b05",
+      "translation": "96f902c2089ed565a1270661f6ca1f8824616b53"
+    },
+    "settings.keyboardShortcuts.conflict": {
+      "source": "e6f952f6c9af5a621240ab78b67b09ac57341150",
+      "translation": "891310f97bf7560ae34832d5e1a6d62b3d48763c"
+    },
+    "settings.keyboardShortcuts.duplicateTitle": {
+      "source": "fafff5ca4a1e594f4ef879ad5ad6737579380826",
+      "translation": "2ef9d69c95ef77cda6417c0a9616a29e50127ade"
+    },
+    "settings.keyboardShortcuts.duplicateMessage": {
+      "source": "d879576f38c2be6b61803bd89bc60467663b3581",
+      "translation": "0546b5d73795d4bbbf5bd73f2b15cd808e5afc8e"
+    },
+    "settings.keyboardShortcuts.replace": {
+      "source": "a7cf7b25a703b308887c7f1d100c4326ef20ac46",
+      "translation": "b0c9848955e7829f9294255324fc3d00311a7492"
+    },
+    "settings.keyboardShortcuts.actions.navigate-next": {
+      "source": "79aca4bc3e93782027c4b1a816a6d90147ef773c",
+      "translation": "9ef6084956a552221fce0b4ebebac1819f46ea8b"
+    },
+    "settings.keyboardShortcuts.actions.navigate-previous": {
+      "source": "1a8e9715cc69f9ba4aafe88c18da9d1df2b1145d",
+      "translation": "8421eaa24172797c00961c15c27ecf60c60633bb"
+    },
+    "settings.keyboardShortcuts.actions.jump-first": {
+      "source": "727e80658259f01259f220f7f613d9e1875c0979",
+      "translation": "8df166c6a6aa9b50564d11e1358d166637b606c8"
+    },
+    "settings.keyboardShortcuts.actions.jump-last": {
+      "source": "7d84df2bbf7de545d1649f3258f2cd83bdb8a167",
+      "translation": "00ca865ca96335cf35417d676f99656969e185dc"
+    },
+    "settings.keyboardShortcuts.actions.clear-focus-and-selection": {
+      "source": "029660c154900884b2beb3682f2d1f3b6db1a162",
+      "translation": "e3b465994be7204fa27411395cebc01cf94976a9"
+    },
+    "settings.keyboardShortcuts.actions.toggle-select": {
+      "source": "7b96fbd541821b4e1bf62b73426577c22d80d7c7",
+      "translation": "90325cc6dbd47de218ea866ceb14c90f1f2d6d85"
+    },
+    "settings.keyboardShortcuts.actions.select-all": {
+      "source": "ed45a52fc7e6617b02f579ca9387687013bf9497",
+      "translation": "580ab8c713d64462795d4a2e46aa52d0fafddeee"
+    },
+    "settings.keyboardShortcuts.actions.copy-task-titles": {
+      "source": "3872aa3135d4ce4539906f51b4f703974f03d87b",
+      "translation": "012423a65252d95da205877911f904e9a0c1f7c8"
+    },
+    "settings.keyboardShortcuts.actions.toggle-archive": {
+      "source": "825f484bb9bf0857b94bed53810b917c00319d50",
+      "translation": "6274a37b8b31abdf533aab8211e4511c51440ac6"
+    },
+    "settings.keyboardShortcuts.actions.create-task": {
+      "source": "f1f1450ff80aeab91cb0853329e2b454904866e2",
+      "translation": "fa53244edbfdb1336b1bca3df1c16839b71e3fa7"
+    },
+    "settings.keyboardShortcuts.actions.focus-search": {
+      "source": "4c50e4cc8f632550e30c2e328cc5aaaba2ba38b4",
+      "translation": "dbdd13d36feda73f4bd90452be1d80fd5a61bb19"
+    },
+    "settings.keyboardShortcuts.actions.edit-task": {
+      "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
+      "translation": "051083fa034ad55509d16dafb492a62f62a261fe"
+    },
+    "settings.keyboardShortcuts.actions.open-context-menu": {
+      "source": "6c16e06070c95cf43cd041a19910605ba3283686",
+      "translation": "cc426fc1cbb2490e674134ee3f3432dba1fbd596"
+    },
+    "settings.keyboardShortcuts.actions.open-task-notes": {
+      "source": "fbd1aa98301dadc1150aea34db34c2d99cad2063",
+      "translation": "df087caaf3e051bd9fe43dfb1be004fb45ef5ef1"
+    },
+    "settings.keyboardShortcuts.actions.edit-due": {
+      "source": "3fc38cbf2d3ac4d799d8de76edbb438e4bfff385",
+      "translation": "caa780c1723fb387ec7b197581ebdc8786ea5f90"
+    },
+    "settings.keyboardShortcuts.actions.edit-scheduled": {
+      "source": "305b14722146b4a9e6e179117634159cac74cde9",
+      "translation": "1b1399df0b278fbb0914ce9f52af08d5ba3014a2"
+    },
+    "settings.keyboardShortcuts.actions.edit-priority": {
+      "source": "1c7d6d645c7a926a01073e9de0d7734e8709e609",
+      "translation": "6b3d5e55f2ca3f0f5b6cff52e03575f53b7e0d47"
+    },
+    "settings.keyboardShortcuts.actions.mark-complete": {
+      "source": "0c018491b96aadfff5ebeb45434a2945bdd12741",
+      "translation": "ab6d864f1aaa0357f985a8a16b1c49ef07add8bf"
+    },
+    "settings.keyboardShortcuts.actions.edit-status": {
+      "source": "5ce5926a2ad6ab7245915ed31f5b7e22aac248e0",
+      "translation": "35c8f0ef1e0bb7d8bbc018bd0d40768d9b4c6170"
+    },
+    "settings.keyboardShortcuts.actions.edit-recurrence": {
+      "source": "fa219424af91af97c6840dc113a9a352be944f0e",
+      "translation": "d97d2b912bad17cfcbb1e0387555687efb57d257"
+    },
+    "settings.keyboardShortcuts.actions.add-tags": {
+      "source": "1dd02addd0de918d132176c95f135b77bf5eb0a4",
+      "translation": "7f479b8f0b1232ac9e37b3b425dec75a1dd412e0"
+    },
+    "settings.keyboardShortcuts.actions.add-context": {
+      "source": "08dae0bb10f5fe62e0690120e879d382a19d7aab",
+      "translation": "d9f4c39541d10089a0470720e494f41b3bf8d2dc"
+    },
+    "settings.keyboardShortcuts.actions.add-project": {
+      "source": "2470e8667bfae5270588f1574daf0d7cd7a89c41",
+      "translation": "2ad8a9261ef12f1e52bea9ac6f19f729886da371"
+    },
+    "settings.keyboardShortcuts.actions.delete-tasks": {
+      "source": "c25eb923d2de14b426e095b6b921d59ffc263000",
+      "translation": "25b4f5f93e62537658268a5124aa678e714ffc08"
+    },
+    "settings.keyboardShortcuts.addUserField": {
+      "source": "987991424835f2af04f31917e0743036bc17677f",
+      "translation": "b16831c911851099ddfab2d356e86d398a4a2c92"
+    },
+    "settings.keyboardShortcuts.addUserFieldDescription": {
+      "source": "b9cb91cbe4c008c1c83ae5f72e79a6a9cfaaa2be",
+      "translation": "7aacf8feaf955804da174decea85dee3823c0045"
+    },
     "settings.features.inlineTasks.header": {
       "source": "a0f498bf59b33369a6a0aca916b487fd04ea40a7",
       "translation": "a7f016a7bf869a4faec082a631841e0f359e46c2"
@@ -12963,11 +13498,26 @@
       "source": "da2d900ba2974dde90a7c9b3744359f33043415e",
       "translation": "781edd4b3365316a818941153ec5b37d03617853"
     },
-    "settings.general.taskInteraction.groupDropBehavior.name": null,
-    "settings.general.taskInteraction.groupDropBehavior.description": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replace": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.add": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": null,
+    "settings.general.taskInteraction.groupDropBehavior.name": {
+      "source": "594a13d04608b9fc5bc7a1d18e2a3ff0ecf8de0f",
+      "translation": "d7d9708efa97915c8a457745cd092cc6884def84"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.description": {
+      "source": "4e3698613ba53d069533f3f5fc8fd560f163ce6e",
+      "translation": "6e5db3067693659fc563752d6f3076072b735057"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replace": {
+      "source": "88dfbf0e4144d8386399ff19c8bcac06530b0be8",
+      "translation": "c9d80e519997ab9ddf9e5a6ad92d46e2bbedc784"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.add": {
+      "source": "acb1678a253322aa33effe9c6171a30bb39ebd56",
+      "translation": "db4f5a7445217804451bb065ade67e0647da10ae"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": {
+      "source": "4da18f4aae22fa12834bfd87996d1acf34124cc8",
+      "translation": "02b5ff5948b27feecbae2afee9bf12ca8a0107fc"
+    },
     "settings.general.taskInteraction.actions.edit": {
       "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
       "translation": "051083fa034ad55509d16dafb492a62f62a261fe"
@@ -21722,6 +22272,10 @@
       "source": "efe6795d4c7e0e06a8950f51c2a37070e27989b1",
       "translation": "fe5a613d37972156e2f4ea7963d624ae69f012c8"
     },
+    "settings.tabs.keyboardShortcuts": {
+      "source": "266695479a949eec44dea9db4e15fba00163f04e",
+      "translation": "8a7de23a4b57e713bdfd2afac06acdf7d39fe184"
+    },
     "settings.tabs.defaults": {
       "source": "791c4dc17d9b67ba065e8e94d65f1c4d54638e6a",
       "translation": "c051f60f7f7f20e77c84f31e4f0019990a69baa1"
@@ -21734,54 +22288,310 @@
       "source": "fc338f87a058158eb824b53705961801516a9460",
       "translation": "78190a6fcec718abbe908f2e3af5fff5e71f9d3d"
     },
-    "settings.tabs.keyboardShortcuts": null,
     "settings.tabs.integrations": {
       "source": "a7881cac6e64abca5eafd172df6eb31fe0b84c88",
       "translation": "4f90e5966c8332bc8de5124dbb9ca107372bb513"
     },
-    "settings.keyboardShortcuts.header": null,
-    "settings.keyboardShortcuts.description": null,
-    "settings.keyboardShortcuts.actionDescription": null,
-    "settings.keyboardShortcuts.add": null,
-    "settings.keyboardShortcuts.remove": null,
-    "settings.keyboardShortcuts.captureHint": null,
-    "settings.keyboardShortcuts.recording": null,
-    "settings.keyboardShortcuts.confirmTitle": null,
-    "settings.keyboardShortcuts.confirmMessage": null,
-    "settings.keyboardShortcuts.confirm": null,
-    "settings.keyboardShortcuts.resetAction": null,
-    "settings.keyboardShortcuts.resetAll": null,
-    "settings.keyboardShortcuts.resetAllDescription": null,
-    "settings.keyboardShortcuts.conflict": null,
-    "settings.keyboardShortcuts.duplicateTitle": null,
-    "settings.keyboardShortcuts.duplicateMessage": null,
-    "settings.keyboardShortcuts.replace": null,
-    "settings.keyboardShortcuts.actions.navigate-next": null,
-    "settings.keyboardShortcuts.actions.navigate-previous": null,
-    "settings.keyboardShortcuts.actions.jump-first": null,
-    "settings.keyboardShortcuts.actions.jump-last": null,
-    "settings.keyboardShortcuts.actions.clear-focus-and-selection": null,
-    "settings.keyboardShortcuts.actions.toggle-select": null,
-    "settings.keyboardShortcuts.actions.select-all": null,
-    "settings.keyboardShortcuts.actions.copy-task-titles": null,
-    "settings.keyboardShortcuts.actions.toggle-archive": null,
-    "settings.keyboardShortcuts.actions.create-task": null,
-    "settings.keyboardShortcuts.actions.focus-search": null,
-    "settings.keyboardShortcuts.actions.edit-task": null,
-    "settings.keyboardShortcuts.actions.open-context-menu": null,
-    "settings.keyboardShortcuts.actions.open-task-notes": null,
-    "settings.keyboardShortcuts.actions.edit-due": null,
-    "settings.keyboardShortcuts.actions.edit-scheduled": null,
-    "settings.keyboardShortcuts.actions.edit-priority": null,
-    "settings.keyboardShortcuts.actions.mark-complete": null,
-    "settings.keyboardShortcuts.actions.edit-status": null,
-    "settings.keyboardShortcuts.actions.edit-recurrence": null,
-    "settings.keyboardShortcuts.actions.add-tags": null,
-    "settings.keyboardShortcuts.actions.add-context": null,
-    "settings.keyboardShortcuts.actions.add-project": null,
-    "settings.keyboardShortcuts.actions.delete-tasks": null,
-    "settings.keyboardShortcuts.addUserField": null,
-    "settings.keyboardShortcuts.addUserFieldDescription": null,
+    "settings.modalFields.header": {
+      "source": "463769fb01686447dfedbb494aa058ba8f025686",
+      "translation": "611c3d5d0246637c93373886f742069bddd6c7e4"
+    },
+    "settings.modalFields.description": {
+      "source": "15ec3cb1720d8b370a1e04d4ca7a0b3ddd8567fc",
+      "translation": "127795f0cff9c2c693c1434c19e639c9a81c7e62"
+    },
+    "settings.modalFields.splitLayout.name": {
+      "source": "60564be9095b0be664a9d1ea663ac74e5ccef220",
+      "translation": "6e5e3f197053263fd13a4123768dbac5f2226e7b"
+    },
+    "settings.modalFields.splitLayout.description": {
+      "source": "c37507b5356b91ddc9b2ecffb71ed8aa9bd99bc5",
+      "translation": "d5e5f08d6d3e05ef7e55b2dbd2df46422841ea9a"
+    },
+    "settings.modalFields.tabMovesFocus.name": {
+      "source": "6d204daa67216709d1eb3f9c6f72b0d5289ee66b",
+      "translation": "f898584c54779689f0d0de217340e99cc28bf51f"
+    },
+    "settings.modalFields.tabMovesFocus.description": {
+      "source": "2f4053ebbcf6766caa54489d1f64196cb4b1d65f",
+      "translation": "aa3bcf4a7198eee9e099ecaee85e5e1d99beea42"
+    },
+    "settings.modalFields.sync.name": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "7780bc2f826113683cb386f93dff6f2beeb4717c"
+    },
+    "settings.modalFields.sync.description": {
+      "source": "d5ff882897bbaa153719e8cd96f42c1884977a9c",
+      "translation": "cc965199db95da7c62efed1049f59ef09603dc9f"
+    },
+    "settings.modalFields.sync.button": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "7780bc2f826113683cb386f93dff6f2beeb4717c"
+    },
+    "settings.modalFields.sync.notice": {
+      "source": "9e18b026eb848fc00a0f405979ab0999ee69be0f",
+      "translation": "da6b28574667ea70540deecd5894ade1335119e8"
+    },
+    "settings.modalFields.reset.name": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "6f1d390f3dcdbfa8fab137f53b565107efc59cfc"
+    },
+    "settings.modalFields.reset.description": {
+      "source": "af2b7f65f817989f953ee108fa2ac0a3eff97670",
+      "translation": "c237b78582e88effba1ce29c803090aec7eceae7"
+    },
+    "settings.modalFields.reset.button": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "6f1d390f3dcdbfa8fab137f53b565107efc59cfc"
+    },
+    "settings.modalFields.reset.confirmTitle": {
+      "source": "b4dfd2ca17670f8eacf7a8fe142e22522f450b40",
+      "translation": "7ac1284d620112196888abbda7890f840eb676d5"
+    },
+    "settings.modalFields.reset.confirmMessage": {
+      "source": "b8b0d02597a163dd9e687912551e2052b26b5234",
+      "translation": "cd77614f6f94be829d4ab7ae7b651f9c073389ff"
+    },
+    "settings.modalFields.reset.confirmText": {
+      "source": "44c57abd888a66b36d4b7c902134063e4a097223",
+      "translation": "e0e2ad54c1cb1ad7a01ad24df647f6d6640fa382"
+    },
+    "settings.modalFields.reset.cancelText": {
+      "source": "77dfd2135f4db726c47299bb55be26f7f4525a46",
+      "translation": "49ba3292420c74828e7892fadc66f3f4ee4c0111"
+    },
+    "settings.modalFields.reset.notice": {
+      "source": "998a1e127a85d5e119fa538c08e07eacc044ad68",
+      "translation": "3bd21c973fd406ec82d3ec5f96dbe6f126530b69"
+    },
+    "settings.modalFields.initError": {
+      "source": "813bc1f0be1c2c8d047659e061029b41300e43ef",
+      "translation": "fba5cc602c3d32d54268fac805b2a01347dc5b35"
+    },
+    "settings.modalFields.manager.invalidConfig": {
+      "source": "e4d5672cae6c369bd1cd23a8c950e044319a6662",
+      "translation": "f28007b44687c348b3be1fadac9a92cae0d68cc7"
+    },
+    "settings.modalFields.manager.emptyGroup": {
+      "source": "f2ef4e6d48d44c229ecb83b3d3e799df8a8eb367",
+      "translation": "e2e5edd3263be3596e2cbaf6bf2733b1f114188f"
+    },
+    "settings.modalFields.manager.enabled": {
+      "source": "f1b45b4b3bf49e9b92c8251ac538f4cfff36209a",
+      "translation": "7d8496410f97a7a45b0b3274b8c6ea8f6b433d64"
+    },
+    "settings.modalFields.manager.showInCreation": {
+      "source": "b8e50d533a687b109bf799f060eafd36221d094a",
+      "translation": "d0d9ce18d176d59b0dcccf0b77a35951cf990f40"
+    },
+    "settings.modalFields.manager.showInEdit": {
+      "source": "1933e97174ad50029164292cdf98e28d9f951a76",
+      "translation": "869d918b73d07572edf7258b7891deaa166cc7fc"
+    },
+    "settings.modalFields.manager.group": {
+      "source": "c04773b71e46b5ce75774be4f01e3902119b03f8",
+      "translation": "4bae19bd6dbb0b2c1a3565eebdc081b70a8d8b36"
+    },
+    "settings.modalFields.manager.fieldId": {
+      "source": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1",
+      "translation": "9bf0aa7ca5a2a19872a2c39e4f235e63516b65b2"
+    },
+    "settings.modalFields.manager.fieldKey": {
+      "source": "ac49e227c79e530ebc416022e7d86a93765313e3",
+      "translation": "efa8f99d2d71693d9949f9710c98cc0e16a0b3d6"
+    },
+    "settings.modalFields.manager.noKey": {
+      "source": "367b4a155f777aae3242c44f81ca50aae3a6dee6",
+      "translation": "149cd0de58ddf4c0055ff6547912cb5bb479ee36"
+    },
+    "settings.modalFields.manager.fieldTypes.core": {
+      "source": "68836c550ee20fae0e06b2994e76a40348d2fc30",
+      "translation": "f3b86b13dbbc1f25f1ed8bc04e7a1e250f26a965"
+    },
+    "settings.modalFields.manager.fieldTypes.user": {
+      "source": "9f8a2389a20ca0752aa9e95093515517e90e194c",
+      "translation": "0b20cd7f98fde6a0c65a6ff68ffdfb627f32d176"
+    },
+    "settings.modalFields.manager.fieldTypes.dependency": {
+      "source": "ce311abe7bbcb35898a8ac0bf7c2dca01106d8f6",
+      "translation": "e02cbc6e97ebb44330fbb22726fd793d85bad596"
+    },
+    "settings.modalFields.manager.fieldTypes.organization": {
+      "source": "519255ae1f74ffc5ddd29979295c7572f048ad81",
+      "translation": "6e99c1d3b1502c090dcd07ad2e7110ed5c0118a9"
+    },
+    "settings.keyboardShortcuts.header": {
+      "source": "3fedd656b7907df71597d5fd3d00de0bc273d1c4",
+      "translation": "229fc1ebb97c5a22a30392d5c15ff4a37f2043a1"
+    },
+    "settings.keyboardShortcuts.description": {
+      "source": "bfd1d4089875cb53d4d40763ab6dbf8ed25ec7a2",
+      "translation": "bb2f77091db292cc9bc79c0e34d970671371e5ec"
+    },
+    "settings.keyboardShortcuts.actionDescription": {
+      "source": "b0620d440c1bfec2ca80935171d7691818ea002e",
+      "translation": "057b003e152f9bfe9c1c38f1fb5a30bd346fdf27"
+    },
+    "settings.keyboardShortcuts.add": {
+      "source": "8b908560b10b3da34c4d5586108f0491dbd8855f",
+      "translation": "832a52b46e05fe9e6d69e459491fdd04e1f109a9"
+    },
+    "settings.keyboardShortcuts.remove": {
+      "source": "0e000d01cc293b590d5c64862cad91bbf76489f1",
+      "translation": "70ec93ab30bb75e02d0652d22c49e3d9b267e395"
+    },
+    "settings.keyboardShortcuts.captureHint": {
+      "source": "d71568c24bcac6f4afa4e72cbc4c0a7c0e0c9426",
+      "translation": "e4e32a6b5a1218c55976ede0fd55cadc6fcc64f4"
+    },
+    "settings.keyboardShortcuts.recording": {
+      "source": "98b8167e219d62a3861686ed819db30c69eac809",
+      "translation": "30db218fe8552da682717dcc973771a21d03cbaa"
+    },
+    "settings.keyboardShortcuts.confirmTitle": {
+      "source": "aee8a9be17d8f68e4e791a5af4b7679a8c7415f8",
+      "translation": "d9fed3964cf7d2a9c014612b033ae2b4afcdaf7e"
+    },
+    "settings.keyboardShortcuts.confirmMessage": {
+      "source": "ecda59f41be584195485db7e44879ad1c71892c9",
+      "translation": "1a9f2b8421394ddcd5c8bd877972b1f2f0340a77"
+    },
+    "settings.keyboardShortcuts.confirm": {
+      "source": "61cc55aa0453184734c3fa0b621eda6fa874bd83",
+      "translation": "87c57ed173ea17c02ec96ec099ee6a81d79dabc2"
+    },
+    "settings.keyboardShortcuts.resetAction": {
+      "source": "a484a49884b0960a2c0312f1530ab30dd2a00d99",
+      "translation": "7742d28e72802ed081b2631826f0a483ff64bb49"
+    },
+    "settings.keyboardShortcuts.resetAll": {
+      "source": "cdaa7ba41263eb1d4bd2be803a6ce7b2435fa6b1",
+      "translation": "7f3646898533b0a5fd90fd962807ba6e4fc95ffb"
+    },
+    "settings.keyboardShortcuts.resetAllDescription": {
+      "source": "ccea6c2e0713e07f5c5d6f1fb6d05e16db7e7b05",
+      "translation": "c7072668ffc62902dc7c08794861299552171b4b"
+    },
+    "settings.keyboardShortcuts.conflict": {
+      "source": "e6f952f6c9af5a621240ab78b67b09ac57341150",
+      "translation": "e55c3e5b9ca90a34bc9c716aaabcf76697288685"
+    },
+    "settings.keyboardShortcuts.duplicateTitle": {
+      "source": "fafff5ca4a1e594f4ef879ad5ad6737579380826",
+      "translation": "b654044f4628ef0895161ead063f7f7b4dc395d6"
+    },
+    "settings.keyboardShortcuts.duplicateMessage": {
+      "source": "d879576f38c2be6b61803bd89bc60467663b3581",
+      "translation": "fe3556a6ce951ae206425d04860d05fa2ebcc65e"
+    },
+    "settings.keyboardShortcuts.replace": {
+      "source": "a7cf7b25a703b308887c7f1d100c4326ef20ac46",
+      "translation": "db2c67bc24f1ff76f474e01e6ad7f6e22aee8a5d"
+    },
+    "settings.keyboardShortcuts.actions.navigate-next": {
+      "source": "79aca4bc3e93782027c4b1a816a6d90147ef773c",
+      "translation": "008d59f0844ad9b00df2679dfad66a666e8a067a"
+    },
+    "settings.keyboardShortcuts.actions.navigate-previous": {
+      "source": "1a8e9715cc69f9ba4aafe88c18da9d1df2b1145d",
+      "translation": "bbf69fc5a905f0cc2681986d15f17a9440189db0"
+    },
+    "settings.keyboardShortcuts.actions.jump-first": {
+      "source": "727e80658259f01259f220f7f613d9e1875c0979",
+      "translation": "a62e4887c367c15c50ac4f7efd3d06e8abceabc0"
+    },
+    "settings.keyboardShortcuts.actions.jump-last": {
+      "source": "7d84df2bbf7de545d1649f3258f2cd83bdb8a167",
+      "translation": "49da4d3cc09e2f9e96b7703552037882603714b1"
+    },
+    "settings.keyboardShortcuts.actions.clear-focus-and-selection": {
+      "source": "029660c154900884b2beb3682f2d1f3b6db1a162",
+      "translation": "ed87d1a2c342b5494cde4be0540026116911b691"
+    },
+    "settings.keyboardShortcuts.actions.toggle-select": {
+      "source": "7b96fbd541821b4e1bf62b73426577c22d80d7c7",
+      "translation": "8eba5e4b182a57c77929aff86321d2bd4268494c"
+    },
+    "settings.keyboardShortcuts.actions.select-all": {
+      "source": "ed45a52fc7e6617b02f579ca9387687013bf9497",
+      "translation": "467571b3cdb0d8772a41f5656096b10dfcd963f6"
+    },
+    "settings.keyboardShortcuts.actions.copy-task-titles": {
+      "source": "3872aa3135d4ce4539906f51b4f703974f03d87b",
+      "translation": "2800dec5eacd59432a587544b32c5026c18a0335"
+    },
+    "settings.keyboardShortcuts.actions.toggle-archive": {
+      "source": "825f484bb9bf0857b94bed53810b917c00319d50",
+      "translation": "752e1d59f94b3bb9c1084e23976d39701e454044"
+    },
+    "settings.keyboardShortcuts.actions.create-task": {
+      "source": "f1f1450ff80aeab91cb0853329e2b454904866e2",
+      "translation": "755f02296f51c5f77f9e4e2fc0f2e74a53baf796"
+    },
+    "settings.keyboardShortcuts.actions.focus-search": {
+      "source": "4c50e4cc8f632550e30c2e328cc5aaaba2ba38b4",
+      "translation": "360af3e5c9e9cc530b09ef400ea09d2ff762d33e"
+    },
+    "settings.keyboardShortcuts.actions.edit-task": {
+      "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
+      "translation": "898357e84ecd04bb3ff8c8faa6d87d17138a9e6f"
+    },
+    "settings.keyboardShortcuts.actions.open-context-menu": {
+      "source": "6c16e06070c95cf43cd041a19910605ba3283686",
+      "translation": "e960077c6a8f8f78d4d7f537e78d29e11fabb014"
+    },
+    "settings.keyboardShortcuts.actions.open-task-notes": {
+      "source": "fbd1aa98301dadc1150aea34db34c2d99cad2063",
+      "translation": "db8adcd74769ee2ec6d77f79af889378174017a2"
+    },
+    "settings.keyboardShortcuts.actions.edit-due": {
+      "source": "3fc38cbf2d3ac4d799d8de76edbb438e4bfff385",
+      "translation": "d36fcced4061696c9b1cf340dd326d78fd06051c"
+    },
+    "settings.keyboardShortcuts.actions.edit-scheduled": {
+      "source": "305b14722146b4a9e6e179117634159cac74cde9",
+      "translation": "568d9e0822aa8c465a3dcb916f9f013bc3f73aef"
+    },
+    "settings.keyboardShortcuts.actions.edit-priority": {
+      "source": "1c7d6d645c7a926a01073e9de0d7734e8709e609",
+      "translation": "011b39f7d2738167cd6613fd41ede2ca4787756d"
+    },
+    "settings.keyboardShortcuts.actions.mark-complete": {
+      "source": "0c018491b96aadfff5ebeb45434a2945bdd12741",
+      "translation": "9cb51be1903987a99c1ee4f0796fa9939dc6433c"
+    },
+    "settings.keyboardShortcuts.actions.edit-status": {
+      "source": "5ce5926a2ad6ab7245915ed31f5b7e22aac248e0",
+      "translation": "077b945dc1d41f2ffbaa6746f331d8521a809af5"
+    },
+    "settings.keyboardShortcuts.actions.edit-recurrence": {
+      "source": "fa219424af91af97c6840dc113a9a352be944f0e",
+      "translation": "d473334eacc3057f470579d8f4d7558130baedd9"
+    },
+    "settings.keyboardShortcuts.actions.add-tags": {
+      "source": "1dd02addd0de918d132176c95f135b77bf5eb0a4",
+      "translation": "5b6efbfeb4be9533e57ddb0d1232a45687229604"
+    },
+    "settings.keyboardShortcuts.actions.add-context": {
+      "source": "08dae0bb10f5fe62e0690120e879d382a19d7aab",
+      "translation": "7ec00ce5d0af2306e5b75399f7a4df21bb32cc49"
+    },
+    "settings.keyboardShortcuts.actions.add-project": {
+      "source": "2470e8667bfae5270588f1574daf0d7cd7a89c41",
+      "translation": "77f2a595dda7cfd786e9989d45d997d782963909"
+    },
+    "settings.keyboardShortcuts.actions.delete-tasks": {
+      "source": "c25eb923d2de14b426e095b6b921d59ffc263000",
+      "translation": "7d6aeaa3e66bc35017ff2d31ce7d99355730f1a9"
+    },
+    "settings.keyboardShortcuts.addUserField": {
+      "source": "987991424835f2af04f31917e0743036bc17677f",
+      "translation": "844270dd3d0549857c743fa7c9a1044afc5892e4"
+    },
+    "settings.keyboardShortcuts.addUserFieldDescription": {
+      "source": "b9cb91cbe4c008c1c83ae5f72e79a6a9cfaaa2be",
+      "translation": "fdc7b0423404f5c8a51b35fdb57573ee2e590427"
+    },
     "settings.features.inlineTasks.header": {
       "source": "a0f498bf59b33369a6a0aca916b487fd04ea40a7",
       "translation": "a32a664acc6d5279c6600620c1a3fb0a8bb8cd1b"
@@ -22814,11 +23624,26 @@
       "source": "da2d900ba2974dde90a7c9b3744359f33043415e",
       "translation": "c7156793f0a781c7c7710eb29ce2b4a6b71f30e2"
     },
-    "settings.general.taskInteraction.groupDropBehavior.name": null,
-    "settings.general.taskInteraction.groupDropBehavior.description": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replace": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.add": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": null,
+    "settings.general.taskInteraction.groupDropBehavior.name": {
+      "source": "594a13d04608b9fc5bc7a1d18e2a3ff0ecf8de0f",
+      "translation": "587e5d40aa4e885f7d7a8fe9e1f69eabe27eeff1"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.description": {
+      "source": "4e3698613ba53d069533f3f5fc8fd560f163ce6e",
+      "translation": "53f392f3f3e25fc566648ea7d721fd4f122b09c0"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replace": {
+      "source": "88dfbf0e4144d8386399ff19c8bcac06530b0be8",
+      "translation": "058b8aa9d4e4928f5f6f529f895afe0dfa33913c"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.add": {
+      "source": "acb1678a253322aa33effe9c6171a30bb39ebd56",
+      "translation": "694046e9b3df6c8c18e77d62488640d3272afc88"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": {
+      "source": "4da18f4aae22fa12834bfd87996d1acf34124cc8",
+      "translation": "498818e568ba3cec34b85bdd499c1507ce5dfbb2"
+    },
     "settings.general.taskInteraction.actions.edit": {
       "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
       "translation": "898357e84ecd04bb3ff8c8faa6d87d17138a9e6f"
@@ -31573,6 +32398,10 @@
       "source": "efe6795d4c7e0e06a8950f51c2a37070e27989b1",
       "translation": "da8605f060825fc2cbec710e1f602cee4ed4dae4"
     },
+    "settings.tabs.keyboardShortcuts": {
+      "source": "266695479a949eec44dea9db4e15fba00163f04e",
+      "translation": "375d3bd2c43e068f7ba6bb341210c7cbc549368b"
+    },
     "settings.tabs.defaults": {
       "source": "791c4dc17d9b67ba065e8e94d65f1c4d54638e6a",
       "translation": "c1f80ecc84980ceb2e43481ca710155e40b20908"
@@ -31585,54 +32414,310 @@
       "source": "fc338f87a058158eb824b53705961801516a9460",
       "translation": "e5b8788a4e01390303641e363b4278edcc053e99"
     },
-    "settings.tabs.keyboardShortcuts": null,
     "settings.tabs.integrations": {
       "source": "a7881cac6e64abca5eafd172df6eb31fe0b84c88",
       "translation": "3fdb3a4c402e9c819b75361b4849b530f25dfb41"
     },
-    "settings.keyboardShortcuts.header": null,
-    "settings.keyboardShortcuts.description": null,
-    "settings.keyboardShortcuts.actionDescription": null,
-    "settings.keyboardShortcuts.add": null,
-    "settings.keyboardShortcuts.remove": null,
-    "settings.keyboardShortcuts.captureHint": null,
-    "settings.keyboardShortcuts.recording": null,
-    "settings.keyboardShortcuts.confirmTitle": null,
-    "settings.keyboardShortcuts.confirmMessage": null,
-    "settings.keyboardShortcuts.confirm": null,
-    "settings.keyboardShortcuts.resetAction": null,
-    "settings.keyboardShortcuts.resetAll": null,
-    "settings.keyboardShortcuts.resetAllDescription": null,
-    "settings.keyboardShortcuts.conflict": null,
-    "settings.keyboardShortcuts.duplicateTitle": null,
-    "settings.keyboardShortcuts.duplicateMessage": null,
-    "settings.keyboardShortcuts.replace": null,
-    "settings.keyboardShortcuts.actions.navigate-next": null,
-    "settings.keyboardShortcuts.actions.navigate-previous": null,
-    "settings.keyboardShortcuts.actions.jump-first": null,
-    "settings.keyboardShortcuts.actions.jump-last": null,
-    "settings.keyboardShortcuts.actions.clear-focus-and-selection": null,
-    "settings.keyboardShortcuts.actions.toggle-select": null,
-    "settings.keyboardShortcuts.actions.select-all": null,
-    "settings.keyboardShortcuts.actions.copy-task-titles": null,
-    "settings.keyboardShortcuts.actions.toggle-archive": null,
-    "settings.keyboardShortcuts.actions.create-task": null,
-    "settings.keyboardShortcuts.actions.focus-search": null,
-    "settings.keyboardShortcuts.actions.edit-task": null,
-    "settings.keyboardShortcuts.actions.open-context-menu": null,
-    "settings.keyboardShortcuts.actions.open-task-notes": null,
-    "settings.keyboardShortcuts.actions.edit-due": null,
-    "settings.keyboardShortcuts.actions.edit-scheduled": null,
-    "settings.keyboardShortcuts.actions.edit-priority": null,
-    "settings.keyboardShortcuts.actions.mark-complete": null,
-    "settings.keyboardShortcuts.actions.edit-status": null,
-    "settings.keyboardShortcuts.actions.edit-recurrence": null,
-    "settings.keyboardShortcuts.actions.add-tags": null,
-    "settings.keyboardShortcuts.actions.add-context": null,
-    "settings.keyboardShortcuts.actions.add-project": null,
-    "settings.keyboardShortcuts.actions.delete-tasks": null,
-    "settings.keyboardShortcuts.addUserField": null,
-    "settings.keyboardShortcuts.addUserFieldDescription": null,
+    "settings.modalFields.header": {
+      "source": "463769fb01686447dfedbb494aa058ba8f025686",
+      "translation": "e45ef31b85611172d92c5cf44f468126f7f1bab3"
+    },
+    "settings.modalFields.description": {
+      "source": "15ec3cb1720d8b370a1e04d4ca7a0b3ddd8567fc",
+      "translation": "a25da72c34c7f8c9ad5dba8b81f9620f72898c59"
+    },
+    "settings.modalFields.splitLayout.name": {
+      "source": "60564be9095b0be664a9d1ea663ac74e5ccef220",
+      "translation": "9799ba0b0ce50c1c1818bd0951114829262cf2cb"
+    },
+    "settings.modalFields.splitLayout.description": {
+      "source": "c37507b5356b91ddc9b2ecffb71ed8aa9bd99bc5",
+      "translation": "e72737a2ec77b0222b8cbda0b337829f32c52be1"
+    },
+    "settings.modalFields.tabMovesFocus.name": {
+      "source": "6d204daa67216709d1eb3f9c6f72b0d5289ee66b",
+      "translation": "b791d8598f5803245ff44ecedaa63a54c1210269"
+    },
+    "settings.modalFields.tabMovesFocus.description": {
+      "source": "2f4053ebbcf6766caa54489d1f64196cb4b1d65f",
+      "translation": "63cfdb686d8d88c103c2ba8a74f58b28791484f6"
+    },
+    "settings.modalFields.sync.name": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "dccae8bb139ddc4a9f50f3cf6edce885ab51574c"
+    },
+    "settings.modalFields.sync.description": {
+      "source": "d5ff882897bbaa153719e8cd96f42c1884977a9c",
+      "translation": "6044e23420c9f3680672d7246cb60edd9ec092e2"
+    },
+    "settings.modalFields.sync.button": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "dccae8bb139ddc4a9f50f3cf6edce885ab51574c"
+    },
+    "settings.modalFields.sync.notice": {
+      "source": "9e18b026eb848fc00a0f405979ab0999ee69be0f",
+      "translation": "909bac192f7e268cab58749b486450715f69c08c"
+    },
+    "settings.modalFields.reset.name": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "9e82b3299e774cfe560bfaf2d9307e8cdfc469a3"
+    },
+    "settings.modalFields.reset.description": {
+      "source": "af2b7f65f817989f953ee108fa2ac0a3eff97670",
+      "translation": "0d7d1159d33b4c6e9b00bb503fb3d56e4ce23f6f"
+    },
+    "settings.modalFields.reset.button": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "9e82b3299e774cfe560bfaf2d9307e8cdfc469a3"
+    },
+    "settings.modalFields.reset.confirmTitle": {
+      "source": "b4dfd2ca17670f8eacf7a8fe142e22522f450b40",
+      "translation": "153a16c2ec0cc395fd36224998524edd7e8cb12b"
+    },
+    "settings.modalFields.reset.confirmMessage": {
+      "source": "b8b0d02597a163dd9e687912551e2052b26b5234",
+      "translation": "7afa51357ff4bba36579e88faf32f7aaf2882148"
+    },
+    "settings.modalFields.reset.confirmText": {
+      "source": "44c57abd888a66b36d4b7c902134063e4a097223",
+      "translation": "97b0a1c0a9299d48da9957443dfd728cc77acc98"
+    },
+    "settings.modalFields.reset.cancelText": {
+      "source": "77dfd2135f4db726c47299bb55be26f7f4525a46",
+      "translation": "269b0f92e460f3dd51ddf582098d0a998d525974"
+    },
+    "settings.modalFields.reset.notice": {
+      "source": "998a1e127a85d5e119fa538c08e07eacc044ad68",
+      "translation": "e88bc16973884af33236614147204b23d9409930"
+    },
+    "settings.modalFields.initError": {
+      "source": "813bc1f0be1c2c8d047659e061029b41300e43ef",
+      "translation": "4017272fe58982e58b0b488575ade264fafab5d3"
+    },
+    "settings.modalFields.manager.invalidConfig": {
+      "source": "e4d5672cae6c369bd1cd23a8c950e044319a6662",
+      "translation": "29b5cac28a69e2fb183149f7b1d03a1d08c92cf3"
+    },
+    "settings.modalFields.manager.emptyGroup": {
+      "source": "f2ef4e6d48d44c229ecb83b3d3e799df8a8eb367",
+      "translation": "2eeb7c018b7c76e61e8576a6fbb298e1976cb503"
+    },
+    "settings.modalFields.manager.enabled": {
+      "source": "f1b45b4b3bf49e9b92c8251ac538f4cfff36209a",
+      "translation": "371f12e3438254442bc7c1e9010d9fb355a1c310"
+    },
+    "settings.modalFields.manager.showInCreation": {
+      "source": "b8e50d533a687b109bf799f060eafd36221d094a",
+      "translation": "6c32bb6fac841fccf6ee404021971593818657c7"
+    },
+    "settings.modalFields.manager.showInEdit": {
+      "source": "1933e97174ad50029164292cdf98e28d9f951a76",
+      "translation": "ba085fa30c50bdba77f18456a7bf0a991185ff8e"
+    },
+    "settings.modalFields.manager.group": {
+      "source": "c04773b71e46b5ce75774be4f01e3902119b03f8",
+      "translation": "fbdec3edf54bf92d5a641088d20fdadf84c1fc4b"
+    },
+    "settings.modalFields.manager.fieldId": {
+      "source": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1",
+      "translation": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1"
+    },
+    "settings.modalFields.manager.fieldKey": {
+      "source": "ac49e227c79e530ebc416022e7d86a93765313e3",
+      "translation": "7be70535e1863775a24f038b8c401ff6a2c9d220"
+    },
+    "settings.modalFields.manager.noKey": {
+      "source": "367b4a155f777aae3242c44f81ca50aae3a6dee6",
+      "translation": "2679903351c826a59039fa682e92ffb66cd5ef46"
+    },
+    "settings.modalFields.manager.fieldTypes.core": {
+      "source": "68836c550ee20fae0e06b2994e76a40348d2fc30",
+      "translation": "76da306d52b463e991333e040d63d7486f0cbf2f"
+    },
+    "settings.modalFields.manager.fieldTypes.user": {
+      "source": "9f8a2389a20ca0752aa9e95093515517e90e194c",
+      "translation": "e6073ae328e64a477da823da64e3bc139c440783"
+    },
+    "settings.modalFields.manager.fieldTypes.dependency": {
+      "source": "ce311abe7bbcb35898a8ac0bf7c2dca01106d8f6",
+      "translation": "8fdc8ba382d56b121744988c29871470272bd46d"
+    },
+    "settings.modalFields.manager.fieldTypes.organization": {
+      "source": "519255ae1f74ffc5ddd29979295c7572f048ad81",
+      "translation": "bd63f469a7e6f7955955f22cf6091bfc983ca16e"
+    },
+    "settings.keyboardShortcuts.header": {
+      "source": "3fedd656b7907df71597d5fd3d00de0bc273d1c4",
+      "translation": "e41f4e60c31624cd513957cb1073335d9a7b2544"
+    },
+    "settings.keyboardShortcuts.description": {
+      "source": "bfd1d4089875cb53d4d40763ab6dbf8ed25ec7a2",
+      "translation": "1b05be7b5f761a3e63692068092575733670c799"
+    },
+    "settings.keyboardShortcuts.actionDescription": {
+      "source": "b0620d440c1bfec2ca80935171d7691818ea002e",
+      "translation": "1c1187bf50433f301a11d4ef219ad8b4a19e5974"
+    },
+    "settings.keyboardShortcuts.add": {
+      "source": "8b908560b10b3da34c4d5586108f0491dbd8855f",
+      "translation": "7726ce98371d7198b7318657d2829a2258daaae6"
+    },
+    "settings.keyboardShortcuts.remove": {
+      "source": "0e000d01cc293b590d5c64862cad91bbf76489f1",
+      "translation": "183cbb2bcf260d81bcd61dc4d48f432a5520984f"
+    },
+    "settings.keyboardShortcuts.captureHint": {
+      "source": "d71568c24bcac6f4afa4e72cbc4c0a7c0e0c9426",
+      "translation": "6c483c6548acb1b822e587cd2ec230e33a607a96"
+    },
+    "settings.keyboardShortcuts.recording": {
+      "source": "98b8167e219d62a3861686ed819db30c69eac809",
+      "translation": "2d43a43c26f409567ddf1ebfb57ec95e25f9c64c"
+    },
+    "settings.keyboardShortcuts.confirmTitle": {
+      "source": "aee8a9be17d8f68e4e791a5af4b7679a8c7415f8",
+      "translation": "565d26c286eb1cb96a275b059789e32c6c2ba75c"
+    },
+    "settings.keyboardShortcuts.confirmMessage": {
+      "source": "ecda59f41be584195485db7e44879ad1c71892c9",
+      "translation": "7afa00d6fecc892fcc3cb4e0dde95926ed7dddde"
+    },
+    "settings.keyboardShortcuts.confirm": {
+      "source": "61cc55aa0453184734c3fa0b621eda6fa874bd83",
+      "translation": "aec344de806dc4871614deaf704480590f1381f4"
+    },
+    "settings.keyboardShortcuts.resetAction": {
+      "source": "a484a49884b0960a2c0312f1530ab30dd2a00d99",
+      "translation": "3a6b246f313a67e8c957e629a34822de2a5a9928"
+    },
+    "settings.keyboardShortcuts.resetAll": {
+      "source": "cdaa7ba41263eb1d4bd2be803a6ce7b2435fa6b1",
+      "translation": "f956a81aa9ec75ff8c8dff97ae4efe1bee9f9d07"
+    },
+    "settings.keyboardShortcuts.resetAllDescription": {
+      "source": "ccea6c2e0713e07f5c5d6f1fb6d05e16db7e7b05",
+      "translation": "e0afb14b3fc43d94df288b1542f100fed536a4d6"
+    },
+    "settings.keyboardShortcuts.conflict": {
+      "source": "e6f952f6c9af5a621240ab78b67b09ac57341150",
+      "translation": "73e69e7f40f9acc3d98d1bd5f96d89d69ad5db56"
+    },
+    "settings.keyboardShortcuts.duplicateTitle": {
+      "source": "fafff5ca4a1e594f4ef879ad5ad6737579380826",
+      "translation": "58f4389c8294da3ad067e9f0dcd2ac4ded060a6c"
+    },
+    "settings.keyboardShortcuts.duplicateMessage": {
+      "source": "d879576f38c2be6b61803bd89bc60467663b3581",
+      "translation": "90024997e7b3e041c158618c9adf015d58cef7c2"
+    },
+    "settings.keyboardShortcuts.replace": {
+      "source": "a7cf7b25a703b308887c7f1d100c4326ef20ac46",
+      "translation": "81e2cb3bc981ac2f56252c7d54cd5bc6441bb3d3"
+    },
+    "settings.keyboardShortcuts.actions.navigate-next": {
+      "source": "79aca4bc3e93782027c4b1a816a6d90147ef773c",
+      "translation": "3f0c9b0c1d320699b96a9fc3e318f13d046535d9"
+    },
+    "settings.keyboardShortcuts.actions.navigate-previous": {
+      "source": "1a8e9715cc69f9ba4aafe88c18da9d1df2b1145d",
+      "translation": "c1a086d8a1289dbc880d99ec3598dde951826784"
+    },
+    "settings.keyboardShortcuts.actions.jump-first": {
+      "source": "727e80658259f01259f220f7f613d9e1875c0979",
+      "translation": "4423c6b532109783e32110373500ac3a14981dc2"
+    },
+    "settings.keyboardShortcuts.actions.jump-last": {
+      "source": "7d84df2bbf7de545d1649f3258f2cd83bdb8a167",
+      "translation": "d35bd8b5c709c47c0a1b72e8e29778f64b4dd331"
+    },
+    "settings.keyboardShortcuts.actions.clear-focus-and-selection": {
+      "source": "029660c154900884b2beb3682f2d1f3b6db1a162",
+      "translation": "81437a90b530bbb785a3ebd5a0625cee58c9d299"
+    },
+    "settings.keyboardShortcuts.actions.toggle-select": {
+      "source": "7b96fbd541821b4e1bf62b73426577c22d80d7c7",
+      "translation": "cf2748b6e4464410952262b0b4ce32079ca9d121"
+    },
+    "settings.keyboardShortcuts.actions.select-all": {
+      "source": "ed45a52fc7e6617b02f579ca9387687013bf9497",
+      "translation": "cc48be299e13696d06c72954e0e099262eae1448"
+    },
+    "settings.keyboardShortcuts.actions.copy-task-titles": {
+      "source": "3872aa3135d4ce4539906f51b4f703974f03d87b",
+      "translation": "bd85a9ffeaba9eca86ecf4513b4c2963d28dd496"
+    },
+    "settings.keyboardShortcuts.actions.toggle-archive": {
+      "source": "825f484bb9bf0857b94bed53810b917c00319d50",
+      "translation": "98b2d057a39e4a36550e58002741855ea7f6a913"
+    },
+    "settings.keyboardShortcuts.actions.create-task": {
+      "source": "f1f1450ff80aeab91cb0853329e2b454904866e2",
+      "translation": "b97535ef518e4c84b8ad1bc5bbf98bc39821f03f"
+    },
+    "settings.keyboardShortcuts.actions.focus-search": {
+      "source": "4c50e4cc8f632550e30c2e328cc5aaaba2ba38b4",
+      "translation": "83c805756cc4710e2e7d6a5e7fce8a42cdc2f95e"
+    },
+    "settings.keyboardShortcuts.actions.edit-task": {
+      "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
+      "translation": "2f764f11562e8c595ca2dadff6ffa138b40bdd18"
+    },
+    "settings.keyboardShortcuts.actions.open-context-menu": {
+      "source": "6c16e06070c95cf43cd041a19910605ba3283686",
+      "translation": "9db283aad8cbd1208324eb9b249464129b0229a7"
+    },
+    "settings.keyboardShortcuts.actions.open-task-notes": {
+      "source": "fbd1aa98301dadc1150aea34db34c2d99cad2063",
+      "translation": "d79231bab3aafbe7a48f17d376aa4679649d1e20"
+    },
+    "settings.keyboardShortcuts.actions.edit-due": {
+      "source": "3fc38cbf2d3ac4d799d8de76edbb438e4bfff385",
+      "translation": "6bd218746bf14b2d6003cb6f68a13bab6353515b"
+    },
+    "settings.keyboardShortcuts.actions.edit-scheduled": {
+      "source": "305b14722146b4a9e6e179117634159cac74cde9",
+      "translation": "72a06fd3710ac9a99b8996f35c7a9bbabda09143"
+    },
+    "settings.keyboardShortcuts.actions.edit-priority": {
+      "source": "1c7d6d645c7a926a01073e9de0d7734e8709e609",
+      "translation": "1d95f366225e52e6eb3db1ace38e96e32f984bd7"
+    },
+    "settings.keyboardShortcuts.actions.mark-complete": {
+      "source": "0c018491b96aadfff5ebeb45434a2945bdd12741",
+      "translation": "cce35c04ee2c39d76087beb092e8839ca70f8599"
+    },
+    "settings.keyboardShortcuts.actions.edit-status": {
+      "source": "5ce5926a2ad6ab7245915ed31f5b7e22aac248e0",
+      "translation": "5214ddf0e9f5847f9200d8ea406f48e393db9172"
+    },
+    "settings.keyboardShortcuts.actions.edit-recurrence": {
+      "source": "fa219424af91af97c6840dc113a9a352be944f0e",
+      "translation": "fe89c4bd47af70e94b362c3989014623b7eb3e3e"
+    },
+    "settings.keyboardShortcuts.actions.add-tags": {
+      "source": "1dd02addd0de918d132176c95f135b77bf5eb0a4",
+      "translation": "4d29375026fbd7266d9eaff5b1aeb882d6e0e12f"
+    },
+    "settings.keyboardShortcuts.actions.add-context": {
+      "source": "08dae0bb10f5fe62e0690120e879d382a19d7aab",
+      "translation": "ffee365dba6818706e5d28ceea4a77d0367ad2a7"
+    },
+    "settings.keyboardShortcuts.actions.add-project": {
+      "source": "2470e8667bfae5270588f1574daf0d7cd7a89c41",
+      "translation": "3a74dbce170d78c9c2cbe3fb6df5446dd6701958"
+    },
+    "settings.keyboardShortcuts.actions.delete-tasks": {
+      "source": "c25eb923d2de14b426e095b6b921d59ffc263000",
+      "translation": "d8851a8ef576d91cef7e1b6e0403e9fe086f5038"
+    },
+    "settings.keyboardShortcuts.addUserField": {
+      "source": "987991424835f2af04f31917e0743036bc17677f",
+      "translation": "d0223d5e7e5924b8440f818bd535399a342db156"
+    },
+    "settings.keyboardShortcuts.addUserFieldDescription": {
+      "source": "b9cb91cbe4c008c1c83ae5f72e79a6a9cfaaa2be",
+      "translation": "b819167c24c8878edfa9b96f07facebde81be3c5"
+    },
     "settings.features.inlineTasks.header": {
       "source": "a0f498bf59b33369a6a0aca916b487fd04ea40a7",
       "translation": "7277ee93a6bc575b91eacbff0045075f71fa9b22"
@@ -32665,11 +33750,26 @@
       "source": "da2d900ba2974dde90a7c9b3744359f33043415e",
       "translation": "9ccb4f3bb4fdddeab7a6fc6d5569aa23f7d00cfe"
     },
-    "settings.general.taskInteraction.groupDropBehavior.name": null,
-    "settings.general.taskInteraction.groupDropBehavior.description": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replace": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.add": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": null,
+    "settings.general.taskInteraction.groupDropBehavior.name": {
+      "source": "594a13d04608b9fc5bc7a1d18e2a3ff0ecf8de0f",
+      "translation": "146e0f5281e2820951d4c2831ba49fb7dc71b81a"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.description": {
+      "source": "4e3698613ba53d069533f3f5fc8fd560f163ce6e",
+      "translation": "71aa5a84ff5ec657a44dfdc50a83340f9de9a72d"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replace": {
+      "source": "88dfbf0e4144d8386399ff19c8bcac06530b0be8",
+      "translation": "8a6f8ae3aa7b45479d948afd2daac9b54b434b9d"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.add": {
+      "source": "acb1678a253322aa33effe9c6171a30bb39ebd56",
+      "translation": "0e54d7cdd53166cc57097faac54e388e2be7106e"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": {
+      "source": "4da18f4aae22fa12834bfd87996d1acf34124cc8",
+      "translation": "9898cd058a96ceb06fe0424ef553b026a108ace3"
+    },
     "settings.general.taskInteraction.actions.edit": {
       "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
       "translation": "2f764f11562e8c595ca2dadff6ffa138b40bdd18"
@@ -41424,6 +42524,10 @@
       "source": "efe6795d4c7e0e06a8950f51c2a37070e27989b1",
       "translation": "fd49c8b3682a7ba4a554885a30969e59fde6fceb"
     },
+    "settings.tabs.keyboardShortcuts": {
+      "source": "266695479a949eec44dea9db4e15fba00163f04e",
+      "translation": "85679b8aaf9863849a32b6c74cabb6839fce5245"
+    },
     "settings.tabs.defaults": {
       "source": "791c4dc17d9b67ba065e8e94d65f1c4d54638e6a",
       "translation": "3c997ade1810bde03849961682490a587e0f9966"
@@ -41436,54 +42540,310 @@
       "source": "fc338f87a058158eb824b53705961801516a9460",
       "translation": "81063b5b6d3a534956699148d106d27dee212628"
     },
-    "settings.tabs.keyboardShortcuts": null,
     "settings.tabs.integrations": {
       "source": "a7881cac6e64abca5eafd172df6eb31fe0b84c88",
       "translation": "892f1c0be159b891166ca6b5d3ad9923e0888b10"
     },
-    "settings.keyboardShortcuts.header": null,
-    "settings.keyboardShortcuts.description": null,
-    "settings.keyboardShortcuts.actionDescription": null,
-    "settings.keyboardShortcuts.add": null,
-    "settings.keyboardShortcuts.remove": null,
-    "settings.keyboardShortcuts.captureHint": null,
-    "settings.keyboardShortcuts.recording": null,
-    "settings.keyboardShortcuts.confirmTitle": null,
-    "settings.keyboardShortcuts.confirmMessage": null,
-    "settings.keyboardShortcuts.confirm": null,
-    "settings.keyboardShortcuts.resetAction": null,
-    "settings.keyboardShortcuts.resetAll": null,
-    "settings.keyboardShortcuts.resetAllDescription": null,
-    "settings.keyboardShortcuts.conflict": null,
-    "settings.keyboardShortcuts.duplicateTitle": null,
-    "settings.keyboardShortcuts.duplicateMessage": null,
-    "settings.keyboardShortcuts.replace": null,
-    "settings.keyboardShortcuts.actions.navigate-next": null,
-    "settings.keyboardShortcuts.actions.navigate-previous": null,
-    "settings.keyboardShortcuts.actions.jump-first": null,
-    "settings.keyboardShortcuts.actions.jump-last": null,
-    "settings.keyboardShortcuts.actions.clear-focus-and-selection": null,
-    "settings.keyboardShortcuts.actions.toggle-select": null,
-    "settings.keyboardShortcuts.actions.select-all": null,
-    "settings.keyboardShortcuts.actions.copy-task-titles": null,
-    "settings.keyboardShortcuts.actions.toggle-archive": null,
-    "settings.keyboardShortcuts.actions.create-task": null,
-    "settings.keyboardShortcuts.actions.focus-search": null,
-    "settings.keyboardShortcuts.actions.edit-task": null,
-    "settings.keyboardShortcuts.actions.open-context-menu": null,
-    "settings.keyboardShortcuts.actions.open-task-notes": null,
-    "settings.keyboardShortcuts.actions.edit-due": null,
-    "settings.keyboardShortcuts.actions.edit-scheduled": null,
-    "settings.keyboardShortcuts.actions.edit-priority": null,
-    "settings.keyboardShortcuts.actions.mark-complete": null,
-    "settings.keyboardShortcuts.actions.edit-status": null,
-    "settings.keyboardShortcuts.actions.edit-recurrence": null,
-    "settings.keyboardShortcuts.actions.add-tags": null,
-    "settings.keyboardShortcuts.actions.add-context": null,
-    "settings.keyboardShortcuts.actions.add-project": null,
-    "settings.keyboardShortcuts.actions.delete-tasks": null,
-    "settings.keyboardShortcuts.addUserField": null,
-    "settings.keyboardShortcuts.addUserFieldDescription": null,
+    "settings.modalFields.header": {
+      "source": "463769fb01686447dfedbb494aa058ba8f025686",
+      "translation": "51b609122cc26f3c18b8f7f442d3e7bda9c88edb"
+    },
+    "settings.modalFields.description": {
+      "source": "15ec3cb1720d8b370a1e04d4ca7a0b3ddd8567fc",
+      "translation": "8b23c525c713ea1c44959f59c7824fc0853de7da"
+    },
+    "settings.modalFields.splitLayout.name": {
+      "source": "60564be9095b0be664a9d1ea663ac74e5ccef220",
+      "translation": "48012c2dc2e136c6f21fab9d81549900cc3d917a"
+    },
+    "settings.modalFields.splitLayout.description": {
+      "source": "c37507b5356b91ddc9b2ecffb71ed8aa9bd99bc5",
+      "translation": "5926286199e5a0feee9ec197a941a5779db3718a"
+    },
+    "settings.modalFields.tabMovesFocus.name": {
+      "source": "6d204daa67216709d1eb3f9c6f72b0d5289ee66b",
+      "translation": "4b52afd21f8a3f808407cf767819accd16cb5dcc"
+    },
+    "settings.modalFields.tabMovesFocus.description": {
+      "source": "2f4053ebbcf6766caa54489d1f64196cb4b1d65f",
+      "translation": "dfff7b76dfabf0e69df8e86d017e8627d93a9450"
+    },
+    "settings.modalFields.sync.name": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "7a9d4efbfd8bcd4c2b299ba38a39d3d6813ec6f2"
+    },
+    "settings.modalFields.sync.description": {
+      "source": "d5ff882897bbaa153719e8cd96f42c1884977a9c",
+      "translation": "979bf60c5b7cbf0036f99c86c8685fbfeb8127af"
+    },
+    "settings.modalFields.sync.button": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "7a9d4efbfd8bcd4c2b299ba38a39d3d6813ec6f2"
+    },
+    "settings.modalFields.sync.notice": {
+      "source": "9e18b026eb848fc00a0f405979ab0999ee69be0f",
+      "translation": "9e48b7dbd045090b13ed91d98a310d32786cb9e7"
+    },
+    "settings.modalFields.reset.name": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "e886cab8cf08717ab3b627d8abaf53ad40d4677e"
+    },
+    "settings.modalFields.reset.description": {
+      "source": "af2b7f65f817989f953ee108fa2ac0a3eff97670",
+      "translation": "34b51247f98274ba0e14e96ecd1dfdb8cff73c20"
+    },
+    "settings.modalFields.reset.button": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "e886cab8cf08717ab3b627d8abaf53ad40d4677e"
+    },
+    "settings.modalFields.reset.confirmTitle": {
+      "source": "b4dfd2ca17670f8eacf7a8fe142e22522f450b40",
+      "translation": "a2131422e232d64f6d27ff90aa3332be0a548ab6"
+    },
+    "settings.modalFields.reset.confirmMessage": {
+      "source": "b8b0d02597a163dd9e687912551e2052b26b5234",
+      "translation": "80640875d57e539fb582c41caf00f092cbf0ad59"
+    },
+    "settings.modalFields.reset.confirmText": {
+      "source": "44c57abd888a66b36d4b7c902134063e4a097223",
+      "translation": "ee3963d9fa25beda9a1cf87a29d9eb274a6243d1"
+    },
+    "settings.modalFields.reset.cancelText": {
+      "source": "77dfd2135f4db726c47299bb55be26f7f4525a46",
+      "translation": "19b2d19bc14102ec9341f4c8ea5b65daa910826c"
+    },
+    "settings.modalFields.reset.notice": {
+      "source": "998a1e127a85d5e119fa538c08e07eacc044ad68",
+      "translation": "1211a169657e99632ab9cd3e4d0f3a94e2ed3d33"
+    },
+    "settings.modalFields.initError": {
+      "source": "813bc1f0be1c2c8d047659e061029b41300e43ef",
+      "translation": "0bd7b129b72f74f631643ae476201122b3408496"
+    },
+    "settings.modalFields.manager.invalidConfig": {
+      "source": "e4d5672cae6c369bd1cd23a8c950e044319a6662",
+      "translation": "8227751c1a8363b3ad57d544ad263399dfbef40e"
+    },
+    "settings.modalFields.manager.emptyGroup": {
+      "source": "f2ef4e6d48d44c229ecb83b3d3e799df8a8eb367",
+      "translation": "2f8c57e8a854d049a8377c58a73e2309aece50f6"
+    },
+    "settings.modalFields.manager.enabled": {
+      "source": "f1b45b4b3bf49e9b92c8251ac538f4cfff36209a",
+      "translation": "47fa61c7292c0919b713c4ebe8d23fd08faf585b"
+    },
+    "settings.modalFields.manager.showInCreation": {
+      "source": "b8e50d533a687b109bf799f060eafd36221d094a",
+      "translation": "5b0a747b147574a1ce56131d458e5b9df8c257f2"
+    },
+    "settings.modalFields.manager.showInEdit": {
+      "source": "1933e97174ad50029164292cdf98e28d9f951a76",
+      "translation": "83bde2c056d25706c02f23cf81a138d55799b8dd"
+    },
+    "settings.modalFields.manager.group": {
+      "source": "c04773b71e46b5ce75774be4f01e3902119b03f8",
+      "translation": "41b98112818702116777357940b1da9e7bee130b"
+    },
+    "settings.modalFields.manager.fieldId": {
+      "source": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1",
+      "translation": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1"
+    },
+    "settings.modalFields.manager.fieldKey": {
+      "source": "ac49e227c79e530ebc416022e7d86a93765313e3",
+      "translation": "f5b29991ebf0d2f2218609ebd45eb2ccb9eebb52"
+    },
+    "settings.modalFields.manager.noKey": {
+      "source": "367b4a155f777aae3242c44f81ca50aae3a6dee6",
+      "translation": "1215a69b2acaab3e8d8f6fc85bed481c0e40ef13"
+    },
+    "settings.modalFields.manager.fieldTypes.core": {
+      "source": "68836c550ee20fae0e06b2994e76a40348d2fc30",
+      "translation": "7f1d8c413d3d2c9f4cc8e0a36967b0879c8848b6"
+    },
+    "settings.modalFields.manager.fieldTypes.user": {
+      "source": "9f8a2389a20ca0752aa9e95093515517e90e194c",
+      "translation": "5c50d9e50b6beeadd5a62a989431b46e84b34245"
+    },
+    "settings.modalFields.manager.fieldTypes.dependency": {
+      "source": "ce311abe7bbcb35898a8ac0bf7c2dca01106d8f6",
+      "translation": "8258ceae19794a515dc44910a005a779feb80b12"
+    },
+    "settings.modalFields.manager.fieldTypes.organization": {
+      "source": "519255ae1f74ffc5ddd29979295c7572f048ad81",
+      "translation": "c35410326486508417e087ea7f7b8905fb3aceb6"
+    },
+    "settings.keyboardShortcuts.header": {
+      "source": "3fedd656b7907df71597d5fd3d00de0bc273d1c4",
+      "translation": "5ecfd9bdb83b1e9132c8f9271722848f75b79767"
+    },
+    "settings.keyboardShortcuts.description": {
+      "source": "bfd1d4089875cb53d4d40763ab6dbf8ed25ec7a2",
+      "translation": "91ad72ce0c8852d3b799fdcdd4bdae565df84584"
+    },
+    "settings.keyboardShortcuts.actionDescription": {
+      "source": "b0620d440c1bfec2ca80935171d7691818ea002e",
+      "translation": "53bbb1ad7cd87c7ee460154df54a0afd68af67b9"
+    },
+    "settings.keyboardShortcuts.add": {
+      "source": "8b908560b10b3da34c4d5586108f0491dbd8855f",
+      "translation": "7de02691606f9f13ef8b1aa499accb56f37ae6b6"
+    },
+    "settings.keyboardShortcuts.remove": {
+      "source": "0e000d01cc293b590d5c64862cad91bbf76489f1",
+      "translation": "d758d7b3c7f0bb158502dd8f145992dc57041069"
+    },
+    "settings.keyboardShortcuts.captureHint": {
+      "source": "d71568c24bcac6f4afa4e72cbc4c0a7c0e0c9426",
+      "translation": "55f7a76eba0f518f8b6860d99f00556dcc5910c2"
+    },
+    "settings.keyboardShortcuts.recording": {
+      "source": "98b8167e219d62a3861686ed819db30c69eac809",
+      "translation": "0c23e4bda6af9887c1c7b48b3bd3d71a43945718"
+    },
+    "settings.keyboardShortcuts.confirmTitle": {
+      "source": "aee8a9be17d8f68e4e791a5af4b7679a8c7415f8",
+      "translation": "fadcdc11759c22ff8eae3af5c64c63fa8acd8dd9"
+    },
+    "settings.keyboardShortcuts.confirmMessage": {
+      "source": "ecda59f41be584195485db7e44879ad1c71892c9",
+      "translation": "bfc3340426cf3291dd61c6f210ab3bd43895ffe1"
+    },
+    "settings.keyboardShortcuts.confirm": {
+      "source": "61cc55aa0453184734c3fa0b621eda6fa874bd83",
+      "translation": "5794299536757b25c8eafa1a5f33844fb6fb12f6"
+    },
+    "settings.keyboardShortcuts.resetAction": {
+      "source": "a484a49884b0960a2c0312f1530ab30dd2a00d99",
+      "translation": "aaa635e5fdd7a4c3837893c0efa273fd45a47811"
+    },
+    "settings.keyboardShortcuts.resetAll": {
+      "source": "cdaa7ba41263eb1d4bd2be803a6ce7b2435fa6b1",
+      "translation": "3dc790ba13c1e6c4c1ef1462fe42a9af1ec25599"
+    },
+    "settings.keyboardShortcuts.resetAllDescription": {
+      "source": "ccea6c2e0713e07f5c5d6f1fb6d05e16db7e7b05",
+      "translation": "e6181987806aa404a7ef6b5177ec48090e555db9"
+    },
+    "settings.keyboardShortcuts.conflict": {
+      "source": "e6f952f6c9af5a621240ab78b67b09ac57341150",
+      "translation": "6f2df11b7fa4164fa0a03956c334365db6772466"
+    },
+    "settings.keyboardShortcuts.duplicateTitle": {
+      "source": "fafff5ca4a1e594f4ef879ad5ad6737579380826",
+      "translation": "61b7c0303f476966b14b5e05076fc4a9fe3cb166"
+    },
+    "settings.keyboardShortcuts.duplicateMessage": {
+      "source": "d879576f38c2be6b61803bd89bc60467663b3581",
+      "translation": "5bc14457115e00283314a7412c29ea266c4dc36b"
+    },
+    "settings.keyboardShortcuts.replace": {
+      "source": "a7cf7b25a703b308887c7f1d100c4326ef20ac46",
+      "translation": "75b73b7fa2561a9decd75fb8d13a99a09c590b67"
+    },
+    "settings.keyboardShortcuts.actions.navigate-next": {
+      "source": "79aca4bc3e93782027c4b1a816a6d90147ef773c",
+      "translation": "13dfe522578cc177badbe2b439f7483985641d2c"
+    },
+    "settings.keyboardShortcuts.actions.navigate-previous": {
+      "source": "1a8e9715cc69f9ba4aafe88c18da9d1df2b1145d",
+      "translation": "1f1a74335c7be8cde06a7652549047b65f51c385"
+    },
+    "settings.keyboardShortcuts.actions.jump-first": {
+      "source": "727e80658259f01259f220f7f613d9e1875c0979",
+      "translation": "cda17d1034d96d55815d27dbc6daa225de7949fc"
+    },
+    "settings.keyboardShortcuts.actions.jump-last": {
+      "source": "7d84df2bbf7de545d1649f3258f2cd83bdb8a167",
+      "translation": "08ed47af43b6cd0e15fba00657427449a8180bd9"
+    },
+    "settings.keyboardShortcuts.actions.clear-focus-and-selection": {
+      "source": "029660c154900884b2beb3682f2d1f3b6db1a162",
+      "translation": "e29b3a82f9eeb5865e95b7bd66a67989d7957556"
+    },
+    "settings.keyboardShortcuts.actions.toggle-select": {
+      "source": "7b96fbd541821b4e1bf62b73426577c22d80d7c7",
+      "translation": "ba79b669b1e5e12e3ceeb9b03af16eedaee3b93a"
+    },
+    "settings.keyboardShortcuts.actions.select-all": {
+      "source": "ed45a52fc7e6617b02f579ca9387687013bf9497",
+      "translation": "5902ea086869710a0986c541d5fe695c2ecac53e"
+    },
+    "settings.keyboardShortcuts.actions.copy-task-titles": {
+      "source": "3872aa3135d4ce4539906f51b4f703974f03d87b",
+      "translation": "5a30a1f2c5e52053c13f0f35f658726037b4dabb"
+    },
+    "settings.keyboardShortcuts.actions.toggle-archive": {
+      "source": "825f484bb9bf0857b94bed53810b917c00319d50",
+      "translation": "3852e4d175f7ec82892959dc5396b2b8086390cf"
+    },
+    "settings.keyboardShortcuts.actions.create-task": {
+      "source": "f1f1450ff80aeab91cb0853329e2b454904866e2",
+      "translation": "4b974428d539673e36aa6ba8b5029b1059b6d49b"
+    },
+    "settings.keyboardShortcuts.actions.focus-search": {
+      "source": "4c50e4cc8f632550e30c2e328cc5aaaba2ba38b4",
+      "translation": "4149caa14574bd91ef62765ccd9c80a14066f175"
+    },
+    "settings.keyboardShortcuts.actions.edit-task": {
+      "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
+      "translation": "f937c6e3ab68662a7dd9e7d0cfc306125cbb40c7"
+    },
+    "settings.keyboardShortcuts.actions.open-context-menu": {
+      "source": "6c16e06070c95cf43cd041a19910605ba3283686",
+      "translation": "1836ef0cf005525aa51b4d14ee3ac06e925495f1"
+    },
+    "settings.keyboardShortcuts.actions.open-task-notes": {
+      "source": "fbd1aa98301dadc1150aea34db34c2d99cad2063",
+      "translation": "84538ee3ebcdd5edb234f0a9b99481bfc9dd81b0"
+    },
+    "settings.keyboardShortcuts.actions.edit-due": {
+      "source": "3fc38cbf2d3ac4d799d8de76edbb438e4bfff385",
+      "translation": "010da9583124979eaa11fd195838a218bdb74f0e"
+    },
+    "settings.keyboardShortcuts.actions.edit-scheduled": {
+      "source": "305b14722146b4a9e6e179117634159cac74cde9",
+      "translation": "7d9ece1d239050fad8abaa4007c5bdc5a16f7b20"
+    },
+    "settings.keyboardShortcuts.actions.edit-priority": {
+      "source": "1c7d6d645c7a926a01073e9de0d7734e8709e609",
+      "translation": "996912c15ca8726f32cb13d293868324d23ed09e"
+    },
+    "settings.keyboardShortcuts.actions.mark-complete": {
+      "source": "0c018491b96aadfff5ebeb45434a2945bdd12741",
+      "translation": "319d4f40bce8743913e348f8f9a35ecaf2925192"
+    },
+    "settings.keyboardShortcuts.actions.edit-status": {
+      "source": "5ce5926a2ad6ab7245915ed31f5b7e22aac248e0",
+      "translation": "799355a6f4d0ee9365a7a44c4edce19ef7afebb7"
+    },
+    "settings.keyboardShortcuts.actions.edit-recurrence": {
+      "source": "fa219424af91af97c6840dc113a9a352be944f0e",
+      "translation": "8dccbc77a38d2b5f174a2aa1750a4caf64fb9a62"
+    },
+    "settings.keyboardShortcuts.actions.add-tags": {
+      "source": "1dd02addd0de918d132176c95f135b77bf5eb0a4",
+      "translation": "abc45e3652ce75570ccee46da5fc434f970d2da6"
+    },
+    "settings.keyboardShortcuts.actions.add-context": {
+      "source": "08dae0bb10f5fe62e0690120e879d382a19d7aab",
+      "translation": "08c074bbeed0e0e6ce5b34d63710c75c63bbc8de"
+    },
+    "settings.keyboardShortcuts.actions.add-project": {
+      "source": "2470e8667bfae5270588f1574daf0d7cd7a89c41",
+      "translation": "d5ed36af4e408b48b99d8a988a823b0e30cb89b7"
+    },
+    "settings.keyboardShortcuts.actions.delete-tasks": {
+      "source": "c25eb923d2de14b426e095b6b921d59ffc263000",
+      "translation": "ea03a40c55c5578e021a85303565218ac9dbe06c"
+    },
+    "settings.keyboardShortcuts.addUserField": {
+      "source": "987991424835f2af04f31917e0743036bc17677f",
+      "translation": "35c5fe0676e9c67a36a97c0aa0b6b1dd2a613963"
+    },
+    "settings.keyboardShortcuts.addUserFieldDescription": {
+      "source": "b9cb91cbe4c008c1c83ae5f72e79a6a9cfaaa2be",
+      "translation": "c321ae988ff6985b879272d6bbc4f8a2358b2603"
+    },
     "settings.features.inlineTasks.header": {
       "source": "a0f498bf59b33369a6a0aca916b487fd04ea40a7",
       "translation": "1e85b7120ae8c808302b3a235b6f91916bbf7de8"
@@ -42516,11 +43876,26 @@
       "source": "da2d900ba2974dde90a7c9b3744359f33043415e",
       "translation": "66037ea3866594da9b1f5dbc951091d0a2d637a8"
     },
-    "settings.general.taskInteraction.groupDropBehavior.name": null,
-    "settings.general.taskInteraction.groupDropBehavior.description": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replace": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.add": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": null,
+    "settings.general.taskInteraction.groupDropBehavior.name": {
+      "source": "594a13d04608b9fc5bc7a1d18e2a3ff0ecf8de0f",
+      "translation": "529e9a340efa4bef8bc3b3479183a93770877eb3"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.description": {
+      "source": "4e3698613ba53d069533f3f5fc8fd560f163ce6e",
+      "translation": "faf9088ded74c684685c0ede43baa8f05cdaeeb8"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replace": {
+      "source": "88dfbf0e4144d8386399ff19c8bcac06530b0be8",
+      "translation": "12ccc4e3f8e03191a2c289d46534aeef09a1d4ee"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.add": {
+      "source": "acb1678a253322aa33effe9c6171a30bb39ebd56",
+      "translation": "9e7343df2a34811c51a7e21cf562b42834bed220"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": {
+      "source": "4da18f4aae22fa12834bfd87996d1acf34124cc8",
+      "translation": "3f2fd020cb36cc5111e944d517379d52e63baf8f"
+    },
     "settings.general.taskInteraction.actions.edit": {
       "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
       "translation": "f937c6e3ab68662a7dd9e7d0cfc306125cbb40c7"
@@ -51275,6 +52650,10 @@
       "source": "efe6795d4c7e0e06a8950f51c2a37070e27989b1",
       "translation": "d88e47bdfb2d99342813591962ab0040f2e779e9"
     },
+    "settings.tabs.keyboardShortcuts": {
+      "source": "266695479a949eec44dea9db4e15fba00163f04e",
+      "translation": "1e9500f20441054b29bb85e6ae67aba0a1bbffe3"
+    },
     "settings.tabs.defaults": {
       "source": "791c4dc17d9b67ba065e8e94d65f1c4d54638e6a",
       "translation": "f25fe6507aa0f112689295c6f08912b4ef30ade6"
@@ -51287,54 +52666,310 @@
       "source": "fc338f87a058158eb824b53705961801516a9460",
       "translation": "fb7f240fb3f7bbf79f7aa28f97150b9b46e81ced"
     },
-    "settings.tabs.keyboardShortcuts": null,
     "settings.tabs.integrations": {
       "source": "a7881cac6e64abca5eafd172df6eb31fe0b84c88",
       "translation": "935a73f2095899b2cc1730e3257e5c96e4e35b5c"
     },
-    "settings.keyboardShortcuts.header": null,
-    "settings.keyboardShortcuts.description": null,
-    "settings.keyboardShortcuts.actionDescription": null,
-    "settings.keyboardShortcuts.add": null,
-    "settings.keyboardShortcuts.remove": null,
-    "settings.keyboardShortcuts.captureHint": null,
-    "settings.keyboardShortcuts.recording": null,
-    "settings.keyboardShortcuts.confirmTitle": null,
-    "settings.keyboardShortcuts.confirmMessage": null,
-    "settings.keyboardShortcuts.confirm": null,
-    "settings.keyboardShortcuts.resetAction": null,
-    "settings.keyboardShortcuts.resetAll": null,
-    "settings.keyboardShortcuts.resetAllDescription": null,
-    "settings.keyboardShortcuts.conflict": null,
-    "settings.keyboardShortcuts.duplicateTitle": null,
-    "settings.keyboardShortcuts.duplicateMessage": null,
-    "settings.keyboardShortcuts.replace": null,
-    "settings.keyboardShortcuts.actions.navigate-next": null,
-    "settings.keyboardShortcuts.actions.navigate-previous": null,
-    "settings.keyboardShortcuts.actions.jump-first": null,
-    "settings.keyboardShortcuts.actions.jump-last": null,
-    "settings.keyboardShortcuts.actions.clear-focus-and-selection": null,
-    "settings.keyboardShortcuts.actions.toggle-select": null,
-    "settings.keyboardShortcuts.actions.select-all": null,
-    "settings.keyboardShortcuts.actions.copy-task-titles": null,
-    "settings.keyboardShortcuts.actions.toggle-archive": null,
-    "settings.keyboardShortcuts.actions.create-task": null,
-    "settings.keyboardShortcuts.actions.focus-search": null,
-    "settings.keyboardShortcuts.actions.edit-task": null,
-    "settings.keyboardShortcuts.actions.open-context-menu": null,
-    "settings.keyboardShortcuts.actions.open-task-notes": null,
-    "settings.keyboardShortcuts.actions.edit-due": null,
-    "settings.keyboardShortcuts.actions.edit-scheduled": null,
-    "settings.keyboardShortcuts.actions.edit-priority": null,
-    "settings.keyboardShortcuts.actions.mark-complete": null,
-    "settings.keyboardShortcuts.actions.edit-status": null,
-    "settings.keyboardShortcuts.actions.edit-recurrence": null,
-    "settings.keyboardShortcuts.actions.add-tags": null,
-    "settings.keyboardShortcuts.actions.add-context": null,
-    "settings.keyboardShortcuts.actions.add-project": null,
-    "settings.keyboardShortcuts.actions.delete-tasks": null,
-    "settings.keyboardShortcuts.addUserField": null,
-    "settings.keyboardShortcuts.addUserFieldDescription": null,
+    "settings.modalFields.header": {
+      "source": "463769fb01686447dfedbb494aa058ba8f025686",
+      "translation": "9dbfd9fc2f4c0a361ccf692e28757b53c475da04"
+    },
+    "settings.modalFields.description": {
+      "source": "15ec3cb1720d8b370a1e04d4ca7a0b3ddd8567fc",
+      "translation": "9314808a2fa6e4fd4c50d9091efb0de704ae54d3"
+    },
+    "settings.modalFields.splitLayout.name": {
+      "source": "60564be9095b0be664a9d1ea663ac74e5ccef220",
+      "translation": "1b5a1e0a5fa3cebe07edae9f8f035d3128a4876f"
+    },
+    "settings.modalFields.splitLayout.description": {
+      "source": "c37507b5356b91ddc9b2ecffb71ed8aa9bd99bc5",
+      "translation": "1a5c2e097a53be3c789d6d2fa778084f27922f7a"
+    },
+    "settings.modalFields.tabMovesFocus.name": {
+      "source": "6d204daa67216709d1eb3f9c6f72b0d5289ee66b",
+      "translation": "bdbabc1f4f0d8fbec7449480b6826f4b3134ba67"
+    },
+    "settings.modalFields.tabMovesFocus.description": {
+      "source": "2f4053ebbcf6766caa54489d1f64196cb4b1d65f",
+      "translation": "fd2308bd1c86296ae19dabb70d57c429352225e1"
+    },
+    "settings.modalFields.sync.name": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "2cd50aacadda1adc1e3e67537e144c46e67e112c"
+    },
+    "settings.modalFields.sync.description": {
+      "source": "d5ff882897bbaa153719e8cd96f42c1884977a9c",
+      "translation": "3015ac927f3522169839d3048b2fc11c654b1d4e"
+    },
+    "settings.modalFields.sync.button": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "2cd50aacadda1adc1e3e67537e144c46e67e112c"
+    },
+    "settings.modalFields.sync.notice": {
+      "source": "9e18b026eb848fc00a0f405979ab0999ee69be0f",
+      "translation": "f2b284d5f9f9c066993c7e901b3d0ff992522658"
+    },
+    "settings.modalFields.reset.name": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "d01888a014f477e28a21c90848da1046afc2524f"
+    },
+    "settings.modalFields.reset.description": {
+      "source": "af2b7f65f817989f953ee108fa2ac0a3eff97670",
+      "translation": "746e2867d8541c2a4c52e969d0a03d5471e54ac0"
+    },
+    "settings.modalFields.reset.button": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "d01888a014f477e28a21c90848da1046afc2524f"
+    },
+    "settings.modalFields.reset.confirmTitle": {
+      "source": "b4dfd2ca17670f8eacf7a8fe142e22522f450b40",
+      "translation": "3d3b4ca66c43d62c227472d88689d25e911abf26"
+    },
+    "settings.modalFields.reset.confirmMessage": {
+      "source": "b8b0d02597a163dd9e687912551e2052b26b5234",
+      "translation": "7354899c39479ec3f6ad6e2c8b6c2d9e6bce3f0c"
+    },
+    "settings.modalFields.reset.confirmText": {
+      "source": "44c57abd888a66b36d4b7c902134063e4a097223",
+      "translation": "ccdfb7e8e0daac9ba528a3f3b577d764a73690a1"
+    },
+    "settings.modalFields.reset.cancelText": {
+      "source": "77dfd2135f4db726c47299bb55be26f7f4525a46",
+      "translation": "c111e0ab9ddb1dfb79f8a12c741ba6dbdb07992a"
+    },
+    "settings.modalFields.reset.notice": {
+      "source": "998a1e127a85d5e119fa538c08e07eacc044ad68",
+      "translation": "9d248b6f4eef7d1c2779f6df42cd33afe5fc5a4c"
+    },
+    "settings.modalFields.initError": {
+      "source": "813bc1f0be1c2c8d047659e061029b41300e43ef",
+      "translation": "e31e91e3e46730f7bfa31c2e187894dbbcabebca"
+    },
+    "settings.modalFields.manager.invalidConfig": {
+      "source": "e4d5672cae6c369bd1cd23a8c950e044319a6662",
+      "translation": "c7cc07045e2c4fe8df137c3dec5abdeb2786e90c"
+    },
+    "settings.modalFields.manager.emptyGroup": {
+      "source": "f2ef4e6d48d44c229ecb83b3d3e799df8a8eb367",
+      "translation": "97366436cbb1ba8f80ebbeb60a09a6bdcf15b883"
+    },
+    "settings.modalFields.manager.enabled": {
+      "source": "f1b45b4b3bf49e9b92c8251ac538f4cfff36209a",
+      "translation": "3ecc8fdce3a6777782bb96dcefd31ed1efde08d5"
+    },
+    "settings.modalFields.manager.showInCreation": {
+      "source": "b8e50d533a687b109bf799f060eafd36221d094a",
+      "translation": "cb0a0750863ede2113695a3fb3c58b105bcfd0d1"
+    },
+    "settings.modalFields.manager.showInEdit": {
+      "source": "1933e97174ad50029164292cdf98e28d9f951a76",
+      "translation": "9f06be98abd2e204424ced110372e58af32ad477"
+    },
+    "settings.modalFields.manager.group": {
+      "source": "c04773b71e46b5ce75774be4f01e3902119b03f8",
+      "translation": "ad3a74f3e9d7ae17762720f301f06dc921933038"
+    },
+    "settings.modalFields.manager.fieldId": {
+      "source": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1",
+      "translation": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1"
+    },
+    "settings.modalFields.manager.fieldKey": {
+      "source": "ac49e227c79e530ebc416022e7d86a93765313e3",
+      "translation": "838ffc034c16844b138e7d9bd651eb97ae2fbe09"
+    },
+    "settings.modalFields.manager.noKey": {
+      "source": "367b4a155f777aae3242c44f81ca50aae3a6dee6",
+      "translation": "b002eae4b0256f2e044915c6e47fd92e90e3668f"
+    },
+    "settings.modalFields.manager.fieldTypes.core": {
+      "source": "68836c550ee20fae0e06b2994e76a40348d2fc30",
+      "translation": "f3b86b13dbbc1f25f1ed8bc04e7a1e250f26a965"
+    },
+    "settings.modalFields.manager.fieldTypes.user": {
+      "source": "9f8a2389a20ca0752aa9e95093515517e90e194c",
+      "translation": "f32c134523d492803448dc4d9de86b0d2b5be36b"
+    },
+    "settings.modalFields.manager.fieldTypes.dependency": {
+      "source": "ce311abe7bbcb35898a8ac0bf7c2dca01106d8f6",
+      "translation": "891f0fbcfb27188dbb6575e7907e3c57da30ad8d"
+    },
+    "settings.modalFields.manager.fieldTypes.organization": {
+      "source": "519255ae1f74ffc5ddd29979295c7572f048ad81",
+      "translation": "1ddb1fd20571a3d8d3270644fe3e76d08a689e31"
+    },
+    "settings.keyboardShortcuts.header": {
+      "source": "3fedd656b7907df71597d5fd3d00de0bc273d1c4",
+      "translation": "8649d2437745385d7a05338675aee2275c15051b"
+    },
+    "settings.keyboardShortcuts.description": {
+      "source": "bfd1d4089875cb53d4d40763ab6dbf8ed25ec7a2",
+      "translation": "54f9ebd1b81287fd7637704652cd2a5c55f36ee6"
+    },
+    "settings.keyboardShortcuts.actionDescription": {
+      "source": "b0620d440c1bfec2ca80935171d7691818ea002e",
+      "translation": "47af5ad412064de3e0754bda0a4847973ad7df73"
+    },
+    "settings.keyboardShortcuts.add": {
+      "source": "8b908560b10b3da34c4d5586108f0491dbd8855f",
+      "translation": "7d9f240462bfd13f636493f0424bf6e377ef596b"
+    },
+    "settings.keyboardShortcuts.remove": {
+      "source": "0e000d01cc293b590d5c64862cad91bbf76489f1",
+      "translation": "7ff8486795d385dd593f27840e1cc54280e5276f"
+    },
+    "settings.keyboardShortcuts.captureHint": {
+      "source": "d71568c24bcac6f4afa4e72cbc4c0a7c0e0c9426",
+      "translation": "ac60af2077daa91cc35fda7b978cd75c3acbd1c8"
+    },
+    "settings.keyboardShortcuts.recording": {
+      "source": "98b8167e219d62a3861686ed819db30c69eac809",
+      "translation": "a558c70a9fc26ae5abff2c4881a163c2910d26d9"
+    },
+    "settings.keyboardShortcuts.confirmTitle": {
+      "source": "aee8a9be17d8f68e4e791a5af4b7679a8c7415f8",
+      "translation": "263b8896797bc211ed7d61c95ae3708bf7e03ccb"
+    },
+    "settings.keyboardShortcuts.confirmMessage": {
+      "source": "ecda59f41be584195485db7e44879ad1c71892c9",
+      "translation": "82d1f693c403d7518a22096490aa32936ca27050"
+    },
+    "settings.keyboardShortcuts.confirm": {
+      "source": "61cc55aa0453184734c3fa0b621eda6fa874bd83",
+      "translation": "fadcf2d5a3d5cecd1650a49ef221dc90192b7ea0"
+    },
+    "settings.keyboardShortcuts.resetAction": {
+      "source": "a484a49884b0960a2c0312f1530ab30dd2a00d99",
+      "translation": "2f72270bf439c6f4d032d002d9b6a2881eb8ed38"
+    },
+    "settings.keyboardShortcuts.resetAll": {
+      "source": "cdaa7ba41263eb1d4bd2be803a6ce7b2435fa6b1",
+      "translation": "68d54247c67b2e96f8063c359463ebd25df3658d"
+    },
+    "settings.keyboardShortcuts.resetAllDescription": {
+      "source": "ccea6c2e0713e07f5c5d6f1fb6d05e16db7e7b05",
+      "translation": "824f2ba6cda27c0d7d0d8f38f92bf78f208ce641"
+    },
+    "settings.keyboardShortcuts.conflict": {
+      "source": "e6f952f6c9af5a621240ab78b67b09ac57341150",
+      "translation": "4dbfc9c5ac8289b032ffbc2bdd57ed85cf54c1cf"
+    },
+    "settings.keyboardShortcuts.duplicateTitle": {
+      "source": "fafff5ca4a1e594f4ef879ad5ad6737579380826",
+      "translation": "c9e17d7f0369786f1ce3d23e20bb7c77b7e8eabd"
+    },
+    "settings.keyboardShortcuts.duplicateMessage": {
+      "source": "d879576f38c2be6b61803bd89bc60467663b3581",
+      "translation": "78707406db0532c2b0652f05c132d5bcd3409a37"
+    },
+    "settings.keyboardShortcuts.replace": {
+      "source": "a7cf7b25a703b308887c7f1d100c4326ef20ac46",
+      "translation": "2b7c46de1394716d86a94701e47684e8eab447e0"
+    },
+    "settings.keyboardShortcuts.actions.navigate-next": {
+      "source": "79aca4bc3e93782027c4b1a816a6d90147ef773c",
+      "translation": "e55a1c9c47af98e8608de82bfc1cf078f5211e04"
+    },
+    "settings.keyboardShortcuts.actions.navigate-previous": {
+      "source": "1a8e9715cc69f9ba4aafe88c18da9d1df2b1145d",
+      "translation": "a94380a7482549a56b612ae6dfb11c52e37c07d1"
+    },
+    "settings.keyboardShortcuts.actions.jump-first": {
+      "source": "727e80658259f01259f220f7f613d9e1875c0979",
+      "translation": "e1c62ff1d120537af9b47f92e039d80b467e1638"
+    },
+    "settings.keyboardShortcuts.actions.jump-last": {
+      "source": "7d84df2bbf7de545d1649f3258f2cd83bdb8a167",
+      "translation": "beb4ea41cbaf57428afd8c432ff1d9eac37d58ac"
+    },
+    "settings.keyboardShortcuts.actions.clear-focus-and-selection": {
+      "source": "029660c154900884b2beb3682f2d1f3b6db1a162",
+      "translation": "c8aadcd2000a3ee59ea63d2394fc41244714dac5"
+    },
+    "settings.keyboardShortcuts.actions.toggle-select": {
+      "source": "7b96fbd541821b4e1bf62b73426577c22d80d7c7",
+      "translation": "6c082b5de98a2f4b317778dd9497a0285994ee24"
+    },
+    "settings.keyboardShortcuts.actions.select-all": {
+      "source": "ed45a52fc7e6617b02f579ca9387687013bf9497",
+      "translation": "0276fd1bd8ec1fb444a60ce7e0fe1cc3841e3d53"
+    },
+    "settings.keyboardShortcuts.actions.copy-task-titles": {
+      "source": "3872aa3135d4ce4539906f51b4f703974f03d87b",
+      "translation": "622f695e03d8bbf2793ddab2ef01414eee088b8c"
+    },
+    "settings.keyboardShortcuts.actions.toggle-archive": {
+      "source": "825f484bb9bf0857b94bed53810b917c00319d50",
+      "translation": "1717ff13585685883049fd58f4c8eb40a48e7c3b"
+    },
+    "settings.keyboardShortcuts.actions.create-task": {
+      "source": "f1f1450ff80aeab91cb0853329e2b454904866e2",
+      "translation": "77c407d831897f04ec00e7967dc1f1efa7f4b6c2"
+    },
+    "settings.keyboardShortcuts.actions.focus-search": {
+      "source": "4c50e4cc8f632550e30c2e328cc5aaaba2ba38b4",
+      "translation": "bddf1823e94ec91ab5bc368b57fb0ad0de2e3dd1"
+    },
+    "settings.keyboardShortcuts.actions.edit-task": {
+      "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
+      "translation": "2fc5428146590ec9e251d86d5eda909f045c16ff"
+    },
+    "settings.keyboardShortcuts.actions.open-context-menu": {
+      "source": "6c16e06070c95cf43cd041a19910605ba3283686",
+      "translation": "9ab7d25407b6c3f6ff2f642f1b5710aa35475e8c"
+    },
+    "settings.keyboardShortcuts.actions.open-task-notes": {
+      "source": "fbd1aa98301dadc1150aea34db34c2d99cad2063",
+      "translation": "14b2afbc67c636ba8d75522ecdaddaa88983f42c"
+    },
+    "settings.keyboardShortcuts.actions.edit-due": {
+      "source": "3fc38cbf2d3ac4d799d8de76edbb438e4bfff385",
+      "translation": "54691a30c9acdb9b21a8872ea010f32d8c459620"
+    },
+    "settings.keyboardShortcuts.actions.edit-scheduled": {
+      "source": "305b14722146b4a9e6e179117634159cac74cde9",
+      "translation": "fcf50d7e0f71a4ecd692869c5accbd0a5bc3cbbe"
+    },
+    "settings.keyboardShortcuts.actions.edit-priority": {
+      "source": "1c7d6d645c7a926a01073e9de0d7734e8709e609",
+      "translation": "64074ad30a9f4be4cb968709df5f6b892d16de00"
+    },
+    "settings.keyboardShortcuts.actions.mark-complete": {
+      "source": "0c018491b96aadfff5ebeb45434a2945bdd12741",
+      "translation": "c72c8bd88325a3a7f1123bae3a3d6353d63469d8"
+    },
+    "settings.keyboardShortcuts.actions.edit-status": {
+      "source": "5ce5926a2ad6ab7245915ed31f5b7e22aac248e0",
+      "translation": "35c8f0ef1e0bb7d8bbc018bd0d40768d9b4c6170"
+    },
+    "settings.keyboardShortcuts.actions.edit-recurrence": {
+      "source": "fa219424af91af97c6840dc113a9a352be944f0e",
+      "translation": "88e644114d6abcf564e230c0290189658b412358"
+    },
+    "settings.keyboardShortcuts.actions.add-tags": {
+      "source": "1dd02addd0de918d132176c95f135b77bf5eb0a4",
+      "translation": "398dfcefb044d003e1090f4e68cc621f7dbaa68b"
+    },
+    "settings.keyboardShortcuts.actions.add-context": {
+      "source": "08dae0bb10f5fe62e0690120e879d382a19d7aab",
+      "translation": "d2aa793085e74a3dd505011c7264400389017b67"
+    },
+    "settings.keyboardShortcuts.actions.add-project": {
+      "source": "2470e8667bfae5270588f1574daf0d7cd7a89c41",
+      "translation": "db11810a83cacab6ebf2ad4cce978c2532717db0"
+    },
+    "settings.keyboardShortcuts.actions.delete-tasks": {
+      "source": "c25eb923d2de14b426e095b6b921d59ffc263000",
+      "translation": "9d0f4c24833fcb6d7ca9c3ab507f4754dcc5388d"
+    },
+    "settings.keyboardShortcuts.addUserField": {
+      "source": "987991424835f2af04f31917e0743036bc17677f",
+      "translation": "57475fca171c52b362ca73404c1cd63d0510bff1"
+    },
+    "settings.keyboardShortcuts.addUserFieldDescription": {
+      "source": "b9cb91cbe4c008c1c83ae5f72e79a6a9cfaaa2be",
+      "translation": "1c2d932a6ce59ef6fdcd6dc21ef19f617466c65d"
+    },
     "settings.features.inlineTasks.header": {
       "source": "a0f498bf59b33369a6a0aca916b487fd04ea40a7",
       "translation": "e4840351a15b65cb43b38b53ce73a1b976f8993f"
@@ -52367,11 +54002,26 @@
       "source": "da2d900ba2974dde90a7c9b3744359f33043415e",
       "translation": "0a16eedc80343eb7329f68625bbfc59d443ed192"
     },
-    "settings.general.taskInteraction.groupDropBehavior.name": null,
-    "settings.general.taskInteraction.groupDropBehavior.description": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replace": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.add": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": null,
+    "settings.general.taskInteraction.groupDropBehavior.name": {
+      "source": "594a13d04608b9fc5bc7a1d18e2a3ff0ecf8de0f",
+      "translation": "82d7aa3d9b5e4b7f5024b3d9e75e739ae918da65"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.description": {
+      "source": "4e3698613ba53d069533f3f5fc8fd560f163ce6e",
+      "translation": "8d545966a9b106f7d28008a72f707e181ce4b1cc"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replace": {
+      "source": "88dfbf0e4144d8386399ff19c8bcac06530b0be8",
+      "translation": "feabbb3c60ec1fcbe44d7c7261d3fe04fd1b6f38"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.add": {
+      "source": "acb1678a253322aa33effe9c6171a30bb39ebd56",
+      "translation": "a8e83c49e5be8e0a3cb593293b5b4ac96342c41c"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": {
+      "source": "4da18f4aae22fa12834bfd87996d1acf34124cc8",
+      "translation": "e23e30f982c771a27c3ee70376656f37069cb067"
+    },
     "settings.general.taskInteraction.actions.edit": {
       "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
       "translation": "2fc5428146590ec9e251d86d5eda909f045c16ff"
@@ -61126,6 +62776,10 @@
       "source": "efe6795d4c7e0e06a8950f51c2a37070e27989b1",
       "translation": "4e8c7a15d32b788a6d26cf220b63936660880444"
     },
+    "settings.tabs.keyboardShortcuts": {
+      "source": "266695479a949eec44dea9db4e15fba00163f04e",
+      "translation": "c5ebffc3f9528e96c33d297907d8a2d7572edf48"
+    },
     "settings.tabs.defaults": {
       "source": "791c4dc17d9b67ba065e8e94d65f1c4d54638e6a",
       "translation": "6a7eb9c28fa6e66cef00866e08fad40dbeb11a56"
@@ -61138,54 +62792,310 @@
       "source": "fc338f87a058158eb824b53705961801516a9460",
       "translation": "3aba49bc56ef38937125b52781a6aa50cd3c5ac2"
     },
-    "settings.tabs.keyboardShortcuts": null,
     "settings.tabs.integrations": {
       "source": "a7881cac6e64abca5eafd172df6eb31fe0b84c88",
       "translation": "55ca8fac219f5e28fd59d8bb5fbf076eb08046d3"
     },
-    "settings.keyboardShortcuts.header": null,
-    "settings.keyboardShortcuts.description": null,
-    "settings.keyboardShortcuts.actionDescription": null,
-    "settings.keyboardShortcuts.add": null,
-    "settings.keyboardShortcuts.remove": null,
-    "settings.keyboardShortcuts.captureHint": null,
-    "settings.keyboardShortcuts.recording": null,
-    "settings.keyboardShortcuts.confirmTitle": null,
-    "settings.keyboardShortcuts.confirmMessage": null,
-    "settings.keyboardShortcuts.confirm": null,
-    "settings.keyboardShortcuts.resetAction": null,
-    "settings.keyboardShortcuts.resetAll": null,
-    "settings.keyboardShortcuts.resetAllDescription": null,
-    "settings.keyboardShortcuts.conflict": null,
-    "settings.keyboardShortcuts.duplicateTitle": null,
-    "settings.keyboardShortcuts.duplicateMessage": null,
-    "settings.keyboardShortcuts.replace": null,
-    "settings.keyboardShortcuts.actions.navigate-next": null,
-    "settings.keyboardShortcuts.actions.navigate-previous": null,
-    "settings.keyboardShortcuts.actions.jump-first": null,
-    "settings.keyboardShortcuts.actions.jump-last": null,
-    "settings.keyboardShortcuts.actions.clear-focus-and-selection": null,
-    "settings.keyboardShortcuts.actions.toggle-select": null,
-    "settings.keyboardShortcuts.actions.select-all": null,
-    "settings.keyboardShortcuts.actions.copy-task-titles": null,
-    "settings.keyboardShortcuts.actions.toggle-archive": null,
-    "settings.keyboardShortcuts.actions.create-task": null,
-    "settings.keyboardShortcuts.actions.focus-search": null,
-    "settings.keyboardShortcuts.actions.edit-task": null,
-    "settings.keyboardShortcuts.actions.open-context-menu": null,
-    "settings.keyboardShortcuts.actions.open-task-notes": null,
-    "settings.keyboardShortcuts.actions.edit-due": null,
-    "settings.keyboardShortcuts.actions.edit-scheduled": null,
-    "settings.keyboardShortcuts.actions.edit-priority": null,
-    "settings.keyboardShortcuts.actions.mark-complete": null,
-    "settings.keyboardShortcuts.actions.edit-status": null,
-    "settings.keyboardShortcuts.actions.edit-recurrence": null,
-    "settings.keyboardShortcuts.actions.add-tags": null,
-    "settings.keyboardShortcuts.actions.add-context": null,
-    "settings.keyboardShortcuts.actions.add-project": null,
-    "settings.keyboardShortcuts.actions.delete-tasks": null,
-    "settings.keyboardShortcuts.addUserField": null,
-    "settings.keyboardShortcuts.addUserFieldDescription": null,
+    "settings.modalFields.header": {
+      "source": "463769fb01686447dfedbb494aa058ba8f025686",
+      "translation": "46150c2900c50d257ed2a19acdeda3c7f1424622"
+    },
+    "settings.modalFields.description": {
+      "source": "15ec3cb1720d8b370a1e04d4ca7a0b3ddd8567fc",
+      "translation": "720dde65c8f9d69eb00459f6ad70ad4aaeafefef"
+    },
+    "settings.modalFields.splitLayout.name": {
+      "source": "60564be9095b0be664a9d1ea663ac74e5ccef220",
+      "translation": "c8cce685b558d5d937ac56fa6fa32b4f8165509b"
+    },
+    "settings.modalFields.splitLayout.description": {
+      "source": "c37507b5356b91ddc9b2ecffb71ed8aa9bd99bc5",
+      "translation": "830595cda7d8931360c53e4b4bed20f869d6a8e6"
+    },
+    "settings.modalFields.tabMovesFocus.name": {
+      "source": "6d204daa67216709d1eb3f9c6f72b0d5289ee66b",
+      "translation": "1e3b60d761a98a9b4899c93eee021da1511282d5"
+    },
+    "settings.modalFields.tabMovesFocus.description": {
+      "source": "2f4053ebbcf6766caa54489d1f64196cb4b1d65f",
+      "translation": "3ca99ac9159fd6ef5549a2ec8ec243c067655dbe"
+    },
+    "settings.modalFields.sync.name": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "5124c2dd39a6b1c254431e2bb4bad6be0f22c82a"
+    },
+    "settings.modalFields.sync.description": {
+      "source": "d5ff882897bbaa153719e8cd96f42c1884977a9c",
+      "translation": "68f3b2a6e6941e4d8f28b1f790c7161e2303574e"
+    },
+    "settings.modalFields.sync.button": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "5124c2dd39a6b1c254431e2bb4bad6be0f22c82a"
+    },
+    "settings.modalFields.sync.notice": {
+      "source": "9e18b026eb848fc00a0f405979ab0999ee69be0f",
+      "translation": "bb977b0b89860e1943bfc20abfc583720dfcc68a"
+    },
+    "settings.modalFields.reset.name": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "9b37d67514c3262b51b65912b3ba003b658b2e75"
+    },
+    "settings.modalFields.reset.description": {
+      "source": "af2b7f65f817989f953ee108fa2ac0a3eff97670",
+      "translation": "30f6e1b084596893d5b53e59711dfc2521fa469e"
+    },
+    "settings.modalFields.reset.button": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "9b37d67514c3262b51b65912b3ba003b658b2e75"
+    },
+    "settings.modalFields.reset.confirmTitle": {
+      "source": "b4dfd2ca17670f8eacf7a8fe142e22522f450b40",
+      "translation": "e289dc4f3ac447079aa33d3123e658bbdc812524"
+    },
+    "settings.modalFields.reset.confirmMessage": {
+      "source": "b8b0d02597a163dd9e687912551e2052b26b5234",
+      "translation": "7eaebae1b0c0e233ddeae1960d4b4cc27d46f324"
+    },
+    "settings.modalFields.reset.confirmText": {
+      "source": "44c57abd888a66b36d4b7c902134063e4a097223",
+      "translation": "058f162d2926fb8667e77b52f171800b72657661"
+    },
+    "settings.modalFields.reset.cancelText": {
+      "source": "77dfd2135f4db726c47299bb55be26f7f4525a46",
+      "translation": "0ec753be8df955a117404fb634b01b45eb386e2a"
+    },
+    "settings.modalFields.reset.notice": {
+      "source": "998a1e127a85d5e119fa538c08e07eacc044ad68",
+      "translation": "acb748090d82abdbdf64f804e61f7c259e945c8d"
+    },
+    "settings.modalFields.initError": {
+      "source": "813bc1f0be1c2c8d047659e061029b41300e43ef",
+      "translation": "b985d38291c2c8ec2b6da1746220e8a04a83c235"
+    },
+    "settings.modalFields.manager.invalidConfig": {
+      "source": "e4d5672cae6c369bd1cd23a8c950e044319a6662",
+      "translation": "afdd3749ad6abad0b3c6de1fd83a0340c091f073"
+    },
+    "settings.modalFields.manager.emptyGroup": {
+      "source": "f2ef4e6d48d44c229ecb83b3d3e799df8a8eb367",
+      "translation": "df9be05e894b7f1a45d8dbb39096a3cbbc2e888a"
+    },
+    "settings.modalFields.manager.enabled": {
+      "source": "f1b45b4b3bf49e9b92c8251ac538f4cfff36209a",
+      "translation": "b8fb5150f97975900bc6d4fe3de353ef68ecfbb8"
+    },
+    "settings.modalFields.manager.showInCreation": {
+      "source": "b8e50d533a687b109bf799f060eafd36221d094a",
+      "translation": "7436d54717bc3b5ddb672cfe88a42cf06aa64b12"
+    },
+    "settings.modalFields.manager.showInEdit": {
+      "source": "1933e97174ad50029164292cdf98e28d9f951a76",
+      "translation": "b28553b7dbd65ac5c3ed719c4d58a44a419c0a27"
+    },
+    "settings.modalFields.manager.group": {
+      "source": "c04773b71e46b5ce75774be4f01e3902119b03f8",
+      "translation": "0e16205c35f060014eace6e7adc5fde4ea69a46e"
+    },
+    "settings.modalFields.manager.fieldId": {
+      "source": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1",
+      "translation": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1"
+    },
+    "settings.modalFields.manager.fieldKey": {
+      "source": "ac49e227c79e530ebc416022e7d86a93765313e3",
+      "translation": "a3950c8cf0f30f43c1db9f9676bae299512da925"
+    },
+    "settings.modalFields.manager.noKey": {
+      "source": "367b4a155f777aae3242c44f81ca50aae3a6dee6",
+      "translation": "59b94e657c089733dcd584269c112a416b81ddad"
+    },
+    "settings.modalFields.manager.fieldTypes.core": {
+      "source": "68836c550ee20fae0e06b2994e76a40348d2fc30",
+      "translation": "127492c294325b6b107ee07889808c5980ad77de"
+    },
+    "settings.modalFields.manager.fieldTypes.user": {
+      "source": "9f8a2389a20ca0752aa9e95093515517e90e194c",
+      "translation": "5ef414ec95f7d2096d0f3b925232d7fba827f9d1"
+    },
+    "settings.modalFields.manager.fieldTypes.dependency": {
+      "source": "ce311abe7bbcb35898a8ac0bf7c2dca01106d8f6",
+      "translation": "0c71b6f4bbee99f80b3d7e3e90ceaef33813c23e"
+    },
+    "settings.modalFields.manager.fieldTypes.organization": {
+      "source": "519255ae1f74ffc5ddd29979295c7572f048ad81",
+      "translation": "48b493a19d1fb15257e829fcd90927bd5d6417e8"
+    },
+    "settings.keyboardShortcuts.header": {
+      "source": "3fedd656b7907df71597d5fd3d00de0bc273d1c4",
+      "translation": "f8602bcc75f4cf2827275508be6929ecfeb78899"
+    },
+    "settings.keyboardShortcuts.description": {
+      "source": "bfd1d4089875cb53d4d40763ab6dbf8ed25ec7a2",
+      "translation": "bbc8b1627b4c51995f8d95f5fc450f909fb2f17c"
+    },
+    "settings.keyboardShortcuts.actionDescription": {
+      "source": "b0620d440c1bfec2ca80935171d7691818ea002e",
+      "translation": "c2f7cd0f8506f0cf1971bf3182dcb4410d146a43"
+    },
+    "settings.keyboardShortcuts.add": {
+      "source": "8b908560b10b3da34c4d5586108f0491dbd8855f",
+      "translation": "8a53cdce2d3bab995eaaa240c2eda2f66a0d4373"
+    },
+    "settings.keyboardShortcuts.remove": {
+      "source": "0e000d01cc293b590d5c64862cad91bbf76489f1",
+      "translation": "42a75d1c7fd5c493ca7edc03aa6530f69e86cbac"
+    },
+    "settings.keyboardShortcuts.captureHint": {
+      "source": "d71568c24bcac6f4afa4e72cbc4c0a7c0e0c9426",
+      "translation": "5a79ad5a800d7ed20b231d757e54e4c9639cc8a5"
+    },
+    "settings.keyboardShortcuts.recording": {
+      "source": "98b8167e219d62a3861686ed819db30c69eac809",
+      "translation": "40ef1c0c92dbe44cb34f0d75e811995375190358"
+    },
+    "settings.keyboardShortcuts.confirmTitle": {
+      "source": "aee8a9be17d8f68e4e791a5af4b7679a8c7415f8",
+      "translation": "b47a3bc4b74d297bf6c460bf25de95dac771951d"
+    },
+    "settings.keyboardShortcuts.confirmMessage": {
+      "source": "ecda59f41be584195485db7e44879ad1c71892c9",
+      "translation": "c9dd9fc1c032c1468aa6b9871a0d600095fa9a93"
+    },
+    "settings.keyboardShortcuts.confirm": {
+      "source": "61cc55aa0453184734c3fa0b621eda6fa874bd83",
+      "translation": "559a87f7cc13d01e7e4a37fc684578883226ffc7"
+    },
+    "settings.keyboardShortcuts.resetAction": {
+      "source": "a484a49884b0960a2c0312f1530ab30dd2a00d99",
+      "translation": "673a9b293199cff4ab7201ccdf551e82f61cdf07"
+    },
+    "settings.keyboardShortcuts.resetAll": {
+      "source": "cdaa7ba41263eb1d4bd2be803a6ce7b2435fa6b1",
+      "translation": "074109aa05e61b3e8f7e97dde86cc31a84125f8a"
+    },
+    "settings.keyboardShortcuts.resetAllDescription": {
+      "source": "ccea6c2e0713e07f5c5d6f1fb6d05e16db7e7b05",
+      "translation": "275a560ffb6b1d606330bcfed7a38b962f9fd064"
+    },
+    "settings.keyboardShortcuts.conflict": {
+      "source": "e6f952f6c9af5a621240ab78b67b09ac57341150",
+      "translation": "ee4272a4091872a77229988873522867a697131a"
+    },
+    "settings.keyboardShortcuts.duplicateTitle": {
+      "source": "fafff5ca4a1e594f4ef879ad5ad6737579380826",
+      "translation": "4a23b69e124820c11cc8d9c4c008d06d5665faa8"
+    },
+    "settings.keyboardShortcuts.duplicateMessage": {
+      "source": "d879576f38c2be6b61803bd89bc60467663b3581",
+      "translation": "144d2bfe9acdcb83e9948d020383f5e207bcae0a"
+    },
+    "settings.keyboardShortcuts.replace": {
+      "source": "a7cf7b25a703b308887c7f1d100c4326ef20ac46",
+      "translation": "d772cc53bede6e44e64f862afe35055aaaca00f3"
+    },
+    "settings.keyboardShortcuts.actions.navigate-next": {
+      "source": "79aca4bc3e93782027c4b1a816a6d90147ef773c",
+      "translation": "382d00166708afc8e786f2af10e13b645a323a5e"
+    },
+    "settings.keyboardShortcuts.actions.navigate-previous": {
+      "source": "1a8e9715cc69f9ba4aafe88c18da9d1df2b1145d",
+      "translation": "7033b1e336dee25a0c2fed103353eb536983d790"
+    },
+    "settings.keyboardShortcuts.actions.jump-first": {
+      "source": "727e80658259f01259f220f7f613d9e1875c0979",
+      "translation": "7e4397921ae990c4a9ca0dec244da896ef581901"
+    },
+    "settings.keyboardShortcuts.actions.jump-last": {
+      "source": "7d84df2bbf7de545d1649f3258f2cd83bdb8a167",
+      "translation": "8335b3684fe9c5e9f43fd86d7e9f74c3cc66c4f8"
+    },
+    "settings.keyboardShortcuts.actions.clear-focus-and-selection": {
+      "source": "029660c154900884b2beb3682f2d1f3b6db1a162",
+      "translation": "9bf77d6eb5238cb3ef6849e30e084fd85e9c73d1"
+    },
+    "settings.keyboardShortcuts.actions.toggle-select": {
+      "source": "7b96fbd541821b4e1bf62b73426577c22d80d7c7",
+      "translation": "1bc170a89b6fb2a371e64c6d003aed8268cac78f"
+    },
+    "settings.keyboardShortcuts.actions.select-all": {
+      "source": "ed45a52fc7e6617b02f579ca9387687013bf9497",
+      "translation": "984b94440252a2b77b955a721d87d1e71171ad2f"
+    },
+    "settings.keyboardShortcuts.actions.copy-task-titles": {
+      "source": "3872aa3135d4ce4539906f51b4f703974f03d87b",
+      "translation": "7ebee808a1f84fb66382d763bfc801c505fa5642"
+    },
+    "settings.keyboardShortcuts.actions.toggle-archive": {
+      "source": "825f484bb9bf0857b94bed53810b917c00319d50",
+      "translation": "c88122c9cd39a3215b201d36359a68e1e1772630"
+    },
+    "settings.keyboardShortcuts.actions.create-task": {
+      "source": "f1f1450ff80aeab91cb0853329e2b454904866e2",
+      "translation": "c53a9f0c094738447a069a768a690b9a5d3d4da7"
+    },
+    "settings.keyboardShortcuts.actions.focus-search": {
+      "source": "4c50e4cc8f632550e30c2e328cc5aaaba2ba38b4",
+      "translation": "5eb93bc453eda42f3c638edc902825634e2cc64b"
+    },
+    "settings.keyboardShortcuts.actions.edit-task": {
+      "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
+      "translation": "dd77cd566f3602905ba5101e07fbf95628132462"
+    },
+    "settings.keyboardShortcuts.actions.open-context-menu": {
+      "source": "6c16e06070c95cf43cd041a19910605ba3283686",
+      "translation": "dd360192d5bea63261bc6d5f826001d9a60d71e2"
+    },
+    "settings.keyboardShortcuts.actions.open-task-notes": {
+      "source": "fbd1aa98301dadc1150aea34db34c2d99cad2063",
+      "translation": "be38677949005eca4438e537dfa37d225a0da7dc"
+    },
+    "settings.keyboardShortcuts.actions.edit-due": {
+      "source": "3fc38cbf2d3ac4d799d8de76edbb438e4bfff385",
+      "translation": "4ad1baea032589585f2174c7eb6a7b3630a2c5fd"
+    },
+    "settings.keyboardShortcuts.actions.edit-scheduled": {
+      "source": "305b14722146b4a9e6e179117634159cac74cde9",
+      "translation": "0942b46138782bcb1c530e3e51e6cc2f02492c48"
+    },
+    "settings.keyboardShortcuts.actions.edit-priority": {
+      "source": "1c7d6d645c7a926a01073e9de0d7734e8709e609",
+      "translation": "4ed7f67e4c68bb69b65945fe437363ba6e2f3eec"
+    },
+    "settings.keyboardShortcuts.actions.mark-complete": {
+      "source": "0c018491b96aadfff5ebeb45434a2945bdd12741",
+      "translation": "7c605d6598776b14dccc1db231987457fb48aae3"
+    },
+    "settings.keyboardShortcuts.actions.edit-status": {
+      "source": "5ce5926a2ad6ab7245915ed31f5b7e22aac248e0",
+      "translation": "d38a21f1697649612b9b45c7a0bf2420d51c4dbb"
+    },
+    "settings.keyboardShortcuts.actions.edit-recurrence": {
+      "source": "fa219424af91af97c6840dc113a9a352be944f0e",
+      "translation": "33e1df35d5d706d5b283a20a857158e675e15556"
+    },
+    "settings.keyboardShortcuts.actions.add-tags": {
+      "source": "1dd02addd0de918d132176c95f135b77bf5eb0a4",
+      "translation": "f06d7ee1610ecc9691327c119ada9b9b20fcf2b5"
+    },
+    "settings.keyboardShortcuts.actions.add-context": {
+      "source": "08dae0bb10f5fe62e0690120e879d382a19d7aab",
+      "translation": "d2b2cb62bf02b088b19844bf8d281a6a1cf57250"
+    },
+    "settings.keyboardShortcuts.actions.add-project": {
+      "source": "2470e8667bfae5270588f1574daf0d7cd7a89c41",
+      "translation": "b609166084cde3337be67b490fc545e74cc3dc1e"
+    },
+    "settings.keyboardShortcuts.actions.delete-tasks": {
+      "source": "c25eb923d2de14b426e095b6b921d59ffc263000",
+      "translation": "7bb0174bb257670ea90430aaf7fb08475941f997"
+    },
+    "settings.keyboardShortcuts.addUserField": {
+      "source": "987991424835f2af04f31917e0743036bc17677f",
+      "translation": "3b624ccfb4025b4b2e1a0385d2bf0b5573c97768"
+    },
+    "settings.keyboardShortcuts.addUserFieldDescription": {
+      "source": "b9cb91cbe4c008c1c83ae5f72e79a6a9cfaaa2be",
+      "translation": "e6f3b98676a893f75a31802240209c4b61399157"
+    },
     "settings.features.inlineTasks.header": {
       "source": "a0f498bf59b33369a6a0aca916b487fd04ea40a7",
       "translation": "ed325e2a0e049939e66b927ab4ad76ff76319842"
@@ -62218,11 +64128,26 @@
       "source": "da2d900ba2974dde90a7c9b3744359f33043415e",
       "translation": "49b442f424450984786e4d10e6bedf1b3f2a467a"
     },
-    "settings.general.taskInteraction.groupDropBehavior.name": null,
-    "settings.general.taskInteraction.groupDropBehavior.description": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replace": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.add": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": null,
+    "settings.general.taskInteraction.groupDropBehavior.name": {
+      "source": "594a13d04608b9fc5bc7a1d18e2a3ff0ecf8de0f",
+      "translation": "eb17a54c742dd9c9c69ec48eaae64622bc65ba40"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.description": {
+      "source": "4e3698613ba53d069533f3f5fc8fd560f163ce6e",
+      "translation": "bd7bef2855b569b1dd362188bcd67d771cdf7f59"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replace": {
+      "source": "88dfbf0e4144d8386399ff19c8bcac06530b0be8",
+      "translation": "ea82041898c5208b3554669c26b51f3da55e30ce"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.add": {
+      "source": "acb1678a253322aa33effe9c6171a30bb39ebd56",
+      "translation": "6b4006a6ef6d5449f27008ecdca7d821c20f410e"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": {
+      "source": "4da18f4aae22fa12834bfd87996d1acf34124cc8",
+      "translation": "b27a780b29b88d0af0bb19671ba8ebfd662e552e"
+    },
     "settings.general.taskInteraction.actions.edit": {
       "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
       "translation": "d928b6f60bfea2fe71815b9ef0a16da98290e3e1"
@@ -70977,6 +72902,10 @@
       "source": "efe6795d4c7e0e06a8950f51c2a37070e27989b1",
       "translation": "ad8659c9b09e459b2aa92875aa38c163f9d71624"
     },
+    "settings.tabs.keyboardShortcuts": {
+      "source": "266695479a949eec44dea9db4e15fba00163f04e",
+      "translation": "021cf99c0d67920a1428072a52499480aa945ccf"
+    },
     "settings.tabs.defaults": {
       "source": "791c4dc17d9b67ba065e8e94d65f1c4d54638e6a",
       "translation": "081419d71edc6ca7892bae582ae058e42a03fc7c"
@@ -70989,54 +72918,310 @@
       "source": "fc338f87a058158eb824b53705961801516a9460",
       "translation": "4e1ff3eb775957c295e7dc31e1b3ca70eda907a6"
     },
-    "settings.tabs.keyboardShortcuts": null,
     "settings.tabs.integrations": {
       "source": "a7881cac6e64abca5eafd172df6eb31fe0b84c88",
       "translation": "2a213ace35b25b9171b9198828a4d3151a85f77f"
     },
-    "settings.keyboardShortcuts.header": null,
-    "settings.keyboardShortcuts.description": null,
-    "settings.keyboardShortcuts.actionDescription": null,
-    "settings.keyboardShortcuts.add": null,
-    "settings.keyboardShortcuts.remove": null,
-    "settings.keyboardShortcuts.captureHint": null,
-    "settings.keyboardShortcuts.recording": null,
-    "settings.keyboardShortcuts.confirmTitle": null,
-    "settings.keyboardShortcuts.confirmMessage": null,
-    "settings.keyboardShortcuts.confirm": null,
-    "settings.keyboardShortcuts.resetAction": null,
-    "settings.keyboardShortcuts.resetAll": null,
-    "settings.keyboardShortcuts.resetAllDescription": null,
-    "settings.keyboardShortcuts.conflict": null,
-    "settings.keyboardShortcuts.duplicateTitle": null,
-    "settings.keyboardShortcuts.duplicateMessage": null,
-    "settings.keyboardShortcuts.replace": null,
-    "settings.keyboardShortcuts.actions.navigate-next": null,
-    "settings.keyboardShortcuts.actions.navigate-previous": null,
-    "settings.keyboardShortcuts.actions.jump-first": null,
-    "settings.keyboardShortcuts.actions.jump-last": null,
-    "settings.keyboardShortcuts.actions.clear-focus-and-selection": null,
-    "settings.keyboardShortcuts.actions.toggle-select": null,
-    "settings.keyboardShortcuts.actions.select-all": null,
-    "settings.keyboardShortcuts.actions.copy-task-titles": null,
-    "settings.keyboardShortcuts.actions.toggle-archive": null,
-    "settings.keyboardShortcuts.actions.create-task": null,
-    "settings.keyboardShortcuts.actions.focus-search": null,
-    "settings.keyboardShortcuts.actions.edit-task": null,
-    "settings.keyboardShortcuts.actions.open-context-menu": null,
-    "settings.keyboardShortcuts.actions.open-task-notes": null,
-    "settings.keyboardShortcuts.actions.edit-due": null,
-    "settings.keyboardShortcuts.actions.edit-scheduled": null,
-    "settings.keyboardShortcuts.actions.edit-priority": null,
-    "settings.keyboardShortcuts.actions.mark-complete": null,
-    "settings.keyboardShortcuts.actions.edit-status": null,
-    "settings.keyboardShortcuts.actions.edit-recurrence": null,
-    "settings.keyboardShortcuts.actions.add-tags": null,
-    "settings.keyboardShortcuts.actions.add-context": null,
-    "settings.keyboardShortcuts.actions.add-project": null,
-    "settings.keyboardShortcuts.actions.delete-tasks": null,
-    "settings.keyboardShortcuts.addUserField": null,
-    "settings.keyboardShortcuts.addUserFieldDescription": null,
+    "settings.modalFields.header": {
+      "source": "463769fb01686447dfedbb494aa058ba8f025686",
+      "translation": "de5def36c9e19b0c3ea94fb6af589405567eea2b"
+    },
+    "settings.modalFields.description": {
+      "source": "15ec3cb1720d8b370a1e04d4ca7a0b3ddd8567fc",
+      "translation": "4c0e0e9a783a16191e743949808f6ad9673ed73f"
+    },
+    "settings.modalFields.splitLayout.name": {
+      "source": "60564be9095b0be664a9d1ea663ac74e5ccef220",
+      "translation": "38e6a2833adc7925b2edd7334fd658cfcb2fe557"
+    },
+    "settings.modalFields.splitLayout.description": {
+      "source": "c37507b5356b91ddc9b2ecffb71ed8aa9bd99bc5",
+      "translation": "3f2af49229ea306cab44eea2a2f5c0a54eb8c119"
+    },
+    "settings.modalFields.tabMovesFocus.name": {
+      "source": "6d204daa67216709d1eb3f9c6f72b0d5289ee66b",
+      "translation": "7c07146fdac0202276e6b187aadee0f4172e4ee8"
+    },
+    "settings.modalFields.tabMovesFocus.description": {
+      "source": "2f4053ebbcf6766caa54489d1f64196cb4b1d65f",
+      "translation": "f56a35476194f9826a2457f51b86ee83a0466471"
+    },
+    "settings.modalFields.sync.name": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "ef3f3ca1f636912f04808e464def95f744322e2f"
+    },
+    "settings.modalFields.sync.description": {
+      "source": "d5ff882897bbaa153719e8cd96f42c1884977a9c",
+      "translation": "8f55db2c2e3df4748bc1d8726b39ef460eeb0ec7"
+    },
+    "settings.modalFields.sync.button": {
+      "source": "2b5eb47f44d65dc6c694085b9365d49c1439cbf1",
+      "translation": "ef3f3ca1f636912f04808e464def95f744322e2f"
+    },
+    "settings.modalFields.sync.notice": {
+      "source": "9e18b026eb848fc00a0f405979ab0999ee69be0f",
+      "translation": "f6404bb4d91ba7c9b8c3f3d9f9bd04ab242dfb8b"
+    },
+    "settings.modalFields.reset.name": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "0d99ca7e4a07cef67e9d8a823c2f17fc168f083b"
+    },
+    "settings.modalFields.reset.description": {
+      "source": "af2b7f65f817989f953ee108fa2ac0a3eff97670",
+      "translation": "9323c2b2cfbcce1307dc7563c25595b9fff79e28"
+    },
+    "settings.modalFields.reset.button": {
+      "source": "ddefe47d697b2f5bbd08a146fc61c45ef8cf2ffb",
+      "translation": "0d99ca7e4a07cef67e9d8a823c2f17fc168f083b"
+    },
+    "settings.modalFields.reset.confirmTitle": {
+      "source": "b4dfd2ca17670f8eacf7a8fe142e22522f450b40",
+      "translation": "17a0e6daf3e11a564820405538c82fa5c24a1f9b"
+    },
+    "settings.modalFields.reset.confirmMessage": {
+      "source": "b8b0d02597a163dd9e687912551e2052b26b5234",
+      "translation": "0d61fce63d83027aba08dcb47df4c5d24d5176fb"
+    },
+    "settings.modalFields.reset.confirmText": {
+      "source": "44c57abd888a66b36d4b7c902134063e4a097223",
+      "translation": "3d81345303ab49d5bc3c696d2ae941fa31c4056e"
+    },
+    "settings.modalFields.reset.cancelText": {
+      "source": "77dfd2135f4db726c47299bb55be26f7f4525a46",
+      "translation": "4d0b4688c787cf6c33c744bdad5f7d7f56b0feee"
+    },
+    "settings.modalFields.reset.notice": {
+      "source": "998a1e127a85d5e119fa538c08e07eacc044ad68",
+      "translation": "d6b73bbdbc75584e602102e1858c59a84f8cb6d0"
+    },
+    "settings.modalFields.initError": {
+      "source": "813bc1f0be1c2c8d047659e061029b41300e43ef",
+      "translation": "19646bcbd05bf161c604517a47d3125383eb05d1"
+    },
+    "settings.modalFields.manager.invalidConfig": {
+      "source": "e4d5672cae6c369bd1cd23a8c950e044319a6662",
+      "translation": "5105821a568f3ab68b2be19ddea425e4c476bb5b"
+    },
+    "settings.modalFields.manager.emptyGroup": {
+      "source": "f2ef4e6d48d44c229ecb83b3d3e799df8a8eb367",
+      "translation": "ca23e1043b9aa45054ccecc1c26094411d282184"
+    },
+    "settings.modalFields.manager.enabled": {
+      "source": "f1b45b4b3bf49e9b92c8251ac538f4cfff36209a",
+      "translation": "c4c8324094c36c6be2397ea43daf342168a83f55"
+    },
+    "settings.modalFields.manager.showInCreation": {
+      "source": "b8e50d533a687b109bf799f060eafd36221d094a",
+      "translation": "c7cea5973ad6319f7fcfab63047966261769451a"
+    },
+    "settings.modalFields.manager.showInEdit": {
+      "source": "1933e97174ad50029164292cdf98e28d9f951a76",
+      "translation": "90b0ac79e0959dc3774eec09f2e2e12f442464c0"
+    },
+    "settings.modalFields.manager.group": {
+      "source": "c04773b71e46b5ce75774be4f01e3902119b03f8",
+      "translation": "e14c2915ed9bc410c35747099ffaba875ed06df0"
+    },
+    "settings.modalFields.manager.fieldId": {
+      "source": "6ec87ad28f7b153f828b1aa336bc8122fa86d2d1",
+      "translation": "81c655e9b8d813656b151a4d216f20782d8584b5"
+    },
+    "settings.modalFields.manager.fieldKey": {
+      "source": "ac49e227c79e530ebc416022e7d86a93765313e3",
+      "translation": "0518b6afba2a91e60a2705dc7d8c3ceaabd1673c"
+    },
+    "settings.modalFields.manager.noKey": {
+      "source": "367b4a155f777aae3242c44f81ca50aae3a6dee6",
+      "translation": "90c4dc4a5d01bb39269cc4c2fb5eee2178847dc9"
+    },
+    "settings.modalFields.manager.fieldTypes.core": {
+      "source": "68836c550ee20fae0e06b2994e76a40348d2fc30",
+      "translation": "10d95f2cd27f267932ec6cc02f8afdb5fa3b6b59"
+    },
+    "settings.modalFields.manager.fieldTypes.user": {
+      "source": "9f8a2389a20ca0752aa9e95093515517e90e194c",
+      "translation": "9ba763ea34238bdf5c2cb4407507e21a8fc6521b"
+    },
+    "settings.modalFields.manager.fieldTypes.dependency": {
+      "source": "ce311abe7bbcb35898a8ac0bf7c2dca01106d8f6",
+      "translation": "601a1d0eb55e5427fa0f67631276d08535030e2e"
+    },
+    "settings.modalFields.manager.fieldTypes.organization": {
+      "source": "519255ae1f74ffc5ddd29979295c7572f048ad81",
+      "translation": "a3540e824bd48b4f7a0046f108ac4ead76493471"
+    },
+    "settings.keyboardShortcuts.header": {
+      "source": "3fedd656b7907df71597d5fd3d00de0bc273d1c4",
+      "translation": "590d94037f09acedb2190757e9c6ff23d2368c3e"
+    },
+    "settings.keyboardShortcuts.description": {
+      "source": "bfd1d4089875cb53d4d40763ab6dbf8ed25ec7a2",
+      "translation": "437d73ed79b1ea5afa81bb15728a97c367f21863"
+    },
+    "settings.keyboardShortcuts.actionDescription": {
+      "source": "b0620d440c1bfec2ca80935171d7691818ea002e",
+      "translation": "8bf5ac535186efaf255ad924076c8f6a17d7bbe9"
+    },
+    "settings.keyboardShortcuts.add": {
+      "source": "8b908560b10b3da34c4d5586108f0491dbd8855f",
+      "translation": "2cfb87b91c82627cbc1325a2720b7da879ec322a"
+    },
+    "settings.keyboardShortcuts.remove": {
+      "source": "0e000d01cc293b590d5c64862cad91bbf76489f1",
+      "translation": "2e0314ac88ee35acac798f4fe4b9c54181db430a"
+    },
+    "settings.keyboardShortcuts.captureHint": {
+      "source": "d71568c24bcac6f4afa4e72cbc4c0a7c0e0c9426",
+      "translation": "aea3ff8f99fddd245b4a2584696549fb1bd12c55"
+    },
+    "settings.keyboardShortcuts.recording": {
+      "source": "98b8167e219d62a3861686ed819db30c69eac809",
+      "translation": "b2c73e41e2369d3e1419f8504e58d0706f39cf88"
+    },
+    "settings.keyboardShortcuts.confirmTitle": {
+      "source": "aee8a9be17d8f68e4e791a5af4b7679a8c7415f8",
+      "translation": "ae5fc4fb98e9b54edf41dcfcd65759f74b3025f9"
+    },
+    "settings.keyboardShortcuts.confirmMessage": {
+      "source": "ecda59f41be584195485db7e44879ad1c71892c9",
+      "translation": "bd63d003062e6a84d13f593fda081061b5178c61"
+    },
+    "settings.keyboardShortcuts.confirm": {
+      "source": "61cc55aa0453184734c3fa0b621eda6fa874bd83",
+      "translation": "94191ce210d364ab7e34c7193f3927e728282b83"
+    },
+    "settings.keyboardShortcuts.resetAction": {
+      "source": "a484a49884b0960a2c0312f1530ab30dd2a00d99",
+      "translation": "0757a66964d4e79b73456d8a99c8b6689ea82140"
+    },
+    "settings.keyboardShortcuts.resetAll": {
+      "source": "cdaa7ba41263eb1d4bd2be803a6ce7b2435fa6b1",
+      "translation": "28c76fd3041d31eb2c0f2d84c9e3a9b6ff2ee38e"
+    },
+    "settings.keyboardShortcuts.resetAllDescription": {
+      "source": "ccea6c2e0713e07f5c5d6f1fb6d05e16db7e7b05",
+      "translation": "4c6c018b061c3a6fc579ceff2b803c57adc8568f"
+    },
+    "settings.keyboardShortcuts.conflict": {
+      "source": "e6f952f6c9af5a621240ab78b67b09ac57341150",
+      "translation": "54bc1c79977c5b3c91080eac218bb79a503b603e"
+    },
+    "settings.keyboardShortcuts.duplicateTitle": {
+      "source": "fafff5ca4a1e594f4ef879ad5ad6737579380826",
+      "translation": "c11a0277b25fca995b3002cb7b2174ec377fc210"
+    },
+    "settings.keyboardShortcuts.duplicateMessage": {
+      "source": "d879576f38c2be6b61803bd89bc60467663b3581",
+      "translation": "84e041373906072bafc5c98e0c0795f016dd7036"
+    },
+    "settings.keyboardShortcuts.replace": {
+      "source": "a7cf7b25a703b308887c7f1d100c4326ef20ac46",
+      "translation": "855241c2854e257828275be60d63bad5bd4d8391"
+    },
+    "settings.keyboardShortcuts.actions.navigate-next": {
+      "source": "79aca4bc3e93782027c4b1a816a6d90147ef773c",
+      "translation": "aefbbf53a83e7320f0241b22010fff35115102da"
+    },
+    "settings.keyboardShortcuts.actions.navigate-previous": {
+      "source": "1a8e9715cc69f9ba4aafe88c18da9d1df2b1145d",
+      "translation": "3d0a2fdf5da5ddb83e2d177406a6440c6fe7de56"
+    },
+    "settings.keyboardShortcuts.actions.jump-first": {
+      "source": "727e80658259f01259f220f7f613d9e1875c0979",
+      "translation": "8f024b401925a434b72f4d0544f8f7d828edbff4"
+    },
+    "settings.keyboardShortcuts.actions.jump-last": {
+      "source": "7d84df2bbf7de545d1649f3258f2cd83bdb8a167",
+      "translation": "12a4d632f8a2ff2f48ce5274758731f9ad87b153"
+    },
+    "settings.keyboardShortcuts.actions.clear-focus-and-selection": {
+      "source": "029660c154900884b2beb3682f2d1f3b6db1a162",
+      "translation": "3fb81b491d378af484b02318a3f0da23bd37c9ab"
+    },
+    "settings.keyboardShortcuts.actions.toggle-select": {
+      "source": "7b96fbd541821b4e1bf62b73426577c22d80d7c7",
+      "translation": "096da5d475b16c5ddfe5859487b18ae02fb74bd7"
+    },
+    "settings.keyboardShortcuts.actions.select-all": {
+      "source": "ed45a52fc7e6617b02f579ca9387687013bf9497",
+      "translation": "72049681128b5eb705c2a65ce0e2daf1cbf6df99"
+    },
+    "settings.keyboardShortcuts.actions.copy-task-titles": {
+      "source": "3872aa3135d4ce4539906f51b4f703974f03d87b",
+      "translation": "8a8ba5275a9b45a425c1f657e3b2034cf917ecb7"
+    },
+    "settings.keyboardShortcuts.actions.toggle-archive": {
+      "source": "825f484bb9bf0857b94bed53810b917c00319d50",
+      "translation": "7104457ab5a593d9ccfda45fbbc7d454c18afeca"
+    },
+    "settings.keyboardShortcuts.actions.create-task": {
+      "source": "f1f1450ff80aeab91cb0853329e2b454904866e2",
+      "translation": "cf42fd678f460f971d827c93938c14a6045f3374"
+    },
+    "settings.keyboardShortcuts.actions.focus-search": {
+      "source": "4c50e4cc8f632550e30c2e328cc5aaaba2ba38b4",
+      "translation": "ef5c7b257dda52f854e950585020db0e9a9af42d"
+    },
+    "settings.keyboardShortcuts.actions.edit-task": {
+      "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
+      "translation": "67659ba581add1dfdc7d691c0cd73dd7812f9577"
+    },
+    "settings.keyboardShortcuts.actions.open-context-menu": {
+      "source": "6c16e06070c95cf43cd041a19910605ba3283686",
+      "translation": "5facab77272b7fefaf82920c812005903b19ca86"
+    },
+    "settings.keyboardShortcuts.actions.open-task-notes": {
+      "source": "fbd1aa98301dadc1150aea34db34c2d99cad2063",
+      "translation": "45fb537c6e1cbd44fbbb215cd1943794017e365c"
+    },
+    "settings.keyboardShortcuts.actions.edit-due": {
+      "source": "3fc38cbf2d3ac4d799d8de76edbb438e4bfff385",
+      "translation": "a225218e42f90f9b8080da14d78c4d28638843c5"
+    },
+    "settings.keyboardShortcuts.actions.edit-scheduled": {
+      "source": "305b14722146b4a9e6e179117634159cac74cde9",
+      "translation": "571fed83e22f57e52a2e0d0a94548ace22ae8594"
+    },
+    "settings.keyboardShortcuts.actions.edit-priority": {
+      "source": "1c7d6d645c7a926a01073e9de0d7734e8709e609",
+      "translation": "13846ff22cb94f909053f0323fdf56e068f05fa2"
+    },
+    "settings.keyboardShortcuts.actions.mark-complete": {
+      "source": "0c018491b96aadfff5ebeb45434a2945bdd12741",
+      "translation": "d942570cb820930b71bc059e5ab77409a589db91"
+    },
+    "settings.keyboardShortcuts.actions.edit-status": {
+      "source": "5ce5926a2ad6ab7245915ed31f5b7e22aac248e0",
+      "translation": "07014cd0381902903e479c32da18d2b73c8b3789"
+    },
+    "settings.keyboardShortcuts.actions.edit-recurrence": {
+      "source": "fa219424af91af97c6840dc113a9a352be944f0e",
+      "translation": "2513125eb62ce36234e12b1086386ad952e5ba13"
+    },
+    "settings.keyboardShortcuts.actions.add-tags": {
+      "source": "1dd02addd0de918d132176c95f135b77bf5eb0a4",
+      "translation": "df06c7a718e77fde0d7db1cba7df9856808bb6be"
+    },
+    "settings.keyboardShortcuts.actions.add-context": {
+      "source": "08dae0bb10f5fe62e0690120e879d382a19d7aab",
+      "translation": "a0aa5bd9e912a5c4f3eec46219c84b1c080fda79"
+    },
+    "settings.keyboardShortcuts.actions.add-project": {
+      "source": "2470e8667bfae5270588f1574daf0d7cd7a89c41",
+      "translation": "96f9752b2d4e6810ce9499fe65f5f1b8af106dce"
+    },
+    "settings.keyboardShortcuts.actions.delete-tasks": {
+      "source": "c25eb923d2de14b426e095b6b921d59ffc263000",
+      "translation": "0705816c6804a18095ddeedadeaa0357848d3432"
+    },
+    "settings.keyboardShortcuts.addUserField": {
+      "source": "987991424835f2af04f31917e0743036bc17677f",
+      "translation": "551fdf480610e4f0fc3f72432e027eba577aeafc"
+    },
+    "settings.keyboardShortcuts.addUserFieldDescription": {
+      "source": "b9cb91cbe4c008c1c83ae5f72e79a6a9cfaaa2be",
+      "translation": "6fd77626c51094de2a6b3d6e28ef7b03c1a04402"
+    },
     "settings.features.inlineTasks.header": {
       "source": "a0f498bf59b33369a6a0aca916b487fd04ea40a7",
       "translation": "29a6c4edbeac9373f6e112eee10387b97be35a25"
@@ -72069,11 +74254,26 @@
       "source": "da2d900ba2974dde90a7c9b3744359f33043415e",
       "translation": "1f0a27c13aac98f2a3ad01e60a45998bb41a0b94"
     },
-    "settings.general.taskInteraction.groupDropBehavior.name": null,
-    "settings.general.taskInteraction.groupDropBehavior.description": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replace": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.add": null,
-    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": null,
+    "settings.general.taskInteraction.groupDropBehavior.name": {
+      "source": "594a13d04608b9fc5bc7a1d18e2a3ff0ecf8de0f",
+      "translation": "dba77cd1822c68d884f676b7dba428f9def29a00"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.description": {
+      "source": "4e3698613ba53d069533f3f5fc8fd560f163ce6e",
+      "translation": "5660f98bcdf91d7b3875720c110cd5a7cf8513be"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replace": {
+      "source": "88dfbf0e4144d8386399ff19c8bcac06530b0be8",
+      "translation": "2f19d21dbd768895b93fd0f5842bfabfeb19b538"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.add": {
+      "source": "acb1678a253322aa33effe9c6171a30bb39ebd56",
+      "translation": "23af585661d682d4212207248b25e3b52bb9c902"
+    },
+    "settings.general.taskInteraction.groupDropBehavior.options.replaceModifierAdd": {
+      "source": "4da18f4aae22fa12834bfd87996d1acf34124cc8",
+      "translation": "a032ed6444fd663c6637533f7b4c0e569c4fdbe1"
+    },
     "settings.general.taskInteraction.actions.edit": {
       "source": "8a4d4e6eb9a367d616b8a4cbfa2792068482e884",
       "translation": "67659ba581add1dfdc7d691c0cd73dd7812f9577"
